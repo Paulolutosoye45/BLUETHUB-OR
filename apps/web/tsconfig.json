@@ -1,0 +1,18 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@bluethub/ui-kit": ["../../packages/ui/src"],
+      // Add mappings for ui @/ imports
+      "@/lib/*": ["../../packages/ui/src/lib/*"],
+      "@/components/*": ["../../packages/ui/src/components/*"],
+      // General web app alias
+      "@/*": ["src/*"]
+    }
+  }
+}
