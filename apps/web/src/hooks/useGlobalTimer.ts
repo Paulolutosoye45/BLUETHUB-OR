@@ -1,7 +1,7 @@
 import type { RootState } from "@/store";
 import { useRef, useCallback, useState } from "react";
 import { useSelector } from "react-redux";
-import type { SetStateAction } from "react";
+// import type { SetStateAction } from "react";
   
 
 interface UseGlobalTimerProps {
