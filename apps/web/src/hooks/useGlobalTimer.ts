@@ -1,6 +1,7 @@
 import type { RootState } from "@/store";
 import { useRef, useCallback, useState } from "react";
 import { useSelector } from "react-redux";
+import type { SetStateAction } from "react";
   
 
 interface UseGlobalTimerProps {
@@ -11,7 +12,7 @@ interface UseGlobalTimerProps {
 export const useGlobalTimer = ({
   onTargetReached,
 }: UseGlobalTimerProps = {}) => {
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+ const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const elapsedRef = useRef<number>(0);
   const targetSecondsRef = useRef<number | null>(null);

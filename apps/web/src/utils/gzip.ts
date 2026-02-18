@@ -10,7 +10,7 @@ export async function gzipCompress(data: string): Promise<Uint8Array> {
 export async function gzipDecompress(data: Uint8Array): Promise<string> {
   const ds = new DecompressionStream("gzip");
   const writer = ds.writable.getWriter();
-  writer.write(data);
+  writer.write(new Uint8Array(data));
   writer.close();
   return await new Response(ds.readable).text();
 }

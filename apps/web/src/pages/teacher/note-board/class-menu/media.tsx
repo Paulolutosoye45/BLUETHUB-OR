@@ -17,7 +17,9 @@ type media = {
 
 // }
 const Media = () => {
-  const [availableMedia, setAvailableMedia] = useState<media[]>([]);
+  const [availableMedia, 
+    // setAvailableMedia
+  ] = useState<media[]>([]);
   const dispatch = useDispatch();
 
   return (
