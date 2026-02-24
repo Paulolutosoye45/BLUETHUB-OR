@@ -146,3 +146,18 @@ export const nextTime = (() => {
 })();
 
 export const SEND_INTERVAL = 1000;
+
+/* ================= HELPERS ================= */
+export const sleep = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+export const base64ToUint8 = (b64: string) =>
+  Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+
+export const timeStringToMs = (time: string) => {
+  const parts = time.split(":").map(Number);
+  return parts.length === 2
+    ? (parts[0] * 60 + parts[1]) * 1000
+    : (parts[0] * 3600 + parts[1] * 60 + parts[2]) * 1000;
+};
+
+export const timerToMs = (displayTime: string) => timeStringToMs(displayTime);

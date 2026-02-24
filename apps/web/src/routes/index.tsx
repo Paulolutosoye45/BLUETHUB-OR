@@ -3,6 +3,7 @@ import Auth from '@/pages/auth';
 import NotFound from '@/component/not-found';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import ClassRoom from '@/layouts/teacher/class/class-room';
+import Replay from '@/component/reply';
 
 const router = createBrowserRouter([
     {
@@ -12,6 +13,10 @@ const router = createBrowserRouter([
     {
         path: '/auth',
         element: <Auth />
+    },
+    {
+        path: '/replay',
+        element: <Replay />
     },
     {
         path: "*",
