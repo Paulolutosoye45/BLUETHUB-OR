@@ -187,9 +187,9 @@ const Audio = () => {
             className="cursor-pointer bg-white drop-shadow-xl rounded-full size-14 flex items-center justify-center"
         >
             {!isRecording ? (
-                <MicIcon className="size-4 text-[#1EE23E]" />
-            ) : (
                 <OffMicIcon className="size-4 text-[#1EE23E]" />
+            ) : (
+                <MicIcon className="size-4 text-[#1EE23E]" />
             )}
         </Button>
     )

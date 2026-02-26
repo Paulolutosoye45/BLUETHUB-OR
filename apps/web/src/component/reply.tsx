@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
-import { Stage, Layer, Line } from 'react-konva';
+import { Stage, Layer, Line, Rect } from 'react-konva';
 import { useGlobalTimer } from '@/hooks/useGlobalTimer';
 import type Konva from 'konva';
-import { 
-  PlayCircle, 
-  StopCircle, 
-  Trash, 
-  Edit3, 
-  Volume2, 
-  Clock, 
+import {
+  PlayCircle,
+  StopCircle,
+  Trash,
+  Edit3,
+  Volume2,
+  Clock,
   Circle,
 } from 'lucide-react';
 import type { AudioBatch, CompressedStroke, Position, Stroke } from '@/utils/constant';
@@ -83,7 +83,7 @@ export default function Replay() {
       resizeObserver.disconnect();
       window.removeEventListener("mousemove", handleMouseMove);
     };
-  }, []);
+  }, [loading]);
 
 
   /* ========== LOAD FROM INDEXEDDB ========== */
@@ -139,7 +139,7 @@ export default function Replay() {
               timestamp: comp.timestamp ?? Date.now(),
               startTime: comp.startTime,
               endTime: comp.endTime,
-              type:comp.type
+              type: comp.type
             });
           } catch (err) {
             console.error(`Failed to decompress stroke ${comp.id}:`, err);
@@ -147,7 +147,7 @@ export default function Replay() {
         }
 
         // Sort chronologically
-        const sorted = decompressed.sort((a, b) =>  (a.timestamp ?? 0) - (b.timestamp ?? 0));
+        const sorted = decompressed.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
         setStrokes(sorted);
 
         if (sorted.length > 0) {
@@ -347,123 +347,131 @@ export default function Replay() {
 
   return (
     <div className="h-screen flex flex-col bg-linear-to-br from-gray-50 to-gray-100">
-  {/* Header Controls */}
-  <div className="bg-white border-b border-gray-200 shadow-sm">
-    <div className="flex items-center justify-between gap-4 p-4">
-      {/* Left: Control Buttons */}
-      <div className="flex items-center gap-3">
-        {/* Play Button */}
-        <button
-          onClick={play}
-          disabled={isPlaying}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-            isPlaying
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
-              : "bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg active:scale-95"
-          }`}
-        >
-          <PlayCircle className="w-5 h-5" />
-          <span>Play</span>
-        </button>
+      {/* Header Controls */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="flex items-center justify-between gap-4 p-4">
+          {/* Left: Control Buttons */}
+          <div className="flex items-center gap-3">
+            {/* Play Button */}
+            <button
+              onClick={play}
+              disabled={isPlaying}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${isPlaying
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
+                : "bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg active:scale-95"
+                }`}
+            >
+              <PlayCircle className="w-5 h-5" />
+              <span>Play</span>
+            </button>
 
-        {/* Stop Button */}
-        <button
-          onClick={stop}
-          disabled={!isPlaying}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-            !isPlaying
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
-              : "bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg active:scale-95"
-          }`}
-        >
-          <StopCircle className="w-5 h-5" />
-          <span>Stop</span>
-        </button>
+            {/* Stop Button */}
+            <button
+              onClick={stop}
+              disabled={!isPlaying}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${!isPlaying
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
+                : "bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg active:scale-95"
+                }`}
+            >
+              <StopCircle className="w-5 h-5" />
+              <span>Stop</span>
+            </button>
 
-        {/* Clear DB Button */}
-        <button
-          disabled={isPlaying || isClearing}
-          onClick={Cleardata}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-            isPlaying || isClearing
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
-              : "bg-orange-500 hover:bg-orange-600 text-white shadow-md hover:shadow-lg active:scale-95"
-          }`}
-        >
-          <Trash className="w-5 h-5" />
-          <span>{isClearing ? "Clearing..." : "Clear DB"}</span>
-        </button>
+            {/* Clear DB Button */}
+            <button
+              disabled={isPlaying || isClearing}
+              onClick={Cleardata}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${isPlaying || isClearing
+                ? "bg-gray-300 text-gray-500 cursor-not-allowed opacity-50"
+                : "bg-orange-500 hover:bg-orange-600 text-white shadow-md hover:shadow-lg active:scale-95"
+                }`}
+            >
+              <Trash className="w-5 h-5" />
+              <span>{isClearing ? "Clearing..." : "Clear DB"}</span>
+            </button>
 
-        {/* Divider */}
-        <div className="h-8 w-px bg-gray-300 mx-2" />
+            {/* Divider */}
+            <div className="h-8 w-px bg-gray-300 mx-2" />
 
-        {/* Stats */}
-        <div className="flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-1.5 text-gray-600">
-            <Edit3 className="w-4 h-4" />
-            <span className="font-semibold">{strokes.length}</span>
-            <span className="text-gray-500">strokes</span>
+            {/* Stats */}
+            <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-1.5 text-gray-600">
+                <Edit3 className="w-4 h-4" />
+                <span className="font-semibold">{strokes.length}</span>
+                <span className="text-gray-500">strokes</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-gray-600">
+                <Volume2 className="w-4 h-4" />
+                <span className="font-semibold">{audioList.length}</span>
+                <span className="text-gray-500">audio</span>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-1.5 text-gray-600">
-            <Volume2 className="w-4 h-4" />
-            <span className="font-semibold">{audioList.length}</span>
-            <span className="text-gray-500">audio</span>
+
+          {/* Center: Playback Status */}
+          {isPlaying && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+              <Circle className="w-2 h-2 fill-blue-500 text-blue-500 animate-pulse" />
+              <div className="text-sm font-medium text-blue-700">
+                Audio: {currentBatch + 1}/{audioList.length} • Strokes: {drawn.length}/{strokes.length}
+              </div>
+            </div>
+          )}
+
+          {/* Right: Timer */}
+          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg border border-gray-300">
+            <Clock className="w-5 h-5 text-gray-600" />
+            <div className="font-mono text-2xl font-bold text-gray-800">
+              {timer.displayTime}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Center: Playback Status */}
-      {isPlaying && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-          <Circle className="w-2 h-2 fill-blue-500 text-blue-500 animate-pulse" />
-          <div className="text-sm font-medium text-blue-700">
-            Audio: {currentBatch + 1}/{audioList.length} • Strokes: {drawn.length}/{strokes.length}
-          </div>
+      {/* Hidden audio player */}
+      <audio ref={audioRef} />
+
+      {/* Canvas Area */}
+      <div className="flex-1 p-4 overflow-hidden">
+        <div
+          ref={parentRef}
+          className="h-full bg-white rounded-lg shadow-lg border-2 border-gray-300 overflow-hidden"
+        >
+          <Stage
+            width={dimensions.width}
+            height={dimensions.height}
+            style={{
+              background: "white"
+            }}
+          >
+            <Layer>
+
+              <Rect
+                x={0}
+                y={0}
+                width={dimensions.width}
+                height={dimensions.height}
+                fill="white"
+              />
+              {drawn.map((stroke) => (
+                <Line
+                  key={stroke.id}
+                  points={stroke.points}
+                  stroke={stroke.color}
+                  strokeWidth={5}
+                  lineCap="round"
+                  lineJoin="round"
+                  tension={0.4}
+                  opacity={0.9}
+                />
+              ))}
+            </Layer>
+          </Stage>
         </div>
-      )}
 
-      {/* Right: Timer */}
-      <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg border border-gray-300">
-        <Clock className="w-5 h-5 text-gray-600" />
-        <div className="font-mono text-2xl font-bold text-gray-800">
-          {timer.displayTime}
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {/* Hidden audio player */}
-  <audio ref={audioRef} />
-
-  {/* Canvas Area */}
-  <div className="flex-1 p-4 overflow-hidden" ref={parentRef}>
-    <div className="h-full bg-white rounded-lg shadow-lg border-2 border-gray-300 overflow-hidden">
-      <Stage
-        width={dimensions.width}
-        height={dimensions.height}
-        style={{ 
-          background: "white"
-        }}
-      >
-        <Layer>
-          {drawn.map((stroke) => (
-            <Line
-              key={stroke.id}
-              points={stroke.points}
-              stroke={stroke.color}
-              strokeWidth={5}
-              lineCap="round"
-              lineJoin="round"
-              tension={0.4}
-              opacity={0.9}
-            />
-          ))}
-        </Layer>
-      </Stage>
-    </div>
-
-    {/* Canvas Footer */}
-    {/* <div className="mt-2 px-3 py-2 bg-white rounded-md border border-gray-200 flex items-center justify-between text-xs text-gray-500">
+        {/* Canvas Footer */}
+        {/* <div className="mt-2 px-3 py-2 bg-white rounded-md border border-gray-200 flex items-center justify-between text-xs text-gray-500">
       <span>Canvas: {dimensions.width} × {dimensions.height}</span>
       {isPlaying && (
         <span className="flex items-center gap-1.5 text-green-600 font-medium">
@@ -472,7 +480,7 @@ export default function Replay() {
         </span>
       )}
     </div> */}
-  </div>
-</div>
+      </div>
+    </div>
   );
 }
