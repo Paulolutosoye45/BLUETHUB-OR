@@ -1,7 +1,7 @@
 import { Button } from "@bluethub/ui-kit";
 import PhoneIcon from "@/assets/svg/phone.svg?react";
 import toast from 'react-hot-toast';
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { pauseCurrentTime } from "@/store/class-action-slice";
 
 const EndClass = () => {
