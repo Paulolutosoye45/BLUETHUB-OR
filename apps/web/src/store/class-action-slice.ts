@@ -68,10 +68,6 @@ const ClassActionSlice = createSlice({
     clearSendQueueRefList: (state) => {
         state.sendQueueRefList = [];
     },
-
-    // endSession : () => {
-
-    // }
   },
 });
 
