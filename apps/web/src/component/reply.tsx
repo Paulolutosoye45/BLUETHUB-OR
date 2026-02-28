@@ -441,12 +441,10 @@ export default function Replay() {
           <Stage
             width={dimensions.width}
             height={dimensions.height}
-            style={{
-              background: "white"
-            }}
+            style={{ background: "white" }}
           >
+            {/* Layer 1: static white background — never erased */}
             <Layer>
-
               <Rect
                 x={0}
                 y={0}
@@ -454,16 +452,23 @@ export default function Replay() {
                 height={dimensions.height}
                 fill="white"
               />
+            </Layer>
+
+            {/* Layer 2: drawing strokes + eraser strokes */}
+            <Layer>
               {drawn.map((stroke) => (
                 <Line
                   key={stroke.id}
                   points={stroke.points}
-                  stroke={stroke.color}
-                  strokeWidth={5}
+                  stroke={stroke.type === 'eraser' ? 'white' : stroke.color}
+                  strokeWidth={stroke.type === 'eraser' ? 20 : 5}
                   lineCap="round"
                   lineJoin="round"
                   tension={0.4}
-                  opacity={0.9}
+                  opacity={stroke.type === 'eraser' ? 1 : 0.9}
+                  globalCompositeOperation={
+                    stroke.type === 'eraser' ? 'destination-out' : 'source-over'
+                  }
                 />
               ))}
             </Layer>

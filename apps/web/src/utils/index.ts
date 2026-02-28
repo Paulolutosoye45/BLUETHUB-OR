@@ -145,7 +145,7 @@ export const nextTime = (() => {
   };
 })();
 
-export const SEND_INTERVAL = 1000;
+export const SEND_INTERVAL = 10000;
 
 /* ================= HELPERS ================= */
 export const sleep = (ms: number) =>

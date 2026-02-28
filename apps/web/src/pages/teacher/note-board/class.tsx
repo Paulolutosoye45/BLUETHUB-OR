@@ -6,7 +6,6 @@ import {
     Rect,
     Circle,
     Arrow,
-    // Image as KonvaImage,
     RegularPolygon,
 } from "react-konva";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -26,6 +25,8 @@ import { getCursor } from "@/utils/cursor-display";
 import { onSetAction } from "@/store/class-action-slice";
 import ClassMenu from "@/layouts/teacher/class/component/class-menu";
 import ClassBottom from "@/layouts/teacher/class/component/class-bottom";
+import { clampCircle, clampRect, clampToBoard, clampTriangle, makeDragBoundFunc } from "@/utils/clamp";
+
 
 const Class = () => {
     // reducer states
@@ -38,7 +39,6 @@ const Class = () => {
     const isRecording = useSelector((state: RootState) => state.action.isRecording);
     const sessionIdRef = useSelector((state: RootState) => state.action.sessionIdRef);
 
-
     const [actions, setAction] = useState<string | null>(ACTIONS.SELECT);
     const [strokes, setStrokes] = useState<Stroke[]>([]);
     const [currentStroke, setCurrentStroke] = useState<number[]>([]);
@@ -49,10 +49,8 @@ const Class = () => {
     const [arrows, setArrows] = useState<arrow[]>([]);
     const [triangles, setTriangles] = useState<triangle[]>([]);
 
-
     const [timeLeft, setTimeLeft] = useState(parseTime(classDuration));
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
-    // const [interactionStartTime, setInteractionStartTime] = useState<number | null>(null);
     const trRef = useRef<Konva.Transformer | null>(null);
     const parentRef = useRef<HTMLDivElement>(null);
     const strokeTimesRef = useRef({ start: "", end: "" });
@@ -63,19 +61,18 @@ const Class = () => {
     const activeShapeId = useRef<string | null>(null);
     const isDraggable = actions === ACTIONS.SELECT;
 
+    const boardW = dimensions.width;
+    const boardH = dimensions.height;
 
     useEffect(() => {
         setAction(actionSelect);
     }, [actionSelect]);
 
-
     const timer = useGlobalTimer({
         onTargetReached: () => {
-            // console.log("⏱️ Timer finished");
-            isDrawing.current = false
+            isDrawing.current = false;
         },
     });
-
 
     useEffect(() => {
         const element = parentRef.current;
@@ -104,6 +101,7 @@ const Class = () => {
                 setPosition({ x: e.clientX, y: e.clientY });
             }
         };
+
         if (trRef.current && rectRef.current) {
             trRef.current.nodes([rectRef.current]);
         }
@@ -117,9 +115,6 @@ const Class = () => {
         };
     }, []);
 
-  
-      
-
     const formattedTime = useCallback(() => formatTime(timeLeft), [timeLeft]);
 
     useEffect(() => {
@@ -130,19 +125,15 @@ const Class = () => {
     useEffect(() => {
         if (timeLeft <= 0 || pauseTime) return;
 
-        const timer = setInterval(() => {
+        const interval = setInterval(() => {
             setTimeLeft((prev) => {
-                if (prev <= 1) {
-                    return 0;
-                }
+                if (prev <= 1) return 0;
                 return prev - 1;
             });
         }, 1000);
 
-        return () => clearInterval(timer);
+        return () => clearInterval(interval);
     }, [timeLeft, pauseTime]);
-
-    // const sessionIdRef = useRef<string | null>(null);
 
     /* ---------------- DRAWING ---------------- */
     const shapeDownEvent = async (shape: {
@@ -163,7 +154,6 @@ const Class = () => {
         const startTime = strokeTimesRef.current.start;
         const endTime = strokeTimesRef.current.end;
 
-        // Serialize shape data as JSON (no bezier smoothing needed)
         const compressed = await gzipCompress(JSON.stringify(shape));
         const base64Data = btoa(String.fromCharCode(...compressed));
 
@@ -175,7 +165,7 @@ const Class = () => {
             width: shape.strokeWidth || 2,
             type: shape.type,
             timestamp: Date.now(),
-            duration: 0, // shapes don't have interaction duration
+            duration: 0,
             currentBoard,
             startTime,
             endTime,
@@ -190,15 +180,11 @@ const Class = () => {
         }
     };
 
-
-
     const penDownEvent = async (p: Position | null, type: "stroke" | "eraser" = "stroke") => {
         strokeTimesRef.current.start = timer.displayTime;
         const eventStartTime = performance.now();
 
-        const updatedStroke = p
-            ? [...currentStroke, p.x, p.y]
-            : currentStroke;
+        const updatedStroke = p ? [...currentStroke, p.x, p.y] : currentStroke;
 
         if (updatedStroke.length < 4) {
             if (p) setCurrentStroke(updatedStroke);
@@ -210,9 +196,7 @@ const Class = () => {
         const base64Stroke = btoa(String.fromCharCode(...compressed));
 
         const strokeId = isRecording && sessionIdRef ? sessionIdRef : null;
-
-        const eventEndTime = performance.now();
-        const interactionDuration = eventEndTime - eventStartTime;
+        const interactionDuration = performance.now() - eventStartTime;
 
         const newStroke = {
             type,
@@ -250,12 +234,15 @@ const Class = () => {
         }
 
         setCurrentStroke([]);
-        // setInteractionStartTime(null);
     };
 
+    /* ── startDrawing ───────────────────────────────────────────────────────── */
+    const startDrawing = (rawPos: Position) => {
+        if (!isRecording || pauseTime) return;
 
-    const startDrawing = (pos: Position) => {
-        if (!isRecording || pauseTime ) return;
+        // ✅ Clamp the initial position to canvas bounds
+        const pos = clampToBoard(rawPos, boardW, boardH);
+
         isDrawing.current = true;
         shapeStartPos.current = pos;
         strokeTimesRef.current.start = timer.displayTime;
@@ -298,8 +285,7 @@ const Class = () => {
                     fillColor: selectedFillColor || "#000",
                     stroke: selectedFillColor || "#ffffff",
                     strokeWidth: 2,
-                }
-                ]);
+                }]);
                 break;
             }
             case ACTIONS.ARROW: {
@@ -328,9 +314,13 @@ const Class = () => {
         }
     };
 
-    const updateDrawing = (pos: Position) => {
+    /* ── updateDrawing ──────────────────────────────────────────────────────── */
+    const updateDrawing = (rawPos: Position) => {
         if (!isRecording || pauseTime) return;
         if (!isDrawing.current || !shapeStartPos.current) return;
+
+        // ✅ Clamp the live cursor position to canvas bounds
+        const pos = clampToBoard(rawPos, boardW, boardH);
         const start = shapeStartPos.current;
 
         switch (actions) {
@@ -339,36 +329,54 @@ const Class = () => {
                 setCurrentStroke(prev => [...prev, pos.x, pos.y]);
                 break;
 
-            case ACTIONS.RECTANGLE:
+            case ACTIONS.RECTANGLE: {
+                // ✅ Clamp rectangle dimensions so it never extends outside the canvas
+                const x = Math.max(0, Math.min(pos.x, start.x));
+                const y = Math.max(0, Math.min(pos.y, start.y));
+                const maxX = Math.min(Math.max(pos.x, start.x), boardW);
+                const maxY = Math.min(Math.max(pos.y, start.y), boardH);
+
                 setRectangles(prev => prev.map(r =>
-                    r.id === activeShapeId.current ? {
-                        ...r,
-                        x: Math.min(pos.x, start.x),
-                        y: Math.min(pos.y, start.y),
-                        width: Math.abs(pos.x - start.x),
-                        height: Math.abs(pos.y - start.y),
-                    } : r
+                    r.id === activeShapeId.current
+                        ? { ...r, x, y, width: maxX - x, height: maxY - y }
+                        : r
                 ));
                 break;
+            }
 
             case ACTIONS.CIRCLE: {
-                // Use distance from start as radius, centered on start
-                const radius = Math.hypot(pos.x - start.x, pos.y - start.y) / 2;
+                const rawRadius = Math.hypot(pos.x - start.x, pos.y - start.y) / 2;
                 const cx = (pos.x + start.x) / 2;
                 const cy = (pos.y + start.y) / 2;
+                // ✅ Shrink radius so circle never overflows the canvas
+                const maxRadius = Math.min(
+                    rawRadius,
+                    cx,              // left edge
+                    boardW - cx,     // right edge
+                    cy,              // top edge
+                    boardH - cy      // bottom edge
+                );
                 setCircles(prev => prev.map(c =>
                     c.id === activeShapeId.current
-                        ? { ...c, x: cx, y: cy, radius }
+                        ? { ...c, x: cx, y: cy, radius: Math.max(0, maxRadius) }
                         : c
                 ));
                 break;
             }
 
             case ACTIONS.TRIANGLE: {
-                const size = Math.hypot(pos.x - start.x, pos.y - start.y);
+                const rawSize = Math.hypot(pos.x - start.x, pos.y - start.y);
+                // ✅ Clamp size so triangle stays inside canvas
+                const maxSize = Math.min(
+                    rawSize,
+                    start.x,
+                    boardW - start.x,
+                    start.y,
+                    boardH - start.y
+                );
                 setTriangles(prev => prev.map(t =>
                     t.id === activeShapeId.current
-                        ? { ...t, size }
+                        ? { ...t, size: Math.max(0, maxSize) }
                         : t
                 ));
                 break;
@@ -392,6 +400,7 @@ const Class = () => {
         }
     };
 
+    /* ── finishDrawing ──────────────────────────────────────────────────────── */
     const finishDrawing = async () => {
         if (!isRecording || pauseTime) return;
         if (!isDrawing.current) return;
@@ -405,7 +414,6 @@ const Class = () => {
             case ACTIONS.ERASER:
                 await penDownEvent(null, "eraser");
                 break;
-
             case ACTIONS.RECTANGLE: {
                 const shape = rectangles.find(r => r.id === activeShapeId.current);
                 if (shape) await shapeDownEvent({ ...shape, type: "rectangle" });
@@ -437,6 +445,7 @@ const Class = () => {
         shapeStartPos.current = null;
     };
 
+    /* ── Event handlers ─────────────────────────────────────────────────────── */
     const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
         const pos = e.target.getStage()?.getPointerPosition();
         if (pos) startDrawing(pos);
@@ -466,34 +475,29 @@ const Class = () => {
         finishDrawing();
     };
 
-    const onClick =
-        (e: KonvaEventObject<MouseEvent>) => {
-            if (actions !== ACTIONS.SELECT) return;
-            const target = e.target;
-            if (trRef.current) {
-                trRef.current.nodes([target]);
-            }
-        }
+    const onClick = (e: KonvaEventObject<MouseEvent>) => {
+        if (actions !== ACTIONS.SELECT) return;
+        if (trRef.current) trRef.current.nodes([e.target]);
+    };
 
-    const onDblClick =
-        (e: KonvaEventObject<MouseEvent>) => {
-            dispatch(onSetAction(ACTIONS.SELECT));
-            onClick(e);
-        }
+    const onDblClick = (e: KonvaEventObject<MouseEvent>) => {
+        dispatch(onSetAction(ACTIONS.SELECT));
+        onClick(e);
+    };
 
     return (
-        <div className="h-[90vh] max-h-[94vh] flex  overflow-y-auto">
+        <div className="h-[90vh] max-h-[94vh] flex overflow-y-auto">
             <div className="">
                 <ClassMenu />
             </div>
 
             <div
                 ref={parentRef}
-                className="flex-1 stage  h-full  border-x-2 border-[#3A3A3A80]  relative overflow-hidden"
+                className="flex-1 stage h-full border-x-2 border-[#3A3A3A80] relative overflow-hidden"
             >
                 <Stage
-                    width={dimensions.width}
-                    height={dimensions.height}
+                    width={boardW}
+                    height={boardH}
                     style={{ cursor: getCursor(actions ?? "") }}
                     onMouseDown={handleMouseDown}
                     onMouseMove={handleMouseMove}
@@ -503,16 +507,17 @@ const Class = () => {
                     onTouchEnd={handleTouchEnd}
                 >
                     <Layer>
+                        {/* Canvas background — clicking deselects */}
                         <Rect
                             x={0}
                             y={0}
-                            height={window.innerHeight}
-                            width={window.innerWidth}
+                            width={boardW}
+                            height={boardH}
                             fill="#ffffff"
                             onClick={() => trRef.current && trRef.current.nodes([])}
                         />
 
-                        {/* Completed Strokes */}
+                        {/* Completed pen/eraser strokes */}
                         {strokes.map((s) => (
                             <Line
                                 key={s.id}
@@ -528,14 +533,17 @@ const Class = () => {
                                 globalCompositeOperation={
                                     s.type === "eraser" ? "destination-out" : "source-over"
                                 }
+                                // ✅ Boundary: keep stroke origin inside canvas while dragging
+                                dragBoundFunc={(pos) => clampToBoard(pos, boardW, boardH)}
                             />
                         ))}
-                        {/* Current Active Stroke */}
+
+                        {/* Active stroke being drawn */}
                         {currentStroke.length > 0 && (
                             <Line
                                 points={currentStroke}
                                 stroke={actions === ACTIONS.ERASER ? "#fff" : selectedFillColor || "#df4b26"}
-                                strokeWidth={actions === ACTIONS.ERASER ? 30 : 5}  // ✅ matches committed eraser width
+                                strokeWidth={actions === ACTIONS.ERASER ? 30 : 5}
                                 lineCap="round"
                                 lineJoin="round"
                                 opacity={1}
@@ -546,6 +554,7 @@ const Class = () => {
                             />
                         )}
 
+                        {/* Rectangles */}
                         {rectangles.map((rectangle) => (
                             <Rect
                                 key={rectangle.id}
@@ -559,9 +568,26 @@ const Class = () => {
                                 draggable={isDraggable}
                                 onClick={onClick}
                                 onDblClick={onDblClick}
+                                // ✅ Boundary: rectangle top-left + full w/h stays inside canvas
+                                dragBoundFunc={(pos) =>
+                                    makeDragBoundFunc(rectangle.width, rectangle.height, boardW, boardH)(pos)
+                                }
+                                onDragEnd={(e) => {
+                                    const node = e.target;
+                                    const clamped = clampRect(
+                                        { ...rectangle, x: node.x(), y: node.y() },
+                                        boardW,
+                                        boardH
+                                    );
+                                    node.position({ x: clamped.x, y: clamped.y });
+                                    setRectangles(prev =>
+                                        prev.map(r => r.id === rectangle.id ? { ...r, x: clamped.x, y: clamped.y } : r)
+                                    );
+                                }}
                             />
                         ))}
 
+                        {/* Circles */}
                         {circles.map((circle) => (
                             <Circle
                                 key={circle.id}
@@ -574,9 +600,27 @@ const Class = () => {
                                 draggable={isDraggable}
                                 onClick={onClick}
                                 onDblClick={onDblClick}
+                                // ✅ Boundary: centre must be at least radius away from each edge
+                                dragBoundFunc={(pos) => ({
+                                    x: Math.max(circle.radius, Math.min(pos.x, boardW - circle.radius)),
+                                    y: Math.max(circle.radius, Math.min(pos.y, boardH - circle.radius)),
+                                })}
+                                onDragEnd={(e) => {
+                                    const node = e.target;
+                                    const clamped = clampCircle(
+                                        { ...circle, x: node.x(), y: node.y() },
+                                        boardW,
+                                        boardH
+                                    );
+                                    node.position({ x: clamped.x, y: clamped.y });
+                                    setCircles(prev =>
+                                        prev.map(c => c.id === circle.id ? { ...c, x: clamped.x, y: clamped.y } : c)
+                                    );
+                                }}
                             />
                         ))}
 
+                        {/* Triangles */}
                         {triangles.map((triangle) => (
                             <RegularPolygon
                                 key={triangle.id}
@@ -591,9 +635,27 @@ const Class = () => {
                                 draggable={isDraggable}
                                 onClick={onClick}
                                 onDblClick={onDblClick}
+                                // ✅ Boundary: bounding circle must stay inside canvas
+                                dragBoundFunc={(pos) => ({
+                                    x: Math.max(triangle.size, Math.min(pos.x, boardW - triangle.size)),
+                                    y: Math.max(triangle.size, Math.min(pos.y, boardH - triangle.size)),
+                                })}
+                                onDragEnd={(e) => {
+                                    const node = e.target;
+                                    const clamped = clampTriangle(
+                                        { ...triangle, x: node.x(), y: node.y() },
+                                        boardW,
+                                        boardH
+                                    );
+                                    node.position({ x: clamped.x, y: clamped.y });
+                                    setTriangles(prev =>
+                                        prev.map(t => t.id === triangle.id ? { ...t, x: clamped.x, y: clamped.y } : t)
+                                    );
+                                }}
                             />
                         ))}
 
+                        {/* Arrows */}
                         {arrows.map((arrow) => (
                             <Arrow
                                 key={arrow.id}
@@ -604,9 +666,12 @@ const Class = () => {
                                 draggable={isDraggable}
                                 onClick={onClick}
                                 onDblClick={onDblClick}
+                                // ✅ Boundary: clamp the translation origin to canvas
+                                dragBoundFunc={(pos) => clampToBoard(pos, boardW, boardH)}
                             />
                         ))}
 
+                        {/* Straight lines */}
                         {straightLines.map((line) => (
                             <Line
                                 key={line.id}
@@ -619,6 +684,8 @@ const Class = () => {
                                 draggable={isDraggable}
                                 onClick={onClick}
                                 onDblClick={onDblClick}
+                                // ✅ Boundary: clamp the translation origin to canvas
+                                dragBoundFunc={(pos) => clampToBoard(pos, boardW, boardH)}
                             />
                         ))}
 
@@ -644,17 +711,28 @@ const Class = () => {
                             anchorSize={8}
                             anchorCornerRadius={4}
                             padding={6}
-
+                            // ✅ Boundary: Transformer itself cannot resize a shape beyond canvas
+                            boundBoxFunc={(oldBox, newBox) => {
+                                if (
+                                    newBox.x < 0 ||
+                                    newBox.y < 0 ||
+                                    newBox.x + newBox.width > boardW ||
+                                    newBox.y + newBox.height > boardH
+                                ) {
+                                    return oldBox; // reject out-of-bounds resize
+                                }
+                                return newBox;
+                            }}
                         />
-
                     </Layer>
                 </Stage>
+
                 <div className="absolute bottom-5 w-full flex justify-center">
                     <ClassBottom />
                 </div>
             </div>
         </div>
     );
-}
+};
 
-export default Class
+export default Class;

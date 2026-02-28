@@ -52,13 +52,13 @@ const Audio = () => {
             flushBatch();
         }, SEND_INTERVAL);
         return () => clearInterval(interval);
-    }, [isRecording, sendQueueRefList]); // ✅ or wrap flushBatch in useCallback
+    }, [isRecording, sendQueueRefList]);
 
 
     const startRecording = async () => {
         try {
             timer.start();
-            toast.success('audio is been recorded ')
+
             sessionIdRef.current = crypto.randomUUID();
             dispatch(setSessionIdRef(sessionIdRef.current));
             batchCounterRef.current = 0;
@@ -75,6 +75,7 @@ const Audio = () => {
 
             startNewBatch(stream);
             dispatch(setIsRecording(true));
+            toast.success('audio is been recorded')
 
         } catch (err) {
             timer.stop();
@@ -178,8 +179,8 @@ const Audio = () => {
     };
 
     const handleMic = async () => {
-    isRecording ? await stopRecording() : await startRecording()
-}
+        isRecording ? await stopRecording() : await startRecording()
+    }
 
     return (
         <Button

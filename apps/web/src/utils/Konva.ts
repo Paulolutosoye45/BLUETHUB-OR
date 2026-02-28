@@ -11,7 +11,6 @@ export const ACTIONS = {
   LINE: "line",
 };
 
-
 export type Scribble = {
   id: string;
   // unique: string;
@@ -76,3 +75,4 @@ export type straightLine = {
   strokeWidth?: number;
   fillColor: string;
 };
+
