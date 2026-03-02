@@ -2,7 +2,6 @@ import type { RootState } from "@/store";
 import { useRef, useCallback, useState } from "react";
 import { useSelector } from "react-redux";
 // import type { SetStateAction } from "react";
-  
 
 interface UseGlobalTimerProps {
   // targetTime?: string; // "MM:SS" | "HH:MM:SS"
@@ -12,21 +11,20 @@ interface UseGlobalTimerProps {
 export const useGlobalTimer = ({
   onTargetReached,
 }: UseGlobalTimerProps = {}) => {
- const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const elapsedRef = useRef<number>(0);
   const targetSecondsRef = useRef<number | null>(null);
   const elapsedSecondsRef = useRef(0);
 
-
   const classDuration = useSelector(
-    (state: RootState) => state.action.classDuration
+    (state: RootState) => state.action.classDuration,
   );
 
   const [displayTime, setDisplayTime] = useState("00:00");
   const [isRunning, setIsRunning] = useState(false);
 
-  const targetTime = classDuration
+  const targetTime = classDuration;
 
   // -------------------------
   // Helpers
@@ -57,38 +55,34 @@ export const useGlobalTimer = ({
       ? `${h.toString().padStart(2, "0")}:${m
           .toString()
           .padStart(2, "0")}:${s.toString().padStart(2, "0")}`
-      : `${m.toString().padStart(2, "0")}:${s
-          .toString()
-          .padStart(2, "0")}`;
+      : `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
   // -------------------------
   // Core tick (NO DRIFT)
   // -------------------------
- const tick = () => {
-  if (!startTimeRef.current) return;
+  const tick = () => {
+    if (!startTimeRef.current) return;
 
-  const now = performance.now();
-  elapsedRef.current =
-    (now - startTimeRef.current) / 1000;
+    const now = performance.now();
+    elapsedRef.current = (now - startTimeRef.current) / 1000;
 
-  elapsedSecondsRef.current = elapsedRef.current; // ✅ ADD THIS
+    elapsedSecondsRef.current = elapsedRef.current; // ✅ ADD THIS
 
-  if (
-    targetSecondsRef.current !== null &&
-    elapsedRef.current >= targetSecondsRef.current
-  ) {
-    elapsedRef.current = targetSecondsRef.current;
-    elapsedSecondsRef.current = targetSecondsRef.current; // ✅ ADD THIS
+    if (
+      targetSecondsRef.current !== null &&
+      elapsedRef.current >= targetSecondsRef.current
+    ) {
+      elapsedRef.current = targetSecondsRef.current;
+      elapsedSecondsRef.current = targetSecondsRef.current; // ✅ ADD THIS
+      setDisplayTime(formatTime(elapsedRef.current));
+      stop();
+      onTargetReached?.();
+      return;
+    }
+
     setDisplayTime(formatTime(elapsedRef.current));
-    stop();
-    onTargetReached?.();
-    return;
-  }
-
-  setDisplayTime(formatTime(elapsedRef.current));
-};
-
+  };
 
   // -------------------------
   // Controls
@@ -100,8 +94,7 @@ export const useGlobalTimer = ({
       targetSecondsRef.current = parseToSeconds(targetTime);
     }
 
-    startTimeRef.current =
-      performance.now() - elapsedRef.current * 1000;
+    startTimeRef.current = performance.now() - elapsedRef.current * 1000;
 
     intervalRef.current = setInterval(tick, 200);
     setIsRunning(true);
@@ -132,12 +125,12 @@ export const useGlobalTimer = ({
   // PUBLIC API
   // -------------------------
   return {
-    start,        // play / resume
-    pause,        //  pause
-    stop,         //  hard stop (YOU wanted this)
-    reset,        // reset
+    start, // play / resume
+    pause, //  pause
+    stop, //  hard stop (YOU wanted this)
+    reset, // reset
     isRunning,
     displayTime,
-    elapsedSecondsRef
+    elapsedSecondsRef,
   };
 };

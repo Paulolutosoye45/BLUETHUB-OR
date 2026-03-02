@@ -75,6 +75,10 @@ const Class = () => {
     });
 
     useEffect(() => {
+        timer.start();
+    }, []);
+
+    useEffect(() => {
         const element = parentRef.current;
         if (!element) return;
 
@@ -181,7 +185,6 @@ const Class = () => {
     };
 
     const penDownEvent = async (p: Position | null, type: "stroke" | "eraser" = "stroke") => {
-        strokeTimesRef.current.start = timer.displayTime;
         const eventStartTime = performance.now();
 
         const updatedStroke = p ? [...currentStroke, p.x, p.y] : currentStroke;

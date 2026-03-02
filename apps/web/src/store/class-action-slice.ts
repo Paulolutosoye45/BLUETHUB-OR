@@ -12,7 +12,8 @@ interface classActiveState {
   currentBoard: number;
   sessionIdRef: string;
   isRecording: boolean;
-  sendQueueRefList: CompressedStroke[]
+  sendQueueRefList: CompressedStroke[];
+  classEnded: boolean;
 }
 
 const initialState: classActiveState = {
@@ -26,7 +27,8 @@ const initialState: classActiveState = {
   currentBoard: 1,
   sessionIdRef: "",
   isRecording: false,
-  sendQueueRefList : []
+  sendQueueRefList: [],
+  classEnded: false,
 };
 
 const ClassActionSlice = createSlice({
@@ -48,7 +50,7 @@ const ClassActionSlice = createSlice({
     },
     pauseCurrentTime: (state) => {
       state.pauseTime = !state.pauseTime;
-      state.isRecording = false
+      state.isRecording = false;
     },
     setTimeUp: (state) => {
       state.timeUp = true;
@@ -63,10 +65,14 @@ const ClassActionSlice = createSlice({
       state.sessionIdRef = action.payload;
     },
     setSendQueueRefList: (state, action: PayloadAction<CompressedStroke[]>) => {
-        state.sendQueueRefList.push(...action.payload); // batch push
+      state.sendQueueRefList.push(...action.payload); // batch push
     },
     clearSendQueueRefList: (state) => {
-        state.sendQueueRefList = [];
+      state.sendQueueRefList = [];
+    },
+    setEndClass: (state) => {
+      state.pauseTime = true;
+      state.isRecording = false;
     },
   },
 });
@@ -82,6 +88,7 @@ export const {
   setSessionIdRef,
   setIsRecording,
   setSendQueueRefList,
-  clearSendQueueRefList
+  clearSendQueueRefList,
+  setEndClass,
 } = ClassActionSlice.actions;
 export default ClassActionSlice.reducer;
