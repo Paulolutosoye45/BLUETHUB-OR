@@ -23,7 +23,7 @@ export default function Replay() {
   // ✅ FIX: Store drawn strokes in a ref — no copying on every point update.
   //    A cheap renderTick counter triggers React to re-read the ref for rendering.
   const drawnMapRef = useRef<Map<string, Stroke>>(new Map());
-  const [renderTick, setRenderTick] = useState(0);
+  const [_renderTick, setRenderTick] = useState(0);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [strokesList, setStrokesList] = useState<CompressedStroke[]>([]);
