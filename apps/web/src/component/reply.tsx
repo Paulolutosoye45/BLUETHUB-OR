@@ -11,19 +11,19 @@ import {
   Clock,
   Circle,
 } from 'lucide-react';
-import type { AudioBatch, CompressedStroke, Position, Stroke } from '@/utils/constant';
+import type { AudioBatch, CompressedStroke, Stroke } from '@/utils/constant';
 import { clearAudio, clearClass, getAudio, getClass } from '@/services/class';
 import { base64ToUint8, sleep, timeStringToMs } from '@/utils';
 import { gzipDecompress } from '@/utils/gzip';
-import Time from '@/pages/teacher/note-board/app-bar/time';
 
 
 export default function Replay() {
   const [strokes, setStrokes] = useState<Stroke[]>([]);
 
-  // ✅ FIX 1: Use a Map keyed by stroke id for O(1) lookup + update
-  //    instead of filtering the entire array on every point.
-  const [drawnMap, setDrawnMap] = useState<Map<string, Stroke>>(new Map());
+  // ✅ FIX: Store drawn strokes in a ref — no copying on every point update.
+  //    A cheap renderTick counter triggers React to re-read the ref for rendering.
+  const drawnMapRef = useRef<Map<string, Stroke>>(new Map());
+  const [renderTick, setRenderTick] = useState(0);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [strokesList, setStrokesList] = useState<CompressedStroke[]>([]);
@@ -32,7 +32,6 @@ export default function Replay() {
   const [error, setError] = useState<Error | null>(null);
   const [currentBatch, setCurrentBatch] = useState(0);
   const [isClearing, setIsClearing] = useState(false);
-  const [_, setPosition] = useState<Position>({ x: 0, y: 0 });
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
 
   const stopRef = useRef(false);
@@ -42,12 +41,11 @@ export default function Replay() {
   const parentRef = useRef<HTMLDivElement>(null);
   const rectRef = useRef(null);
 
-  // ✅ FIX 2: Derive the drawn array for rendering from the Map only once per render
-  //    Konva only sees this stable array — no extra allocations inside the loop.
-  const drawn = Array.from(drawnMap.values());
+  // Read from the ref — renderTick ensures this re-evaluates after each batch commit
+  const drawn = Array.from(drawnMapRef.current.values());
 
   const timer = useGlobalTimer({
-    onTargetReached: () => { },
+    onTargetReached: () => {},
   });
 
   useEffect(() => {
@@ -65,28 +63,14 @@ export default function Replay() {
     updateDimensions();
     const resizeObserver = new ResizeObserver(updateDimensions);
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const rect = element.getBoundingClientRect();
-      const isOverDrawingArea =
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom;
-      if (isOverDrawingArea) {
-        setPosition({ x: e.clientX, y: e.clientY });
-      }
-    };
-
     if (trRef.current && rectRef.current) {
       trRef.current.nodes([rectRef.current]);
     }
 
-    window.addEventListener("mousemove", handleMouseMove);
     resizeObserver.observe(element);
 
     return () => {
       resizeObserver.disconnect();
-      window.removeEventListener("mousemove", handleMouseMove);
     };
   }, [loading]);
 
@@ -194,7 +178,8 @@ export default function Replay() {
     stopRef.current = false;
     timer.start();
     setIsPlaying(true);
-    setDrawnMap(new Map());   // ✅ clear drawn map
+    drawnMapRef.current = new Map();  // ✅ reset ref directly — no re-render cost
+    setRenderTick(0);
     setCurrentBatch(0);
 
     const sortedAudio = [...audioList].sort((a, b) => a.batchId - b.batchId);
@@ -204,7 +189,7 @@ export default function Replay() {
         if (stopRef.current) break;
         try {
           await playAudioBatch(i);
-        } catch (_) { }
+        } catch (_) {}
       }
     })();
 
@@ -241,13 +226,10 @@ export default function Replay() {
           const isBatchBoundary = ((i / 2) + 1) % BATCH_SIZE === 0;
 
           if (isBatchBoundary || isLastPoint) {
-            // ✅ O(1) map update — no filter scan over all strokes
-            const snapshot = localPoints.slice();
-            setDrawnMap(prev => {
-              const next = new Map(prev);
-              next.set(stroke.id, { ...stroke, points: snapshot });
-              return next;
-            });
+            // ✅ Mutate the ref directly — O(1), no Map copy
+            drawnMapRef.current.set(stroke.id, { ...stroke, points: localPoints.slice() });
+            // Trigger a single cheap re-render to flush the update to Konva
+            setRenderTick(t => t + 1);
           }
 
           if (pointDelay > 0) await sleep(pointDelay);
@@ -290,7 +272,8 @@ export default function Replay() {
       setStrokesList([]);
       setAudioList([]);
       setStrokes([]);
-      setDrawnMap(new Map());
+      drawnMapRef.current = new Map();
+      setRenderTick(0);
     } catch (error) {
       console.error('❌ Clear failed:', error);
     } finally {
@@ -339,8 +322,6 @@ export default function Replay() {
               <PlayCircle className="w-5 h-5" />
               <span>Play</span>
             </button>
-
-
 
             <button
               onClick={stop}
@@ -392,15 +373,11 @@ export default function Replay() {
             </div>
           )}
 
-
           {/* Right: Timer */}
-          <div className='flex items-center gap-4'>
-            <Time />
-            <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg border border-gray-300">
-              <Clock className="w-5 h-5 text-gray-600" />
-              <div className="font-mono text-2xl font-bold text-gray-800">
-                {timer.displayTime}
-              </div>
+          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg border border-gray-300">
+            <Clock className="w-5 h-5 text-gray-600" />
+            <div className="font-mono text-2xl font-bold text-gray-800">
+              {timer.displayTime}
             </div>
           </div>
         </div>
