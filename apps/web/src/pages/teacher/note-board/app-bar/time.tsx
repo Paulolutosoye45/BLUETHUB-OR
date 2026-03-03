@@ -66,7 +66,7 @@ const Time = () => {
   return (
     <div>
       <Button
-        className={`group flex items-center gap-2 cursor-pointer transition-colors duration-200 w-[170%]
+        className={`group flex  items-center gap-2 cursor-pointer transition-colors duration-200 
       ${timeUp
             ? "bg-transparent border border-[#EC1B2C] text-[#EC1B2C] hover:bg-[#EC1B2C] hover:text-white"
             : "bg-bLemon text-white hover:bg-bLemon/80"
@@ -77,7 +77,7 @@ const Time = () => {
         ${timeUp ? "text-[#EC1B2C] group-hover:text-white" : "text-white"}`}
         />
         <span
-          className={`font-Poppins font-semibold text-sm leading-[100%] transition-colors duration-200
+          className={`font-Poppins font-semibold text-sm leading-[100%]  transition-colors duration-200
         ${timeUp ? "text-[#EC1B2C] group-hover:text-white" : "text-white"}`}
         >
           {currentFormattedTime}

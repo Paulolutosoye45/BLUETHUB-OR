@@ -8,7 +8,7 @@ import {
     Arrow,
     RegularPolygon,
 } from "react-konva";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBezierPoints, gzipCompress } from "@/utils/gzip";
 import { addStrokes } from "@/services/class";
 import { formatTime, parseTime } from "@/utils";
@@ -26,10 +26,10 @@ import { onSetAction } from "@/store/class-action-slice";
 import ClassMenu from "@/layouts/teacher/class/component/class-menu";
 import ClassBottom from "@/layouts/teacher/class/component/class-bottom";
 import { clampCircle, clampRect, clampToBoard, clampTriangle, makeDragBoundFunc } from "@/utils/clamp";
+import type { Box } from "konva/lib/shapes/Transformer";
 
 
 const Class = () => {
-    // reducer states
     const dispatch = useDispatch();
     const classDuration = useSelector((state: RootState) => state.action.classDuration);
     const pauseTime = useSelector((state: RootState) => state.action.pauseTime);
@@ -63,6 +63,9 @@ const Class = () => {
 
     const boardW = dimensions.width;
     const boardH = dimensions.height;
+
+    // ✅ FIX 1: Track previous formatted time to avoid dispatching every second
+    const prevFormattedTimeRef = useRef<string>("");
 
     useEffect(() => {
         setAction(actionSelect);
@@ -119,28 +122,34 @@ const Class = () => {
         };
     }, []);
 
-    const formattedTime = useCallback(() => formatTime(timeLeft), [timeLeft]);
-
-    useEffect(() => {
-        dispatch(holdCurrentTime(formattedTime()));
-    }, [formattedTime, dispatch]);
-
-    // Countdown timer
+    // ✅ FIX 1: Only dispatch when the formatted string actually changes
     useEffect(() => {
         if (timeLeft <= 0 || pauseTime) return;
 
         const interval = setInterval(() => {
             setTimeLeft((prev) => {
                 if (prev <= 1) return 0;
-                return prev - 1;
+                const next = prev - 1;
+                const formatted = formatTime(next);
+                if (formatted !== prevFormattedTimeRef.current) {
+                    prevFormattedTimeRef.current = formatted;
+                    dispatch(holdCurrentTime(formatted));
+                }
+                return next;
             });
         }, 1000);
 
         return () => clearInterval(interval);
-    }, [timeLeft, pauseTime]);
+    }, [pauseTime, dispatch]);
+
+    /* ✅ FIX 2: Stable dragBoundFunc factories memoized by board dimensions */
+    const boardClamp = useCallback(
+        (pos: Position) => clampToBoard(pos, boardW, boardH),
+        [boardW, boardH]
+    );
 
     /* ---------------- DRAWING ---------------- */
-    const shapeDownEvent = async (shape: {
+    const shapeDownEvent = useCallback(async (shape: {
         id: string;
         type: "rectangle" | "circle" | "triangle" | "arrow" | "line";
         points?: number[];
@@ -182,9 +191,9 @@ const Class = () => {
         } catch (err) {
             console.error("❌ Failed to save shape to IndexedDB:", err);
         }
-    };
+    }, [isRecording, sessionIdRef, currentBoard, dispatch]);
 
-    const penDownEvent = async (p: Position | null, type: "stroke" | "eraser" = "stroke") => {
+    const penDownEvent = useCallback(async (p: Position | null, type: "stroke" | "eraser" = "stroke") => {
         const eventStartTime = performance.now();
 
         const updatedStroke = p ? [...currentStroke, p.x, p.y] : currentStroke;
@@ -237,13 +246,12 @@ const Class = () => {
         }
 
         setCurrentStroke([]);
-    };
+    }, [currentStroke, isRecording, sessionIdRef, selectedFillColor, currentBoard, dispatch]);
 
     /* ── startDrawing ───────────────────────────────────────────────────────── */
-    const startDrawing = (rawPos: Position) => {
+    const startDrawing = useCallback((rawPos: Position) => {
         if (!isRecording || pauseTime) return;
 
-        // ✅ Clamp the initial position to canvas bounds
         const pos = clampToBoard(rawPos, boardW, boardH);
 
         isDrawing.current = true;
@@ -281,9 +289,7 @@ const Class = () => {
                 const id = crypto.randomUUID();
                 activeShapeId.current = id;
                 setTriangles(prev => [...prev, {
-                    id,
-                    x: pos.x,
-                    y: pos.y,
+                    id, x: pos.x, y: pos.y,
                     size: 0,
                     fillColor: selectedFillColor || "#000",
                     stroke: selectedFillColor || "#ffffff",
@@ -315,14 +321,13 @@ const Class = () => {
                 break;
             }
         }
-    };
+    }, [isRecording, pauseTime, boardW, boardH, actions, selectedFillColor, timer.displayTime]);
 
     /* ── updateDrawing ──────────────────────────────────────────────────────── */
-    const updateDrawing = (rawPos: Position) => {
+    const updateDrawing = useCallback((rawPos: Position) => {
         if (!isRecording || pauseTime) return;
         if (!isDrawing.current || !shapeStartPos.current) return;
 
-        // ✅ Clamp the live cursor position to canvas bounds
         const pos = clampToBoard(rawPos, boardW, boardH);
         const start = shapeStartPos.current;
 
@@ -333,12 +338,10 @@ const Class = () => {
                 break;
 
             case ACTIONS.RECTANGLE: {
-                // ✅ Clamp rectangle dimensions so it never extends outside the canvas
                 const x = Math.max(0, Math.min(pos.x, start.x));
                 const y = Math.max(0, Math.min(pos.y, start.y));
                 const maxX = Math.min(Math.max(pos.x, start.x), boardW);
                 const maxY = Math.min(Math.max(pos.y, start.y), boardH);
-
                 setRectangles(prev => prev.map(r =>
                     r.id === activeShapeId.current
                         ? { ...r, x, y, width: maxX - x, height: maxY - y }
@@ -351,14 +354,7 @@ const Class = () => {
                 const rawRadius = Math.hypot(pos.x - start.x, pos.y - start.y) / 2;
                 const cx = (pos.x + start.x) / 2;
                 const cy = (pos.y + start.y) / 2;
-                // ✅ Shrink radius so circle never overflows the canvas
-                const maxRadius = Math.min(
-                    rawRadius,
-                    cx,              // left edge
-                    boardW - cx,     // right edge
-                    cy,              // top edge
-                    boardH - cy      // bottom edge
-                );
+                const maxRadius = Math.min(rawRadius, cx, boardW - cx, cy, boardH - cy);
                 setCircles(prev => prev.map(c =>
                     c.id === activeShapeId.current
                         ? { ...c, x: cx, y: cy, radius: Math.max(0, maxRadius) }
@@ -369,14 +365,7 @@ const Class = () => {
 
             case ACTIONS.TRIANGLE: {
                 const rawSize = Math.hypot(pos.x - start.x, pos.y - start.y);
-                // ✅ Clamp size so triangle stays inside canvas
-                const maxSize = Math.min(
-                    rawSize,
-                    start.x,
-                    boardW - start.x,
-                    start.y,
-                    boardH - start.y
-                );
+                const maxSize = Math.min(rawSize, start.x, boardW - start.x, start.y, boardH - start.y);
                 setTriangles(prev => prev.map(t =>
                     t.id === activeShapeId.current
                         ? { ...t, size: Math.max(0, maxSize) }
@@ -401,10 +390,10 @@ const Class = () => {
                 ));
                 break;
         }
-    };
+    }, [isRecording, pauseTime, boardW, boardH, actions]);
 
     /* ── finishDrawing ──────────────────────────────────────────────────────── */
-    const finishDrawing = async () => {
+    const finishDrawing = useCallback(async () => {
         if (!isRecording || pauseTime) return;
         if (!isDrawing.current) return;
         isDrawing.current = false;
@@ -446,47 +435,97 @@ const Class = () => {
 
         activeShapeId.current = null;
         shapeStartPos.current = null;
-    };
+    }, [isRecording, pauseTime, actions, rectangles, circles, triangles, arrows, straightLines, penDownEvent, shapeDownEvent, timer.displayTime]);
 
     /* ── Event handlers ─────────────────────────────────────────────────────── */
-    const handleMouseDown = (e: KonvaEventObject<MouseEvent>) => {
+    const handleMouseDown = useCallback((e: KonvaEventObject<MouseEvent>) => {
         const pos = e.target.getStage()?.getPointerPosition();
         if (pos) startDrawing(pos);
-    };
+    }, [startDrawing]);
 
-    const handleMouseMove = (e: KonvaEventObject<MouseEvent>) => {
+    const handleMouseMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
         const pos = e.target.getStage()?.getPointerPosition();
         if (pos) updateDrawing(pos);
-    };
+    }, [updateDrawing]);
 
-    const handleMouseUp = () => finishDrawing();
+    const handleMouseUp = useCallback(() => finishDrawing(), [finishDrawing]);
 
-    const handleTouchStart = (e: KonvaEventObject<TouchEvent>) => {
+    const handleTouchStart = useCallback((e: KonvaEventObject<TouchEvent>) => {
         e.evt.preventDefault();
         const pos = e.target.getStage()?.getPointerPosition();
         if (pos) startDrawing(pos);
-    };
+    }, [startDrawing]);
 
-    const handleTouchMove = (e: KonvaEventObject<TouchEvent>) => {
+    const handleTouchMove = useCallback((e: KonvaEventObject<TouchEvent>) => {
         e.evt.preventDefault();
         const pos = e.target.getStage()?.getPointerPosition();
         if (pos) updateDrawing(pos);
-    };
+    }, [updateDrawing]);
 
-    const handleTouchEnd = (e: KonvaEventObject<TouchEvent>) => {
+    const handleTouchEnd = useCallback((e: KonvaEventObject<TouchEvent>) => {
         e.evt.preventDefault();
         finishDrawing();
-    };
+    }, [finishDrawing]);
 
-    const onClick = (e: KonvaEventObject<MouseEvent>) => {
+    const onClick = useCallback((e: KonvaEventObject<MouseEvent>) => {
         if (actions !== ACTIONS.SELECT) return;
         if (trRef.current) trRef.current.nodes([e.target]);
-    };
+    }, [actions]);
 
-    const onDblClick = (e: KonvaEventObject<MouseEvent>) => {
+    const onDblClick = useCallback((e: KonvaEventObject<MouseEvent>) => {
         dispatch(onSetAction(ACTIONS.SELECT));
         onClick(e);
-    };
+    }, [dispatch, onClick]);
+
+    /* ✅ FIX 3: Pre-compute dragBoundFuncs per rectangle/circle/triangle
+       using useMemo so they don't recreate on every render */
+    const rectBoundFuncs = useMemo(() =>
+        Object.fromEntries(
+            rectangles.map(r => [
+                r.id,
+                makeDragBoundFunc(r.width, r.height, boardW, boardH),
+            ])
+        ),
+        [rectangles, boardW, boardH]
+    );
+
+    const circleBoundFuncs = useMemo(() =>
+        Object.fromEntries(
+            circles.map(c => [
+                c.id,
+                (pos: Position) => ({
+                    x: Math.max(c.radius, Math.min(pos.x, boardW - c.radius)),
+                    y: Math.max(c.radius, Math.min(pos.y, boardH - c.radius)),
+                }),
+            ])
+        ),
+        [circles, boardW, boardH]
+    );
+
+    const triangleBoundFuncs = useMemo(() =>
+        Object.fromEntries(
+            triangles.map(t => [
+                t.id,
+                (pos: Position) => ({
+                    x: Math.max(t.size, Math.min(pos.x, boardW - t.size)),
+                    y: Math.max(t.size, Math.min(pos.y, boardH - t.size)),
+                }),
+            ])
+        ),
+        [triangles, boardW, boardH]
+    );
+
+    const transformerBoundBox = useCallback((oldBox: Box, newBox: Box) => {
+        if (
+            newBox.x < 0 ||
+            newBox.y < 0 ||
+            newBox.x + newBox.width > boardW ||
+            newBox.y + newBox.height > boardH
+        ) {
+            return oldBox;
+        }
+        return newBox;
+    }, [boardW, boardH]);
 
     return (
         <div className="h-[90vh] max-h-[94vh] flex overflow-y-auto">
@@ -510,7 +549,6 @@ const Class = () => {
                     onTouchEnd={handleTouchEnd}
                 >
                     <Layer>
-                        {/* Canvas background — clicking deselects */}
                         <Rect
                             x={0}
                             y={0}
@@ -520,7 +558,6 @@ const Class = () => {
                             onClick={() => trRef.current && trRef.current.nodes([])}
                         />
 
-                        {/* Completed pen/eraser strokes */}
                         {strokes.map((s) => (
                             <Line
                                 key={s.id}
@@ -536,12 +573,10 @@ const Class = () => {
                                 globalCompositeOperation={
                                     s.type === "eraser" ? "destination-out" : "source-over"
                                 }
-                                // ✅ Boundary: keep stroke origin inside canvas while dragging
-                                dragBoundFunc={(pos) => clampToBoard(pos, boardW, boardH)}
+                                dragBoundFunc={boardClamp}
                             />
                         ))}
 
-                        {/* Active stroke being drawn */}
                         {currentStroke.length > 0 && (
                             <Line
                                 points={currentStroke}
@@ -557,7 +592,6 @@ const Class = () => {
                             />
                         )}
 
-                        {/* Rectangles */}
                         {rectangles.map((rectangle) => (
                             <Rect
                                 key={rectangle.id}
@@ -571,10 +605,8 @@ const Class = () => {
                                 draggable={isDraggable}
                                 onClick={onClick}
                                 onDblClick={onDblClick}
-                                // ✅ Boundary: rectangle top-left + full w/h stays inside canvas
-                                dragBoundFunc={(pos) =>
-                                    makeDragBoundFunc(rectangle.width, rectangle.height, boardW, boardH)(pos)
-                                }
+                                // ✅ FIX 3: Use precomputed function from memo
+                                dragBoundFunc={rectBoundFuncs[rectangle.id]}
                                 onDragEnd={(e) => {
                                     const node = e.target;
                                     const clamped = clampRect(
@@ -590,7 +622,6 @@ const Class = () => {
                             />
                         ))}
 
-                        {/* Circles */}
                         {circles.map((circle) => (
                             <Circle
                                 key={circle.id}
@@ -603,11 +634,8 @@ const Class = () => {
                                 draggable={isDraggable}
                                 onClick={onClick}
                                 onDblClick={onDblClick}
-                                // ✅ Boundary: centre must be at least radius away from each edge
-                                dragBoundFunc={(pos) => ({
-                                    x: Math.max(circle.radius, Math.min(pos.x, boardW - circle.radius)),
-                                    y: Math.max(circle.radius, Math.min(pos.y, boardH - circle.radius)),
-                                })}
+                                // ✅ FIX 3: Use precomputed function from memo
+                                dragBoundFunc={circleBoundFuncs[circle.id]}
                                 onDragEnd={(e) => {
                                     const node = e.target;
                                     const clamped = clampCircle(
@@ -623,7 +651,6 @@ const Class = () => {
                             />
                         ))}
 
-                        {/* Triangles */}
                         {triangles.map((triangle) => (
                             <RegularPolygon
                                 key={triangle.id}
@@ -638,11 +665,8 @@ const Class = () => {
                                 draggable={isDraggable}
                                 onClick={onClick}
                                 onDblClick={onDblClick}
-                                // ✅ Boundary: bounding circle must stay inside canvas
-                                dragBoundFunc={(pos) => ({
-                                    x: Math.max(triangle.size, Math.min(pos.x, boardW - triangle.size)),
-                                    y: Math.max(triangle.size, Math.min(pos.y, boardH - triangle.size)),
-                                })}
+                                // ✅ FIX 3: Use precomputed function from memo
+                                dragBoundFunc={triangleBoundFuncs[triangle.id]}
                                 onDragEnd={(e) => {
                                     const node = e.target;
                                     const clamped = clampTriangle(
@@ -658,7 +682,6 @@ const Class = () => {
                             />
                         ))}
 
-                        {/* Arrows */}
                         {arrows.map((arrow) => (
                             <Arrow
                                 key={arrow.id}
@@ -669,12 +692,10 @@ const Class = () => {
                                 draggable={isDraggable}
                                 onClick={onClick}
                                 onDblClick={onDblClick}
-                                // ✅ Boundary: clamp the translation origin to canvas
-                                dragBoundFunc={(pos) => clampToBoard(pos, boardW, boardH)}
+                                dragBoundFunc={boardClamp}
                             />
                         ))}
 
-                        {/* Straight lines */}
                         {straightLines.map((line) => (
                             <Line
                                 key={line.id}
@@ -687,8 +708,7 @@ const Class = () => {
                                 draggable={isDraggable}
                                 onClick={onClick}
                                 onDblClick={onDblClick}
-                                // ✅ Boundary: clamp the translation origin to canvas
-                                dragBoundFunc={(pos) => clampToBoard(pos, boardW, boardH)}
+                                dragBoundFunc={boardClamp}
                             />
                         ))}
 
@@ -696,14 +716,10 @@ const Class = () => {
                             ref={trRef}
                             rotateEnabled={false}
                             enabledAnchors={[
-                                "top-left",
-                                "top-right",
-                                "bottom-left",
-                                "bottom-right",
-                                "top-center",
-                                "bottom-center",
-                                "middle-left",
-                                "middle-right",
+                                "top-left", "top-right",
+                                "bottom-left", "bottom-right",
+                                "top-center", "bottom-center",
+                                "middle-left", "middle-right",
                             ]}
                             borderStroke="#2563EB"
                             borderStrokeWidth={1.5}
@@ -714,18 +730,7 @@ const Class = () => {
                             anchorSize={8}
                             anchorCornerRadius={4}
                             padding={6}
-                            // ✅ Boundary: Transformer itself cannot resize a shape beyond canvas
-                            boundBoxFunc={(oldBox, newBox) => {
-                                if (
-                                    newBox.x < 0 ||
-                                    newBox.y < 0 ||
-                                    newBox.x + newBox.width > boardW ||
-                                    newBox.y + newBox.height > boardH
-                                ) {
-                                    return oldBox; // reject out-of-bounds resize
-                                }
-                                return newBox;
-                            }}
+                            boundBoxFunc={transformerBoundBox}
                         />
                     </Layer>
                 </Stage>

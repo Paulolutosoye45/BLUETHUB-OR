@@ -45,7 +45,7 @@ const ClassMenu = () => {
         </TooltipProvider>
 
         <div
-          className={`w-17.5  overflow-hidden rounded-2xl shadow-md ${closedNav ? "hidden" : "block"
+          className={`w-17.5 mx-auto  overflow-hidden rounded-md shadow-md ${closedNav ? "hidden" : "block"
             }`}
         >
           <Select />

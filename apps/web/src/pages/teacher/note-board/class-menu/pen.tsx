@@ -11,18 +11,18 @@ import {
 
 
 import PenIcon from "@/assets/svg/pen.svg?react";
-
-
 // import Sketch from "@/assets/svgs/sketch.svg?react";
 import Pil from "@/assets/svg/pil.svg?react";
 import Red_cancel from "@/assets/svg/red-cancel.svg?react";
 import { useDispatch, useSelector } from "react-redux";
 import { onSetAction } from "@/store/class-action-slice";
 import type { RootState } from "@/store";
+import { useState } from "react";
 
 function Pen() {
     const dispatch = useDispatch();
     const actionSelect = useSelector((state: RootState) => state.action.value);
+    const [open, setOpen] = useState(false);
     const toolList = [
         {
             toolName: "Pen",
@@ -41,8 +41,8 @@ function Pen() {
 
     return (
         <div className={`flex items-center justify-center py-2 cursor-pointer hover:bg-forestBlue ${isToolSelected ? "bg-forestBlue " : ""}`}>
-            <Tooltip></Tooltip>
-            <Popover>
+            {/* <Tooltip></Tooltip> */}
+            <Popover open={open} onOpenChange={setOpen}>
                 <PopoverTrigger asChild>
                     <div className="bg-none">
                         <Tooltip>
@@ -50,13 +50,9 @@ function Pen() {
                                 <Button
                                     variant="ghost"
                                     className="hover:bg-transparent cursor-pointer"
-                                >
-                                    {/* <PenIcon
-                    className="size-4 text-forestBlue-light cursor-pointer "
-                  /> */}
-                                    {Eraser ? <Pil className="size-7 text-forestBlue-light cursor-pointer " /> : <PenIcon
-                                        className="size-4 text-forestBlue-light cursor-pointer "
-                                    />}
+                                > {Eraser ? <Pil className="size-7 text-forestBlue-light cursor-pointer " /> : <PenIcon
+                                    className="size-4 text-forestBlue-light cursor-pointer "
+                                />}
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="right" align="center">
@@ -84,9 +80,10 @@ function Pen() {
                             <div
                                 key={tool.toolName}
                                 className=" cursor-pointer flex items-center  space-x-4 bg-[#4F61E814] mx-4 my-2 p-3"
-                                onClick={() =>
-                                    dispatch(onSetAction(tool.toolName.toLowerCase()))
-                                }
+                                onClick={() => {
+                                    dispatch(onSetAction(tool.toolName.toLowerCase()));
+                                    setTimeout(() => setOpen(false), 100);
+                                }}
                             >
                                 <>
                                     <div
@@ -104,10 +101,7 @@ function Pen() {
                             </div>
                         ))}
                         <div className=" cursor-pointer flex items-center space-x-4  m-3  p-3">
-                            {/* <Sketch />
-              <h4 className="leading-none font-medium  font-poppins text-[13.7px] text-chestnut">
-                Sketch
-              </h4> */}
+
                         </div>
                     </div>
                 </PopoverContent>

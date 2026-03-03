@@ -4,10 +4,18 @@ export const deciveType = {
   TABLET: "Tablet",
 } as const;
 
-
 export interface Position {
   x: number;
   y: number;
+}
+
+export type MediaType = "video" | "pdf" | "image";
+
+export interface IMedia {
+  id: string;
+  name: string;
+  type: MediaType;
+  url: string;
 }
 
 export type deciveType = (typeof deciveType)[keyof typeof deciveType];
@@ -156,7 +164,6 @@ export interface ReplayEvent {
   absoluteTime: number;
 }
 
-
 export type Stroke = {
   id: string;
   points: number[];
@@ -169,8 +176,7 @@ export type Stroke = {
   endTime: string;
 };
 
-
- export interface IBatch {
+export interface IBatch {
   id: string;
   startTime: string;
   endTime: string;
@@ -178,12 +184,11 @@ export type Stroke = {
   hasBoard: boolean;
 }
 
- export interface IActions {
+export interface IActions {
   totalDuration: number;
   totalBatches: number;
   batches: IBatch[];
 }
-
 
 export const MEDIA_STORAGE_KEY = "MEDIA_INSTANCES";
 

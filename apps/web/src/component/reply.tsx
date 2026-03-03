@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Stage, Layer, Line, Rect } from 'react-konva';
 import { useGlobalTimer } from '@/hooks/useGlobalTimer';
 import type Konva from 'konva';
@@ -15,11 +15,16 @@ import type { AudioBatch, CompressedStroke, Position, Stroke } from '@/utils/con
 import { clearAudio, clearClass, getAudio, getClass } from '@/services/class';
 import { base64ToUint8, sleep, timeStringToMs } from '@/utils';
 import { gzipDecompress } from '@/utils/gzip';
+import Time from '@/pages/teacher/note-board/app-bar/time';
 
 
 export default function Replay() {
   const [strokes, setStrokes] = useState<Stroke[]>([]);
-  const [drawn, setDrawn] = useState<Stroke[]>([]);
+
+  // ✅ FIX 1: Use a Map keyed by stroke id for O(1) lookup + update
+  //    instead of filtering the entire array on every point.
+  const [drawnMap, setDrawnMap] = useState<Map<string, Stroke>>(new Map());
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [strokesList, setStrokesList] = useState<CompressedStroke[]>([]);
   const [audioList, setAudioList] = useState<AudioBatch[]>([]);
@@ -37,12 +42,13 @@ export default function Replay() {
   const parentRef = useRef<HTMLDivElement>(null);
   const rectRef = useRef(null);
 
-  const timer = useGlobalTimer({
-    onTargetReached: () => {
-      // console.log("⏱️ Timer finished");
-    },
-  });
+  // ✅ FIX 2: Derive the drawn array for rendering from the Map only once per render
+  //    Konva only sees this stable array — no extra allocations inside the loop.
+  const drawn = Array.from(drawnMap.values());
 
+  const timer = useGlobalTimer({
+    onTargetReached: () => { },
+  });
 
   useEffect(() => {
     const element = parentRef.current;
@@ -66,14 +72,13 @@ export default function Replay() {
         e.clientX <= rect.right &&
         e.clientY >= rect.top &&
         e.clientY <= rect.bottom;
-
       if (isOverDrawingArea) {
         setPosition({ x: e.clientX, y: e.clientY });
       }
     };
+
     if (trRef.current && rectRef.current) {
       trRef.current.nodes([rectRef.current]);
-    } else {
     }
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -85,7 +90,6 @@ export default function Replay() {
     };
   }, [loading]);
 
-
   /* ========== LOAD FROM INDEXEDDB ========== */
   useEffect(() => {
     let mounted = true;
@@ -93,16 +97,12 @@ export default function Replay() {
     const load = async () => {
       try {
         setLoading(true);
-
         const [classData, audioData] = await Promise.all([getClass(), getAudio()]);
-
         if (!mounted) return;
-
         setStrokesList(classData);
         setAudioList(audioData);
       } catch (err) {
         if (!mounted) return;
-
         setError(err instanceof Error ? err : new Error(String(err)));
       } finally {
         if (mounted) setLoading(false);
@@ -110,10 +110,7 @@ export default function Replay() {
     };
 
     load();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   /* ========== DECOMPRESS & SORT STROKES ========== */
@@ -135,39 +132,31 @@ export default function Replay() {
               points,
               color: comp.color,
               width: comp.width,
-              duration: comp.duration ?? 600, // fallback if missing
+              duration: comp.duration ?? 600,
               timestamp: comp.timestamp ?? Date.now(),
               startTime: comp.startTime,
               endTime: comp.endTime,
-              type: comp.type
+              type: comp.type,
             });
           } catch (err) {
             console.error(`Failed to decompress stroke ${comp.id}:`, err);
           }
         }
 
-        // Sort chronologically
         const sorted = decompressed.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
         setStrokes(sorted);
-
-        if (sorted.length > 0) {
-          // console.log('First stroke timestamp:', sorted[0].timestamp);
-          // console.log('Last stroke timestamp:', sorted[sorted.length - 1].timestamp);
-        }
       } catch (err) {
-        // console.error('Stroke decompression pipeline failed:', err);
         setError(err instanceof Error ? err : new Error(String(err)));
       }
     })();
   }, [strokesList]);
 
   /* ========== PLAY SINGLE AUDIO BATCH ========== */
-  const playAudioBatch = async (batchIndex: number): Promise<void> => {
+  const playAudioBatch = useCallback(async (batchIndex: number): Promise<void> => {
     if (batchIndex >= audioList.length || stopRef.current) return;
 
     const batch = audioList[batchIndex];
 
-    // Clean up previous blob
     if (currentBlobUrlRef.current) {
       URL.revokeObjectURL(currentBlobUrlRef.current);
       currentBlobUrlRef.current = null;
@@ -177,21 +166,16 @@ export default function Replay() {
     currentBlobUrlRef.current = blobUrl;
 
     if (!audioRef.current) throw new Error('Audio element ref missing');
-
     audioRef.current.src = blobUrl;
     setCurrentBatch(batchIndex);
-    return new Promise((resolve, reject) => {
-      const onEnded = () => {
-        cleanup();
-        resolve();
-      };
 
+    return new Promise((resolve, reject) => {
+      const onEnded = () => { cleanup(); resolve(); };
       const onError = (e: Event) => {
         cleanup();
         console.error(`Audio error in batch ${batch.batchId}:`, e);
         reject(new Error(`Audio playback failed for batch ${batch.batchId}`));
       };
-
       const cleanup = () => {
         audioRef.current?.removeEventListener('ended', onEnded);
         audioRef.current?.removeEventListener('error', onError);
@@ -199,13 +183,9 @@ export default function Replay() {
 
       audioRef.current?.addEventListener('ended', onEnded);
       audioRef.current?.addEventListener('error', onError);
-
-      audioRef.current?.play().catch((err) => {
-        cleanup();
-        reject(err);
-      });
+      audioRef.current?.play().catch((err) => { cleanup(); reject(err); });
     });
-  };
+  }, [audioList]);
 
   /* ========== MAIN PLAYBACK FUNCTION ========== */
   const play = async () => {
@@ -214,21 +194,17 @@ export default function Replay() {
     stopRef.current = false;
     timer.start();
     setIsPlaying(true);
-    setDrawn([]);
+    setDrawnMap(new Map());   // ✅ clear drawn map
     setCurrentBatch(0);
 
-    // ✅ FIX: Sort in ASCENDING order (a - b)
     const sortedAudio = [...audioList].sort((a, b) => a.batchId - b.batchId);
-
-
 
     const audioTask = (async () => {
       for (let i = 0; i < sortedAudio.length; i++) {
         if (stopRef.current) break;
         try {
           await playAudioBatch(i);
-        } catch (err) {
-        }
+        } catch (_) { }
       }
     })();
 
@@ -240,16 +216,20 @@ export default function Replay() {
 
         const startMs = timeStringToMs(stroke.startTime);
 
-        // 1️⃣ WAIT until stroke.startTime
+        // Wait until stroke.startTime
         while (timer.elapsedSecondsRef.current * 1000 < startMs) {
           if (stopRef.current) return;
           await sleep(16);
         }
 
-        // 2️⃣ DRAW with correct duration
         const pointCount = stroke.points.length / 2;
-        const pointDelay = pointCount > 0 ? Math.max(6, (stroke.duration ?? 600) / pointCount) : 0;
+        const pointDelay = pointCount > 0
+          ? Math.max(6, (stroke.duration ?? 600) / pointCount)
+          : 0;
 
+        // ✅ FIX 3: Accumulate points locally, batch React updates every N points
+        //    instead of calling setDrawn for every single point.
+        const BATCH_SIZE = 8; // update canvas every 8 points (~50ms at 6ms/pt)
         const localPoints: number[] = [];
 
         for (let i = 0; i < stroke.points.length; i += 2) {
@@ -257,16 +237,18 @@ export default function Replay() {
 
           localPoints.push(stroke.points[i], stroke.points[i + 1]);
 
-          setDrawn((prev) => {
-            const others = prev.filter((s) => s.id !== stroke.id);
-            return [
-              ...others,
-              {
-                ...stroke,
-                points: localPoints.slice(),
-              },
-            ];
-          });
+          const isLastPoint = i >= stroke.points.length - 2;
+          const isBatchBoundary = ((i / 2) + 1) % BATCH_SIZE === 0;
+
+          if (isBatchBoundary || isLastPoint) {
+            // ✅ O(1) map update — no filter scan over all strokes
+            const snapshot = localPoints.slice();
+            setDrawnMap(prev => {
+              const next = new Map(prev);
+              next.set(stroke.id, { ...stroke, points: snapshot });
+              return next;
+            });
+          }
 
           if (pointDelay > 0) await sleep(pointDelay);
         }
@@ -274,22 +256,18 @@ export default function Replay() {
     })();
 
     await Promise.all([audioTask, drawingTask]);
-    timer.stop()
+    timer.stop();
 
     if (!stopRef.current) {
       setIsPlaying(false);
     }
-
-    // timer.stop()
   };
 
   /* ========== STOP PLAYBACK ========== */
   const stop = () => {
     stopRef.current = true;
-    timer.stop()
+    timer.stop();
     setIsPlaying(false);
-    // setDrawn([]);
-    // setCurrentBatch(0);
 
     if (audioRef.current) {
       audioRef.current.pause();
@@ -303,19 +281,16 @@ export default function Replay() {
     }
   };
 
-
   const Cleardata = async () => {
     setIsClearing(true);
     try {
       await clearAudio();
       await clearClass();
       localStorage.removeItem('currentBatches');
-      // Clear the local state too
       setStrokesList([]);
       setAudioList([]);
       setStrokes([]);
-      setDrawn([]);
-
+      setDrawnMap(new Map());
     } catch (error) {
       console.error('❌ Clear failed:', error);
     } finally {
@@ -325,13 +300,14 @@ export default function Replay() {
 
   /* ================= RENDER ================= */
   if (loading) return <div className="p-6 text-center">Loading replay data...</div>;
-
-  if (error) {
-    return <div className="p-6 text-red-600">Error: {error.message}</div>;
-  }
+  if (error) return <div className="p-6 text-red-600">Error: {error.message}</div>;
 
   if (strokes.length === 0 && audioList.length === 0) {
-    return <div className="p-6 text-center text-gray-500 font-bold font-poppins text-3xl  flex items-center justify-center min-h-screen">No replay data available</div>;
+    return (
+      <div className="p-6 text-center text-gray-500 font-bold font-poppins text-3xl flex items-center justify-center min-h-screen">
+        No replay data available
+      </div>
+    );
   }
 
   if (isClearing) {
@@ -352,7 +328,6 @@ export default function Replay() {
         <div className="flex items-center justify-between gap-4 p-4">
           {/* Left: Control Buttons */}
           <div className="flex items-center gap-3">
-            {/* Play Button */}
             <button
               onClick={play}
               disabled={isPlaying}
@@ -365,7 +340,8 @@ export default function Replay() {
               <span>Play</span>
             </button>
 
-            {/* Stop Button */}
+
+
             <button
               onClick={stop}
               disabled={!isPlaying}
@@ -378,7 +354,6 @@ export default function Replay() {
               <span>Stop</span>
             </button>
 
-            {/* Clear DB Button */}
             <button
               disabled={isPlaying || isClearing}
               onClick={Cleardata}
@@ -391,10 +366,8 @@ export default function Replay() {
               <span>{isClearing ? "Clearing..." : "Clear DB"}</span>
             </button>
 
-            {/* Divider */}
             <div className="h-8 w-px bg-gray-300 mx-2" />
 
-            {/* Stats */}
             <div className="flex items-center gap-4 text-sm">
               <div className="flex items-center gap-1.5 text-gray-600">
                 <Edit3 className="w-4 h-4" />
@@ -419,11 +392,15 @@ export default function Replay() {
             </div>
           )}
 
+
           {/* Right: Timer */}
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg border border-gray-300">
-            <Clock className="w-5 h-5 text-gray-600" />
-            <div className="font-mono text-2xl font-bold text-gray-800">
-              {timer.displayTime}
+          <div className='flex items-center gap-4'>
+            <Time />
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg border border-gray-300">
+              <Clock className="w-5 h-5 text-gray-600" />
+              <div className="font-mono text-2xl font-bold text-gray-800">
+                {timer.displayTime}
+              </div>
             </div>
           </div>
         </div>
@@ -443,7 +420,7 @@ export default function Replay() {
             height={dimensions.height}
             style={{ background: "white" }}
           >
-            {/* Layer 1: static white background — never erased */}
+            {/* Layer 1: static white background */}
             <Layer>
               <Rect
                 x={0}
@@ -474,17 +451,6 @@ export default function Replay() {
             </Layer>
           </Stage>
         </div>
-
-        {/* Canvas Footer */}
-        {/* <div className="mt-2 px-3 py-2 bg-white rounded-md border border-gray-200 flex items-center justify-between text-xs text-gray-500">
-      <span>Canvas: {dimensions.width} × {dimensions.height}</span>
-      {isPlaying && (
-        <span className="flex items-center gap-1.5 text-green-600 font-medium">
-          <Activity className="w-3 h-3" />
-          Playing
-        </span>
-      )}
-    </div> */}
       </div>
     </div>
   );
