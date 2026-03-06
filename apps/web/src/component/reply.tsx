@@ -507,6 +507,9 @@ export default function Replay() {
             </div>
           </div>
 
+
+          <div className='font-medium'>s</div>
+
           {isPlaying && (
             <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
               <Circle className="w-2 h-2 fill-blue-500 text-blue-500 animate-pulse" />
