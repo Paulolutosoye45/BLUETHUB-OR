@@ -1,4 +1,4 @@
-import type { CompressedStroke } from "@/utils/constant";
+import type { CompressedStroke, IMedia } from "@/utils/constant";
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 interface classActiveState {
@@ -14,6 +14,7 @@ interface classActiveState {
   isRecording: boolean;
   sendQueueRefList: CompressedStroke[];
   classEnded: boolean;
+  selectedImage: IMedia | null;
 }
 
 const initialState: classActiveState = {
@@ -29,6 +30,7 @@ const initialState: classActiveState = {
   isRecording: false,
   sendQueueRefList: [],
   classEnded: false,
+  selectedImage: { id: "", name: "", type: "image", url: "" },
 };
 
 const ClassActionSlice = createSlice({
@@ -74,6 +76,17 @@ const ClassActionSlice = createSlice({
       state.pauseTime = true;
       state.isRecording = false;
     },
+
+    setSelectedImage: (state, action: PayloadAction<IMedia>) => {
+      state.selectedImage = {
+        id: action.payload.id,
+        name: action.payload.name,
+        type: action.payload.type,
+        url: action.payload.url
+      }
+    },
+
+    // setSelectedImageToNull
   },
 });
 
@@ -90,5 +103,6 @@ export const {
   setSendQueueRefList,
   clearSendQueueRefList,
   setEndClass,
+  setSelectedImage,
 } = ClassActionSlice.actions;
 export default ClassActionSlice.reducer;

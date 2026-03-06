@@ -7,6 +7,7 @@ import {
     Circle,
     Arrow,
     RegularPolygon,
+    Image as KonvaImage,
 } from "react-konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBezierPoints, gzipCompress } from "@/utils/gzip";
@@ -27,6 +28,7 @@ import ClassMenu from "@/layouts/teacher/class/component/class-menu";
 import ClassBottom from "@/layouts/teacher/class/component/class-bottom";
 import { clampCircle, clampRect, clampToBoard, clampTriangle, makeDragBoundFunc } from "@/utils/clamp";
 import type { Box } from "konva/lib/shapes/Transformer";
+import useImage from 'use-image';
 
 
 const Class = () => {
@@ -38,6 +40,7 @@ const Class = () => {
     const selectedFillColor = useSelector((state: RootState) => state.action.fillColor);
     const isRecording = useSelector((state: RootState) => state.action.isRecording);
     const sessionIdRef = useSelector((state: RootState) => state.action.sessionIdRef);
+    const selectedImage = useSelector((state: RootState) => state.action.selectedImage);
 
     const [actions, setAction] = useState<string | null>(ACTIONS.SELECT);
     const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -48,6 +51,7 @@ const Class = () => {
     const [circles, setCircles] = useState<circle[]>([]);
     const [arrows, setArrows] = useState<arrow[]>([]);
     const [triangles, setTriangles] = useState<triangle[]>([]);
+    const [vaderImage] = useImage(selectedImage?.url ?? "");
 
     const [timeLeft, setTimeLeft] = useState(parseTime(classDuration));
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -141,6 +145,10 @@ const Class = () => {
 
         return () => clearInterval(interval);
     }, [pauseTime, dispatch]);
+
+    useEffect(() => {
+        if (!selectedImage) return;
+    }, [selectedImage]);
 
     /* ✅ FIX 2: Stable dragBoundFunc factories memoized by board dimensions */
     const boardClamp = useCallback(
@@ -711,6 +719,20 @@ const Class = () => {
                                 dragBoundFunc={boardClamp}
                             />
                         ))}
+
+
+                        {selectedImage && vaderImage && (
+                            <KonvaImage
+                                image={vaderImage}
+                                x={boardW - 200}
+                                y={20}
+                                width={200}
+                                height={200}
+                                draggable={isDraggable}
+                                onClick={onClick}
+                            />
+                        )}
+
 
                         <Transformer
                             ref={trRef}
