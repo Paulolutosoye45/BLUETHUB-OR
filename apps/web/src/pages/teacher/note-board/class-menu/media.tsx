@@ -10,13 +10,13 @@ import { fetchImageAsBlob } from '@/utils/blob';
 import { getImage } from '@/services/class-media';
 import type { RootState } from '@/store';
 import { useGlobalTimer } from '@/hooks/useGlobalTimer';
-import { useAudioRecorder } from '@/hooks/useAudioRecorder';
+// import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 
 const Media = () => {
   const [availableMedia, setAvailableMedia] = useState<IMedia[]>([]);
   const [cachedIds, setCachedIds] = useState<Set<string>>(new Set());
   const MediaTimesRef = useRef({ show: "", close: "" });
-  const { trackMediaInteraction } = useAudioRecorder();
+  // const { trackMediaInteraction } = useAudioRecorder();
 
   const selectedImage = useSelector((state: RootState) => state.action.selectedImage);
   const timerDisplay = useSelector((state: RootState) => state.action.timerDisplay);
@@ -154,7 +154,7 @@ const Media = () => {
                         };
                         MediaTimesRef.current.show = timerDisplay;
                         dispatch(setSelectedImage(mediaWithTime));
-                        trackMediaInteraction(mediaWithTime);  // ← record the interaction
+                        // trackMediaInteraction(mediaWithTime);  // ← record the interaction
                       }}
                     >
                       <p className="text-sm font-medium text-gray-800">
