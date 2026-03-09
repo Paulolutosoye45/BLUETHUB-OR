@@ -264,7 +264,7 @@ const Class = () => {
 
         isDrawing.current = true;
         shapeStartPos.current = pos;
-        strokeTimesRef.current.start = timer.displayTime;
+        strokeTimesRef.current.start = timer.timerDisplay;
 
         switch (actions) {
             case ACTIONS.PEN:
@@ -329,7 +329,7 @@ const Class = () => {
                 break;
             }
         }
-    }, [isRecording, pauseTime, boardW, boardH, actions, selectedFillColor, timer.displayTime]);
+    }, [isRecording, pauseTime, boardW, boardH, actions, selectedFillColor, timer.timerDisplay]);
 
     /* ── updateDrawing ──────────────────────────────────────────────────────── */
     const updateDrawing = useCallback((rawPos: Position) => {
@@ -405,7 +405,7 @@ const Class = () => {
         if (!isRecording || pauseTime) return;
         if (!isDrawing.current) return;
         isDrawing.current = false;
-        strokeTimesRef.current.end = timer.displayTime;
+        strokeTimesRef.current.end = timer.timerDisplay;
 
         switch (actions) {
             case ACTIONS.PEN:
@@ -443,7 +443,7 @@ const Class = () => {
 
         activeShapeId.current = null;
         shapeStartPos.current = null;
-    }, [isRecording, pauseTime, actions, rectangles, circles, triangles, arrows, straightLines, penDownEvent, shapeDownEvent, timer.displayTime]);
+    }, [isRecording, pauseTime, actions, rectangles, circles, triangles, arrows, straightLines, penDownEvent, shapeDownEvent, timer.timerDisplay]);
 
     /* ── Event handlers ─────────────────────────────────────────────────────── */
     const handleMouseDown = useCallback((e: KonvaEventObject<MouseEvent>) => {

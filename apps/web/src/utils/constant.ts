@@ -182,6 +182,7 @@ export interface IBatch {
   endTime: string;
   hasAudio: boolean;
   hasBoard: boolean;
+  mediaAction?: IActiveMedia[]
 }
 
 export interface IActions {
@@ -221,3 +222,12 @@ export type AudioBatch = {
   duration: number;
   size: number;
 };
+
+
+
+export interface IActiveMedia extends IMedia {
+  show: string | null;
+  closed: string | null;
+  pause?: string;
+  play?: string;
+}

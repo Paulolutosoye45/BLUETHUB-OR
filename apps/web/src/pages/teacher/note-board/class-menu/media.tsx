@@ -1,24 +1,45 @@
-import { X, ImageOff, CircleArrowDown, Loader2 } from 'lucide-react';
+import { X, ImageOff, } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger, PopoverClose, Tooltip, TooltipTrigger, Button, TooltipContent } from '@bluethub/ui-kit';
 
 import PermMedia from "@/assets/svg/perm-media.svg?react";
 import { onSetAction, setSelectedImage } from "@/store/class-action-slice";
 import { useDispatch, useSelector } from "react-redux";
-import { useEffect, useState } from "react";
-import type { IMedia } from '@/utils/constant';
+import { useEffect, useRef, useState } from "react";
+import type { IActiveMedia, IMedia } from '@/utils/constant';
 import { fetchImageAsBlob } from '@/utils/blob';
 import { getImage } from '@/services/class-media';
-import toast from 'react-hot-toast';
 import type { RootState } from '@/store';
+import { useGlobalTimer } from '@/hooks/useGlobalTimer';
+import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 
 const Media = () => {
   const [availableMedia, setAvailableMedia] = useState<IMedia[]>([]);
   const [cachedIds, setCachedIds] = useState<Set<string>>(new Set());
-  const [downloadingIds, setDownloadingIds] = useState<Set<string>>(new Set());
+  const MediaTimesRef = useRef({ show: "", close: "" });
+  const { trackMediaInteraction } = useAudioRecorder();
 
   const selectedImage = useSelector((state: RootState) => state.action.selectedImage);
+  const timerDisplay = useSelector((state: RootState) => state.action.timerDisplay);
+  const isRunning = useSelector((state: RootState) => state.action.timerRunning);
+  const pauseTime = useSelector((state: RootState) => state.action.pauseTime);
 
+
+  // console.log(selectedImage)
+
+  const timer = useGlobalTimer({
+    onTargetReached: () => {
+      MediaTimesRef.current.show = ""
+      MediaTimesRef.current.close = ""
+    },
+  });
+
+  useEffect(() => {
+    timer.start()
+  })
+
+  // console.log(timer.displayTime)
   const dispatch = useDispatch();
+  // ✅ Load media AND auto-cache to IndexedDB on mount
   useEffect(() => {
     const MediaLoader = async () => {
       try {
@@ -38,47 +59,36 @@ const Media = () => {
         ];
 
         setAvailableMedia(loadedImages);
+
+        // Auto-cache anything not already in IndexedDB
+        const cached = new Set<string>();
+
+        await Promise.all(
+          loadedImages.map(async (media) => {
+            const existing = await getImage(media.id);
+            if (existing) {
+              // Already cached — just mark it
+              cached.add(media.id);
+            } else {
+              // Not cached — fetch and store silently
+              try {
+                await fetchImageAsBlob(media.url, media.id, media.type, media.name);
+                cached.add(media.id);
+              } catch {
+                console.warn(`Failed to pre-cache: ${media.name}`);
+              }
+            }
+          })
+        );
+
+        setCachedIds(cached);
       } catch (error) {
-        console.error("Failed to load images", error);
+        console.error("Failed to load media", error);
       }
     };
 
     MediaLoader();
   }, []);
-
-  // ✅ Check IndexedDB on mount
-  useEffect(() => {
-    const checkCached = async () => {
-      const cached = new Set<string>();
-      for (const media of availableMedia) {
-        const url = await getImage(media.id);
-        if (url) cached.add(media.id);
-      }
-      setCachedIds(cached);
-    };
-    checkCached();
-  }, [availableMedia]);
-
-
-
-  // ✅ After download, mark as cached
-  const handleDownload = async ({ url, id, type, name }: IMedia) => {
-    setDownloadingIds(prev => new Set(prev).add(id));
-    try {
-      await fetchImageAsBlob(url, id, type, name);
-      setCachedIds(prev => new Set(prev).add(id));
-      toast.success(`${name} downloaded successfully`);
-    } catch (error) {
-      toast.error(`Failed to download ${name}`);
-      console.error("Download failed:", error);
-    } finally {
-      setDownloadingIds(prev => {
-        const next = new Set(prev);
-        next.delete(id);
-        return next;
-      });
-    }
-  };
 
   return (
     <div className={`font-poppins flex items-center justify-center py-2 cursor-pointer hover:bg-forestBlue`}>
@@ -135,7 +145,16 @@ const Media = () => {
                       className="flex-1"
                       onClick={() => {
                         if (!cachedIds.has(media.id)) return;
-                        dispatch(setSelectedImage(media));
+                        if (!isRunning && !pauseTime) return;
+
+                        const mediaWithTime: IActiveMedia = {
+                          ...media,
+                          show: timerDisplay,
+                          closed: null,
+                        };
+                        MediaTimesRef.current.show = timerDisplay;
+                        dispatch(setSelectedImage(mediaWithTime));
+                        trackMediaInteraction(mediaWithTime);  // ← record the interaction
                       }}
                     >
                       <p className="text-sm font-medium text-gray-800">
@@ -146,18 +165,6 @@ const Media = () => {
                       </p>
                     </div>
 
-                    {/* ✅ only this part downloads */}
-                    {!cachedIds.has(media.id) && (
-                      <div
-                        onClick={() => handleDownload(media)}
-                        className="rounded-lg flex items-center justify-center cursor-pointer"
-                      >
-                        {downloadingIds.has(media.id)
-                          ? <Loader2 className="w-6 h-6 text-blue-600 animate-spin" />
-                          : <CircleArrowDown className="w-6 h-6 text-blue-600" />
-                        }
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>

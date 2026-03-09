@@ -1,4 +1,4 @@
-import type { CompressedStroke, IMedia } from "@/utils/constant";
+import type { CompressedStroke, IActiveMedia } from "@/utils/constant";
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 interface classActiveState {
@@ -14,7 +14,10 @@ interface classActiveState {
   isRecording: boolean;
   sendQueueRefList: CompressedStroke[];
   classEnded: boolean;
-  selectedImage: IMedia | null;
+  selectedImage: IActiveMedia | null;
+  timerDisplay: string;
+  timerRunning: boolean;
+  timerElapsedSeconds: number;
 }
 
 const initialState: classActiveState = {
@@ -30,7 +33,18 @@ const initialState: classActiveState = {
   isRecording: false,
   sendQueueRefList: [],
   classEnded: false,
-  selectedImage: { id: "", name: "", type: "image", url: "" },
+  selectedImage: {
+    id: "",
+    name: "",
+    type: "image",
+    url: "",
+    show: "",
+    closed: "",
+  },
+
+  timerDisplay: "00:00",
+  timerRunning: false,
+  timerElapsedSeconds: 0,
 };
 
 const ClassActionSlice = createSlice({
@@ -77,16 +91,21 @@ const ClassActionSlice = createSlice({
       state.isRecording = false;
     },
 
-    setSelectedImage: (state, action: PayloadAction<IMedia>) => {
-      state.selectedImage = {
-        id: action.payload.id,
-        name: action.payload.name,
-        type: action.payload.type,
-        url: action.payload.url
-      }
+    setSelectedImage: (state, action: PayloadAction<IActiveMedia>) => {
+      state.selectedImage = action.payload;
     },
 
     // setSelectedImageToNull
+
+    setTimerDisplay: (state, action: PayloadAction<string>) => {
+      state.timerDisplay = action.payload;
+    },
+    setTimerRunning: (state, action: PayloadAction<boolean>) => {
+      state.timerRunning = action.payload;
+    },
+    setTimerElapsed: (state, action: PayloadAction<number>) => {
+      state.timerElapsedSeconds = action.payload;
+    },
   },
 });
 
@@ -104,5 +123,8 @@ export const {
   clearSendQueueRefList,
   setEndClass,
   setSelectedImage,
+  setTimerDisplay,
+  setTimerRunning,
+  setTimerElapsed,
 } = ClassActionSlice.actions;
 export default ClassActionSlice.reducer;

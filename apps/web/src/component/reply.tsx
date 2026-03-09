@@ -101,7 +101,7 @@ export default function Replay() {
   const drawn = Array.from(drawnMapRef.current.values());
 
   // Timer is only used for the display clock in the header, NOT for sync
-  const timer = useGlobalTimer({ onTargetReached: () => {} });
+  const timer = useGlobalTimer({ onTargetReached: () => { } });
 
   // ── Resize observer ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -157,18 +157,18 @@ export default function Replay() {
         const results = await Promise.allSettled(
           strokesList.map(async (comp): Promise<Stroke> => {
             const binary = base64ToUint8(comp.data);
-            const json   = await gzipDecompress(binary);
+            const json = await gzipDecompress(binary);
             const points = JSON.parse(json) as number[];
             return {
-              id:        comp.id,
+              id: comp.id,
               points,
-              color:     comp.color,
-              width:     comp.width,
-              duration:  comp.duration ?? 600,
+              color: comp.color,
+              width: comp.width,
+              duration: comp.duration ?? 600,
               timestamp: comp.timestamp ?? Date.now(),
               startTime: comp.startTime,  // "MM:SS" string
-              endTime:   comp.endTime,    // "MM:SS" string
-              type:      comp.type,
+              endTime: comp.endTime,    // "MM:SS" string
+              type: comp.type,
             };
           })
         );
@@ -206,11 +206,11 @@ export default function Replay() {
   //
   const startRaf = useCallback((allStrokes: Stroke[]) => {
     const timelines = allStrokes.map(s => {
-      const startMs    = timeToMs(s.startTime);   // always MS — no unit ambiguity
-      const endMs      = timeToMs(s.endTime);
+      const startMs = timeToMs(s.startTime);   // always MS — no unit ambiguity
+      const endMs = timeToMs(s.endTime);
       const drawWindow = Math.max(endMs - startMs, 50); // min 50ms to avoid /0
       return {
-        stroke:      s,
+        stroke: s,
         startMs,
         drawWindow,
         totalPoints: s.points.length,
@@ -327,13 +327,13 @@ export default function Replay() {
     if (isPlaying || isPreloading) return;
 
     const readyStrokes = preloadedStrokesRef.current;
-    const hasStrokes   = readyStrokes.length > 0;
-    const hasAudio     = audioList.length > 0;
+    const hasStrokes = readyStrokes.length > 0;
+    const hasAudio = audioList.length > 0;
     if (!hasStrokes && !hasAudio) return;
 
-    stopRef.current          = false;
-    batchStartMsRef.current  = 0;
-    drawnMapRef.current      = new Map();
+    stopRef.current = false;
+    batchStartMsRef.current = 0;
+    drawnMapRef.current = new Map();
     strokeCursorsRef.current = new Map();
     setRenderTick(0);
     setCurrentBatch(0);
@@ -347,7 +347,7 @@ export default function Replay() {
       startRaf(readyStrokes);
       for (let i = 0; i < sortedAudio.length; i++) {
         if (stopRef.current) break;
-        try { await playAudioBatch(i, sortedAudio); } catch (_) {}
+        try { await playAudioBatch(i, sortedAudio); } catch (_) { }
       }
       stopRaf();
 
@@ -355,7 +355,7 @@ export default function Replay() {
       // Audio only — no RAF needed
       for (let i = 0; i < sortedAudio.length; i++) {
         if (stopRef.current) break;
-        try { await playAudioBatch(i, sortedAudio); } catch (_) {}
+        try { await playAudioBatch(i, sortedAudio); } catch (_) { }
       }
 
     } else if (hasStrokes && !hasAudio) {
@@ -412,8 +412,8 @@ export default function Replay() {
       setStrokesList([]);
       setAudioList([]);
       setStrokes([]);
-      preloadedStrokesRef.current  = [];
-      drawnMapRef.current          = new Map();
+      preloadedStrokesRef.current = [];
+      drawnMapRef.current = new Map();
       setRenderTick(0);
     } catch (err) {
       console.error('❌ Clear failed:', err);
@@ -423,8 +423,8 @@ export default function Replay() {
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
-  if (loading)    return <div className="p-6 text-center">Loading replay data...</div>;
-  if (error)      return <div className="p-6 text-red-600">Error: {error.message}</div>;
+  if (loading) return <div className="p-6 text-center">Loading replay data...</div>;
+  if (error) return <div className="p-6 text-red-600">Error: {error.message}</div>;
   if (isClearing) return (
     <div className="flex items-center justify-center min-h-screen">
       <div className="text-center">
@@ -450,11 +450,10 @@ export default function Replay() {
             <button
               onClick={play}
               disabled={isPlaying || isPreloading}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-                isPlaying || isPreloading
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                  : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg active:scale-95'
-              }`}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${isPlaying || isPreloading
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg active:scale-95'
+                }`}
             >
               {isPreloading
                 ? <><Loader className="w-5 h-5 animate-spin" /><span>Preparing...</span></>
@@ -465,11 +464,10 @@ export default function Replay() {
             <button
               onClick={stop}
               disabled={!isPlaying}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-                !isPlaying
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                  : 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg active:scale-95'
-              }`}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${!isPlaying
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                : 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg active:scale-95'
+                }`}
             >
               <StopCircle className="w-5 h-5" />
               <span>Stop</span>
@@ -478,11 +476,10 @@ export default function Replay() {
             <button
               disabled={isPlaying || isClearing || isPreloading}
               onClick={Cleardata}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-                isPlaying || isClearing || isPreloading
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                  : 'bg-orange-500 hover:bg-orange-600 text-white shadow-md hover:shadow-lg active:scale-95'
-              }`}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${isPlaying || isClearing || isPreloading
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                : 'bg-orange-500 hover:bg-orange-600 text-white shadow-md hover:shadow-lg active:scale-95'
+                }`}
             >
               <Trash className="w-5 h-5" />
               <span>{isClearing ? 'Clearing...' : 'Clear DB'}</span>
@@ -522,7 +519,7 @@ export default function Replay() {
           <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg border border-gray-300">
             <Clock className="w-5 h-5 text-gray-600" />
             <div className="font-mono text-2xl font-bold text-gray-800">
-              {timer.displayTime}
+              {timer.timerDisplay}
             </div>
           </div>
         </div>

@@ -1,4 +1,9 @@
-import { deciveType, type IActions, type IBatch } from "./constant";
+import {
+  deciveType,
+  type IActions,
+  type IActiveMedia,
+  type IBatch,
+} from "./constant";
 import { isMobile, isTablet, isDesktop } from "react-device-detect";
 import { v4 as uuidv4 } from "uuid";
 
@@ -106,14 +111,18 @@ export const saveActions = (data: {
   startTime: string;
   hasBoard: boolean;
   endTime: string;
+  mediaAction?: IActiveMedia[];
 }) => {
-  const { totalDuration, hasAudio, startTime, hasBoard, endTime } = data;
+  const { totalDuration, hasAudio, startTime, hasBoard, endTime, mediaAction } =
+    data;
+
   const newBatch: IBatch = {
     id: uuidv4(),
     startTime,
     endTime,
     hasAudio,
     hasBoard,
+    mediaAction: mediaAction ?? [], // ← store media interactions in the batch
   };
 
   let actions: IActions;
@@ -122,11 +131,7 @@ export const saveActions = (data: {
   if (batchesStr) {
     actions = JSON.parse(batchesStr);
   } else {
-    actions = {
-      totalDuration,
-      totalBatches: 0,
-      batches: [],
-    };
+    actions = { totalDuration, totalBatches: 0, batches: [] };
   }
 
   actions.batches.push(newBatch);

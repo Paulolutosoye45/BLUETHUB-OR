@@ -21,7 +21,7 @@ const ClassBottom = () => {
          toast.success('time has resumed')
        } else {
 
-           toast.success('time was paused')
+           toast.success('time has paused')
        }
     }
 
