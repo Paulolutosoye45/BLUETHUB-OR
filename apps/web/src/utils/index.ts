@@ -20,10 +20,23 @@ export const token = {
   logout() {
     // Clear all auth-related localStorage items
     localStorage.removeItem("token");
+    localStorage.removeItem("schoolInfo");
+    localStorage.removeItem("user");
   },
   clearAll() {
     // Clear all auth-related localStorage items
     this.logout();
+  },
+};
+
+export const localData = {
+  save<T>(key: string, value: T) {
+    localStorage.setItem(key, JSON.stringify(value));
+  },
+
+  retrieve<T>(key: string): T | null {
+    const stored = localStorage.getItem(key);
+    return stored ? (JSON.parse(stored) as T) : null;
   },
 };
 

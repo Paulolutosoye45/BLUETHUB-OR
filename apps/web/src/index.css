@@ -143,7 +143,7 @@
 }
 
 @theme {
-  --font-poppins: "Poppins", sans-serif;
+  --font-poppins: "Poppins";
 }
 
 .font-poppins,
@@ -159,7 +159,7 @@ h4,
 h5,
 h6,
 span {
-  font-family: "Poppins", sans-serif
+  font-family: "Poppins",
 }
 
 /* hide scrollbars cross-browser */
@@ -330,3 +330,34 @@ input[type="range"]::-moz-range-thumb {
   background-image: url('./assets/jpeg/class-board.jpg');
   background-size: cover;
 } */
+
+
+
+/* HTML: <div class="loader"></div> */
+.loader2 {
+  width: fit-content;
+  padding-bottom: 5px;
+  font-weight: bold;
+  font-family: monospace;
+  font-size: 30px;
+  overflow: hidden;
+  color: #0000;
+  text-shadow: 0 0 0 #000, 10ch 0 0 #000;
+  background: linear-gradient(#000 0 0) bottom left/0% 3px no-repeat;
+  animation: l14 1.5s infinite;
+}
+
+.loader2:before {
+  content: "Loading...";
+}
+
+@keyframes l14 {
+  80% {
+    text-shadow: 0 0 0 #000, 10ch 0 0 #000;
+    background-size: 100% 3px
+  }
+
+  100% {
+    text-shadow: -10ch 0 0 #000, 0 0 0 #000
+  }
+}

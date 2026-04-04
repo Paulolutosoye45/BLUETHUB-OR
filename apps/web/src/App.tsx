@@ -1,14 +1,14 @@
 import { RouterProvider } from 'react-router-dom';
 import router from './routes';
 import './index.css'
+import { Toaster } from "@bluethub/ui-kit"
 function App() {
   return (
-    // <AuthProvider>
-      // <NotificationProvider>
-        // <Toaster position="bottom-center" />
-        <RouterProvider router={router} />
-      // </NotificationProvider>
-    // {/* </AuthProvider> */}
+    <>
+      <Toaster position="bottom-center" />
+        <RouterProvider router={router} /> 
+        <Toaster />
+    </>
   );
 }
 
