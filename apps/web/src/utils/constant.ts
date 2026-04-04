@@ -22,12 +22,26 @@ export type deciveType = (typeof deciveType)[keyof typeof deciveType];
 
 export type DeviceType = keyof typeof deciveType;
 
-export type SubjectType = "MAJOR" | "MINOR";
+export const SubjectType = {
+  Major: 1,
+  Minor: 2, // whatever your values are
+} as const;
+
+export type SubjectType = (typeof SubjectType)[keyof typeof SubjectType];
+
+export const ClassCategory = {
+  Primary: 1,
+  Secondary: 2,
+  Colleges: 3,
+} as const;
+
+export type ClassCategory = (typeof ClassCategory)[keyof typeof ClassCategory];
 
 export interface course {
   category: SubjectType;
   subject: string;
-  status: boolean;
+  isActive: boolean;
+  classCategory: ClassCategory;
 }
 
 export const schoolType = {
@@ -182,7 +196,7 @@ export interface IBatch {
   endTime: string;
   hasAudio: boolean;
   hasBoard: boolean;
-  mediaAction?: IActiveMedia[]
+  mediaAction?: IActiveMedia[];
 }
 
 export interface IActions {
@@ -222,8 +236,6 @@ export type AudioBatch = {
   duration: number;
   size: number;
 };
-
-
 
 export interface IActiveMedia extends IMedia {
   show: string | null;

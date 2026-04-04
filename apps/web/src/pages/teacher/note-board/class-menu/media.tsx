@@ -23,9 +23,6 @@ const Media = () => {
   const isRunning = useSelector((state: RootState) => state.action.timerRunning);
   const pauseTime = useSelector((state: RootState) => state.action.pauseTime);
 
-
-  // console.log(selectedImage)
-
   const timer = useGlobalTimer({
     onTargetReached: () => {
       MediaTimesRef.current.show = ""

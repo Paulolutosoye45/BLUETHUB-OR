@@ -16,6 +16,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ["@bluethub/ui-kit"],
+    include: ["@bluethub/ui-kit", "chrono-node"],
   },
 });
