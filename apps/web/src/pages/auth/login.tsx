@@ -2,7 +2,7 @@ import { loginSchema } from "@/utils/validate";
 import toast from "react-hot-toast";
 import { AxiosError } from "axios";
 import { authService } from "@/services/auth";
-import { getDeviceIp, getDeviceType, localData,} from "@/utils";
+import { getDeviceIp, getDeviceType, Hashing, localData,} from "@/utils";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -42,14 +42,14 @@ function Login() {
 
 
     const handleLogin = async (data: UserLoginInput) => {
-        // const hashPassword = await Hashing(data.password);
+        const hashPassword = await Hashing(data.password);
         const deviceIp = await getDeviceIp();
 
         const inst = "pearl01";
 
         const payload = {
             username: data.userName,
-            hashPassword: data.password,
+            hashPassword,
             inst,
             deviceType: getDeviceType(),
             deviceIp,

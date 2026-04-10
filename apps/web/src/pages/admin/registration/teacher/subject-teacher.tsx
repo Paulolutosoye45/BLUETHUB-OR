@@ -1,12 +1,38 @@
 import schoolProfile from "@/assets/png/School.png";
+import { authService } from "@/services/auth";
+import { Hashing } from "@/utils";
+import type { Tuser } from "@/utils/decode";
+import { regUserSchema, UserRole, type RegisterFormData } from "@/utils/validate";
 import { Label, Input, Button } from "@bluethub/ui-kit";
-import { Upload, User, Lock, MapPin, Camera } from "lucide-react";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { AxiosError } from "axios";
+import { Upload, User, Lock, Camera, Mail, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import toast from "react-hot-toast";
 
 const SubjectTeacher = () => {
   const [fileName, setFileName] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false)
+  const [user, setUser] = useState<Tuser | null>(null);
+  
+
+  // Load user from localStorage when component mounts
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+
+    if (storedUser) {
+      try {
+        const parsedUser: Tuser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error('Failed to parse user from localStorage:', error);
+        localStorage.removeItem('user'); // clear corrupted data
+      }
+    }
+  }, []);
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -32,6 +58,62 @@ const SubjectTeacher = () => {
       setFileName(e.dataTransfer.files[0].name);
     }
   };
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm({ resolver: yupResolver(regUserSchema) });
+
+
+  const firstName = watch("firstName");
+  const lastName = watch("lastName");
+
+  // Auto-generate username whenever firstName or lastName changes
+  useEffect(() => {
+    if (firstName || lastName) {
+      const generated = `${firstName ?? ''}.${lastName ?? ''}`.toLowerCase().trim();
+      setValue("username", generated);
+      setValue("password", generated);
+    }
+  }, [firstName, lastName, setValue]);
+
+  const handleRegister = async (data: RegisterFormData) => {
+    if (!user?.schoolId && !user?.id) return
+    
+    let role = UserRole.SuperAdministrator;           // 1            // 4
+    const hashPassword = await Hashing(data.password);
+    const payload = {
+      createdby: user?.id,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      emailAddress: data.email,
+      hashPassword,
+      isActive: true,
+      hasAccess: true,
+      userName: data.username,
+      schoolId: user?.schoolId,
+      role
+    }
+    setLoading(true);
+    try {
+      const res = authService.createUser(payload)
+      //  navigate('/admin')
+      console.log(res)
+
+    } catch (error) {
+      const errorMessage =
+        error instanceof AxiosError
+          ? error.response?.data?.message || error.message
+          : (error as Error).message;
+
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     // "space-y-4 px-6 max-w-full min-w-[80%] mx-auto"
@@ -86,7 +168,7 @@ const SubjectTeacher = () => {
         </div>
 
         {/* Form Content */}
-        <div className="p-8 bg-linear-to-br from-white/95 to-white/85">
+        <form onSubmit={handleSubmit(handleRegister)} className="p-8 bg-linear-to-br from-white/95 to-white/85">
           <div className="flex gap-12">
             {/* Profile Picture Upload */}
             <div className="space-y-3">
@@ -104,10 +186,9 @@ const SubjectTeacher = () => {
                 className={`group relative flex items-center justify-center flex-col gap-4 
                   border-2 border-dashed w-60 h-50 rounded-2xl cursor-pointer 
                   transition-all duration-300 overflow-hidden
-                  ${
-                    dragActive
-                      ? "border-chestnut bg-chestnut/10 scale-105"
-                      : fileName
+                  ${dragActive
+                    ? "border-chestnut bg-chestnut/10 scale-105"
+                    : fileName
                       ? "border-green-500 bg-green-50"
                       : "border-chestnut/40 hover:border-chestnut bg-chestnut/5 hover:bg-chestnut/10"
                   }`}
@@ -123,11 +204,10 @@ const SubjectTeacher = () => {
                 <div className="absolute inset-0 bg-linear-to-br from-chestnut/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
                 <div
-                  className={`p-4 rounded-full transition-all duration-300 ${
-                    fileName
-                      ? "bg-green-500"
-                      : "bg-chestnut/10 group-hover:bg-chestnut/20"
-                  }`}
+                  className={`p-4 rounded-full transition-all duration-300 ${fileName
+                    ? "bg-green-500"
+                    : "bg-chestnut/10 group-hover:bg-chestnut/20"
+                    }`}
                 >
                   {fileName ? (
                     <Camera className="w-8 h-8 text-white" />
@@ -138,11 +218,10 @@ const SubjectTeacher = () => {
 
                 <div className="text-center px-4 space-y-1">
                   <p
-                    className={`font-semibold text-sm transition-colors ${
-                      fileName
-                        ? "text-green-700"
-                        : "text-chestnut group-hover:text-chestnut/80"
-                    }`}
+                    className={`font-semibold text-sm transition-colors ${fileName
+                      ? "text-green-700"
+                      : "text-chestnut group-hover:text-chestnut/80"
+                      }`}
                   >
                     {fileName ? "Image Selected" : "Upload Image"}
                   </p>
@@ -165,27 +244,35 @@ const SubjectTeacher = () => {
                 <div className="space-y-3">
                   <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
                     <User className="w-4 h-4" />
-                    First Name*
+                    First Name
                   </Label>
                   <div className="relative">
                     <Input
+                      {...register("firstName")}
                       type="text"
                       placeholder="Enter first name"
                       className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:ring-chestnut/30"
                     />
+                    {errors.firstName && (
+                      <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>
+                    )}
                   </div>
                 </div>
 
                 <div className="space-y-3">
                   <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
                     <User className="w-4 h-4" />
-                    Last Name*
+                    Last Name
                   </Label>
                   <Input
+                    {...register("lastName")}
                     type="text"
                     placeholder="Enter last name"
                     className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:ring-chestnut/30"
                   />
+                  {errors.lastName && (
+                    <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>
+                  )}
                 </div>
               </div>
 
@@ -197,21 +284,29 @@ const SubjectTeacher = () => {
                     Middle Name
                   </Label>
                   <Input
+                    {...register("middleName")}
                     type="text"
                     placeholder="Enter middle name"
                     className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:ring-chestnut/30"
                   />
+                  {errors.middleName && (
+                    <p className="text-red-500 text-sm mt-1">{errors.middleName.message}</p>
+                  )}
                 </div>
 
                 <div className="space-y-3">
                   <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
                     <User className="w-4 h-4" />
-                    Username*
+                    Username
                   </Label>
                   <Input
+                    {...register("username")}
                     type="text"
-                    placeholder="Enter username"
-                    className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:ring-chestnut/30"
+                    readOnly
+                    placeholder="Auto-generated"
+                    className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 
+             text-base placeholder:text-chestnut/50 bg-chestnut/5 rounded-xl 
+             cursor-not-allowed opacity-70"
                   />
                 </div>
               </div>
@@ -220,25 +315,34 @@ const SubjectTeacher = () => {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="space-y-3">
                   <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
-                    <MapPin className="w-4 h-4" />
-                    Address*
+                    <Mail className="w-4 h-4" />
+                    Email
                   </Label>
                   <Input
+                    {...register("email")}
                     type="text"
-                    placeholder="Enter full address"
+                    placeholder="Enter  email address"
                     className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:ring-chestnut/30"
                   />
+                  {errors.email && (
+                    <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+                  )}
                 </div>
 
                 <div className="space-y-3">
                   <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
                     <Lock className="w-4 h-4" />
-                    Password*
+                    Password
                   </Label>
                   <Input
+                    {...register("password")}
+                    readOnly
                     type="password"
-                    placeholder="Enter secure password"
-                    className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:ring-chestnut/30"
+                    placeholder="Auto-generated"
+                    className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 
+                    text-base placeholder:text-chestnut/50 bg-chestnut/5 rounded-xl 
+                    cursor-not-allowed opacity-70"
+
                   />
                 </div>
               </div>
@@ -247,13 +351,15 @@ const SubjectTeacher = () => {
 
           {/* Action Button */}
           <div className="flex justify-end mt-12 pt-8 border-t border-chestnut/10">
-            <Button className="bg-linear-to-r from-chestnut to-chestnut/90 hover:from-chestnut/90 hover:to-chestnut text-white font-bold text-lg py-7 px-12 rounded-md shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-              <Link to="/admin/registration/teacher/email-verification">
-                Save and Continue
-              </Link>
+            <Button disabled={loading} className="bg-linear-to-r from-chestnut to-chestnut/90 hover:from-chestnut/90 hover:to-chestnut text-white font-bold text-lg py-7 px-12 rounded-md shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+              {loading ? (
+                <Loader2 className="size-5 mx-auto animate-spin text-white" />
+              ) : (
+                <span>                Save and Continue</span>
+              )}
             </Button>
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
