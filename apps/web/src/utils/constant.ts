@@ -52,6 +52,9 @@ export const schoolType = {
   STUDENT: "Student",
 } as const;
 
+
+
+
 export type schoolType = (typeof schoolType)[keyof typeof schoolType];
 
 export const schoolStatus = {

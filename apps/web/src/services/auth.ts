@@ -80,15 +80,15 @@ interface IcreateUserRequest {
   lastName: string;
   emailAddress: string;
   hashPassword: string;
-  isActive: true;
-  hasAccess: true;
+  isActive: boolean;
+  hasAccess: boolean;
   userName: string;
   schoolId: string;
   role: number;
-  userClassroomsId: string[];
-  userSubjects: string[];
-  removeSubjects: string[];
-  removeClassroom: string[];
+  userClassroomsId?: string[];
+  userSubjects?: string[];
+  removeSubjects?: string[];
+  removeClassroom?: string[];
 }
 
 interface IEditUserRequest {
@@ -149,7 +149,11 @@ export const authService = {
     });
   },
   createUser: (data: IcreateUserRequest) => {
-    return API.post<TResponse<unknown>>(endpoints.createUser, data);
+    return API.post<TResponse<unknown>>(endpoints.createUser, data, {
+            headers: {
+        "X-Tenant-ID": "pearl",
+      },
+    });
   },
 
   editUser: (data: IEditUserRequest) => {

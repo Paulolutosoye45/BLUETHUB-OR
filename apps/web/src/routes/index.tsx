@@ -30,8 +30,8 @@ import TeacherMain from '@/pages/admin/registration/teacher/main';
 import SubjectTeacher from '@/pages/admin/registration/teacher/subject-teacher';
 import HeadTeacher from '@/pages/admin/registration/teacher/head-teacher';
 import EmailModal from '@/pages/admin/registration/teacher/email-modal';
-import ResendEmail from '@/pages/admin/registration/teacher/resend-email';
-import TeacherOTP from '@/pages/admin/registration/teacher/otp';
+// import ResendEmail from '@/pages/admin/registration/teacher/resend-email';
+// import TeacherOTP from '@/pages/admin/registration/teacher/otp';
 import AssignRoles from '@/pages/admin/registration/teacher/assign-role';
 import ClassRegistration from '@/pages/admin/registration/course/class/class-registration';
 import StudentsLayout from '@/layouts/student';
@@ -144,14 +144,14 @@ const router = createBrowserRouter([
                                 path: "email-verification",
                                 element: <EmailModal />,
                             },
-                            {
-                                path: "verification-resend",
-                                element: <ResendEmail />,
-                            },
-                            {
-                                path: "verification-otp",
-                                element: <TeacherOTP />,
-                            },
+                            // {
+                            //     path: "verification-resend",
+                            //     element: <ResendEmail />,
+                            // },
+                            // {
+                            //     path: "verification-otp",
+                            //     element: <TeacherOTP />,
+                            // },
                             {
                                 path: "assign-role",
                                 element: <AssignRoles />,
