@@ -62,6 +62,18 @@ export {
   PopoverTrigger,
 } from "./components/ui/popover";
 
+export {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+  CommandShortcut,
+} from "./components/ui/command"
+
 export { Badge } from "./components/ui/badge"
 
 export {

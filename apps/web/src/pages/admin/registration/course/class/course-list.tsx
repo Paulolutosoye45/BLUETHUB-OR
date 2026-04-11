@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 // import type { course } from "@/utils/constant";
 import { Label } from "@bluethub/ui-kit";
 import type { ISubjectList } from "./class-registration";
@@ -16,6 +15,8 @@ const CourseList = ({
     activeCourses,
     setActiveCourses,
 }: CourseListProps) => {
+
+    
     const handleCheckboxChange = (course: ISubjectList) => {
         if (activeCourses.some((c) => c.subject === course.subject)) {
             setActiveCourses((prev) =>
@@ -26,9 +27,9 @@ const CourseList = ({
         }
     };
 
-    useEffect(() => {
-        console.log("Courses to register:", activeCourses);
-    }, [activeCourses]);
+    // useEffect(() => {
+    //     console.log("Courses to register:", activeCourses);
+    // }, [activeCourses]);
 
     return (
         <section className="w-full p-4 border-gray-100">

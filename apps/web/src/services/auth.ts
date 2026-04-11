@@ -1,5 +1,6 @@
 import { token } from "@/utils";
 import axios from "axios";
+import { X_Tenant_ID } from "./school";
 
 export const API = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL });
 
@@ -39,6 +40,7 @@ const endpoints = {
   getAdminPermissions: "api/User/GetAdminPermissions",
   getAllAdminPermissions: "api/User/GetAllAdminPermissions",
   revokePermissions: "api/User/RevokePermissions",
+  getTeacher:"/api/User/teachers"
 };
 
 interface ILoginRequest {
@@ -144,14 +146,14 @@ export const authService = {
   login: (data: ILoginRequest) => {
     return API.post<ILoginResponse>(endpoints.login, data, {
       headers: {
-        "X-Tenant-ID": "pearl",
+        "X-Tenant-ID": X_Tenant_ID,
       },
     });
   },
   createUser: (data: IcreateUserRequest) => {
     return API.post<TResponse<unknown>>(endpoints.createUser, data, {
             headers: {
-        "X-Tenant-ID": "pearl",
+        "X-Tenant-ID": X_Tenant_ID,
       },
     });
   },
@@ -172,7 +174,7 @@ export const authService = {
     return API.get(endpoints.getUserById, {
       params: { userId },
       headers: {
-        "X-Tenant-ID": "pearl",
+        "X-Tenant-ID": X_Tenant_ID,
       },
     });
   },
@@ -196,4 +198,13 @@ export const authService = {
       adminUserId,
     });
   },
+
+  getTeacher: () => {
+    return API.get(endpoints.getTeacher, {
+      headers: {
+        "X-Tenant-ID": X_Tenant_ID,
+      },
+    });
+  },
+
 };

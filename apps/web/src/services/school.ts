@@ -1,11 +1,13 @@
 import { token } from "@/utils";
 import { API, type TResponse } from ".";
 
+export const X_Tenant_ID = "pearl"
+
 export const endpoints = {
   createSchool: "/api/School/createSchool",
   getState: "/api/School/getStates",
   updateSchoolCode: "/api/School/updateSchoolCode",
-  createSchoolClas: "/api/school/createschoolclassroom",
+  createSchoolClass: "/api/school/createschoolclassroom",
   registerSubject: "/api/School/registersubject",
   getAllSchoolSubjects: "/api/School/getAllSchoolSubjects",
   registerClassroomSubject: "/api/School/RegisterClassroomSubect",
@@ -35,7 +37,19 @@ interface IRegisterSubject {
   subjects: Ischool[];
 }
 
- export interface ISubject {
+interface IregClass {
+  name: string;
+  teacherName?: string;
+  noOfStudents?: number;
+}
+
+ export interface ICreateSchool {
+  createdBy: string;
+  SchoolId: string;
+  classrooms: IregClass[];
+}
+
+export interface ISubject {
   subject: string;
   schoolId: string;
   category: string;
@@ -45,18 +59,30 @@ export const schoolService = {
     return API.post<TResponse<unknown>>(endpoints.registerSubject, data, {
       headers: {
         Authorization: `Bearer ${token.getToken()}`,
-        "X-Tenant-ID": "pearl",
+        "X-Tenant-ID": X_Tenant_ID,
       },
     });
   },
 
   getAllSchoolSubject: (schoolId: string) => {
-    return API.post(endpoints.getAllSchoolSubjects, {}, {
-      params: { schoolId }, 
-      headers: {
-        "X-Tenant-ID": "pearl",}, 
-    });
+    return API.post(
+      endpoints.getAllSchoolSubjects,
+      {},
+      {
+        params: { schoolId },
+        headers: {
+          "X-Tenant-ID": X_Tenant_ID,
+        },
+      },
+    );
   },
 
-
+  createClassRoom: (data: ICreateSchool) => {
+    return API.post(endpoints.createSchoolClass, data, {
+      headers: {
+        "X-Tenant-ID": X_Tenant_ID,
+        "Authorization":   `Bearer ${token.getToken()}`
+      },
+    });
+  },
 };
