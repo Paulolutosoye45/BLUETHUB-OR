@@ -8,25 +8,44 @@ import { isMobile, isTablet, isDesktop } from "react-device-detect";
 import { v4 as uuidv4 } from "uuid";
 
 export const token = {
+  // ── Access token ───────────────────────────────────────────────
   getToken() {
     return localStorage.getItem("token");
   },
+
   isAuthenticated() {
     return !!this.getToken();
   },
-  login(token: string) {
-    localStorage.setItem("token", token);
+
+  login(accessToken: string, refreshToken: string) {
+    localStorage.setItem("token",        accessToken);
+    localStorage.setItem("refreshToken", refreshToken);
   },
+
   logout() {
-    // Clear all auth-related localStorage items
     localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken"); // ✅ clear refresh token on logout
     localStorage.removeItem("schoolInfo");
     localStorage.removeItem("user");
   },
+
   clearAll() {
-    // Clear all auth-related localStorage items
     this.logout();
   },
+
+  // ── Refresh token ──────────────────────────────────────────────
+  getRefreshToken() {
+    return localStorage.getItem("refreshToken");
+  },
+
+  setTokens(accessToken: string, refreshToken: string) {
+    localStorage.setItem("token",        accessToken);
+    localStorage.setItem("refreshToken", refreshToken);
+  },
+
+  clearTokens() {
+    this.logout();
+  }
 };
 
 export const localData = {

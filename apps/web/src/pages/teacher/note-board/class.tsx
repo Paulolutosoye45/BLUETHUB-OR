@@ -11,7 +11,7 @@ import {
 } from "react-konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBezierPoints, gzipCompress } from "@/utils/gzip";
-import { addStrokes } from "@/services/class";
+import { addStrokes } from "@/utils/db";
 import { formatTime, parseTime } from "@/utils";
 import type { RootState } from "@/store";
 import { holdCurrentTime, setSendQueueRefList } from "@/store/class-action-slice";

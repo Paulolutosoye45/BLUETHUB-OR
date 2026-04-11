@@ -1,8 +1,8 @@
 import { token } from "@/utils";
-import axios from "axios";
+import axios, { type AxiosInstance } from "axios";
 import { X_Tenant_ID } from "./school";
 
-export const API = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL });
+export const API: AxiosInstance = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL });
 
 // API.interceptors.request.use((config) => {
 //   if (token.getToken()) {
@@ -22,6 +22,85 @@ API.interceptors.request.use((config) => {
 // API.defaults.headers.common["X-Tenant-ID"] = "pearl";
 // API.defaults.headers.common["Authorization"] = `Bearer ${token.getToken()}`;
 
+
+// ── Request interceptor: attach token ─────────────────────────────────────
+API.interceptors.request.use(config => {
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// ── Response interceptor: handle 401 with refresh ─────────────────────────
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (err: unknown) => void;
+}> = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach(p => (error ? p.reject(error) : p.resolve(token!)));
+  failedQueue = [];
+};
+
+API.interceptors.response.use(
+  response => response,
+  async error => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // Park concurrent 401s — resolve them once refresh completes
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return API(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+
+        if (!refreshToken) throw new Error('No refresh token stored');
+
+        // ✅ Use plain axios (not `api`) to avoid interceptor loop
+        const { data } = await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/api/auth/refresh-token`,
+          { refreshToken }
+        );
+
+        // ✅ Match actual response field name ("token" not "accessToken")
+        const newToken: string = data.token;
+        const expiresAt = Date.now() + data.tokenExpiresIn * 1000;
+
+        localStorage.setItem('accessToken', newToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+        localStorage.setItem('accessTokenExpiresAt', String(expiresAt));
+
+        API.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+        processQueue(null, newToken);
+        return API(originalRequest); // retry original request with new token
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        localStorage.clear();
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export type TResponse<T> = {
   responseCode: string;
   isSuccess: boolean;
@@ -40,7 +119,8 @@ const endpoints = {
   getAdminPermissions: "api/User/GetAdminPermissions",
   getAllAdminPermissions: "api/User/GetAllAdminPermissions",
   revokePermissions: "api/User/RevokePermissions",
-  getTeacher:"/api/User/teachers"
+  getTeacher: "/api/User/teachers",
+  refreshToken: "/api/User/refresh-token"
 };
 
 interface ILoginRequest {
@@ -74,6 +154,7 @@ export interface ILoginResponse {
   responseCode: string;
   status: string;
   data: null;
+  refreshToken: string;
 }
 
 interface IcreateUserRequest {
@@ -150,9 +231,13 @@ export const authService = {
       },
     });
   },
+
+  refreshToken: (refreshToken: string) => {
+    return API.post<TResponse<unknown>>(endpoints.editUser, { refreshToken });
+  },
   createUser: (data: IcreateUserRequest) => {
     return API.post<TResponse<unknown>>(endpoints.createUser, data, {
-            headers: {
+      headers: {
         "X-Tenant-ID": X_Tenant_ID,
       },
     });

@@ -1,51 +1,41 @@
-import { API } from ".";
+import { API, type TResponse } from ".";
 
-const adminEndpoints = {
-  addCourse: "/School/registersubject",
-  root_all_subject: (schoolId: string) =>
-    `/School/getAllSchoolSubjects?schoolId=${schoolId}`,
-  // getCourses: "/Admin/getCourses",
-  // updateCourse: "/Admin/updateCourse",
-  // deleteCourse: "/Admin/deleteCourse",
-  // getStudents: "/Admin/getStudents",
-  // addStudent: "/Admin/addStudent",
-  // updateStudent: "/Admin/updateStudent",
-  // deleteStudent: "/Admin/deleteStudent",
+// ── Endpoints ────────────────────────────────────────────────────────────────
+const endpoints = {
+  addCourse: "/api/School/registersubject",
+  getAllSubjects: (schoolId: string) =>
+    `/api/School/getAllSchoolSubjects?schoolId=${schoolId}`,
 };
 
-const adminApprovalEndpoints = {
-  pendingApprovals: "/api/admin/pending-approvals",
-  quickView: (classId: string) => `/api/admin/quick-view/${classId}`,
-  // bulk,
-};
-
-adminApprovalEndpoints
-
+// ── Types ────────────────────────────────────────────────────────────────────
 export type TAddCourse = {
   category: string;
   subject: string;
-  status: boolean;
+  isActive: boolean;
 };
 
-type AddPayload = {
+type AddCoursePayload = {
   createdBy: string;
   schoolId: string;
   subjects: TAddCourse[];
 };
 
-export const AddCourses = (payload: AddPayload) => {
-  const response = API.post(adminEndpoints.addCourse, payload);
-  return response;
-};
+// ── Service ──────────────────────────────────────────────────────────────────
+export const adminService = {
+  addCourses: (payload: AddCoursePayload) =>
+    API.post<TResponse<unknown>>(endpoints.addCourse, payload, {
+      headers: { "X-Tenant-ID": "pearl" },
+    }),
 
-export const getAllSubject = (schoolId: string): Promise<any> => {
-  const apiCall = API.post(adminEndpoints.root_all_subject(schoolId));
+  getAllSubjects: (schoolId: string): Promise<any> => {
+    const request = API.post(endpoints.getAllSubjects(schoolId), {}, {
+      headers: { "X-Tenant-ID": "pearl" },
+    });
 
-  const timeout = new Promise((_, reject) => {
-    setTimeout(() => {
-      reject(new Error("Something went wrong. Please try again."));
-    }, 10000); // 5 seconds
-  });
+    const timeout = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Request timed out. Please try again.")), 10000)
+    );
 
-  return Promise.race([apiCall, timeout]);
+    return Promise.race([request, timeout]);
+  },
 };
