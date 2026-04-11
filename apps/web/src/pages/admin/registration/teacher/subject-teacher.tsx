@@ -10,12 +10,15 @@ import { Upload, User, Lock, Camera, Mail, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 const SubjectTeacher = () => {
   const [fileName, setFileName] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [loading, setLoading] = useState<boolean>(false)
   const [user, setUser] = useState<Tuser | null>(null);
+
+  const navigate = useNavigate()
   
 
   // Load user from localStorage when component mounts
@@ -83,7 +86,7 @@ const SubjectTeacher = () => {
   const handleRegister = async (data: RegisterFormData) => {
     if (!user?.schoolId && !user?.id) return
     
-    let role = UserRole.SuperAdministrator;           // 1            // 4
+    let role = UserRole.SubjectTeacher;  
     const hashPassword = await Hashing(data.password);
     const payload = {
       createdby: user?.id,
@@ -99,10 +102,8 @@ const SubjectTeacher = () => {
     }
     setLoading(true);
     try {
-      const res = authService.createUser(payload)
-      //  navigate('/admin')
-      console.log(res)
-
+       await authService.createUser(payload)
+       navigate('/admin')
     } catch (error) {
       const errorMessage =
         error instanceof AxiosError

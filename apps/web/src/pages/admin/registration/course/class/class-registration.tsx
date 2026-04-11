@@ -3,18 +3,22 @@ import type { schoolInfo } from "@/services/index";
 import { localData } from "@/utils";
 import {
   Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  // Command,
+  // CommandEmpty,
+  // CommandGroup,
+  // CommandInput,
+  // CommandItem,
+  // CommandList,
   toast
 } from "@bluethub/ui-kit";
 
 import CourseList from "./course-list";
-import { Check, ChevronDown, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Label } from "@bluethub/ui-kit";
-import { schoolService } from "@/services/school";
+import { schoolService, type ICreateSchool } from "@/services/school";
+// import { authService } from "@/services/auth";
+import { AxiosError } from "axios";
+import type { Tuser } from "@/utils/decode";
 
 export interface ISubjectList {
   subject: string,
@@ -30,11 +34,11 @@ const ClassRegistration = () => {
   const [minorCourses, setMinorCourses] = useState<ISubjectList[]>([]);
   const [activeCourses, setActiveCourses] = useState<ISubjectList[]>([]);
   const [schoolId, setSchoolId] = useState<schoolInfo | null>(null);
-  const [loading, _setLoading] = useState(false);
-  const [selected, setSelected] = useState<any | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-
-  // Retrieve school info with error handling
+  const [loading, setLoading] = useState(false);
+  const [className, setClassName] = useState<string>()
+  // const [teachers, setTeachers] = useState<any[]>([]);
+  // const [selectedTeacher, setSelectedTeacher] = useState<string>("")
+  // const [teacherSearch, setTeacherSearch] = useState<string>("");
   useEffect(() => {
     try {
       const schoolInfo = localData.retrieve("schoolInfo") as schoolInfo;
@@ -78,34 +82,6 @@ const ClassRegistration = () => {
     setMinorCourses(minors);
   }, [listAllSubject]);
 
-  const classes = [
-  { value: "jss1-love", label: "JSS1 LOVE" },
-  { value: "jss1-grace", label: "JSS1 GRACE" },
-  { value: "jss1-faith", label: "JSS1 FAITH" },
-  { value: "jss2-love", label: "JSS2 LOVE" },
-  { value: "jss2-grace", label: "JSS2 GRACE" },
-  { value: "jss2-faith", label: "JSS2 FAITH" },
-  { value: "jss3-love", label: "JSS3 LOVE" },
-  { value: "jss3-grace", label: "JSS3 GRACE" },
-  { value: "jss3-faith", label: "JSS3 FAITH" },
-  { value: "ss1-love", label: "SS1 LOVE" },
-  { value: "ss1-grace", label: "SS1 GRACE" },
-  { value: "ss1-faith", label: "SS1 FAITH" },
-  { value: "ss2-love", label: "SS2 LOVE" },
-  { value: "ss2-grace", label: "SS2 GRACE" },
-  { value: "ss2-faith", label: "SS2 FAITH" },
-  { value: "ss3-love", label: "SS3 LOVE" },
-  { value: "ss3-grace", label: "SS3 GRACE" },
-  { value: "ss3-faith", label: "SS3 FAITH" },
-];
-
-
- const handleSelect = (value: any) => {
-    setSelected(value);
-    setIsOpen(false);
-  };
-
-
 
   // Early return if school info is missing
   if (errMsg && !schoolId) {
@@ -121,8 +97,62 @@ const ClassRegistration = () => {
     );
   }
 
+  // const getAllTeacher = async () => {
+  //   try {
+  //     const res = await authService.getTeacher()
+  //     setTeachers(res.data) // ← was setBanks
+  //   } catch (error) {
+  //     const errorMessage =
+  //       error instanceof AxiosError
+  //         ? error.response?.data?.message || error.message
+  //         : (error as Error).message;
+  //     toast.error(errorMessage);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }
+
+  // useEffect(() => {
+  //   getAllTeacher()
+  // }, [])
+
+
+  const createClassHandler = async () => {
+    const createdBy = localData.retrieve("user") as Tuser;
+    const schoolId = localData.retrieve("schoolInfo") as schoolInfo;
+   if (!activeCourses || activeCourses.length === 0) {
+  toast.error('Pick a subject');
+  return;
+}
+
+    const payload: ICreateSchool = {
+      createdBy: createdBy.id,
+      SchoolId: schoolId.id,
+      classrooms: activeCourses.map((course) => ({
+        name: course.subject,
+        noOfStudents:1
+      })),
+    };
+
+    try {
+      setLoading(true);
+      const res = await schoolService.createClassRoom(payload);
+      console.log(res)
+    } catch (error) {
+      const errorMessage =
+        error instanceof AxiosError
+          ? error.response?.data?.message || error.message
+          : (error as Error).message;
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
   return (
-    <section className=" mx-6 mt-6 bg-white/90 rounded-2xl shadow-md overflow-hidden">
+    <section className=" mx-6 mt-6 bg-white/90 min-h-[90vh] rounded-2xl shadow-md overflow-hidden">
       {/* Header */}
       <header className="bg-chestnut py-6 px-8 rounded-t-2xl">
         <h1 className="text-white text-3xl font-semibold font-poppins">
@@ -134,7 +164,7 @@ const ClassRegistration = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 w-full gap-10 px-8 py-6">
         {/* Input field */}
         <div className="space-y-7">
-          <div className="space-y-3 w-full max-w-105">
+          {/* <div className="space-y-3 w-full max-w-105">
             <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
               Category
             </Label>
@@ -184,24 +214,83 @@ const ClassRegistration = () => {
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+          </div> */}
 
           <div className="space-y-1">
             <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
-               Class Teacher <span className="text-red-500">*</span>
+              Class
             </Label>
             <input
               type="text"
-              placeholder="teacher name"
-              className="bg-white w-[95%]  ring-2 ring-chestnut/20 focus:outline-none  mt-2 rounded-xl h-11 px-4 text-base font-medium  text-chestnut focus:ring-chestnut/50 focus:ring-2"
+              value={className}
+              onChange={(e) => setClassName(e.target.value)}
+              placeholder="enter class"
+              className="bg-white w-full  ring-2 ring-chestnut/20 focus:outline-none  mt-2 rounded-[8px] py-2 px-4 text-base font-medium  text-chestnut focus:ring-chestnut/50 focus:ring-2"
             />
           </div>
+
+          {/* <div className="space-y-2">
+            <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
+              Class Teacher
+            </Label>
+            <div className="relative">
+              <Command className="bg-white w-full ring-2 ring-chestnut/20 rounded-[8px] overflow-visible">
+                <CommandInput
+                  placeholder="Search teacher..."
+                  value={teacherSearch}
+                  onValueChange={(val) => {
+                    setTeacherSearch(val);
+                    setSelectedTeacher("");
+                  }}
+                  className="h-11 px-4 text-sm font-medium text-chestnut placeholder:text-chestnut/50 
+                   placeholder:font-medium bg-transparent border-none 
+                   focus-visible:ring-0 focus-visible:outline-none"
+                />
+                {teacherSearch && !selectedTeacher && (
+                  <CommandList className="absolute top-full left-0 right-0 z-50 bg-white 
+                                border border-[#E5E5E5] rounded-xl shadow-md 
+                                mt-1 max-h-48 overflow-y-auto">
+                    <CommandEmpty className="py-3 text-center text-sm text-gray-400">
+                      No teacher found.
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {teachers.map((teacher) => (
+                        <CommandItem
+                          key={teacher.id}
+                          value={`${teacher.firstName} ${teacher.lastName}`}
+                          onSelect={(val) => {
+                            setSelectedTeacher(teacher.id);
+                            setTeacherSearch(val);
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 cursor-pointer 
+                           hover:bg-chestnut/5 rounded-lg mx-1"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-chestnut/10 flex items-center 
+                                justify-center flex-shrink-0">
+                            <span className="text-chestnut text-xs font-semibold">
+                              {teacher.firstName?.[0]}{teacher.lastName?.[0]}
+                            </span>
+                          </div>
+                          <span className="text-sm text-[#131313] font-medium capitalize">
+                            {`${teacher.firstName} ${teacher.lastName}`.toLowerCase()
+                              .replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                )}
+              </Command>
+            </div>
+          </div> */}
+
         </div>
 
         {/* Subjects display */}
         <div>
-          <h2 className="text-center text-2xl text-chestnut font-bold font-poppins mb-4">
-            JSS 1 Subjects
+          <h2 className="text-center capitalize text-2xl text-chestnut font-semibold font-poppins mb-4">
+            {/* JSS 1 Subjects */}
+            {className}
           </h2>
           <div className="border-b border-chestnut mb-4"></div>
           {isLoading && (
@@ -238,10 +327,19 @@ const ClassRegistration = () => {
               />
             </div>
           )}
-          <div className="flex justify-end w-full gap-4 mt-6">
-            <button disabled={loading || isLoading} className="px-6 py-2 rounded-md bg-chestnut text-white font-poppins">
-              Submit
-            </button>
+          <div className="w-full gap-4 mt-6">
+            <Button
+              onClick={createClassHandler}
+              variant={"outline"}
+              disabled={loading || isLoading || !className || !activeCourses || activeCourses.length === 0}
+              className="px-6 cursor-pointer w-full py-2 rounded-md bg-chestnut text-white font-poppins"
+            >
+              {loading ? (
+                <div className="flex gap-2 items-center"><Loader2 className="size-5 mx-auto animate-spin text-white" /> <p>Submit...</p></div>
+              ) : (
+                <span>Submit</span>
+              )}
+            </Button>
           </div>
         </div>
       </div>

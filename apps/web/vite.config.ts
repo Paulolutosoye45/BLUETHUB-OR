@@ -12,7 +12,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@bluethub/ui-kit": path.resolve(__dirname, "../../packages/ui/src"),
+      // "@bluethub/ui-kit": path.resolve(__dirname, "../../packages/ui/src"),
     },
   },
   optimizeDeps: {

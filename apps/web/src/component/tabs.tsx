@@ -76,7 +76,6 @@ const Tabs = ({ tabs, selected }: CourseDisplayProps) => {
       subjects: selectedCourses,
     };
 
-    console.log(payload)
 
     try {
       setLoading(true);
