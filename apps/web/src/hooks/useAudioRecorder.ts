@@ -8,7 +8,7 @@ import {
   setIsRecording,
   setSessionIdRef,
 } from "@/store/class-action-slice";
-import { addAudio } from "@/services/class";
+import { addAudio } from "@/utils/db";
 import { nextTime, saveActions, SEND_INTERVAL } from "@/utils";
 import toast from "react-hot-toast";
 

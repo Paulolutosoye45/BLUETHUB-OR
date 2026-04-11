@@ -13,7 +13,7 @@ import {
   Loader,
 } from 'lucide-react';
 import type { AudioBatch, CompressedStroke, Stroke } from '@/utils/constant';
-import { clearAudio, clearClass, getAudio, getClass } from '@/services/class';
+import { clearAudio, clearClass, getAudio, getClass } from '@/utils/db';
 import { base64ToUint8 } from '@/utils';
 import { gzipDecompress } from '@/utils/gzip';
 
