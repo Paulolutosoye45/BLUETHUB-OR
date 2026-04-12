@@ -8,7 +8,7 @@ const AdminDashboard = () => {
       className="px-6  h-screen transition-all duration-300 border-none 
       overflow-y-auto 
       [&::-webkit-scrollbar]:w-1
-      [&::-webkit-scrollbar]:h-[10px] 
+      [&::-webkit-scrollbar]:h-2.5
       [&::-webkit-scrollbar-track]:rounded-full
       [&::-webkit-scrollbar-track]:bg-gray-100
       [&::-webkit-scrollbar-thumb]:rounded-full

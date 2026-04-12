@@ -23,7 +23,7 @@ import StudenLayout from '@/pages/admin/registration/student/layout';
 import Student from '@/pages/admin/registration/student/student';
 import NewStudent from '@/pages/admin/registration/student/new-student';
 import Enrollment from '@/pages/admin/registration/student/enrollment';
-import CourseLayout from '@/pages/admin/registration/course/layout';
+// import CourseLayout from '@/pages/admin/registration/course/layout';
 import CoursesMain from '@/pages/admin/registration/course/main';
 import Teacherlayout from '@/pages/admin/registration/teacher/layout';
 import TeacherMain from '@/pages/admin/registration/teacher/main';
@@ -52,8 +52,12 @@ import Login from '@/pages/auth/login';
 import NewPassword from '@/pages/auth/new-password';
 import AdminProtectedRoute from '@/component/protected-routes/admin-routes';
 import { PublicRoute } from '@/component/protected-routes/public-route';
-import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
+// import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
 import StudentProtectedRoute from '@/component/protected-routes/student-routes';
+import UploadScan from '@/pages/teacher/component/upload-scan';
+import ReviewQuestion from '@/pages/teacher/component/review-question';
+import MyUploads from '@/pages/teacher/component/my-uploads';
+import AdminRole from '@/pages/admin/registration/admin-role-management/admin-role';
 
 const router = createBrowserRouter([
     {
@@ -66,11 +70,11 @@ const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: <Login/>,
+                element: <Login />,
             },
             {
                 path: 'new-password',
-                element: <NewPassword/>,
+                element: <NewPassword />,
             }
         ]
     },
@@ -90,8 +94,8 @@ const router = createBrowserRouter([
     //  admin route
     {
         path: '/admin',
-        element: 
-        <AdminProtectedRoute><AdminLayout /> </AdminProtectedRoute>,
+        element:
+            <AdminProtectedRoute><AdminLayout /> </AdminProtectedRoute>,
         children: [
             {
                 index: true,
@@ -123,14 +127,12 @@ const router = createBrowserRouter([
                         ],
                     },
                     {
+                        path: 'admin',
+                        element: <AdminRole />
+                    },
+                    {
                         path: "courses",
-                        element: <CourseLayout />,
-                        children: [
-                            {
-                                index: true,
-                                element: <CoursesMain />,
-                            },
-                        ],
+                        element: <CoursesMain />,
                     },
                     { path: "class", element: <ClassRegistration /> },
                     {
@@ -162,6 +164,7 @@ const router = createBrowserRouter([
                         ],
                     },
                 ],
+
             }
 
         ]
@@ -170,8 +173,8 @@ const router = createBrowserRouter([
     //  admin route
     {
         path: '/teacher',
-        element: 
-        <TeacherProtectedRoute><TeacherLayout /></TeacherProtectedRoute>,
+        element:
+            <TeacherLayout />,
         children: [
             {
                 index: true,
@@ -182,6 +185,9 @@ const router = createBrowserRouter([
             { path: "assessment", element: <Assessment /> },
             { path: "assessment/createQuiz", element: <CreateQuizQuestion /> },
             { path: "assessment/questionlist", element: <TopicQuestionList /> },
+            { path: "assessment/upload-scan", element: <UploadScan /> },
+            { path: "assessment/review", element: <ReviewQuestion /> },
+            { path: "assessment/My-Uploads", element: <MyUploads /> },
             {
                 path: 'recorded-class',
                 element: <RecordedLayout />,
@@ -229,3 +235,7 @@ const router = createBrowserRouter([
 
 
 export default router
+
+
+
+// https://www.figma.com/design/FLJ2J0QZCDF6VzsbNWMQPa/arrange-bluett-e-learning-platform?node-id=0-1&p=f&t=Nacbs0o1As3FNd60-0

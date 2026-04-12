@@ -1,207 +1,153 @@
-import { useState } from "react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  Label,
-  Button,
-  RadioGroup,
-  RadioGroupItem,
-} from "@bluethub/ui-kit";
-import { Check, ChevronDown, Loader2 } from "lucide-react";
-import { ClassCategory, type course, type SubjectType } from "@/utils/constant";
-import { localData } from "@/utils";
-import { adminService } from "@/services/admin";
-import type { SchoolInfo } from "@/services";
-import Tabs from "@/component/tabs";
-import toast from "react-hot-toast";
+// import { useState } from "react";
+// import {
+//   DropdownMenu,
+//   DropdownMenuContent,
+//   DropdownMenuGroup,
+//   DropdownMenuItem,
+//   DropdownMenuTrigger,
+//   Label,
+//   Button,
+//   RadioGroup,
+//   RadioGroupItem,
+// } from "@bluethub/ui-kit";
+// import { Check, ChevronDown, Loader2, PlusIcon } from "lucide-react";
+// import { ClassCategory, type course, type SubjectType } from "@/utils/constant";
+// import { localData } from "@/utils";
+// import { adminService } from "@/services/admin";
+// import type { SchoolInfo } from "@/services";
+// import Tabs from "@/component/tabs";
+// import toast from "react-hot-toast";
+import { PlusIcon } from "lucide-react";
 
-const SUBJECT_TYPE_OPTIONS = [
-  { label: "MAJOR", value: 1 as SubjectType },
-  { label: "MINOR", value: 2 as SubjectType },
-];
+// const SUBJECT_TYPE_OPTIONS = [
+//   { label: "MAJOR", value: 1 as SubjectType },
+//   { label: "MINOR", value: 2 as SubjectType },
+// ];
 
 const CoursesMain = () => {
-  const [selected, setSelected] = useState<SubjectType | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [subjectName, setSubjectName] = useState("");
-  const [courses, setCourses] = useState<course[]>([]);
-  const [classType, setClassType] = useState<ClassCategory>(ClassCategory.Primary);
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSelect = (value: SubjectType) => {
-    setSelected(value);
-    setIsOpen(false);
-  };
-
-  const handleAddToList = () => {
-    if (!selected || !subjectName.trim()) return;
-    setCourses((prev) => [
-      ...prev,
-      { category: selected, subject: subjectName.trim(), isActive: true, classCategory: classType },
-    ]);
-    setSubjectName("");
-  };
-
-  const handleSubmit = async () => {
-    if (courses.length === 0) {
-      toast.error("Add at least one subject before submitting.");
-      return;
-    }
-
-    const schoolInfo = localData.retrieve<SchoolInfo>("schoolInfo");
-    if (!schoolInfo?.id) {
-      toast.error("School information missing. Please log in again.");
-      return;
-    }
-
-    const userRaw = localData.retrieve<{ id: string }>("user");
-    if (!userRaw?.id) {
-      toast.error("User information missing. Please log in again.");
-      return;
-    }
-
-    const payload = {
-      createdBy: userRaw.id,
-      schoolId: schoolInfo.id,
-      subjects: courses.map((c) => ({
-        subject: c.subject,
-        category: c.category,
-        isActive: c.isActive,
-      })),
-    };
-
-    try {
-      setSubmitting(true);
-      await adminService.addCourses(payload);
-      toast.success(`${courses.length} subject(s) registered successfully!`);
-      setCourses([]);
-      setSelected(null);
-    } catch (err: any) {
-      toast.error(err?.response?.data?.responseMessage ?? err?.message ?? "Failed to register subjects.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
-    <div>
-      <section className="max-w-7xl mx-auto flex flex-col md:flex-row md:space-x-10 justify-between my-7 md:px-7 pb-7">
-        {/* Left Column */}
-        <div className="w-full md:w-95.5 relative mb-6 md:mb-0">
-          {/* Subject Type */}
-          <div className="space-y-3 w-full max-w-105">
-            <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
-              Category
-            </Label>
-            <DropdownMenu onOpenChange={setIsOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={`relative ring-2 w-full justify-between font-medium border-0 py-6 px-4 text-base rounded-xl group ${
-                    selected
-                      ? "ring-chestnut/40 text-chestnut bg-chestnut/5"
-                      : "ring-chestnut/20 text-chestnut/50 bg-white/80"
-                  } hover:ring-chestnut/40 hover:bg-chestnut/5`}
-                >
-                  <span className={selected ? "text-chestnut font-semibold" : ""}>
-                    {selected
-                      ? SUBJECT_TYPE_OPTIONS.find((o) => o.value === selected)?.label
-                      : "Select subject type"}
-                  </span>
-                  <ChevronDown
-                    className={`w-5 h-5 text-chestnut/70 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
-                  />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                className="w-(--radix-dropdown-menu-trigger-width) rounded-xl border-2 border-chestnut/10 shadow-xl bg-white/95 backdrop-blur-sm p-2"
-                align="start"
-                sideOffset={8}
-              >
-                <DropdownMenuGroup className="space-y-1">
-                  {SUBJECT_TYPE_OPTIONS.map(({ label, value }) => (
-                    <DropdownMenuItem
-                      key={label}
-                      className={`font-medium text-base py-3 px-4 rounded-lg cursor-pointer ${
-                        selected === value
-                          ? "bg-chestnut text-white"
-                          : "text-chestnut hover:bg-chestnut/10"
-                      }`}
-                      onClick={() => handleSelect(value)}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <span>{label}</span>
-                        {selected === value && <Check className="w-5 h-5 ml-2 text-white" />}
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+   <div className="p-6 font-poppins">
+      <div className="backdrop-blur-sm rounded-2xl border border-white/70  overflow-hidden">
 
-          {/* Subject Name */}
-          <div>
-            <h2 className="text-chestnut text-xl font-medium my-4">Subject Name</h2>
-            <input
-              placeholder="E.g. Mathematics"
-              className="relative ring-2 ring-chestnut/40 w-full font-medium border-0 p-4 text-base rounded-xl shadow-sm placeholder:text-chestnut text-chestnut placeholder:font-semibold outline-none"
-              value={subjectName}
-              onChange={(e) => setSubjectName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddToList()}
+      <div
+        className="flex items-center justify-between px-5 h-12 sticky top-0 z-30 bg-chestnut">
+        <div className="flex items-center gap-2.5">
+          {/* Grid icon */}
+          <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z" />
+          </svg>
+          <span className="text-white font-semibold text-sm">Register Subject</span>
+        </div>
+        {/* Three-dot */}
+        <button className="flex flex-col items-center gap-0.75 p-1.5">
+          <span className="w-0.75 h-0.75 rounded-full bg-white block" />
+          <span className="w-0.75 h-0.75 rounded-full bg-white block" />
+          <span className="w-0.75 h-0.75 rounded-full bg-white block" />
+        </button>
+      </div>
+
+      <div className="flex-1 p-8 bg-white/20 backdrop-blur-sm">
+
+        <div className="relative z-10 flex flex-col items-center px-6 pt-8 pb-6 flex-1">
+          <div className="relative w-52 h-44 flex items-center justify-center mb-2 shrink-0">
+            <div
+              className="absolute w-36 h-36 rounded-full border-2 border-dashed border-chestnut/40"
             />
+            <div className="w-26 h-26 rounded-full flex items-center justify-center z-10 shadow-lg bg-chestnut">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div className="absolute flex items-center gap-1 bg-white rounded-full p-2"
+              style={{ top: 10, right: -20 }}>
+              <span className="text-[11px] flex items-center font-semibold text-chestnut"><PlusIcon className="size-3"/>Mathematics</span>
+            </div>
+
+            {/* + Biology — right */}
+            <div
+              className="absolute flex items-center gap-1 bg-white p-2 rounded-full" style={{ top: "50%", right: -20, transform: "translateY(-50%)" }}>
+              <span className="text-[11px] flex items-center  font-semibold text-chestnut"><PlusIcon className="size-3"/> Biology</span>
+            </div>
+
+            <div
+              className="absolute flex items-center gap-1 bg-white p-2 rounded-full" style={{ bottom: 24, left: -8 }}>
+              <span className="text-[11px] flex items-center font-semibold text-chestnut"><PlusIcon className="size-3"/> English</span>
+            </div>
           </div>
 
-          {/* Class Category */}
-          <div className="py-6 rounded-lg">
-            <Label className="text-chestnut font-medium mb-3 block">Class Category</Label>
-            <RadioGroup
-              value={String(classType)}
-              onValueChange={(value) => setClassType(Number(value) as ClassCategory)}
-              className="flex gap-4"
-            >
-              {Object.entries(ClassCategory).map(([label, value]) => (
-                <div key={value} className="flex items-center gap-2">
-                  <RadioGroupItem className="text-chestnut" value={String(value)} id={`r${value}`} />
-                  <Label className="text-chestnut" htmlFor={`r${value}`}>{label}</Label>
-                </div>
-              ))}
-            </RadioGroup>
+          {/* Welcome pill */}
+          <div
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-4 bg-chestnut/18">
+            {/* Person icon */}
+            <svg className="w-3.5 h-3.5 shrink-0 text-chestnut" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5.33 0-8 2.67-8 4v1h16v-1c0-1.33-2.67-4-8-4z" />
+            </svg>
+            <span className="text-xs font-semibold text-chestnut">
+              Welcome, John Paul — Let's get started
+            </span>
           </div>
 
-          <div className="flex gap-3 justify-end mr-2 my-7">
-            <Button
-              className="py-4 px-7 cursor-pointer rounded-[10px] hover:opacity-75 bg-[#EC1B2C] border font-poppins font-semibold text-base"
-              onClick={handleAddToList}
-              disabled={!selected || !subjectName.trim()}
-            >
-              Add subject
-            </Button>
-            <Button
-              className="py-4 px-7 cursor-pointer rounded-[10px] hover:opacity-75 bg-chestnut border font-poppins font-semibold text-base flex items-center gap-2"
-              onClick={handleSubmit}
-              disabled={submitting || courses.length === 0}
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                "Save all"
-              )}
-            </Button>
+          {/* Heading */}
+          <h1 className="text-[26px] font-semibold  text-[#12122A] text-center mb-3">
+            No subjects registered yet
+          </h1>
+
+          {/* Sub-text */}
+          <p className="text-sm text-chestnut/50 text-center  leading-relaxed mb-6">
+            Greenfield College doesn't have any subjects set up yet. Add your first subject
+            now and they'll be available when registering classes and assigning students.
+          </p>
+
+          {/* Two-step guide */}
+          <div className="grid grid-cols-2 gap-6 mb-8 w-full">
+            {/* Step 1 */}
+            <div className="flex flex-col items-center text-center gap-2">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 bg-chestnut"
+              >
+                1
+              </div>
+              <p className="text-sm font-semibold text-[#12122A]">Add a subject</p>
+              <p className="text-[11px] text-chestnut/50 leading-snug">
+                Enter the subject name and assign it to a school level.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="flex flex-col items-center text-center gap-2">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 bg-chestnut"
+              >
+                2
+              </div>
+              <p className="text-sm font-semibold text-[#12122A]">You're all set</p>
+              <p className="text-[11px] text-chestnut/50 leading-snug">
+                Subjects appear in class registration and student profiles
+              </p>
+            </div>
+          </div>
+
+          {/* Register button */}
+          <button className="flex items-center gap-2 text-white font-semibold text-sm px-8 py-3 rounded-xl transition-opacity hover:opacity-90 mb-3 bg-chestnut">
+            <PlusIcon />
+            Register Your First Subject
+          </button>
+
+          {/* Hint */}
+          <div className="flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="text-[11px] text-gray-400">
+              You can add multiple subjects one after another
+            </span>
           </div>
         </div>
-
-        {/* Right Column */}
-        <div className="w-full md:basis-180 shadow-inner">
-          <Tabs tabs={courses} selected={selected} />
-        </div>
-      </section>
+      </div>
+    </div>
     </div>
   );
 };

@@ -1,15 +1,80 @@
-import TitleBar from "@/shared/title-bar"
+
 // import { Button } from "@bluethub/ui-kit"
 import AssessmentSelectSubject from "./assessment-select-subject"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
+import { EllipsisVertical } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
 
 const Assessment = () => {
+  const navigate = useNavigate()
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // close on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
   return (
     <div className="p-6 font-poppins">
       <div className="backdrop-blur-sm rounded-2xl border border-white/20  overflow-hidden">
-        <TitleBar title="question" hasVertical />
+        {/* <TitleBar title="" hasVertical /> */}
+        <div className={`bg-linear-to-r from-chestnut to-chestnut/90 px-6 py-5 rounded-t-lg flex items-center justify-between`}>
+
+          {/* Left side — back arrow + title + chevron */}
+          <div className="flex items-center gap-2.5">
+            {/* <button
+                        // onClick={onBack}
+                        className="text-white hover:text-white transition-colors"
+                    >
+                        <ArrowLeft size={18} />
+                    </button> */}
+            <h2 className="font-semibold font-poppins text-lg text-white leading-none">
+              question
+            </h2>
+          </div>
+
+          {/* Right side — action button + kebab menu */}
+          <div className="flex items-center gap-2.5 relative" ref={dropdownRef}>
+            <button
+              onClick={() => setDropdownOpen(prev => !prev)}
+              className="text-white/80 hover:text-white transition-colors p-1 rounded"
+            >
+              <EllipsisVertical size={18} />
+            </button>
+
+            {dropdownOpen && (
+              <div className="absolute right-0 top-8 z-50 overflow-hidden bg-white rounded-xl shadow-lg border border-gray-100 py-1 w-44">
+                {[
+                  { label: "View Past Question", link: '/teacher/assessment/questionlist' },
+                  { label: "Use Media", link: '/teacher/assessment/upload-scan' },
+                  { label: "My Uploads", link: '/teacher/assessment/My-Uploads' },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    onClick={() => {
+                      navigate(item.link)
+                      setDropdownOpen(false)
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-[#131313] hover:bg-gray-50 transition-colors"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
+
         <div className="flex-1 p-8 bg-white/70 backdrop-blur-sm">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+          <div className="flex items-center justify-between mb-6" >
             <div>
               <h1 style={{ fontSize: 26, fontWeight: 700, color: "#1A1C5E", margin: 0, letterSpacing: -0.3 }}>
                 No question yet

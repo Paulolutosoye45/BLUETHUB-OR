@@ -118,7 +118,7 @@ const SideBar = () => {
                                     <img
                                         src={link.icons}
                                         alt={link.name}
-                                        className={`w-5 h-5 object-contain ${isActive ? "filter brightness-0 invert" : ""
+                                        className={`w-5  object-contain ${isActive ? "filter brightness-0 invert" : ""
                                             }`}
                                     />
                                     {!isCollapsed && (
@@ -147,7 +147,7 @@ const SideBar = () => {
                         AM
                     </h1>
                 )}
-                <div className="  space-y-3">
+                <div className="space-y-3">
                     {ACADEMICLINKS.map((link, idx) => {
                         const isOpen = openDropdownIndex === idx;
                         if (link.children) {
@@ -163,7 +163,7 @@ const SideBar = () => {
                                             }
                                             setIsCollapsed(false);
                                         }}
-                                        className={`flex items-center  px-4 py-3 rounded-lg cursor-pointer transition-colors ${isOpen
+                                        className={`flex items-center  px-4 py-2 rounded-lg cursor-pointer transition-colors ${isOpen
                                             ? "bg-chestnut text-white"
                                             : "bg-[#29238214] hover:bg-[#29238233]"
                                             } ${isCollapsed ? " justify-center" : "justify-between"}`}
@@ -172,7 +172,7 @@ const SideBar = () => {
                                             <img
                                                 src={link.icons}
                                                 alt={link.name}
-                                                className={`w-5 h-5  object-contain ${isOpen ? "filter brightness-0 invert" : ""
+                                                className={`w-5   object-contain ${isOpen ? "filter brightness-0 invert" : ""
                                                     }`}
                                             />
                                             {!isCollapsed && (
@@ -186,13 +186,13 @@ const SideBar = () => {
 
                                     {/* Dropdown Children */}
                                     {!isCollapsed && isOpen && (
-                                        <div className="ml-8 mt-2 space-y-2 border-l-2 border-[#D0C9F4] pl-4">
+                                        <div className="ml-8 mt-2   border-l-2 border-[#D0C9F4] pl-2">
                                             {link.children.map((child, cIdx) => (
                                                 <NavLink
                                                     to={child.path}
                                                     key={child.name + cIdx}
                                                     className={({ isActive }) =>
-                                                        `block text-sm rounded-md py-2 px-4 font-normal ${isActive
+                                                        `block text-sm py-2 mb-1 rounded-md px-4 font-medium ${isActive
                                                             ? "bg-chestnut text-white"
                                                             : "text-chestnut hover:bg-[#ddd6f3] hover:text-chestnut"
                                                         } `

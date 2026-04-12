@@ -25,7 +25,7 @@ API.interceptors.request.use((config) => {
 
 // ── Request interceptor: attach token ─────────────────────────────────────
 API.interceptors.request.use(config => {
-  const token = localStorage.getItem('accessToken');
+  const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -70,7 +70,7 @@ API.interceptors.response.use(
 
         // ✅ Use plain axios (not `api`) to avoid interceptor loop
         const { data } = await axios.post(
-          `${import.meta.env.VITE_API_BASE_URL}/api/auth/refresh-token`,
+          `${import.meta.env.VITE_API_BASE_URL}/api/User/refresh-token`,
           { refreshToken }
         );
 
@@ -78,7 +78,7 @@ API.interceptors.response.use(
         const newToken: string = data.token;
         const expiresAt = Date.now() + data.tokenExpiresIn * 1000;
 
-        localStorage.setItem('accessToken', newToken);
+        localStorage.setItem('token', newToken);
         localStorage.setItem('refreshToken', data.refreshToken);
         localStorage.setItem('accessTokenExpiresAt', String(expiresAt));
 
@@ -90,7 +90,7 @@ API.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         localStorage.clear();
-        window.location.href = '/login';
+        window.location.href = '/auth';
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

@@ -1,4 +1,3 @@
-import React from "react";
 import { Trash2, FileAudio, FileVideo, File } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,11 +27,11 @@ const getFileIcon = (type: FileType) => {
   }
 };
 
-export const FileList: React.FC<FileListProps> = ({
+export const FileList = ({
   files,
   onDelete,
   className,
-}) => (
+}: FileListProps) => (
   <div className={cn("space-y-3", className)}>
     {files.map((file) => (
       <div
