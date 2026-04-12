@@ -17,7 +17,8 @@
 // import type { SchoolInfo } from "@/services";
 // import Tabs from "@/component/tabs";
 // import toast from "react-hot-toast";
-import { PlusIcon } from "lucide-react";
+import { EllipsisVertical, PlusIcon } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 // const SUBJECT_TYPE_OPTIONS = [
 //   { label: "MAJOR", value: 1 as SubjectType },
@@ -25,6 +26,7 @@ import { PlusIcon } from "lucide-react";
 // ];
 
 const CoursesMain = () => {
+  const navigate = useNavigate()
 
   return (
    <div className="p-6 font-poppins">
@@ -40,14 +42,10 @@ const CoursesMain = () => {
           <span className="text-white font-semibold text-sm">Register Subject</span>
         </div>
         {/* Three-dot */}
-        <button className="flex flex-col items-center gap-0.75 p-1.5">
-          <span className="w-0.75 h-0.75 rounded-full bg-white block" />
-          <span className="w-0.75 h-0.75 rounded-full bg-white block" />
-          <span className="w-0.75 h-0.75 rounded-full bg-white block" />
-        </button>
+        <EllipsisVertical/>
       </div>
 
-      <div className="flex-1 p-8 bg-white/20 backdrop-blur-sm">
+      <div className="flex-1 px-8 pb-8 bg-white/20 backdrop-blur-sm">
 
         <div className="relative z-10 flex flex-col items-center px-6 pt-8 pb-6 flex-1">
           <div className="relative w-52 h-44 flex items-center justify-center mb-2 shrink-0">
@@ -130,7 +128,7 @@ const CoursesMain = () => {
           </div>
 
           {/* Register button */}
-          <button className="flex items-center gap-2 text-white font-semibold text-sm px-8 py-3 rounded-xl transition-opacity hover:opacity-90 mb-3 bg-chestnut">
+          <button onClick={() => navigate("new")} className="flex items-center gap-2 text-white font-semibold text-sm px-8 py-3 rounded-xl transition-opacity hover:opacity-90 mb-3 bg-chestnut">
             <PlusIcon />
             Register Your First Subject
           </button>

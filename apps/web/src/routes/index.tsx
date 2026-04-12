@@ -57,7 +57,9 @@ import StudentProtectedRoute from '@/component/protected-routes/student-routes';
 import UploadScan from '@/pages/teacher/component/upload-scan';
 import ReviewQuestion from '@/pages/teacher/component/review-question';
 import MyUploads from '@/pages/teacher/component/my-uploads';
+import RegisterNewClass from '@/pages/admin/registration/course/class/register-new-subject';
 import AdminRole from '@/pages/admin/registration/admin-role-management/admin-role';
+import ViewAllSubject from '@/pages/admin/registration/course/class/view-all-subject';
 
 const router = createBrowserRouter([
     {
@@ -133,6 +135,14 @@ const router = createBrowserRouter([
                     {
                         path: "courses",
                         element: <CoursesMain />,
+                    },
+                    {
+                        path: "courses/new",
+                        element: <RegisterNewClass />,
+                    },
+                    {
+                        path: "courses/view-all-subject",
+                        element: <ViewAllSubject />,
                     },
                     { path: "class", element: <ClassRegistration /> },
                     {

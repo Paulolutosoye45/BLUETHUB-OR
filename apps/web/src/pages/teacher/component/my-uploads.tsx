@@ -1,3 +1,4 @@
+import { EllipsisVertical } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 
 const BRAND = "#292382";
@@ -59,14 +60,10 @@ const ThreeDotMenu= ({ onReview, onEdit }: threeProps) => {
 
   return (
     <div className="relative shrink-0" ref={ref}>
-      <button
-        onClick={() => setOpen(p => !p)}
-        className="flex flex-col items-center gap-0.5 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-      >
-        <span className="w-1 h-1 rounded-full bg-red-500 block" />
-        <span className="w-1 h-1 rounded-full bg-red-500 block" />
-        <span className="w-1 h-1 rounded-full bg-red-500 block" />
-      </button>
+      
+      <div onClick={() => setOpen(p => !p)}>
+        <EllipsisVertical/>
+      </div>
       {open && (
         <div className="absolute right-0 top-8 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden">
           <button

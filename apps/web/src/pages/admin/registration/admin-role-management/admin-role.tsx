@@ -1,4 +1,4 @@
-import { FilterIcon } from "lucide-react";
+import { EllipsisVertical, FilterIcon } from "lucide-react";
 import { useState } from "react";
 import AssignRoleDialog from "./admin-role-dialog";
 
@@ -199,11 +199,7 @@ const AdminRole= () => {
             Assign Role
           </button>
           {/* Three-dot */}
-          <button className="text-white flex flex-col items-center gap-0.5 p-1">
-            <span className="w-1 h-1 rounded-full bg-white block" />
-            <span className="w-1 h-1 rounded-full bg-white block" />
-            <span className="w-1 h-1 rounded-full bg-white block" />
-          </button>
+          <EllipsisVertical/>
         </div>
       </div>
 
