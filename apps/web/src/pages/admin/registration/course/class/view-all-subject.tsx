@@ -1,19 +1,21 @@
 import { useState } from "react";
 import { EllipsisVertical, PlusIcon } from "lucide-react";
+import { Button } from "@bluethub/ui-kit";
+import { useNavigate } from "react-router-dom";
+import EditSubjectModal from "./edit-subject-modal";
 
-const BRAND = "#292382";
 
-type SchoolLevel = "All Levels" | "Primary" | "JSS" | "SSS";
-type SubjectStatus = "Active" | "Inactive";
+ export type SchoolLevel = "All Levels" | "Primary" | "JSS" | "SSS";
+export type SubjectStatus = "Active" | "Inactive";
 
-interface Subject {
+export interface Subject {
     id: number;
     name: string;
     level: SchoolLevel;
     status: SubjectStatus;
 }
 
-const allSubjects: Subject[] = [
+ export const allSubjects: Subject[] = [
     { id: 1, name: "Mathematics", level: "All Levels", status: "Active" },
     { id: 2, name: "English Language", level: "All Levels", status: "Active" },
     { id: 3, name: "Basic Science", level: "Primary", status: "Active" },
@@ -31,16 +33,17 @@ const allSubjects: Subject[] = [
 ];
 
 /* ── Level badge colours ─────────────────────────────────────────────── */
-const levelBadge: Record<SchoolLevel, { bg: string; text: string }> = {
+export const levelBadge: Record<SchoolLevel, { bg: string; text: string }> = {
     "All Levels": { bg: "#e0f2fe", text: "#0369a1" },
     "Primary": { bg: "#d1fae5", text: "#065f46" },
     "JSS": { bg: "#ede9fe", text: "#5b21b6" },
     "SSS": { bg: "#fee2e2", text: "#991b1b" },
 };
 
-type FilterTab = "All" | "Primary" | "JSS" | "SSS";
+export type FilterTab = "All" | "Primary" | "JSS" | "SSS";
 
 const ViewAllSubject = () => {
+    const navigate = useNavigate()
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<FilterTab>("All");
     const [subjects] = useState<Subject[]>(allSubjects);
@@ -65,8 +68,7 @@ const ViewAllSubject = () => {
 
                 {/* ── Top Nav ──────────────────────────────────────────────────── */}
                 <div
-                    className="flex items-center justify-between px-4 py-5 sticky top-0 z-30 "
-                    style={{ backgroundColor: BRAND }}
+                    className="flex items-center justify-between px-4 py-5 sticky top-0 z-30 bg-chestnut"
                 >
                     <div className="flex items-center gap-2.5">
                         <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
@@ -86,20 +88,20 @@ const ViewAllSubject = () => {
                         {/* Page header row */}
                         <div className="flex items-start justify-between mb-4">
                             <div>
-                                <h1 className="text-xl font-bold text-[#3A3A3A] leading-tight">
+                                <h1 className="text-xl font-bold text-blck-b2 leading-tight">
                                     Subject Registry
                                 </h1>
                                 <p className="text-sm text-[#A0A8C0]  mt-0.5">
                                     All subjects registered to Greenfield College — Primary to Secondary
                                 </p>
                             </div>
-                            <button
-                                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white text-xs font-semibold flex-shrink-0 transition-opacity hover:opacity-90"
-                                style={{ backgroundColor: BRAND }}
+                            <Button
+                                onClick={() => navigate('/admin/registration/courses/new')}
+                                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white text-xs font-semibold  bg-chestnut shrink-0 transition-opacity hover:opacity-90"
                             >
                                <PlusIcon/>
                                 Add Subject
-                            </button>
+                            </Button>
                         </div>
 
                         {/* Stats row */}
@@ -152,7 +154,7 @@ const ViewAllSubject = () => {
                         {/* Search + filter tabs */}
                         <div className="flex items-center gap-3 mb-3">
                             <div className="flex-1 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-                                <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
                                 <input
@@ -172,7 +174,7 @@ const ViewAllSubject = () => {
                                         onClick={() => setFilter(tab)}
                                         className="px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all"
                                         style={{
-                                            backgroundColor: filter === tab ? BRAND : "transparent",
+                                            backgroundColor: filter === tab ? "#292382" : "transparent",
                                             color: filter === tab ? "#fff" : "#6b7280",
                                         }}
                                     >
@@ -227,7 +229,7 @@ const ViewAllSubject = () => {
                                             {/* Status */}
                                             <div className="flex items-center gap-1.5">
                                                 <span
-                                                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                                                    className="w-1.5 h-1.5 rounded-full shrink-0"
                                                     style={{ backgroundColor: s.status === "Active" ? "#22c55e" : "#f59e0b" }}
                                                 />
                                                 <span
@@ -239,12 +241,7 @@ const ViewAllSubject = () => {
                                             </div>
 
                                             {/* Edit link */}
-                                            <button
-                                                className="text-[11px] font-semibold hover:opacity-70 transition-opacity"
-                                                style={{ color: BRAND }}
-                                            >
-                                                Edit
-                                            </button>
+                                            <EditSubjectModal/>
                                         </div>
                                     );
                                 })}

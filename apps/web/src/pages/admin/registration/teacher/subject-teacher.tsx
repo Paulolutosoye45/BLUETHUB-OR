@@ -1,12 +1,12 @@
-import schoolProfile from "@/assets/png/School.png";
-import { authService } from "@/services/auth";
+// import schoolProfile from "@/assets/png/School.png";
+// import { authService } from "@/services/auth";
 import { Hashing } from "@/utils";
 import type { Tuser } from "@/utils/decode";
 import { regUserSchema, UserRole, type RegisterFormData } from "@/utils/validate";
 import { Label, Input, Button } from "@bluethub/ui-kit";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { AxiosError } from "axios";
-import { Upload, User, Lock, Camera, Mail, Loader2 } from "lucide-react";
+import { Upload, User, Camera, Mail, Loader2, Calendar } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
@@ -19,7 +19,7 @@ const SubjectTeacher = () => {
   const [user, setUser] = useState<Tuser | null>(null);
 
   const navigate = useNavigate()
-  
+
 
   // Load user from localStorage when component mounts
   useEffect(() => {
@@ -85,8 +85,8 @@ const SubjectTeacher = () => {
 
   const handleRegister = async (data: RegisterFormData) => {
     if (!user?.schoolId && !user?.id) return
-    
-    let role = UserRole.SubjectTeacher;  
+
+    let role = UserRole.SubjectTeacher;
     const hashPassword = await Hashing(data.password);
     const payload = {
       createdby: user?.id,
@@ -100,10 +100,11 @@ const SubjectTeacher = () => {
       schoolId: user?.schoolId,
       role
     }
+    console.log(payload)
     setLoading(true);
     try {
-       await authService.createUser(payload)
-       navigate('/admin')
+      // await authService.createUser(payload)
+      navigate('/admin/registration/teacher/assign-role')
     } catch (error) {
       const errorMessage =
         error instanceof AxiosError
@@ -119,28 +120,6 @@ const SubjectTeacher = () => {
   return (
     // "space-y-4 px-6 max-w-full min-w-[80%] mx-auto"
     <div className="space-y-4 px-6 max-w-7xl mx-auto">
-      {/* Header Section */}
-      <div className="flex  items-center justify-between bg-white/90 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold text-chestnut bg-linear-to-r from-chestnut to-chestnut/80 bg-clip-text">
-            Register Teacher
-          </h1>
-          <p className="text-chestnut/60 text-sm font-medium">
-            Add a new teacher to your school system
-          </p>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <div className="absolute -inset-1 bg-linear-to-r from-chestnut/20 to-chestnut/10 rounded-full blur"></div>
-            <img
-              src={schoolProfile}
-              alt="School Profile"
-              className="relative bg-white border-3 border-chestnut/20 w-14 h-14 rounded-full cursor-pointer object-cover shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-            />
-          </div>
-        </div>
-      </div>
 
       {/* Main Content */}
       <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">
@@ -160,12 +139,12 @@ const SubjectTeacher = () => {
             </div>
           </div>
 
-          <Button
+          {/* <Button
             variant="outline"
             className="bg-white/10 hover:bg-white/20 text-white border-white/30 hover:border-white/50 px-6 py-2.5 font-semibold text-sm rounded-xl backdrop-blur-sm transition-all duration-300"
           >
             Edit Profile
-          </Button>
+          </Button> */}
         </div>
 
         {/* Form Content */}
@@ -239,7 +218,7 @@ const SubjectTeacher = () => {
             </div>
 
             {/* Form Fields */}
-            <div className="flex-1 space-y-8">
+            <div className="flex-1 space-y-4">
               {/* Row 1 */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="space-y-3">
@@ -252,7 +231,7 @@ const SubjectTeacher = () => {
                       {...register("firstName")}
                       type="text"
                       placeholder="Enter first name"
-                      className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:ring-chestnut/30"
+                      className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-md transition-all duration-300 hover:ring-chestnut/30"
                     />
                     {errors.firstName && (
                       <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>
@@ -269,7 +248,7 @@ const SubjectTeacher = () => {
                     {...register("lastName")}
                     type="text"
                     placeholder="Enter last name"
-                    className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:ring-chestnut/30"
+                    className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-md transition-all duration-300 hover:ring-chestnut/30"
                   />
                   {errors.lastName && (
                     <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>
@@ -288,7 +267,7 @@ const SubjectTeacher = () => {
                     {...register("middleName")}
                     type="text"
                     placeholder="Enter middle name"
-                    className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:ring-chestnut/30"
+                    className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-md transition-all duration-300 hover:ring-chestnut/30"
                   />
                   {errors.middleName && (
                     <p className="text-red-500 text-sm mt-1">{errors.middleName.message}</p>
@@ -305,8 +284,8 @@ const SubjectTeacher = () => {
                     type="text"
                     readOnly
                     placeholder="Auto-generated"
-                    className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 
-             text-base placeholder:text-chestnut/50 bg-chestnut/5 rounded-xl 
+                    className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 
+             text-base placeholder:text-chestnut/50 bg-chestnut/5 rounded-md
              cursor-not-allowed opacity-70"
                   />
                 </div>
@@ -323,7 +302,7 @@ const SubjectTeacher = () => {
                     {...register("email")}
                     type="text"
                     placeholder="Enter  email address"
-                    className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:ring-chestnut/30"
+                    className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-md transition-all duration-300 hover:ring-chestnut/30"
                   />
                   {errors.email && (
                     <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
@@ -331,20 +310,33 @@ const SubjectTeacher = () => {
                 </div>
 
                 <div className="space-y-3">
-                  <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
-                    <Lock className="w-4 h-4" />
-                    Password
+                  <Label className="text-chestnut font-semibold text-base">
+                    D.O.B*
                   </Label>
-                  <Input
-                    {...register("password")}
-                    readOnly
-                    type="password"
-                    placeholder="Auto-generated"
-                    className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-4 px-4 
-                    text-base placeholder:text-chestnut/50 bg-chestnut/5 rounded-xl 
-                    cursor-not-allowed opacity-70"
 
-                  />
+                  <div className="relative">
+                    <Input
+                      type="date"
+                      // {...register("dob")}
+                      className="
+        ring-2 ring-chestnut/30 
+        focus:ring-chestnut 
+        border-0 
+        py-4 px-4 
+        text-base 
+        text-chestnut
+        bg-white
+        rounded-md
+        appearance-none
+      "
+                    />
+
+                    {/* Calendar Icon */}
+                    <Calendar
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-chestnut/70 pointer-events-none"
+                      size={18}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -367,3 +359,5 @@ const SubjectTeacher = () => {
 };
 
 export default SubjectTeacher;
+
+// make Add subject  a dialog then after pick your subject then submit let the subject that hae been picked show inside Register Subject

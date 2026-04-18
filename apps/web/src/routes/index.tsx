@@ -30,9 +30,6 @@ import TeacherMain from '@/pages/admin/registration/teacher/main';
 import SubjectTeacher from '@/pages/admin/registration/teacher/subject-teacher';
 import HeadTeacher from '@/pages/admin/registration/teacher/head-teacher';
 import EmailModal from '@/pages/admin/registration/teacher/email-modal';
-// import ResendEmail from '@/pages/admin/registration/teacher/resend-email';
-// import TeacherOTP from '@/pages/admin/registration/teacher/otp';
-import AssignRoles from '@/pages/admin/registration/teacher/assign-role';
 import ClassRegistration from '@/pages/admin/registration/course/class/class-registration';
 import StudentsLayout from '@/layouts/student';
 import StudentIndex from '@/pages/student/component/main';
@@ -57,9 +54,14 @@ import StudentProtectedRoute from '@/component/protected-routes/student-routes';
 import UploadScan from '@/pages/teacher/component/upload-scan';
 import ReviewQuestion from '@/pages/teacher/component/review-question';
 import MyUploads from '@/pages/teacher/component/my-uploads';
-import RegisterNewClass from '@/pages/admin/registration/course/class/register-new-subject';
 import AdminRole from '@/pages/admin/registration/admin-role-management/admin-role';
 import ViewAllSubject from '@/pages/admin/registration/course/class/view-all-subject';
+import RegisterTeacherRole from '@/pages/admin/registration/teacher/assign-role';
+import ViewStudent from '@/pages/admin/registration/student/view-student';
+import RegisterNewSubject from '@/pages/admin/registration/course/class/register-new-subject';
+import RegisterNewClass from '@/pages/admin/registration/course/class/register-new-class';
+import ClassviewAll from '@/pages/admin/registration/course/class/class-view-all';
+import LessonApproval from '@/pages/admin/dashboard/lesson-approval';
 
 const router = createBrowserRouter([
     {
@@ -97,7 +99,7 @@ const router = createBrowserRouter([
     {
         path: '/admin',
         element:
-            <AdminProtectedRoute><AdminLayout /> </AdminProtectedRoute>,
+            <AdminProtectedRoute><AdminLayout /></AdminProtectedRoute>,
         children: [
             {
                 index: true,
@@ -118,13 +120,13 @@ const router = createBrowserRouter([
                                 path: 'new',
                                 element: <NewStudent />,
                             },
-                            // {
-                            //     path: 'edit',
-                            //     element: <edit-student />,
-                            // },
                             {
                                 path: "enrollment",
                                 element: <Enrollment />,
+                            },
+                            {
+                                path: "students",
+                                element: <ViewStudent />,
                             },
                         ],
                     },
@@ -138,43 +140,38 @@ const router = createBrowserRouter([
                     },
                     {
                         path: "courses/new",
-                        element: <RegisterNewClass />,
+                        element: <RegisterNewSubject />,
                     },
                     {
                         path: "courses/view-all-subject",
                         element: <ViewAllSubject />,
                     },
                     { path: "class", element: <ClassRegistration /> },
+                    { path: "class/new", element: <RegisterNewClass /> },
+                    { path: "class/view-all", element: <ClassviewAll /> },
                     {
                         path: "teacher",
                         element: <Teacherlayout />,
                         children: [
                             { index: true, element: <TeacherMain /> },
-                            { path: "subject-teacher", element: <SubjectTeacher /> },
+                            { path: "teacher", element: <SubjectTeacher /> },
                             { path: "head-teacher", element: <HeadTeacher /> },
                             {
                                 path: "email-verification",
                                 element: <EmailModal />,
                             },
-                            // {
-                            //     path: "verification-resend",
-                            //     element: <ResendEmail />,
-                            // },
-                            // {
-                            //     path: "verification-otp",
-                            //     element: <TeacherOTP />,
-                            // },
                             {
                                 path: "assign-role",
-                                element: <AssignRoles />,
+                                element: <RegisterTeacherRole />,
                             },
-                            // // edit teacher routes
-                            // { path: "subject-teacher/edit", element: <EditSubjectTeacher /> },
-                            // { path: "head-teacher/edit", element: <EditHeadTeacher /> },
                         ],
                     },
                 ],
 
+            },
+            {
+                path:'lesson-approval',
+                element: <LessonApproval />
             }
 
         ]
