@@ -73,6 +73,15 @@ export const schoolService = {
     );
   },
 
+  getAllSubject: () => {
+    return API.get(endpoints.getAllSubjects, {
+        headers: {
+            "X-Tenant-ID": X_Tenant_ID,
+        },
+    });
+},
+
+
   createClassRoom: (data: ICreateSchool) => {
     return API.post(endpoints.createSchoolClass, data, {
       headers: {
