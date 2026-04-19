@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { EllipsisVertical, PlusIcon } from "lucide-react";
+import { EllipsisVertical, GalleryVerticalEnd, LayoutGrid, PlusIcon } from "lucide-react";
 import { Button } from "@bluethub/ui-kit";
 import { useNavigate } from "react-router-dom";
 // import EditSubjectModal from "./edit-subject-modal";
@@ -81,9 +81,7 @@ const ClassviewAll = () => {
                         className="flex items-center justify-between px-4 py-5 sticky top-0 z-30 bg-chestnut"
                     >
                         <div className="flex items-center gap-2.5">
-                            <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z" />
-                            </svg>
+                            <LayoutGrid className="w-6 h-6 text-white" />
                             <span className="text-white font-semibold text-sm">View All class</span>
                         </div>
                         <button className="text-white">
@@ -106,7 +104,7 @@ const ClassviewAll = () => {
                                     </p>
                                 </div>
                                 <Button
-                                    onClick={() => navigate('/admin/registration/courses/new')}
+                                    onClick={() => navigate('/admin/registration/class/new')}
                                     className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white text-xs font-semibold  bg-chestnut shrink-0 transition-opacity hover:opacity-90"
                                 >
                                     <PlusIcon />
@@ -118,12 +116,7 @@ const ClassviewAll = () => {
                             <div className="grid grid-cols-3 gap-3 mb-4">
                                 {[
                                     {
-                                        icon: (
-                                            <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                                            </svg>
-                                        ),
+                                        icon: <GalleryVerticalEnd className="w-5 h-5 text-gray-500" />,
                                         value: totalClass,
                                         label: "Total Class",
                                     },
@@ -154,7 +147,7 @@ const ClassviewAll = () => {
                                     >
                                         {icon}
                                         <div>
-                                            <p className="text-xl font-bold text-[#12122A] leading-none">{value}</p>
+                                            <p className="text-xl font-semibold text-[#12122A] leading-none">{value}</p>
                                             <p className="text-sm text-[#3A3A3ABF] mt-0.5">{label}</p>
                                         </div>
                                     </div>
@@ -198,7 +191,7 @@ const ClassviewAll = () => {
                             <div className="border border-gray-200 rounded-xl overflow-hidden">
                                 {/* Table header */}
                                 <div
-                                    className="grid text-[10px] font-bold uppercase tracking-wide text-gray-400 px-4 py-2 border-b border-gray-200"
+                                    className="grid text-blck-b2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 px-4 py-2 border-b border-gray-200"
                                     style={{ gridTemplateColumns: "36px 1fr 130px 100px 70px" }}
                                 >
                                     <span>#</span>

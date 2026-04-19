@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { EllipsisVertical, PlusIcon } from "lucide-react";
+import { EllipsisVertical, LayoutGrid, PlusIcon } from "lucide-react";
 import { Button } from "@bluethub/ui-kit";
 import { useNavigate } from "react-router-dom";
 import EditSubjectModal from "./edit-subject-modal";
@@ -71,9 +71,7 @@ const ViewAllSubject = () => {
                     className="flex items-center justify-between px-4 py-5 sticky top-0 z-30 bg-chestnut"
                 >
                     <div className="flex items-center gap-2.5">
-                        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z" />
-                        </svg>
+                        <LayoutGrid className="w-6 h-6 text-white" />
                         <span className="text-white font-semibold text-sm">View All Subject</span>
                     </div>
                     <button className="text-white">

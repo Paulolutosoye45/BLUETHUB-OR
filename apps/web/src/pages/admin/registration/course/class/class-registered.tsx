@@ -3,10 +3,10 @@ import { Dots } from "./subject-register-dialog";
 import { CheckCircle2 } from "lucide-react";
 import InfoRow from "@/shared/info-row";
 
-const ClassRegistered = ({ open, onClose, onAddAnother, onViewAll }: { open: boolean; onClose: () => void; onAddAnother?: () => void; onViewAll?: () => void }) => {
+const ClassRegistered = ({ open, onClose, onAddAnother, classRegistered, onViewAll }: { open: boolean; onClose: () => void; onAddAnother?: () => void; onViewAll?: () => void; classRegistered: string }) => {
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-90 p-0 overflow-hidden rounded-2xl border-0 shadow-2xl bg-white gap-0">
+      <DialogContent  className="max-w-90 p-0 overflow-hidden rounded-2xl border-0 shadow-2xl bg-white gap-0">
         {/* ── Hero Banner ── */}
         <div className="relative bg-chestnut flex flex-col items-center pt-10 pb-8 overflow-hidden">
           <Dots />
@@ -27,7 +27,7 @@ const ClassRegistered = ({ open, onClose, onAddAnother, onViewAll }: { open: boo
 
         {/* ── Info Rows ── */}
         <div className="px-5 pt-5 pb-4 space-y-2.5">
-          <InfoRow label="Subject" value="All Subjects" />
+          <InfoRow label="Class" value={classRegistered} />
           <InfoRow label="Subject teacher" value="No Class Teacher Is Assigned Yet" valueClass="text-gray-400 text-xs text-right max-w-[160px] leading-snug" />
           <InfoRow
             label="Status"

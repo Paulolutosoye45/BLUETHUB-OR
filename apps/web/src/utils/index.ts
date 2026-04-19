@@ -57,6 +57,9 @@ export const localData = {
     const stored = localStorage.getItem(key);
     return stored ? (JSON.parse(stored) as T) : null;
   },
+  remove(key: string) {
+    localStorage.removeItem(key);
+  },
 };
 
 //hash password

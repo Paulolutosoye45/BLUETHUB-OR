@@ -1,24 +1,22 @@
-import { useState } from "react";
-import { Check, Pencil, SquarePen, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, ChevronDown, Info, Loader2, Search, SquarePen, X } from "lucide-react";
 import {
     Button, Dialog,
     DialogContent,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
     Label,
 } from "@bluethub/ui-kit";
+import type { Classroom } from "../course/class/class-registration";
+import { schoolService } from "@/services/school";
+import { AxiosError } from "axios";
+import type { SchoolInfo } from "@/services";
+import { localData } from "@/utils";
+import type { Subject } from "../course/main";
+import { authService, type IcreateUserRequest } from "@/services/auth";
 
-// const BRAND = "#292382";
-
-const majorList = [
-    "Mathematics", "English", "Basic Science", "Basic Technology",
-    "Computer Science", "Agriculture Science", "Home Economics",
-    "Creative Art", "Social Studies", "Civic Education",
-];
-
-const minorList = [
-    "Mathematics", "English", "Basic Science", "Basic Technology",
-    "Computer Science", "Agriculture Science", "Home Economics",
-    "Creative Art", "Social Studies", "Civic Education",
-];
 
 type SchoolLevel = "Primary" | "Junior Secondary" | "Senior Secondary";
 const levels: SchoolLevel[] = ["Primary", "Junior Secondary", "Senior Secondary"];
@@ -29,21 +27,80 @@ interface ClassCourseDialogProps {
     studentName?: string;
     studentUsername?: string;
     studentDob?: string;
-    onSave?: (data: { assignedClass: string; levels: SchoolLevel[]; subjects: string[] }) => void;
+    onSave?: (data: IcreateUserRequest) => void;
 }
 
 const ClassDialog = ({
     open,
     onOpenChange,
-    studentName = "Tee Wealth",
-    studentUsername = "@tee-wealth",
-    studentDob = "DOB: 22 Apr 1326",
+    studentName,
+    studentUsername,
+    studentDob,
     onSave,
 }: ClassCourseDialogProps) => {
     const [activeTab, setActiveTab] = useState<"general" | "subjects">("general");
     const [assignedClass, setAssignedClass] = useState("");
     const [selectedLevels, setSelectedLevels] = useState<SchoolLevel[]>(["Junior Secondary"]);
-    const [selectedSubjects, setSelectedSubjects] = useState<Set<string>>(new Set());
+    const [classes, setClasses] = useState<Classroom[]>([]);
+    const [errorMsg, setErrorMsg] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [subjectSearch, setSubjectSearch] = useState("");
+    const [majorSubjects, setMajorSubjects] = useState<Subject[]>([]);
+    const [minorSubjects, setMinorSubjects] = useState<Subject[]>([]);
+    const [subjectIds, setSubjectIds] = useState<string[]>([])
+
+
+    useEffect(() => {
+        const fetchAll = async () => {
+            if (!schoolId?.id) return;
+            try {
+                setLoading(true);
+                const [subjectsRes, classroomsRes] = await Promise.all([
+                    schoolService.getAllSchoolSubject(schoolId.id),
+                    schoolService.getAllClassRooms(),
+                ]);
+
+                const all: Subject[] = subjectsRes.data.allSubjects;
+                setMajorSubjects(all.filter(s => s.category === "Major"));
+                setMinorSubjects(all.filter(s => s.category === "Minor"));
+                setClasses(classroomsRes.data.data.classrooms);
+            } catch (error) {
+                const msg =
+                    error instanceof AxiosError
+                        ? error.response?.data?.responseMessage ??
+                        error.response?.data?.message ??
+                        error.message
+                        : (error as Error).message;
+                setErrorMsg(msg);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchAll();
+    }, []);
+
+
+    const isChecked = (id: string) => subjectIds.includes(id);
+    const schoolId = localData.retrieve("schoolInfo") as SchoolInfo;
+
+    const toggleSubject = (id: string) => {
+        const updated = subjectIds.includes(id)
+            ? subjectIds.filter(x => x !== id)
+            : [...subjectIds, id];
+
+        setSubjectIds(updated);
+    };
+
+
+    const filteredMajor = majorSubjects.filter(s =>
+        s.subject.toLowerCase().includes(subjectSearch.toLowerCase())
+    );
+
+    const filteredMinor = minorSubjects.filter(s =>
+        s.subject.toLowerCase().includes(subjectSearch.toLowerCase())
+    );
+
 
     const toggleLevel = (level: SchoolLevel) => {
         setSelectedLevels(prev =>
@@ -51,25 +108,60 @@ const ClassDialog = ({
         );
     };
 
-    const toggleSubject = (subject: string) => {
-        setSelectedSubjects(prev => {
-            const next = new Set(prev);
-            next.has(subject) ? next.delete(subject) : next.add(subject);
-            return next;
-        });
+
+
+    const handleSave = async () => {
+        if (!assignedClass) {
+            setErrorMsg("Student must be assigned to a class");
+            return; // ← stops execution
+        }
+
+        const studentPayload = localData.retrieve("th_student") as IcreateUserRequest;
+        if (!studentPayload) {
+            setErrorMsg("Student information missing, please go back and try again");
+            return;
+        }
+
+        if (!studentPayload) {
+            console.error("Student payload missing");
+            return;
+        }
+
+        if (!assignedClass) {
+            setErrorMsg("Students must be assigned to a classroom");
+            return;
+        }
+
+        const finalPayload: IcreateUserRequest = {
+            ...studentPayload,
+            userClassroomsId: [assignedClass],
+            userSubjects: subjectIds,
+        };
+
+        setErrorMsg("")
+        try {
+            setLoading(true);
+            await authService.createUser(finalPayload);
+            localData.remove("th_student");
+            onSave?.(finalPayload);
+            onOpenChange(false);
+        } catch (error) {
+            const msg =
+                error instanceof AxiosError
+                    ? error.response?.data?.responseMessage ??
+                    error.response?.data?.message ??
+                    error.message
+                    : (error as Error).message;
+            setErrorMsg(msg);
+        } finally {
+            setLoading(false);
+        }
     };
 
-    const handleSave = () => {
-        onSave?.({
-            assignedClass,
-            levels: selectedLevels,
-            subjects: [...selectedSubjects],
-        });
-        onOpenChange(false);
-    };
-
-    const initials = studentName
-        .split(" ")
+    const initials = (studentName ?? "")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
         .map(n => n[0])
         .join("")
         .toUpperCase()
@@ -107,8 +199,8 @@ const ClassDialog = ({
                             key={tab}
                             onClick={() => setActiveTab(tab)}
                             className={`py-3 px-1 mr-6 text-sm font-medium border-b-2 transition-colors capitalize ${activeTab === tab
-                                    ? "border-chestnut text-chestnut"
-                                    : "border-transparent text-gray-400 hover:text-gray-600"
+                                ? "border-chestnut text-chestnut"
+                                : "border-transparent text-gray-400 hover:text-gray-600"
                                 }`}
                         >
                             {tab === "general" ? "General Info" : "Subjects"}
@@ -143,24 +235,43 @@ const ClassDialog = ({
                                 <Label className="text-xs font-medium text-blck-b2">
                                     Assigned Class
                                 </Label>
-                                <div className="relative">
-                                    <input
-                                        value={assignedClass}
-                                        onChange={e => setAssignedClass(e.target.value)}
-                                        placeholder="Jss1"
-                                        className="w-full ring-2 ring-chestnut/25 focus:ring-chestnut/50 border-0 rounded-lg px-3 py-2 pr-8 text-sm text-chestnut font-medium placeholder:text-chestnut/30 outline-none bg-white"
-                                    />
-                                    {assignedClass && (
-                                        <button
-                                            onClick={() => setAssignedClass("")}
-                                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                                        >
-                                            <X className="w-3.5 h-3.5" />
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <button className="w-full ring-2 ring-chestnut/25 focus:ring-chestnut/50 rounded-lg px-3 py-2 text-sm font-medium outline-none bg-white flex items-center justify-between transition-all hover:ring-chestnut/50">
+                                            <span className={assignedClass ? "text-chestnut" : "text-chestnut/30"}>
+                                                {assignedClass
+                                                    ? classes.find(c => c.id === assignedClass)?.name
+                                                    : "Select a class"}
+                                            </span>
+                                            <ChevronDown className="w-3.5 h-3.5 text-chestnut/50 shrink-0" />
                                         </button>
-                                    )}
-                                </div>
-                                    <p className="text-[10px] font-medium  text-[#3A3A3A80]">
-                                    Edit the name post and it will update everywhere it's used.
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent className="w-full min-w-[var(--radix-dropdown-menu-trigger-width)]" align="start">
+                                        {classes.length === 0 ? (
+                                            <div className="px-3 py-4 text-xs text-center text-gray-400">
+                                                No classes available
+                                            </div>
+                                        ) : (
+                                            classes.map(cls => (
+                                                <DropdownMenuItem
+                                                    key={cls.id}
+                                                    onClick={() => setAssignedClass(cls.id)}
+                                                    className={`text-sm font-medium cursor-pointer ${assignedClass === cls.id
+                                                        ? "text-chestnut bg-chestnut/5"
+                                                        : "text-gray-700"
+                                                        }`}
+                                                >
+                                                    <span className="flex-1">{cls.name}</span>
+                                                    {assignedClass === cls.id && (
+                                                        <Check className="w-3.5 h-3.5 text-chestnut shrink-0" />
+                                                    )}
+                                                </DropdownMenuItem>
+                                            ))
+                                        )}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                                <p className="text-[10px] font-medium text-[#3A3A3A80]">
+                                    Select the class this student will be assigned to.
                                 </p>
                             </div>
 
@@ -170,7 +281,7 @@ const ClassDialog = ({
                                     School Level Assignment
                                 </Label>
                                 <p className="text-[10px] font-semibold text-gray-500 ">
-                                    Assign to 
+                                    Assign to
                                 </p>
                                 <div className="flex items-center gap-2 flex-wrap">
                                     {levels.map(level => {
@@ -206,84 +317,76 @@ const ClassDialog = ({
 
                     {/* ── Subjects Tab ──────────────────────────────────────── */}
                     {activeTab === "subjects" && (
-                        <div>
-                            {/* Class banner */}
-                            <div className="flex items-center gap-2 mb-4">
-                               <Pencil className="size-4 text-chestnut" />
-                                <div>
-                                    <p className="text-xs font-semibold text-chestnut leading-tight">
-                                        Edit {assignedClass || "Jss 1A"}
-                                    </p>
-                                    <p className="text-[10px] text-gray-400">Greenfield - Academic Management</p>
-                                </div>
+                        <div className="space-y-4">
+                            {/* Search */}
+                            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                                <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                <input
+                                    type="text"
+                                    value={subjectSearch}
+                                    onChange={e => setSubjectSearch(e.target.value)}
+                                    placeholder="Search Subjects..."
+                                    className="flex-1 text-xs text-gray-600 placeholder-gray-400 outline-none bg-transparent"
+                                />
                             </div>
 
                             {/* Two columns */}
                             <div className="flex gap-4">
-                                {/* Major */}
-                                <div className="flex-1">
-                                    <p className="text-xs font-semibold text-chestnut mb-3">Major course</p>
-                                    <div className="flex flex-col gap-1">
-                                        {majorList.map(subject => {
-                                            const checked = selectedSubjects.has(`major:${subject}`);
-                                            return (
-                                                <label
-                                                    key={subject}
-                                                    className="flex items-center gap-2.5 py-1.5 px-2 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
-                                                >
-                                                    <span
-                                                        className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${checked
-                                                                ? "border-chestnut bg-chestnut"
-                                                                : "border-gray-300 bg-white"
-                                                            }`}
-                                                        onClick={() => toggleSubject(`major:${subject}`)}
-                                                    >
-                                                        {checked && <Check className="w-2.5 h-2.5 text-white" />}
-                                                    </span>
-                                                    <span
-                                                        className={`text-xs font-medium ${checked ? "text-chestnut font-bold" : "text-gray-600"}`}
-                                                        onClick={() => toggleSubject(`major:${subject}`)}
-                                                    >
-                                                        {subject}
-                                                    </span>
-                                                </label>
-                                            );
-                                        })}
+
+                                {/* Major column */}
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-chestnut mb-2.5">Major course</p>
+                                    <div className="flex flex-col space-y-1 h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-chestnut/30 scrollbar-track-transparent">
+                                        {filteredMajor.map(s => (
+                                            <label
+                                                key={s.schoolId}
+                                                onClick={() => toggleSubject(s.schoolId)}
+                                                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
+                                            >
+                                                <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.schoolId) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
+                                                    }`}>
+                                                    {isChecked(s.schoolId) && (
+                                                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                    )}
+                                                </span>
+                                                <span className={`text-xs font-medium select-none ${isChecked(s.schoolId) ? "text-chestnut font-bold" : "text-gray-600"
+                                                    }`}>
+                                                    {s.subject}
+                                                </span>
+                                            </label>
+                                        ))}
                                     </div>
                                 </div>
 
                                 {/* Divider */}
-                                <div className="w-px bg-gray-100 self-stretch" />
+                                <div className="w-px bg-chestnut/10 self-stretch" />
 
-                                {/* Minor */}
-                                <div className="flex-1">
-                                    <p className="text-xs font-semibold text-gray-500 mb-3">Minor Course</p>
-                                    <div className="flex flex-col gap-1">
-                                        {minorList.map(subject => {
-                                            const checked = selectedSubjects.has(`minor:${subject}`);
-                                            return (
-                                                <label
-                                                    key={subject}
-                                                    className="flex items-center gap-2.5 py-1.5 px-2 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
-                                                >
-                                                    <span
-                                                        className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${checked
-                                                                ? "border-chestnut bg-chestnut"
-                                                                : "border-gray-300 bg-white"
-                                                            }`}
-                                                        onClick={() => toggleSubject(`minor:${subject}`)}
-                                                    >
-                                                        {checked && <Check className="w-2.5 h-2.5 text-white" />}
-                                                    </span>
-                                                    <span
-                                                        className={`text-xs font-medium ${checked ? "text-chestnut font-bold" : "text-gray-600"}`}
-                                                        onClick={() => toggleSubject(`minor:${subject}`)}
-                                                    >
-                                                        {subject}
-                                                    </span>
-                                                </label>
-                                            );
-                                        })}
+                                {/* Minor column */}
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-gray-500 mb-2.5">Minor course</p>
+                                    <div className="flex flex-col space-y-1 h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-chestnut/30 scrollbar-track-transparent">
+                                        {filteredMinor.map(s => (
+                                            <label
+                                                key={s.subject}
+                                                onClick={() => toggleSubject(s.schoolId)}
+                                                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
+                                            >
+                                                <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.schoolId) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
+                                                    }`}>
+                                                    {isChecked(s.schoolId) && (
+                                                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                    )}
+                                                </span>
+                                                <span className={`text-xs font-medium select-none ${isChecked(s.schoolId) ? "text-chestnut font-bold" : "text-gray-600"
+                                                    }`}>
+                                                    {s.subject}
+                                                </span>
+                                            </label>
+                                        ))}
                                     </div>
                                 </div>
                             </div>
@@ -292,20 +395,42 @@ const ClassDialog = ({
                 </div>
 
                 {/* ── Footer ──────────────────────────────────────────────── */}
-                <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-gray-100 bg-white">
-                    <Button
-                        variant="outline"
-                        onClick={() => onOpenChange(false)}
-                        className="px-5 py-2 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleSave}
-                        className="px-5 py-2 text-sm font-semibold bg-chestnut text-white rounded-lg hover:opacity-90 transition-opacity"
-                    >
-                        Save & Register
-                    </Button>
+                <div className="flex justify-between px-5 py-3 border-t border-gray-100 bg-white/60">
+                    {errorMsg && (
+                        <div
+                            role="alert"
+                            className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm mb-5"
+                        >
+                            <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
+                            <span>{errorMsg}</span>
+                        </div>
+                    )}
+                    <div className="flex items-center ml-auto justify-end gap-3">
+                        <Button
+                            variant="outline"
+                            onClick={() => onOpenChange(false)}
+                            className="px-5 py-2 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                            Cancel
+                        </Button>
+                        <button
+                            onClick={handleSave}
+                            disabled={loading}
+                            className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90 bg-[#292382] disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                                    <span>Submitting...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span>Save & Register</span>
+                                </>
+                            )}
+                        </button>
+
+                    </div>
                 </div>
             </DialogContent>
         </Dialog>

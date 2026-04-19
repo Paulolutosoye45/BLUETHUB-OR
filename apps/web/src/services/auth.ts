@@ -4,13 +4,6 @@ import { X_Tenant_ID } from "./school";
 
 export const API: AxiosInstance = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL });
 
-// API.interceptors.request.use((config) => {
-//   if (token.getToken()) {
-//     config.headers.Authorization = `Bearer ${token.getToken()}`;
-//   }
-//   config.headers["X-Tenant-ID"] = "pearl";  
-//   return config;
-// });
 
 API.interceptors.request.use((config) => {
   if (token.getToken()) {
@@ -19,11 +12,6 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
-// API.defaults.headers.common["X-Tenant-ID"] = "pearl";
-// API.defaults.headers.common["Authorization"] = `Bearer ${token.getToken()}`;
-
-
-// ── Request interceptor: attach token ─────────────────────────────────────
 API.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
   if (token) {
@@ -31,8 +19,6 @@ API.interceptors.request.use(config => {
   }
   return config;
 });
-
-// ── Response interceptor: handle 401 with refresh ─────────────────────────
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (token: string) => void;
@@ -157,15 +143,17 @@ export interface ILoginResponse {
   refreshToken: string;
 }
 
-interface IcreateUserRequest {
+ export interface IcreateUserRequest {
   createdby: string;
   firstName: string;
   lastName: string;
-  emailAddress: string;
+  emailAddress?: string;
   hashPassword: string;
   isActive: boolean;
   hasAccess: boolean;
   userName: string;
+  dob: string,
+  lineManagerId?: string,
   schoolId: string;
   role: number;
   userClassroomsId?: string[];

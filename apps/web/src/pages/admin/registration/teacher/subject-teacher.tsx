@@ -1,15 +1,16 @@
 // import schoolProfile from "@/assets/png/School.png";
+import { cn } from "@/lib/utils";
 // import { authService } from "@/services/auth";
 import { Hashing } from "@/utils";
 import type { Tuser } from "@/utils/decode";
 import { regUserSchema, UserRole, type RegisterFormData } from "@/utils/validate";
-import { Label, Input, Button } from "@bluethub/ui-kit";
+import { Label, Input, Button, Popover, PopoverTrigger, PopoverContent, Calendar  } from "@bluethub/ui-kit";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { AxiosError } from "axios";
-import { Upload, User, Camera, Mail, Loader2, Calendar } from "lucide-react";
+import { format } from "date-fns";
+import { Upload, User, Camera, Mail, Loader2, Info, CalendarIcon } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import toast from "react-hot-toast";
+import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 
 const SubjectTeacher = () => {
@@ -17,6 +18,7 @@ const SubjectTeacher = () => {
   const [dragActive, setDragActive] = useState(false);
   const [loading, setLoading] = useState<boolean>(false)
   const [user, setUser] = useState<Tuser | null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const navigate = useNavigate()
 
@@ -67,6 +69,7 @@ const SubjectTeacher = () => {
     handleSubmit,
     setValue,
     watch,
+    control,
     formState: { errors },
   } = useForm({ resolver: yupResolver(regUserSchema) });
 
@@ -98,20 +101,23 @@ const SubjectTeacher = () => {
       hasAccess: true,
       userName: data.username,
       schoolId: user?.schoolId,
+      dob: format(new Date(data.dateOfBirth!), 'yyyy-MM-dd'),
       role
     }
-    console.log(payload)
-    setLoading(true);
     try {
-      // await authService.createUser(payload)
+      setLoading(true);
+      // await authService.createUser(payload);
+
+      console.log(payload)
       navigate('/admin/registration/teacher/assign-role')
     } catch (error) {
-      const errorMessage =
+      const msg =
         error instanceof AxiosError
-          ? error.response?.data?.message || error.message
+          ? error.response?.data?.responseMessage ??
+          error.response?.data?.message ??
+          error.message
           : (error as Error).message;
-
-      toast.error(errorMessage);
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
@@ -119,7 +125,7 @@ const SubjectTeacher = () => {
 
   return (
     // "space-y-4 px-6 max-w-full min-w-[80%] mx-auto"
-    <div className="space-y-4 px-6 max-w-7xl mx-auto">
+    <div className="space-y-4 px-6 max-w-7xl mx-auto font-poppins">
 
       {/* Main Content */}
       <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">
@@ -138,13 +144,6 @@ const SubjectTeacher = () => {
               </p>
             </div>
           </div>
-
-          {/* <Button
-            variant="outline"
-            className="bg-white/10 hover:bg-white/20 text-white border-white/30 hover:border-white/50 px-6 py-2.5 font-semibold text-sm rounded-xl backdrop-blur-sm transition-all duration-300"
-          >
-            Edit Profile
-          </Button> */}
         </div>
 
         {/* Form Content */}
@@ -221,8 +220,8 @@ const SubjectTeacher = () => {
             <div className="flex-1 space-y-4">
               {/* Row 1 */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
+                <div className="space-y-2">
+                  <Label className="text-chestnut font-medium text-base flex items-center gap-2">
                     <User className="w-4 h-4" />
                     First Name
                   </Label>
@@ -239,8 +238,8 @@ const SubjectTeacher = () => {
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
+                <div className="space-y-2">
+                  <Label className="text-chestnut font-medium text-base flex items-center gap-2">
                     <User className="w-4 h-4" />
                     Last Name
                   </Label>
@@ -258,8 +257,8 @@ const SubjectTeacher = () => {
 
               {/* Row 2 */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
+                <div className="space-y-1">
+                  <Label className="text-chestnut font-medium text-base flex items-center gap-2">
                     <User className="w-4 h-4" />
                     Middle Name
                   </Label>
@@ -274,8 +273,8 @@ const SubjectTeacher = () => {
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
+                <div className="space-y-1">
+                  <Label className="text-chestnut font-medium text-base flex items-center gap-2">
                     <User className="w-4 h-4" />
                     Username
                   </Label>
@@ -293,8 +292,8 @@ const SubjectTeacher = () => {
 
               {/* Row 3 */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
+                <div className="space-y-1">
+                  <Label className="text-chestnut font-medium text-base flex items-center gap-2">
                     <Mail className="w-4 h-4" />
                     Email
                   </Label>
@@ -309,46 +308,78 @@ const SubjectTeacher = () => {
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  <Label className="text-chestnut font-semibold text-base">
-                    D.O.B*
-                  </Label>
+                <Controller
+                  name="dateOfBirth"
+                  control={control}
+                  rules={{ required: "Date of birth is required" }}
+                  render={({ field }) => (
+                    <div className="space-y-1.5">
+                      <Label className="text-chestnut text-base font-medium">
+                        Date of Birth
+                      </Label>
 
-                  <div className="relative">
-                    <Input
-                      type="date"
-                      // {...register("dob")}
-                      className="
-        ring-2 ring-chestnut/30 
-        focus:ring-chestnut 
-        border-0 
-        py-4 px-4 
-        text-base 
-        text-chestnut
-        bg-white
-        rounded-md
-        appearance-none
-      "
-                    />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <div
+                            className={cn(
+                              "w-full ring-2 ring-chestnut/40 bg-transparent rounded-md px-3 py-2 text-sm font-medium flex items-center gap-2 outline-none hover:ring-chestnut/50 transition",
+                              field.value ? "text-chestnut" : "text-chestnut/30"
+                            )}
+                          >
+                            <CalendarIcon className="w-4 h-4 text-chestnut/50 shrink-0" />
+                            {field.value
+                              ? format(new Date(field.value), "dd MMM yyyy")  // ← wrap in new Date() to be safe
+                              : "Select date of birth"}
 
-                    {/* Calendar Icon */}
-                    <Calendar
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-chestnut/70 pointer-events-none"
-                      size={18}
-                    />
-                  </div>
-                </div>
+                          </div>
+                        </PopoverTrigger>
+
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                            captionLayout="dropdown"
+                            fromYear={1990}
+                            toYear={new Date().getFullYear()}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      {errors.dateOfBirth && (
+                        <p className="text-red-500 text-xs mt-1 pl-2">{errors.dateOfBirth.message}</p>
+                      )}
+                    </div>
+                  )}
+                />
               </div>
             </div>
           </div>
 
-          {/* Action Button */}
-          <div className="flex justify-end mt-12 pt-8 border-t border-chestnut/10">
-            <Button disabled={loading} className="bg-linear-to-r from-chestnut to-chestnut/90 hover:from-chestnut/90 hover:to-chestnut text-white font-bold text-lg py-7 px-12 rounded-md shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+          <div className="flex justify-between mt-12 pt-8 border-t border-chestnut/10">
+            {errorMsg && (
+              <div
+                role="alert"
+                className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm mb-5"
+              >
+                <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
+                <span>{errorMsg}</span>
+              </div>
+            )}
+            <Button
+              type="submit"
+              disabled={loading}
+              className="ml-auto bg-linear-to-r from-chestnut to-chestnut/90 hover:from-chestnut/90 hover:to-chestnut text-white font-medium text-lg py-7 px-12 rounded-md shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
+            >
               {loading ? (
-                <Loader2 className="size-5 mx-auto animate-spin text-white" />
+                <>
+                  <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+                  <span>Saving...</span>
+                </>
               ) : (
-                <span>                Save and Continue</span>
+                <>
+                  <span>Save and Continue</span>
+                </>
               )}
             </Button>
           </div>
