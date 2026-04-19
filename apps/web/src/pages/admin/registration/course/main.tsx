@@ -9,9 +9,16 @@ import ViewAllSubject from "./class/view-all-subject";
 import EmptySubject from "./class/empty-subject";
 
 export interface Subject {
-  subject: string;
-  schoolId: string;
-  category: "Major" | "Minor";
+  id: string;
+  name: string;
+  description: string | null;
+  classCategory: number;
+  classCategoryName: string;
+  subjectCategory: number;
+  subjectCategoryName: "Major" | "Minor";
+  isActive: boolean;
+  creationDate: string;
+  modifiedDate: string;
 }
 
 const CoursesMain = () => {
