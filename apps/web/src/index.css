@@ -361,3 +361,14 @@ input[type="range"]::-moz-range-thumb {
     text-shadow: -10ch 0 0 #000, 0 0 0 #000
   }
 }
+
+
+/* in your global CSS */
+@keyframes shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.8s ease-in-out infinite;
+}

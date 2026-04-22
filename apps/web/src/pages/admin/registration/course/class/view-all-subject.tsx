@@ -1,36 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EllipsisVertical, LayoutGrid, PlusIcon } from "lucide-react";
-import { Button } from "@bluethub/ui-kit";
+import { Button , Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@bluethub/ui-kit";
 import { useNavigate } from "react-router-dom";
 import EditSubjectModal from "./edit-subject-modal";
+import { AxiosError } from "axios";
+import { schoolService } from "@/services/school";
+import type { Subject } from "../main";
 
 
- export type SchoolLevel = "All Levels" | "Primary" | "JSS" | "SSS";
+export type SchoolLevel = "Primary" | "JSS" | "SSS" | "All Levels";
 export type SubjectStatus = "Active" | "Inactive";
-
-export interface Subject {
-    id: number;
-    name: string;
-    level: SchoolLevel;
-    status: SubjectStatus;
-}
-
- export const allSubjects: Subject[] = [
-    { id: 1, name: "Mathematics", level: "All Levels", status: "Active" },
-    { id: 2, name: "English Language", level: "All Levels", status: "Active" },
-    { id: 3, name: "Basic Science", level: "Primary", status: "Active" },
-    { id: 4, name: "Basic Technology", level: "JSS", status: "Active" },
-    { id: 5, name: "Computer Science", level: "JSS", status: "Active" },
-    { id: 6, name: "Economics", level: "SSS", status: "Active" },
-    { id: 7, name: "Biology", level: "SSS", status: "Active" },
-    { id: 8, name: "Civic Education", level: "All Levels", status: "Active" },
-    { id: 9, name: "Social Studies", level: "Primary", status: "Active" },
-    { id: 10, name: "Agricultural Science", level: "JSS", status: "Active" },
-    { id: 11, name: "Physics", level: "SSS", status: "Active" },
-    { id: 12, name: "Chemistry", level: "SSS", status: "Active" },
-    { id: 13, name: "Government", level: "SSS", status: "Active" },
-    { id: 14, name: "Accounting", level: "SSS", status: "Active" },
-];
 
 /* ── Level badge colours ─────────────────────────────────────────────── */
 export const levelBadge: Record<SchoolLevel, { bg: string; text: string }> = {
@@ -46,21 +25,49 @@ const ViewAllSubject = () => {
     const navigate = useNavigate()
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<FilterTab>("All");
-    const [subjects] = useState<Subject[]>(allSubjects);
+    const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [, setLoading] = useState(false);
+    const [, setErrorMsg] = useState("");
 
     const totalSubjects = subjects.length;
-    const activeSubjects = subjects.filter(s => s.status === "Active").length;
-    const nonActiveSubjects = subjects.filter(s => s.status === "Inactive").length;
+    const activeSubjects = subjects.filter(s => s.isActive).length;
+    const nonActiveSubjects = subjects.filter(s => !s.isActive).length;
 
     const visible = subjects.filter(s => {
         const matchSearch = s.name.toLowerCase().includes(search.toLowerCase());
         const matchFilter =
             filter === "All" ||
-            (filter === "Primary" && s.level === "Primary") ||
-            (filter === "JSS" && s.level === "JSS") ||
-            (filter === "SSS" && s.level === "SSS");
+            (filter === "Primary" && s.classCategoryName === "Primary") ||
+            (filter === "JSS" && s.classCategoryName === "JSS") ||
+            (filter === "SSS" && s.classCategoryName === "SSS");
         return matchSearch && matchFilter;
     });
+
+
+
+
+    const fetchSubjects = async () => {
+        try {
+            setLoading(true);
+            const { data } = await schoolService.getAllSubject();
+            setSubjects(data.data.subjects ?? []);
+        } catch (error) {
+            const msg =
+                error instanceof AxiosError
+                    ? error.response?.data?.responseMessage ??
+                    error.response?.data?.message ??
+                    error.message
+                    : (error as Error).message;
+            setErrorMsg(msg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchSubjects();
+    }, []);
+
 
     return (
         <div className="p-6 font-poppins">
@@ -97,7 +104,7 @@ const ViewAllSubject = () => {
                                 onClick={() => navigate('/admin/registration/courses/new')}
                                 className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white text-xs font-semibold  bg-chestnut shrink-0 transition-opacity hover:opacity-90"
                             >
-                               <PlusIcon/>
+                                <PlusIcon />
                                 Add Subject
                             </Button>
                         </div>
@@ -182,74 +189,66 @@ const ViewAllSubject = () => {
                             </div>
                         </div>
 
-                        {/* Table */}
                         <div className="border border-gray-200 rounded-xl overflow-hidden">
-                            {/* Table header */}
-                            <div
-                                className="grid text-[10px] font-bold uppercase tracking-wide text-gray-400 px-4 py-2 border-b border-gray-200"
-                                style={{ gridTemplateColumns: "36px 1fr 130px 100px 70px" }}
-                            >
-                                <span>#</span>
-                                <span>Subject Name</span>
-                                <span>School Level</span>
-                                <span>Status</span>
-                                <span>Action</span>
-                            </div>
-
-                            {/* Rows */}
-                            <div className="divide-y divide-gray-100">
-                                {visible.map((s, i) => {
-                                    const badge = levelBadge[s.level];
-                                    return (
-                                        <div
-                                            key={s.id}
-                                            className="grid items-center px-4 py-2.5 hover:bg-gray-50/70 transition-colors"
-                                            style={{ gridTemplateColumns: "36px 1fr 130px 100px 70px" }}
-                                        >
-                                            {/* # */}
-                                            <span className="text-[11px] text-gray-400">
-                                                {String(i + 1).padStart(2, "0")}
-                                            </span>
-
-                                            {/* Subject name */}
-                                            <span className="text-xs font-semibold text-gray-800">{s.name}</span>
-
-                                            {/* Level badge */}
-                                            <div>
-                                                <span
-                                                    className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
-                                                    style={{ backgroundColor: badge.bg, color: badge.text }}
-                                                >
-                                                    {s.level}
-                                                </span>
-                                            </div>
-
-                                            {/* Status */}
-                                            <div className="flex items-center gap-1.5">
-                                                <span
-                                                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                                                    style={{ backgroundColor: s.status === "Active" ? "#22c55e" : "#f59e0b" }}
-                                                />
-                                                <span
-                                                    className="text-[11px] font-medium"
-                                                    style={{ color: s.status === "Active" ? "#15803d" : "#b45309" }}
-                                                >
-                                                    {s.status}
-                                                </span>
-                                            </div>
-
-                                            {/* Edit link */}
-                                            <EditSubjectModal/>
-                                        </div>
-                                    );
-                                })}
-
-                                {visible.length === 0 && (
-                                    <div className="py-10 text-center">
-                                        <p className="text-xs text-gray-400">No subjects found</p>
-                                    </div>
-                                )}
-                            </div>
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-gray-50/70 hover:bg-gray-50/70">
+                                        <TableHead className="text-[10px] font-bold uppercase tracking-wide text-gray-400 w-10">#</TableHead>
+                                        <TableHead className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Subject Name</TableHead>
+                                        <TableHead className="text-[10px] font-bold uppercase tracking-wide text-gray-400">School Level</TableHead>
+                                        <TableHead className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Status</TableHead>
+                                        <TableHead className="text-[10px] font-bold uppercase tracking-wide text-gray-400 w-20">Action</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {visible.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="py-10 text-center text-xs text-gray-400">
+                                                No subjects found
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        visible.map((s, i) => {
+                                            const badge = levelBadge[s.classCategoryName as SchoolLevel] ?? { bg: "#f3f4f6", text: "#6b7280" };
+                                            return (
+                                                <TableRow key={s.id} className="hover:bg-gray-50/70">
+                                                    <TableCell className="text-[11px] text-gray-400">
+                                                        {String(i + 1).padStart(2, "0")}
+                                                    </TableCell>
+                                                    <TableCell className="text-xs font-semibold text-gray-800">
+                                                        {s.name}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <span
+                                                            className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
+                                                            style={{ backgroundColor: badge.bg, color: badge.text }}
+                                                        >
+                                                            {s.classCategoryName}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-1.5">
+                                                            <span
+                                                                className="w-1.5 h-1.5 rounded-full shrink-0"
+                                                                style={{ backgroundColor: s.isActive ? "#22c55e" : "#f59e0b" }}
+                                                            />
+                                                            <span
+                                                                className="text-[11px] font-medium"
+                                                                style={{ color: s.isActive ? "#15803d" : "#b45309" }}
+                                                            >
+                                                                {s.isActive ? "Active" : "Inactive"}
+                                                            </span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <EditSubjectModal  />
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })
+                                    )}
+                                </TableBody>
+                            </Table>
                         </div>
                     </div>
                 </div>

@@ -270,24 +270,6 @@ const AdminRole= () => {
 
           {/* Watermark area wrapper */}
           <div className="relative overflow-hidden">
-            {/* Watermark text */}
-            <div
-              className="absolute inset-0 flex items-center justify-center pointer-events-none select-none"
-              style={{ zIndex: 0 }}
-            >
-              <div className="flex flex-col items-center gap-1 opacity-[0.07]">
-                {/* Star */}
-                <svg className="w-40 h-40 text-green-600" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-                <span
-                  className="text-4xl font-black tracking-widest text-green-700"
-                  style={{ letterSpacing: "0.15em" }}
-                >
-                  GREENFIELD COLLEGE
-                </span>
-              </div>
-            </div>
 
             {/* Table rows */}
             <div className="relative z-10 divide-y divide-gray-200">

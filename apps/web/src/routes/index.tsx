@@ -62,6 +62,7 @@ import RegisterNewSubject from '@/pages/admin/registration/course/class/register
 import RegisterNewClass from '@/pages/admin/registration/course/class/register-new-class';
 import ClassviewAll from '@/pages/admin/registration/course/class/class-view-all';
 import LessonApproval from '@/pages/admin/dashboard/lesson-approval';
+import MyLesson from '@/pages/teacher/component/my-lesson';
 
 const router = createBrowserRouter([
     {
@@ -125,7 +126,7 @@ const router = createBrowserRouter([
                                 element: <Enrollment />,
                             },
                             {
-                                path: "students",
+                                path: "all",
                                 element: <ViewStudent />,
                             },
                         ],
@@ -190,6 +191,7 @@ const router = createBrowserRouter([
             { path: "resume-class", element: <ResumeClass /> },
             { path: "class-info", element: <ClassInfo /> },
             { path: "assessment", element: <Assessment /> },
+            { path: "my-lessons", element: <MyLesson /> },
             { path: "assessment/createQuiz", element: <CreateQuizQuestion /> },
             { path: "assessment/questionlist", element: <TopicQuestionList /> },
             { path: "assessment/upload-scan", element: <UploadScan /> },

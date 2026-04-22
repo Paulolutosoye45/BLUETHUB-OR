@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { EllipsisVertical, GalleryVerticalEnd, LayoutGrid, PlusIcon } from "lucide-react";
-import { Button } from "@bluethub/ui-kit";
+import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@bluethub/ui-kit";
 import { useNavigate } from "react-router-dom";
 // import EditSubjectModal from "./edit-subject-modal";
 import EditClassModal from "./edit-class-dialog";
+import { AxiosError } from "axios";
+import { schoolService } from "@/services/school";
+import type { Classroom } from "./class-registration";
 
 
 export type FilterTab = "All" | "Primary" | "JSS" | "SSS";
@@ -16,29 +19,7 @@ export type SchoolLevel =
 
 export type ClassStatus = "Active" | "Inactive";
 
-export interface Class {
-    id: number;
-    name: string;
-    level: SchoolLevel;
-    status: ClassStatus;
-}
 
-export const allClass: Class[] = [
-    { id: 1, name: "Basic One", level: "All Levels", status: "Active" },
-    { id: 2, name: "Basic 2", level: "All Levels", status: "Active" },
-    { id: 3, name: "Basic 3", level: "Primary", status: "Active" },
-    { id: 4, name: "Basic 4", level: "Primary", status: "Active" },
-    { id: 5, name: "Basic 5", level: "Primary", status: "Active" },
-    { id: 6, name: "Basic 6", level: "Primary", status: "Active" },
-    { id: 7, name: "Basic 7", level: "Junior Secondary", status: "Active" },
-    { id: 8, name: "Basic 7 Peace", level: "Junior Secondary", status: "Active" },
-    { id: 9, name: "Basic 8", level: "Junior Secondary", status: "Active" },
-    { id: 10, name: "Basic 9", level: "Junior Secondary", status: "Active" },
-    { id: 11, name: "Basic 9 Peace", level: "Junior Secondary", status: "Active" },
-    { id: 12, name: "SSS 1", level: "Senior Secondary", status: "Active" },
-    { id: 13, name: "SSS 2", level: "Senior Secondary", status: "Active" },
-    { id: 14, name: "SSS 3", level: "Senior Secondary", status: "Active" },
-];
 
 /* ── Level badge colours ─────────────────────────────────────────────── */
 export const levelBadge: Record<SchoolLevel, { bg: string; text: string }> = {
@@ -53,23 +34,51 @@ const ClassviewAll = () => {
     const navigate = useNavigate()
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<FilterTab>("All");
-    const [classes] = useState<Class[]>(allClass);
-    const [open, setOpen] = useState(false)
+    const [classes, setClasses] = useState<Classroom[]>([]);
+    const [open, setOpen] = useState(false);
+    const [, setLoading] = useState(false);
+    const [, setErrorMsg] = useState("");
+
+
 
     const totalClass = classes.length;
-    const activeClass = classes.filter(s => s.status === "Active").length;
-    const nonActiveClass = classes.filter(s => s.status === "Inactive").length;
+    const activeClass = classes.filter(s => s.isActive).length;
+    const nonActiveClass = classes.filter(s => !s.isActive).length;
 
 
     const visible = classes.filter(s => {
         const matchSearch = s.name.toLowerCase().includes(search.toLowerCase());
-        const matchFilter =
-            filter === "All" ||
-            (filter === "Primary" && s.level === "Primary") ||
-            (filter === "JSS" && s.level === "Junior Secondary") ||
-            (filter === "SSS" && s.level === "Senior Secondary");
-        return matchSearch && matchFilter;
+        // const matchFilter =
+        //     filter === "All" ||
+        //     (filter === "Primary" && s.level === "Primary") ||
+        //     (filter === "JSS" && s.level === "Junior Secondary") ||
+        //     (filter === "SSS" && s.level === "Senior Secondary");
+        return matchSearch;
     });
+
+    const fetchClassrooms = async () => {
+        try {
+            setLoading(true);
+            const { data } = await schoolService.getAllClassRooms();
+            setClasses(data.data.classrooms); // ← data.data.classrooms not data.classrooms
+        } catch (error) {
+            const msg =
+                error instanceof AxiosError
+                    ? error.response?.data?.responseMessage ??
+                    error.response?.data?.message ??
+                    error.message
+                    : (error as Error).message;
+            setErrorMsg(msg);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchClassrooms();
+    }, []);
+
+
 
     return (
         <>
@@ -189,77 +198,72 @@ const ClassviewAll = () => {
 
                             {/* Table */}
                             <div className="border border-gray-200 rounded-xl overflow-hidden">
-                                {/* Table header */}
-                                <div
-                                    className="grid text-blck-b2 text-[10px] font-semibold uppercase tracking-wide text-gray-400 px-4 py-2 border-b border-gray-200"
-                                    style={{ gridTemplateColumns: "36px 1fr 130px 100px 70px" }}
-                                >
-                                    <span>#</span>
-                                    <span>Class Name</span>
-                                    <span>School Level</span>
-                                    <span>Status</span>
-                                    <span>Action</span>
-                                </div>
-
-                                {/* Rows */}
-                                <div className="divide-y divide-gray-100">
-                                    {visible.map((s, i) => {
-                                        const badge = levelBadge[s.level];
-                                        return (
-                                            <div
-                                                key={s.id}
-                                                className="grid items-center px-4 py-2.5 hover:bg-gray-50/70 transition-colors"
-                                                style={{ gridTemplateColumns: "36px 1fr 130px 100px 70px" }}
-                                            >
-                                                {/* # */}
-                                                <span className="text-[11px] text-gray-400">
-                                                    {String(i + 1).padStart(2, "0")}
-                                                </span>
-
-                                                {/* Class name */}
-                                                <span className="text-xs font-semibold text-gray-800">{s.name}</span>
-
-                                                {/* Level badge */}
-                                                <div>
-                                                    <span
-                                                        className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
-                                                        style={{ backgroundColor: badge.bg, color: badge.text }}
-                                                    >
-                                                        {s.level}
-                                                    </span>
-                                                </div>
-
-                                                {/* Status */}
-                                                <div className="flex items-center gap-1.5">
-                                                    <span
-                                                        className="w-1.5 h-1.5 rounded-full shrink-0"
-                                                        style={{ backgroundColor: s.status === "Active" ? "#22c55e" : "#f59e0b" }}
-                                                    />
-                                                    <span
-                                                        className="text-[11px] font-medium"
-                                                        style={{ color: s.status === "Active" ? "#15803d" : "#b45309" }}
-                                                    >
-                                                        {s.status}
-                                                    </span>
-                                                </div>
-
-                                                {/* Edit link */}
-                                                <Button
-                                                    onClick={() => setOpen(true)}
-                                                    className="text-[11px] font-semibold hover:opacity-70 transition-opacity bg-chestnut"
-                                                >
-                                                    Edit
-                                                </Button>
-                                            </div>
-                                        );
-                                    })}
-
-                                    {visible.length === 0 && (
-                                        <div className="py-10 text-center">
-                                            <p className="text-xs text-gray-400">No Class found</p>
-                                        </div>
-                                    )}
-                                </div>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-gray-50/70 hover:bg-gray-50/70">
+                                            <TableHead className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-10">#</TableHead>
+                                            <TableHead className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Class Name</TableHead>
+                                            <TableHead className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">noOfStudents</TableHead>
+                                            <TableHead className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Status</TableHead>
+                                            <TableHead className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 w-20">Action</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {visible.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="py-10 text-center text-xs text-gray-400">
+                                                    No Class found
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            visible.map((s, i) => {
+                                                return (
+                                                    <TableRow key={s.id} className="hover:bg-gray-50/70">
+                                                        <TableCell className="text-[11px] text-gray-400">
+                                                            {String(i + 1).padStart(2, "0")}
+                                                        </TableCell>
+                                                        <TableCell className="text-xs font-semibold text-gray-800">
+                                                            {s.name}
+                                                        </TableCell>
+                                                        <TableCell className="text-xs font-semibold text-gray-800">
+                                                            {s.noOfStudents}
+                                                        </TableCell>
+                                                        {/* <TableCell>
+                                                            <span
+                                                                className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold"
+                                                                style={{ backgroundColor: badge.bg, color: badge.text }}
+                                                            >
+                                                                {s.classCategoryName}
+                                                            </span>
+                                                        </TableCell> */}
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span
+                                                                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                                                                    style={{ backgroundColor: s.isActive ? "#22c55e" : "#f59e0b" }}
+                                                                />
+                                                                <span
+                                                                    className="text-[11px] font-medium"
+                                                                    style={{ color: s.isActive ? "#15803d" : "#b45309" }}
+                                                                >
+                                                                    {s.isActive ? "Active" : "Inactive"}
+                                                                </span>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <Button
+                                                                onClick={() => setOpen(true)}
+                                                                className="text-[11px] font-semibold hover:opacity-70 transition-opacity bg-chestnut h-7 px-3"
+                                                            >
+                                                                Edit
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })
+                                        )}
+                                    </TableBody>
+                                </Table>
                             </div>
                         </div>
                     </div>

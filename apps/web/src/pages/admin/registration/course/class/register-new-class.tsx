@@ -84,7 +84,6 @@ const filteredMinor = minorSubjects.filter(s =>
             const response = await schoolService.getAllSubject();
             const all: Subject[] = response.data.data.subjects; // adjust to actual response key
 
-            console.log(response)
 
             setMajorSubjects(all.filter(s => s.subjectCategoryName === "Major"));
             setMinorSubjects(all.filter(s => s.subjectCategoryName === "Minor"));

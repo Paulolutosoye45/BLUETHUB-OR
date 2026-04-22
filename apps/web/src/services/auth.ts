@@ -211,6 +211,12 @@ export interface IUserResponse {
   };
 }
 
+
+interface GetStudentsParams {
+    pageNumber?: number;
+    pageSize?: number;
+}
+
 export const authService = {
   login: (data: ILoginRequest) => {
     return API.post<ILoginResponse>(endpoints.login, data, {
@@ -235,9 +241,17 @@ export const authService = {
     return API.post<TResponse<unknown>>(endpoints.editUser, data);
   },
 
-  getStudents: () => {
-    return API.get<TResponse<unknown>>(endpoints.getStudents);
-  },
+ getStudents: (params: GetStudentsParams = { pageNumber: 1, pageSize: 50 }) => {
+    return API.get<TResponse<unknown>>(endpoints.getStudents, {
+        headers: {
+            "X-Tenant-ID": X_Tenant_ID,
+        },
+        params: {
+            pageNumber: params.pageNumber ?? 1,
+            pageSize: params.pageSize ?? 50,
+        },
+    });
+},
 
   updatePassword: (data: IupdatePasswordRequest) => {
     return API.post<TResponse<unknown>>(endpoints.updatePassword, data);

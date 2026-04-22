@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 // import EmptyClass from "./class/empty-subject";
 import { schoolService } from "@/services/school";
-import type { SchoolInfo } from "@/services";
-import { localData } from "@/utils";
+// import type { SchoolInfo } from "@/services";
+// import { localData } from "@/utils";
 import { AxiosError } from "axios";
 import { AlertCircle, RefreshCcw } from "lucide-react";
 import ViewAllSubject from "./class/view-all-subject";
@@ -26,13 +26,12 @@ const CoursesMain = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const schoolId = localData.retrieve("schoolInfo") as SchoolInfo;
 
   const fetchSubjects = async () => {
     try {
       setLoading(true);
-      const { data } = await schoolService.getAllSchoolSubject(schoolId.id);
-      setSubjects(data.allSubjects);
+      const { data } = await schoolService.getAllSubject();
+      setSubjects(data.data.subjects ?? []);
     } catch (error) {
       const msg =
         error instanceof AxiosError
@@ -47,40 +46,83 @@ const CoursesMain = () => {
   };
 
   useEffect(() => {
-    if (schoolId?.id) fetchSubjects();
+    fetchSubjects();
   }, []);
 
   if (loading) return (
-    <div className="p-6 space-y-6 animate-pulse">
-      {/* Header skeleton */}
-      <div className="flex items-center justify-between">
-        <div className="h-7 w-40 bg-gray-200 rounded-md" />
-        <div className="h-9 w-32 bg-gray-200 rounded-lg" />
-      </div>
-
-      {/* Two column subject list skeleton */}
-      <div className="flex gap-6">
-        {/* Major column */}
-        <div className="flex-1 space-y-3">
-          <div className="h-8 w-28 bg-chestnut/20 rounded-lg" />
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-9 w-full bg-gray-100 rounded-md" />
-          ))}
+    <div className="animate-shimmer p-6">
+        {/* Top bar skeleton */}
+        <div className="bg-chestnut px-5 py-3 flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+                <div className="w-5 h-5 bg-white/20 rounded" />
+                <div className="h-4 w-32 bg-white/20 rounded-md" />
+            </div>
+            <div className="w-5 h-5 bg-white/20 rounded" />
         </div>
 
-        {/* Divider */}
-        <div className="w-1 bg-gray-200 self-stretch rounded-full" />
+        <div className="p-6 space-y-6 bg-student-chestnut">
+            {/* Title + button */}
+            <div className="flex items-start justify-between">
+                <div className="space-y-2">
+                    <div className="h-6 w-44 bg-gray-200 rounded-md" />
+                    <div className="h-3 w-72 bg-gray-100 rounded-md" />
+                </div>
+                <div className="h-9 w-32 bg-gray-200 rounded-lg" />
+            </div>
 
-        {/* Minor column */}
-        <div className="flex-1 space-y-3">
-          <div className="h-8 w-28 bg-gray-200 rounded-lg" />
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-9 w-full bg-gray-100 rounded-md" />
-          ))}
+            {/* Stat cards */}
+            <div className="grid grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className="border border-gray-100 rounded-xl p-4 flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gray-100 rounded-lg shrink-0" />
+                        <div className="space-y-1.5">
+                            <div className="h-5 w-8 bg-gray-200 rounded" />
+                            <div className="h-3 w-24 bg-gray-100 rounded" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Search + filter */}
+            <div className="flex items-center gap-3">
+                <div className="flex-1 h-10 bg-gray-100 rounded-lg" />
+                <div className="flex gap-2">
+                    {[...Array(4)].map((_, i) => (
+                        <div key={i} className="h-8 w-14 bg-gray-100 rounded-lg" />
+                    ))}
+                </div>
+            </div>
+
+            {/* Table header */}
+            <div className="border border-gray-100 rounded-xl overflow-hidden">
+                <div className="grid grid-cols-4 px-5 py-3 bg-gray-50 gap-4">
+                    {["w-4", "w-32", "w-20", "w-16"].map((w, i) => (
+                        <div key={i} className={`h-3 ${w} bg-gray-200 rounded`} />
+                    ))}
+                </div>
+
+                {/* Table rows */}
+                <div className="divide-y divide-gray-50">
+                    {[...Array(8)].map((_, i) => (
+                        <div
+                            key={i}
+                            className="grid grid-cols-4 px-5 py-4 gap-4 items-center"
+                            style={{ opacity: 1 - i * 0.08 }} // fade out towards bottom
+                        >
+                            <div className="h-3 w-5 bg-gray-100 rounded" />
+                            <div className="h-3.5 w-36 bg-gray-200 rounded" />
+                            <div className="h-6 w-16 bg-green-50 rounded-full" />
+                            <div className="flex items-center justify-between">
+                                <div className="h-3 w-14 bg-gray-100 rounded" />
+                                <div className="h-7 w-12 bg-gray-200 rounded-lg" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
-      </div>
     </div>
-  );
+);
 
   if (errorMsg) return (
     <div className="flex flex-col min-h-screen items-center justify-center py-16 px-6 text-center space-y-4">

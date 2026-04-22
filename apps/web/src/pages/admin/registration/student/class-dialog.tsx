@@ -56,13 +56,14 @@ const ClassDialog = ({
             try {
                 setLoading(true);
                 const [subjectsRes, classroomsRes] = await Promise.all([
-                    schoolService.getAllSchoolSubject(schoolId.id),
+                    schoolService.getAllSubject(),
                     schoolService.getAllClassRooms(),
                 ]);
 
-                const all: Subject[] = subjectsRes.data.allSubjects;
-                setMajorSubjects(all.filter(s => s.category === "Major"));
-                setMinorSubjects(all.filter(s => s.category === "Minor"));
+                const all: Subject[] = subjectsRes.data.data.subjects;
+                console.log(all)
+                setMajorSubjects(all.filter(s => s.subjectCategoryName === "Major"));
+                setMinorSubjects(all.filter(s => s.subjectCategoryName === "Minor"));
                 setClasses(classroomsRes.data.data.classrooms);
             } catch (error) {
                 const msg =
@@ -81,6 +82,8 @@ const ClassDialog = ({
     }, []);
 
 
+
+
     const isChecked = (id: string) => subjectIds.includes(id);
     const schoolId = localData.retrieve("schoolInfo") as SchoolInfo;
 
@@ -94,11 +97,11 @@ const ClassDialog = ({
 
 
     const filteredMajor = majorSubjects.filter(s =>
-        s.subject.toLowerCase().includes(subjectSearch.toLowerCase())
+        s.name.toLowerCase().includes(subjectSearch.toLowerCase())
     );
 
     const filteredMinor = minorSubjects.filter(s =>
-        s.subject.toLowerCase().includes(subjectSearch.toLowerCase())
+        s.name.toLowerCase().includes(subjectSearch.toLowerCase())
     );
 
 
@@ -339,21 +342,21 @@ const ClassDialog = ({
                                     <div className="flex flex-col space-y-1 h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-chestnut/30 scrollbar-track-transparent">
                                         {filteredMajor.map(s => (
                                             <label
-                                                key={s.schoolId}
-                                                onClick={() => toggleSubject(s.schoolId)}
+                                                key={s.id}
+                                                onClick={() => toggleSubject(s.id)}
                                                 className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
                                             >
-                                                <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.schoolId) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
+                                                <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.id) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
                                                     }`}>
-                                                    {isChecked(s.schoolId) && (
+                                                    {isChecked(s.id) && (
                                                         <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                                         </svg>
                                                     )}
                                                 </span>
-                                                <span className={`text-xs font-medium select-none ${isChecked(s.schoolId) ? "text-chestnut font-bold" : "text-gray-600"
+                                                <span className={`text-xs font-medium select-none ${isChecked(s.id) ? "text-chestnut font-bold" : "text-gray-600"
                                                     }`}>
-                                                    {s.subject}
+                                                    {s.name}
                                                 </span>
                                             </label>
                                         ))}
@@ -369,21 +372,21 @@ const ClassDialog = ({
                                     <div className="flex flex-col space-y-1 h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-chestnut/30 scrollbar-track-transparent">
                                         {filteredMinor.map(s => (
                                             <label
-                                                key={s.subject}
-                                                onClick={() => toggleSubject(s.schoolId)}
+                                                key={s.id}
+                                                onClick={() => toggleSubject(s.id)}
                                                 className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
                                             >
-                                                <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.schoolId) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
+                                                <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.id) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
                                                     }`}>
-                                                    {isChecked(s.schoolId) && (
+                                                    {isChecked(s.id) && (
                                                         <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                                         </svg>
                                                     )}
                                                 </span>
-                                                <span className={`text-xs font-medium select-none ${isChecked(s.schoolId) ? "text-chestnut font-bold" : "text-gray-600"
+                                                <span className={`text-xs font-medium select-none ${isChecked(s.id) ? "text-chestnut font-bold" : "text-gray-600"
                                                     }`}>
-                                                    {s.subject}
+                                                    {s.name}
                                                 </span>
                                             </label>
                                         ))}
