@@ -1,7 +1,5 @@
-// import schoolProfile from "@/assets/png/School.png";
 import { cn } from "@/lib/utils";
-// import { authService } from "@/services/auth";
-import { Hashing } from "@/utils";
+import { Hashing, localData } from "@/utils";
 import type { Tuser } from "@/utils/decode";
 import { regUserSchema, UserRole, type RegisterFormData } from "@/utils/validate";
 import { Label, Input, Button, Popover, PopoverTrigger, PopoverContent, Calendar  } from "@bluethub/ui-kit";
@@ -105,10 +103,10 @@ const SubjectTeacher = () => {
       role
     }
     try {
+      setErrorMsg("")
       setLoading(true);
-      // await authService.createUser(payload);
-
-      console.log(payload)
+      await new Promise(resolve => setTimeout(resolve, 3000));
+       localData.save("th_t", payload)
       navigate('/admin/registration/teacher/assign-role')
     } catch (error) {
       const msg =

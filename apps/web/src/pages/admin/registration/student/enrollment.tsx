@@ -181,15 +181,15 @@ const Enrollment = () => {
 
                             <form onSubmit={handleSubmit(handleRegister)} className="w-[766px] mx-auto space-y-2.5 mt-[50px]">
 
-                                {errorMsg && (
-                                    <div
-                                        role="alert"
-                                        className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm mb-5"
-                                    >
-                                        <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-50" />
-                                        <span>{errorMsg}</span>
-                                    </div>
-                                )}
+                                    {errorMsg && (
+                                        <div
+                                            role="alert"
+                                            className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm mb-5"
+                                        >
+                                            <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-50" />
+                                            <span>{errorMsg}</span>
+                                        </div>
+                                    )}
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">

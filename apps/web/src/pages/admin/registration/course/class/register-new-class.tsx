@@ -361,7 +361,7 @@ const filteredMinor = minorSubjects.filter(s =>
                             <button
                                 onClick={handleSubmit}
                                 disabled={loading || selectedClasses.length === 0}
-                                className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90 bg-[#292382] disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90 bg-chestnut disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 {loading ? (
                                     <>

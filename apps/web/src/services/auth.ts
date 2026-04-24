@@ -106,7 +106,8 @@ const endpoints = {
   getAllAdminPermissions: "api/User/GetAllAdminPermissions",
   revokePermissions: "api/User/RevokePermissions",
   getTeacher: "/api/User/teachers",
-  refreshToken: "/api/User/refresh-token"
+  refreshToken: "/api/User/refresh-token",
+   getUserByRole : "/api/User/GetUsersByRole",
 };
 
 interface ILoginRequest {
@@ -293,5 +294,14 @@ export const authService = {
       },
     });
   },
+
+ getUserByRole: (roleId: number) => {
+  return API.get(endpoints.getUserByRole, {
+    params: { roleId },
+    headers: {
+      "X-Tenant-ID": X_Tenant_ID,
+    },
+  });
+},
 
 };

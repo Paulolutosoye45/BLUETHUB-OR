@@ -70,7 +70,7 @@ export const ACADEMICLINKS = [
       { name: "Register admin", path: "/admin/registration/Admin" },
       { name: "Register Student", path: "/admin/registration/student" },
       { name: "Register Teacher", path: "/admin/registration/Teacher" },
-      { name: "Head Teacher", path: "/admin/registration/head-Teacher" },
+      // { name: "Head Teacher", path: "/admin/registration/head-Teacher" },
       { name: "Register Subject", path: "/admin/registration/courses" },
       { name: "Register Class", path: "/admin/registration/class" },
     ],
