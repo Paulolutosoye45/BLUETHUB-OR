@@ -98,5 +98,12 @@ export const schoolService = {
         "Authorization": `Bearer ${token.getToken()}`
       },
     });
-  }
+  },
+
+  getSubjectsByClassroomId: (classroomId: string) => {
+    return API.get(endpoints.getSubjectsByClassroom, {
+      params: { classroomId },
+      headers: { "X-Tenant-ID": X_Tenant_ID },
+    });
+  },
 };

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Stage, Layer, Line, Rect } from 'react-konva';
-import { useGlobalTimer } from '@/hooks/useGlobalTimer';
 // import type Konva from 'konva';
 import {
   PlayCircle,
@@ -34,6 +33,21 @@ const timeToMs = (time: string): number => {
   return 0;
 };
 
+const formatReplayMs = (ms: number): string => {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+
+  if (h > 0) {
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s
+      .toString()
+      .padStart(2, '0')}`;
+  }
+
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+};
+
 export default function Replay() {
 
   // ── UI state ──────────────────────────────────────────────────────────────
@@ -48,6 +62,7 @@ export default function Replay() {
   const [isClearing, setIsClearing] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [_renderTick, setRenderTick] = useState(0);
+  const [replayMs, setReplayMs] = useState(0);
 
   // ── Refs ──────────────────────────────────────────────────────────────────
 
@@ -100,8 +115,21 @@ export default function Replay() {
   // Snapshot of drawnMapRef for Konva — re-evaluated each time renderTick ticks
   const drawn = Array.from(drawnMapRef.current.values());
 
-  // Timer is only used for the display clock in the header, NOT for sync
-  const timer = useGlobalTimer({ onTargetReached: () => { } });
+  // Header clock is driven by the same session clock used by drawing.
+  // This removes drift between visual timer and audio playback.
+  useEffect(() => {
+    if (!isPlaying) {
+      setReplayMs(0);
+      return;
+    }
+
+    const id = setInterval(() => {
+      const sessionMs = batchStartMsRef.current + (audioRef.current?.currentTime ?? 0) * 1000;
+      setReplayMs(sessionMs);
+    }, 100);
+
+    return () => clearInterval(id);
+  }, [isPlaying]);
 
   // ── Resize observer ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -154,8 +182,24 @@ export default function Replay() {
       try {
         setIsPreloading(true);
 
+        // ── Session filtering ──────────────────────────────────────────────
+        // Only decompress strokes that belong to the current recording session.
+        // Without this, strokes from older sessions (different sessionId) have
+        // timestamps BEFORE the current sessionStartWallMs anchor, which makes
+        // `stroke.timestamp - sessionStartWallMs` negative. Math.max(0, …)
+        // clamps them all to startMs = 0, so they all appear simultaneously
+        // at the very start of replay.
+        //
+        // Primary key: sessionId on each CompressedStroke matches the sessionId
+        // on the AudioBatch records. If there is no audio, fall back to showing
+        // all strokes (single-session assumption).
+        const targetSessionId = audioList.length > 0 ? audioList[0].sessionId : null;
+        const sessionStrokes = targetSessionId
+          ? strokesList.filter(s => s.sessionId === targetSessionId)
+          : strokesList;
+
         const results = await Promise.allSettled(
-          strokesList.map(async (comp): Promise<Stroke> => {
+          sessionStrokes.map(async (comp): Promise<Stroke> => {
             const binary = base64ToUint8(comp.data);
             const json = await gzipDecompress(binary);
             const points = JSON.parse(json) as number[];
@@ -192,7 +236,7 @@ export default function Replay() {
         setIsPreloading(false);
       }
     })();
-  }, [strokesList]);
+  }, [strokesList, audioList]);
 
   // ── Step 3: RAF sliding window — audio-driven ─────────────────────────────
   //
@@ -205,10 +249,57 @@ export default function Replay() {
   //   One setRenderTick fires ONE React repaint for all strokes that advanced.
   //
   const startRaf = useCallback((allStrokes: Stroke[]) => {
+    // ── Precise ms sync via wall-clock timestamps ─────────────────────────────
+    //
+    // stroke.timestamp    = Date.now() when the stroke was drawn  (ms-precise)
+    // audioBatch[0].timestamp - duration*1000 = when recording started (ms-precise)
+    //
+    // strokeRelativeMs = stroke.timestamp - recordingStartWallMs
+    //
+    // This completely avoids the "MM:SS" timerDisplay string which floors to
+    // 1-second resolution and was causing the ~1s jitter.
+    //
+    // Fallback: if audio data is unavailable, fall back to the timerDisplay offset.
+
+    // Primary anchor: stored directly when recording started (integer ms, no arithmetic).
+    // Fallback 1: reconstruct from first batch metadata.
+    // Fallback 2: timerDisplay string offset (coarsest, 1-second resolution).
+    const stored = parseInt(localStorage.getItem('sessionStartWallMs') ?? '0', 10);
+    const sortedAudio = [...audioList].sort((a, b) => a.batchId - b.batchId);
+    const firstBatch  = sortedAudio[0];
+    const reconstructed = firstBatch
+      ? firstBatch.timestamp - (firstBatch.duration ?? 10) * 1000
+      : 0;
+    const timerOffset = parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10);
+
+    const sessionStartWallMs = stored || reconstructed || 0;
+
+    // Safety: if the anchor is somehow later than the earliest stroke timestamp
+    // (e.g. due to a clock skew edge-case), clamp it back so no stroke is forced
+    // to startMs = 0 unfairly. This complements the sessionId filter above.
+    const minStrokeTs = allStrokes.reduce(
+      (min, s) => (s.timestamp && s.timestamp < min ? s.timestamp : min),
+      Infinity
+    );
+    const effectiveAnchor =
+      sessionStartWallMs > 0 && minStrokeTs < sessionStartWallMs
+        ? minStrokeTs          // shift anchor back to first real stroke
+        : sessionStartWallMs;
+
     const timelines = allStrokes.map(s => {
-      const startMs = timeToMs(s.startTime);   // always MS — no unit ambiguity
-      const endMs = timeToMs(s.endTime);
-      const drawWindow = Math.max(endMs - startMs, 50); // min 50ms to avoid /0
+      let startMs: number;
+      if (effectiveAnchor && s.timestamp) {
+        startMs = Math.max(0, s.timestamp - effectiveAnchor);
+      } else {
+        // fallback: timerDisplay "MM:SS" minus stored offset
+        startMs = Math.max(0, timeToMs(s.startTime) - timerOffset);
+      }
+      // drawWindow: stroke.duration is 0 in current impl so we use 50ms min.
+      // The stroke "pops" in fully at startMs which is accurate to the ms.
+      const drawWindow = Math.max(
+        s.duration > 0 ? s.duration : 0,
+        50
+      );
       return {
         stroke: s,
         startMs,
@@ -264,7 +355,7 @@ export default function Replay() {
     };
 
     rafRef.current = requestAnimationFrame(frame);
-  }, []);
+  }, [audioList]);
 
   const stopRaf = useCallback(() => {
     if (rafRef.current !== null) {
@@ -304,6 +395,9 @@ export default function Replay() {
     currentBlobUrlRef.current = blobUrl;
     if (!audioRef.current) throw new Error('Audio element missing');
     audioRef.current.src = blobUrl;
+    audioRef.current.playbackRate = 1;
+    audioRef.current.defaultPlaybackRate = 1;
+    audioRef.current.preservesPitch = true;
     setCurrentBatch(batchIndex);
 
     return new Promise((resolve, reject) => {
@@ -338,7 +432,6 @@ export default function Replay() {
     setRenderTick(0);
     setCurrentBatch(0);
     setIsPlaying(true);
-    timer.start();
 
     const sortedAudio = [...audioList].sort((a, b) => a.batchId - b.batchId);
 
@@ -381,7 +474,6 @@ export default function Replay() {
       stopRaf();
     }
 
-    timer.stop();
     if (!stopRef.current) setIsPlaying(false);
   };
 
@@ -389,7 +481,6 @@ export default function Replay() {
   const stop = () => {
     stopRef.current = true;
     stopRaf();
-    timer.stop();
     setIsPlaying(false);
     if (audioRef.current) {
       audioRef.current.pause();
@@ -409,9 +500,12 @@ export default function Replay() {
       await clearAudio();
       await clearClass();
       localStorage.removeItem('currentBatches');
+      localStorage.removeItem('recordingStartTimerMs');
+      localStorage.removeItem('sessionStartWallMs');
       setStrokesList([]);
       setAudioList([]);
       setStrokes([]);
+      setReplayMs(0);
       preloadedStrokesRef.current = [];
       drawnMapRef.current = new Map();
       setRenderTick(0);
@@ -519,7 +613,7 @@ export default function Replay() {
           <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg border border-gray-300">
             <Clock className="w-5 h-5 text-gray-600" />
             <div className="font-mono text-2xl font-bold text-gray-800">
-              {timer.timerDisplay}
+              {formatReplayMs(replayMs)}
             </div>
           </div>
         </div>

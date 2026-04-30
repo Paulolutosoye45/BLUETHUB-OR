@@ -5,7 +5,6 @@ import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import toast from "react-hot-toast";
-// import { useGlobalTimer } from "@/hooks/useGlobalTimer";
 import { useTimer } from "@/hooks/useTimer";
 import { Clock } from "lucide-react";
 
@@ -25,7 +24,7 @@ const Audio = () => {
     }
 
     if (!isRecording) {
-      startTimer()
+      startTimer();
       await startRecording();
     }
   };

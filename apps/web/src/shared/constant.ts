@@ -11,6 +11,7 @@ import registrationIcon from "@/assets/svg/registration.svg";
 import libraryIcon from "@/assets/svg/library.svg";
 // import teacherIcon from "@/assets/svg/teacher.svg";
 import MonitorPlayIcon from "@/assets/svg/monitor_play.svg";
+import UploadIcon from "@/assets/svg/upload.svg";
 
 export const TACADEMICLINKS = [
   {
@@ -35,6 +36,11 @@ export const TACADEMICLINKS = [
     path: "/teacher/recorded-class",
   },
 
+  {
+    icons: UploadIcon,
+    name: "Submit Lesson",
+    path: "/teacher/submit-lesson",
+  },
   {
     icons: AssignmentIcon,
     name: "Question/Assessment",
