@@ -9,7 +9,9 @@ import settingsIcon from "@/assets/svg/settings.svg";
 import AssignmentIcon from "@/assets/svg/assignment.svg";
 import registrationIcon from "@/assets/svg/registration.svg";
 import libraryIcon from "@/assets/svg/library.svg";
-import teacherIcon from "@/assets/svg/teacher.svg";
+// import teacherIcon from "@/assets/svg/teacher.svg";
+import MonitorPlayIcon from "@/assets/svg/monitor_play.svg";
+import UploadIcon from "@/assets/svg/upload.svg";
 
 export const TACADEMICLINKS = [
   {
@@ -29,11 +31,16 @@ export const TACADEMICLINKS = [
     path: "/teacher/class",
   },
   {
-    icons: classIconIcon,
+    icons: MonitorPlayIcon,
     name: "Recorded Class ",
     path: "/teacher/recorded-class",
   },
 
+  {
+    icons: UploadIcon,
+    name: "Submit Lesson",
+    path: "/teacher/submit-lesson",
+  },
   {
     icons: AssignmentIcon,
     name: "Question/Assessment",
@@ -65,16 +72,23 @@ export const ACADEMICLINKS = [
   {
     name: "Registration",
     icons: registrationIcon,
-    children: [{ name: "Register admin", path: "/admin/registration/Admin" }],
-  },
-  {
-    name: "Student",
-    path: "/admin/student",
-    icons: studentIcon,
     children: [
+      { name: "Register admin", path: "/admin/registration/Admin" },
       { name: "Register Student", path: "/admin/registration/student" },
+      { name: "Register Teacher", path: "/admin/registration/Teacher" },
+      // { name: "Head Teacher", path: "/admin/registration/head-Teacher" },
+      { name: "Register Subject", path: "/admin/registration/courses" },
+      { name: "Register Class", path: "/admin/registration/class" },
     ],
   },
+  // {
+  //   name: "Student",
+  //   path: "/admin/student",
+  //   icons: studentIcon,
+  //   children: [
+  //     { name: "Register Student", path: "/admin/registration/student" },
+  //   ],
+  // },
   {
     name: "Library",
     path: "/admin/library",
@@ -83,27 +97,27 @@ export const ACADEMICLINKS = [
       { name: "Register Library", path: "/admin/registration/library" },
     ],
   },
-  {
-    name: "Courses",
-    path: "/admin/courses",
-    icons: coursesIcon,
-    children: [
-      { name: "Register Courses", path: "/admin/registration/courses" },
-    ],
-  },
+  // {
+  //   name: "Courses",
+  //   path: "/admin/courses",
+  //   icons: coursesIcon,
+  //   children: [
+  //     { name: "Register Courses", path: "/admin/registration/courses" },
+  //   ],
+  // },
 
-  {
-    name: "Teachers",
-    path: "/admin/teacher",
-    icons: teacherIcon,
-    children: [
-      { name: "Register Teacher", path: "/admin/registration/Teacher" },
-    ],
-  },
-  {
-    name: "Class",
-    path: "/admin/class",
-    icons: classIconIcon,
-    children: [{ name: "Register Class", path: "/admin/registration/class" }],
-  },
+  // {
+  //   name: "Teachers",
+  //   path: "/admin/teacher",
+  //   icons: teacherIcon,
+  //   children: [
+  //     { name: "Register Teacher", path: "/admin/registration/Teacher" },
+  //   ],
+  // },
+  // {
+  //   name: "Class",
+  //   path: "/admin/class",
+  //   icons: classIconIcon,
+  //   children: [{ name: "Register Class", path: "/admin/registration/class" }],
+  // },
 ];

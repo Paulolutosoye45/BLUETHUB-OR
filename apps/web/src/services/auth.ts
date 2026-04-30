@@ -1,16 +1,9 @@
 import { token } from "@/utils";
-import axios from "axios";
+import axios, { type AxiosInstance } from "axios";
 import { X_Tenant_ID } from "./school";
 
-export const API = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL });
+export const API: AxiosInstance = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL });
 
-// API.interceptors.request.use((config) => {
-//   if (token.getToken()) {
-//     config.headers.Authorization = `Bearer ${token.getToken()}`;
-//   }
-//   config.headers["X-Tenant-ID"] = "pearl";  
-//   return config;
-// });
 
 API.interceptors.request.use((config) => {
   if (token.getToken()) {
@@ -19,8 +12,80 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
-// API.defaults.headers.common["X-Tenant-ID"] = "pearl";
-// API.defaults.headers.common["Authorization"] = `Bearer ${token.getToken()}`;
+API.interceptors.request.use(config => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (err: unknown) => void;
+}> = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach(p => (error ? p.reject(error) : p.resolve(token!)));
+  failedQueue = [];
+};
+
+API.interceptors.response.use(
+  response => response,
+  async error => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        // Park concurrent 401s — resolve them once refresh completes
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then(token => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return API(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+
+        if (!refreshToken) throw new Error('No refresh token stored');
+
+        // ✅ Use plain axios (not `api`) to avoid interceptor loop
+        const { data } = await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}/api/User/refresh-token`,
+          { refreshToken }
+        );
+
+        // ✅ Match actual response field name ("token" not "accessToken")
+        const newToken: string = data.token;
+        const expiresAt = Date.now() + data.tokenExpiresIn * 1000;
+
+        localStorage.setItem('token', newToken);
+        localStorage.setItem('refreshToken', data.refreshToken);
+        localStorage.setItem('accessTokenExpiresAt', String(expiresAt));
+
+        API.defaults.headers.common.Authorization = `Bearer ${newToken}`;
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+
+        processQueue(null, newToken);
+        return API(originalRequest); // retry original request with new token
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        localStorage.clear();
+        window.location.href = '/auth';
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 export type TResponse<T> = {
   responseCode: string;
@@ -40,7 +105,9 @@ const endpoints = {
   getAdminPermissions: "api/User/GetAdminPermissions",
   getAllAdminPermissions: "api/User/GetAllAdminPermissions",
   revokePermissions: "api/User/RevokePermissions",
-  getTeacher:"/api/User/teachers"
+  getTeacher: "/api/User/teachers",
+  refreshToken: "/api/User/refresh-token",
+   getUserByRole : "/api/User/GetUsersByRole",
 };
 
 interface ILoginRequest {
@@ -74,17 +141,20 @@ export interface ILoginResponse {
   responseCode: string;
   status: string;
   data: null;
+  refreshToken: string;
 }
 
-interface IcreateUserRequest {
+ export interface IcreateUserRequest {
   createdby: string;
   firstName: string;
   lastName: string;
-  emailAddress: string;
+  emailAddress?: string;
   hashPassword: string;
   isActive: boolean;
   hasAccess: boolean;
   userName: string;
+  dob: string,
+  lineManagerId?: string,
   schoolId: string;
   role: number;
   userClassroomsId?: string[];
@@ -142,6 +212,12 @@ export interface IUserResponse {
   };
 }
 
+
+interface GetStudentsParams {
+    pageNumber?: number;
+    pageSize?: number;
+}
+
 export const authService = {
   login: (data: ILoginRequest) => {
     return API.post<ILoginResponse>(endpoints.login, data, {
@@ -150,9 +226,13 @@ export const authService = {
       },
     });
   },
+
+  refreshToken: (refreshToken: string) => {
+    return API.post<TResponse<unknown>>(endpoints.editUser, { refreshToken });
+  },
   createUser: (data: IcreateUserRequest) => {
     return API.post<TResponse<unknown>>(endpoints.createUser, data, {
-            headers: {
+      headers: {
         "X-Tenant-ID": X_Tenant_ID,
       },
     });
@@ -162,9 +242,17 @@ export const authService = {
     return API.post<TResponse<unknown>>(endpoints.editUser, data);
   },
 
-  getStudents: () => {
-    return API.get<TResponse<unknown>>(endpoints.getStudents);
-  },
+ getStudents: (params: GetStudentsParams = { pageNumber: 1, pageSize: 50 }) => {
+    return API.get<TResponse<unknown>>(endpoints.getStudents, {
+        headers: {
+            "X-Tenant-ID": X_Tenant_ID,
+        },
+        params: {
+            pageNumber: params.pageNumber ?? 1,
+            pageSize: params.pageSize ?? 50,
+        },
+    });
+},
 
   updatePassword: (data: IupdatePasswordRequest) => {
     return API.post<TResponse<unknown>>(endpoints.updatePassword, data);
@@ -206,5 +294,14 @@ export const authService = {
       },
     });
   },
+
+ getUserByRole: (roleId: number) => {
+  return API.get(endpoints.getUserByRole, {
+    params: { roleId },
+    headers: {
+      "X-Tenant-ID": X_Tenant_ID,
+    },
+  });
+},
 
 };

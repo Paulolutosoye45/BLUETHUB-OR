@@ -1,349 +1,160 @@
+import { AlertCircle, RefreshCcw } from "lucide-react";
+import EmptyClass from "./empty-classes";
 import { useEffect, useState } from "react";
-import type { schoolInfo } from "@/services/index";
-import { localData } from "@/utils";
-import {
-  Button,
-  // Command,
-  // CommandEmpty,
-  // CommandGroup,
-  // CommandInput,
-  // CommandItem,
-  // CommandList,
-  toast
-} from "@bluethub/ui-kit";
-
-import CourseList from "./course-list";
-import { Loader2 } from "lucide-react";
-import { Label } from "@bluethub/ui-kit";
-import { schoolService, type ICreateSchool } from "@/services/school";
-// import { authService } from "@/services/auth";
 import { AxiosError } from "axios";
-import type { Tuser } from "@/utils/decode";
+import { schoolService } from "@/services/school";
+import ClassviewAll from "./class-view-all";
 
-export interface ISubjectList {
-  subject: string,
-  schoolId: string,
-  category: string
+
+export interface Classroom {
+  id: string;
+  name: string;
+  noOfStudents: number;
+  isActive: boolean;
+  creationDate: string;
+  modifiedDate: string;
 }
+
 
 const ClassRegistration = () => {
-  const [listAllSubject, setListAllSubject] = useState<ISubjectList[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [errMsg, setErrMsg] = useState<string>();
-  const [majorCourses, setMajorCourses] = useState<ISubjectList[]>([]);
-  const [minorCourses, setMinorCourses] = useState<ISubjectList[]>([]);
-  const [activeCourses, setActiveCourses] = useState<ISubjectList[]>([]);
-  const [schoolId, setSchoolId] = useState<schoolInfo | null>(null);
   const [loading, setLoading] = useState(false);
-  const [className, setClassName] = useState<string>()
-  // const [teachers, setTeachers] = useState<any[]>([]);
-  // const [selectedTeacher, setSelectedTeacher] = useState<string>("")
-  // const [teacherSearch, setTeacherSearch] = useState<string>("");
-  useEffect(() => {
-    try {
-      const schoolInfo = localData.retrieve("schoolInfo") as schoolInfo;
-      if (!schoolInfo?.id) {
-        console.error("School info is missing. Cannot proceed.");
-        setErrMsg("School information is missing. Please log in again.");
-        return;
-      }
-      setSchoolId(schoolInfo);
-    } catch (error) {
-      console.error("Error retrieving school info:", error);
-      setErrMsg("Failed to retrieve school information.");
-    }
-  }, []);
-  useEffect(() => {
-    if (!schoolId?.id) return;
-
-    const fetchSubjects = async () => {
-      setIsLoading(true);
-      try {
-        const res = await schoolService.getAllSchoolSubject(schoolId.id);
-        setListAllSubject(res?.data?.allSubjects || []);
-      } catch (error: any) {
-        setIsLoading(false);
-        setErrMsg(error?.message);
-        toast("Error fetching subjects", {
-          description: error?.message || "An error occurred.",
-        });
-      } finally {
-        setIsLoading(false)
-      }
-    };
-
-    fetchSubjects();
-  }, [schoolId?.id]);
-
-  useEffect(() => {
-    const majors = listAllSubject.filter((c) => c.category === "Major");
-    const minors = listAllSubject.filter((c) => c.category === "Minor");
-    setMajorCourses(majors);
-    setMinorCourses(minors);
-  }, [listAllSubject]);
+  const [classes, setClasses] = useState<Classroom[]>([]);
+  const [errorMsg, setErrorMsg] = useState("");
 
 
-  // Early return if school info is missing
-  if (errMsg && !schoolId) {
-    return (
-      <section className="min-h-screen flex items-center justify-center m-3 bg-white/90 rounded-2xl shadow-md overflow-hidden p-8">
-        <div className="text-center">
-          <h2 className="text-red-600 font-semibold text-lg">
-            Something went wrong
-          </h2>
-          <p className="text-gray-500">{errMsg}</p>
-        </div>
-      </section>
-    );
-  }
-
-  // const getAllTeacher = async () => {
-  //   try {
-  //     const res = await authService.getTeacher()
-  //     setTeachers(res.data) // ← was setBanks
-  //   } catch (error) {
-  //     const errorMessage =
-  //       error instanceof AxiosError
-  //         ? error.response?.data?.message || error.message
-  //         : (error as Error).message;
-  //     toast.error(errorMessage);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // }
-
-  // useEffect(() => {
-  //   getAllTeacher()
-  // }, [])
-
-
-  const createClassHandler = async () => {
-    const createdBy = localData.retrieve("user") as Tuser;
-    const schoolId = localData.retrieve("schoolInfo") as schoolInfo;
-   if (!activeCourses || activeCourses.length === 0) {
-  toast.error('Pick a subject');
-  return;
-}
-
-    const payload: ICreateSchool = {
-      createdBy: createdBy.id,
-      SchoolId: schoolId.id,
-      classrooms: activeCourses.map((course) => ({
-        name: course.subject,
-        noOfStudents:1
-      })),
-    };
-
+  const fetchClassrooms = async () => {
     try {
       setLoading(true);
-      const res = await schoolService.createClassRoom(payload);
-      console.log(res)
+      const { data } = await schoolService.getAllClassRooms();
+      setClasses(data.data.classrooms); // ← data.data.classrooms not data.classrooms
     } catch (error) {
-      const errorMessage =
+      const msg =
         error instanceof AxiosError
-          ? error.response?.data?.message || error.message
+          ? error.response?.data?.responseMessage ??
+          error.response?.data?.message ??
+          error.message
           : (error as Error).message;
-      toast.error(errorMessage);
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchClassrooms();
+  }, []);
 
+  if (loading) return (
+    <div className="animate-shimmer p-6">
+      {/* Top bar skeleton */}
+      <div className="bg-chestnut px-5 py-3 flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-5 h-5 bg-white/20 rounded" />
+          <div className="h-4 w-32 bg-white/20 rounded-md" />
+        </div>
+        <div className="w-5 h-5 bg-white/20 rounded" />
+      </div>
 
-  return (
-    <section className=" mx-6 mt-6 bg-white/90 min-h-[90vh] rounded-2xl shadow-md overflow-hidden">
-      {/* Header */}
-      <header className="bg-chestnut py-6 px-8 rounded-t-2xl">
-        <h1 className="text-white text-3xl font-semibold font-poppins">
-          Register Class
-        </h1>
-      </header>
-
-      {/* Form */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 w-full gap-10 px-8 py-6">
-        {/* Input field */}
-        <div className="space-y-7">
-          {/* <div className="space-y-3 w-full max-w-105">
-            <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
-              Category
-            </Label>
-
-            <DropdownMenu onOpenChange={setIsOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={`relative ring-2 w-full justify-between font-medium transition-all duration-300 border-0 py-6 px-4 text-base rounded-xl group ${selected
-                    ? "ring-chestnut/40 text-chestnut bg-chestnut/5"
-                    : "ring-chestnut/20 text-chestnut/50 bg-white/80"
-                    } hover:ring-chestnut/40 hover:bg-chestnut/5 focus:ring-chestnut/50 focus:ring-4`}
-                >
-                  <span className={selected ? "text-chestnut font-semibold" : ""}>
-                    {selected || "Select subject type"}
-                  </span>
-                  <ChevronDown
-                    className={`w-5 h-5 text-chestnut/70 transition-transform duration-300 ${isOpen ? "rotate-180" : ""
-                      }`}
-                  />
-                </Button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent
-                className="w-(--radix-dropdown-menu-trigger-width) rounded-xl border-2 border-chestnut/10 shadow-xl bg-white/95 backdrop-blur-sm p-2"
-                align="start"
-                sideOffset={8}
-              >
-                <DropdownMenuGroup className="space-y-1">
-                  {classes.map(({ label, value }) => (
-                    <DropdownMenuItem
-                      key={label}
-                      className={`font-medium text-base py-3 px-4 rounded-lg cursor-pointer transition-all duration-200 ${selected === value
-                        ? "bg-chestnut text-white"
-                        : "text-chestnut hover:bg-chestnut/10 hover:text-chestnut"
-                        }`}
-                      onClick={() => handleSelect(value)}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <span>{label} </span>
-                        {selected === value && (
-                          <Check className="w-5 h-5 ml-2 text-white" />
-                        )}
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div> */}
-
-          <div className="space-y-1">
-            <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
-              Class
-            </Label>
-            <input
-              type="text"
-              value={className}
-              onChange={(e) => setClassName(e.target.value)}
-              placeholder="enter class"
-              className="bg-white w-full  ring-2 ring-chestnut/20 focus:outline-none  mt-2 rounded-[8px] py-2 px-4 text-base font-medium  text-chestnut focus:ring-chestnut/50 focus:ring-2"
-            />
+      <div className="p-6 space-y-6 bg-student-chestnut">
+        {/* Title + button */}
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <div className="h-6 w-44 bg-gray-200 rounded-md" />
+            <div className="h-3 w-72 bg-gray-100 rounded-md" />
           </div>
-
-          {/* <div className="space-y-2">
-            <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
-              Class Teacher
-            </Label>
-            <div className="relative">
-              <Command className="bg-white w-full ring-2 ring-chestnut/20 rounded-[8px] overflow-visible">
-                <CommandInput
-                  placeholder="Search teacher..."
-                  value={teacherSearch}
-                  onValueChange={(val) => {
-                    setTeacherSearch(val);
-                    setSelectedTeacher("");
-                  }}
-                  className="h-11 px-4 text-sm font-medium text-chestnut placeholder:text-chestnut/50 
-                   placeholder:font-medium bg-transparent border-none 
-                   focus-visible:ring-0 focus-visible:outline-none"
-                />
-                {teacherSearch && !selectedTeacher && (
-                  <CommandList className="absolute top-full left-0 right-0 z-50 bg-white 
-                                border border-[#E5E5E5] rounded-xl shadow-md 
-                                mt-1 max-h-48 overflow-y-auto">
-                    <CommandEmpty className="py-3 text-center text-sm text-gray-400">
-                      No teacher found.
-                    </CommandEmpty>
-                    <CommandGroup>
-                      {teachers.map((teacher) => (
-                        <CommandItem
-                          key={teacher.id}
-                          value={`${teacher.firstName} ${teacher.lastName}`}
-                          onSelect={(val) => {
-                            setSelectedTeacher(teacher.id);
-                            setTeacherSearch(val);
-                          }}
-                          className="flex items-center gap-2 px-3 py-2 cursor-pointer 
-                           hover:bg-chestnut/5 rounded-lg mx-1"
-                        >
-                          <div className="w-7 h-7 rounded-full bg-chestnut/10 flex items-center 
-                                justify-center flex-shrink-0">
-                            <span className="text-chestnut text-xs font-semibold">
-                              {teacher.firstName?.[0]}{teacher.lastName?.[0]}
-                            </span>
-                          </div>
-                          <span className="text-sm text-[#131313] font-medium capitalize">
-                            {`${teacher.firstName} ${teacher.lastName}`.toLowerCase()
-                              .replace(/\b\w/g, (c) => c.toUpperCase())}
-                          </span>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                )}
-              </Command>
-            </div>
-          </div> */}
-
+          <div className="h-9 w-32 bg-gray-200 rounded-lg" />
         </div>
 
-        {/* Subjects display */}
-        <div>
-          <h2 className="text-center capitalize text-2xl text-chestnut font-semibold font-poppins mb-4">
-            {/* JSS 1 Subjects */}
-            {className}
-          </h2>
-          <div className="border-b border-chestnut mb-4"></div>
-          {isLoading && (
-            <div
-              aria-disabled
-              className="min-h-125 flex items-center justify-center"
-            >
-              <Loader2 className="w-16 h-16 text-chestnut animate-spin" />
+        {/* Stat cards */}
+        <div className="grid grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="border border-gray-100 rounded-xl p-4 flex items-center gap-3">
+              <div className="w-8 h-8 bg-gray-100 rounded-lg shrink-0" />
+              <div className="space-y-1.5">
+                <div className="h-5 w-8 bg-gray-200 rounded" />
+                <div className="h-3 w-24 bg-gray-100 rounded" />
+              </div>
             </div>
-          )}
-          {errMsg && schoolId && (
-            <div className="text-center">
-              <h2 className="text-red-600 font-semibold text-lg">
-                Something went wrong
-              </h2>
-              <p className="text-gray-500">Please try again shortly.</p>
-            </div>
-          )}
-          {!isLoading && !errMsg && (
-            <div className="flex flex-col md:flex-row gap-6">
-              {/* Majors */}
-              <CourseList
-                title="Major Courses"
-                activeCourses={activeCourses}
-                setActiveCourses={setActiveCourses}
-                courses={majorCourses}
-              />
-              {/* Minors */}
-              <CourseList
-                title="Minor Courses"
-                activeCourses={activeCourses}
-                setActiveCourses={setActiveCourses}
-                courses={minorCourses}
-              />
-            </div>
-          )}
-          <div className="w-full gap-4 mt-6">
-            <Button
-              onClick={createClassHandler}
-              variant={"outline"}
-              disabled={loading || isLoading || !className || !activeCourses || activeCourses.length === 0}
-              className="px-6 cursor-pointer w-full py-2 rounded-md bg-chestnut text-white font-poppins"
-            >
-              {loading ? (
-                <div className="flex gap-2 items-center"><Loader2 className="size-5 mx-auto animate-spin text-white" /> <p>Submit...</p></div>
-              ) : (
-                <span>Submit</span>
-              )}
-            </Button>
+          ))}
+        </div>
+
+        {/* Search + filter */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-10 bg-gray-100 rounded-lg" />
+          <div className="flex gap-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-8 w-14 bg-gray-100 rounded-lg" />
+            ))}
+          </div>
+        </div>
+
+        {/* Table header */}
+        <div className="border border-gray-100 rounded-xl overflow-hidden">
+          <div className="grid grid-cols-4 px-5 py-3 bg-gray-50 gap-4">
+            {["w-4", "w-32", "w-20", "w-16"].map((w, i) => (
+              <div key={i} className={`h-3 ${w} bg-gray-200 rounded`} />
+            ))}
+          </div>
+
+          {/* Table rows */}
+          <div className="divide-y divide-gray-50">
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={i}
+                className="grid grid-cols-4 px-5 py-4 gap-4 items-center"
+                style={{ opacity: 1 - i * 0.08 }} // fade out towards bottom
+              >
+                <div className="h-3 w-5 bg-gray-100 rounded" />
+                <div className="h-3.5 w-36 bg-gray-200 rounded" />
+                <div className="h-6 w-16 bg-green-50 rounded-full" />
+                <div className="flex items-center justify-between">
+                  <div className="h-3 w-14 bg-gray-100 rounded" />
+                  <div className="h-7 w-12 bg-gray-200 rounded-lg" />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
-    </section>
+    </div>
+  );
+
+  if (errorMsg) return (
+    <div className="flex flex-col min-h-screen items-center justify-center py-16 px-6 text-center space-y-4">
+      {/* Icon */}
+      <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
+        <AlertCircle className="size-8 text-red-500" />
+      </div>
+
+      {/* Text */}
+      <div className="space-y-1">
+        <h3 className="text-sm font-semibold text-gray-800">Something went wrong</h3>
+        <p className="text-xs text-gray-500 max-w-xs">{errorMsg}</p>
+      </div>
+
+      {/* Retry */}
+      <button
+        onClick={() => {
+          setErrorMsg("");
+          setLoading(true);
+          fetchClassrooms();
+        }}
+        className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-chestnut rounded-lg hover:opacity-90 transition-opacity"
+      >
+        <RefreshCcw className="size-3.5" />
+        Try again
+      </button>
+    </div>
+  );
+
+  return (
+    <>
+      {classes.length === 0 ? (
+        <EmptyClass />
+      ) : (
+        <ClassviewAll />
+      )}
+    </>
   );
 };
 

@@ -1,228 +1,271 @@
+import { useEffect, useState } from "react";
+import { ChevronRight, Check, X, LayoutGrid, Users, ChevronDown, Plus, Info, Loader2 } from "lucide-react";
 import {
-    Upload,
-    Camera,
-    ChevronRight,
-    Check,
-    ChevronDown,
-    Tag,
-    X,
-} from "lucide-react";
-import {
-    Button,
-    Input,
-    Label,
+    Dialog,
+    DialogContent,
+    DialogTitle,
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuTrigger,
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-    Card,
-    CardContent,
-    ScrollArea,
-    Separator,
+    Label,
+    Button,
 } from "@bluethub/ui-kit";
+import type { Classroom } from "../course/class/class-registration";
+import { schoolService } from "@/services/school";
+import { AxiosError } from "axios";
+import type { Subject } from "../course/main";
+import { authService, type IcreateUserRequest } from "@/services/auth";
+import { localData } from "@/utils";
+import { useNavigate } from "react-router-dom";
+import { UserRole } from "@/utils/validate";
 
-import { useState } from "react";
+interface LineManager {
+    id: string;
+    firstName: string;
+    lastName: string;
+    userName: string;
+    emailAddress: string;
+    roleId: number;
+    roleName: string;
+    isActive: boolean;
+    hasAccess: boolean;
+    profileImage: string | null;
+    guardianName: string | null;
+    createdDate: string;
+    modifiedDate: string;
+}
 
-const AssignRoles = () => {
-    const [fileName, setFileName] = useState<string | null>(null);
-    const [dragActive, setDragActive] = useState(false);
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [selectRole, setSelectRole] = useState<string>("");
-    const [tagSubject, setTagSubject] = useState([
-        "Mathematics",
-        "English Language",
-        "Physics",
-        "Chemistry",
-        "Biology",
-        "Computer Science",
-        "History",
-        "Geography",
-    ]);
 
-    const removeTagSubject = (tagToRemove: string) => {
-        setTagSubject(tagSubject.filter((subject) => subject !== tagToRemove));
-    };
+const ROLE_OPTIONS = ["Class Teacher", "Subject Teacher"];
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            setFileName(e.target.files[0].name);
+const RegisterTeacherRole = () => {
+    const [, setPhoto] = useState<File | null>(null);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [role, setRole] = useState<string>("");
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [isRoleOpen, setIsRoleOpen] = useState(false);
+    const [classes, setClasses] = useState<Classroom[]>([]);
+    const [isClassOpen, setIsClassOpen] = useState(false);
+    const [selectedClass, setSelectedClass] = useState<Classroom | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState("");
+    const [, setClassroomError] = useState("");
+    // subject
+    const [majorSubjects, setMajorSubjects] = useState<Subject[]>([]);
+    const [minorSubjects, setMinorSubjects] = useState<Subject[]>([]);
+    const [, setSubjectErrorMsg] = useState("");
+    const [, setSubjectLoading] = useState(false);
+    const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>([]);
+    const [lineManagers, setLineManagers] = useState<LineManager[]>([]);
+    const [isLineManagerOpen, setIsLineManagerOpen] = useState(false);
+const [selectedLineManager, setSelectedLineManager] = useState<LineManager | null>(null);
+
+    const navigate = useNavigate();
+
+    const isChecked = (id: string) => selectedSubjects.some(s => s.id === id);
+    const fetchSubjects = async () => {
+        setSubjectErrorMsg("")
+        try {
+            setSubjectLoading(true);
+            const response = await schoolService.getAllSubject();
+            const all: Subject[] = response.data.data.subjects; // adjust to actual response key
+
+
+            setMajorSubjects(all.filter(s => s.subjectCategoryName === "Major"));
+            setMinorSubjects(all.filter(s => s.subjectCategoryName === "Minor"));
+        } catch (error) {
+            const msg =
+                error instanceof AxiosError
+                    ? error.response?.data?.responseMessage ??
+                    error.response?.data?.message ??
+                    error.message
+                    : (error as Error).message;
+            setSubjectErrorMsg(msg);
+        } finally {
+            setSubjectLoading(false);
         }
     };
 
-    const handleDrag = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (e.type === "dragenter" || e.type === "dragover") {
-            setDragActive(true);
-        } else if (e.type === "dragleave") {
-            setDragActive(false);
+
+    const fetchClassrooms = async () => {
+        setClassroomError("")
+        try {
+            setLoading(true);
+            const { data } = await schoolService.getAllClassRooms();
+            setClasses(data.data.classrooms); // ← data.data.classrooms not data.classrooms
+        } catch (error) {
+            const msg =
+                error instanceof AxiosError
+                    ? error.response?.data?.responseMessage ??
+                    error.response?.data?.message ??
+                    error.message
+                    : (error as Error).message;
+            setClassroomError(msg);
+        } finally {
+            setLoading(false);
+        }
+    };
+    let roleId = UserRole.HeadTeacher;
+
+    useEffect(() => {
+        const init = async () => {
+            await fetchClassrooms();
+            await fetchSubjects();
+            const { data } = await authService.getUserByRole(roleId);
+            setLineManagers(data.data.users);
+        };
+
+        init();
+    }, []);
+
+    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setPhoto(file);
+        setPhotoPreview(URL.createObjectURL(file));
+    };
+
+    const handleOpenDialog = () => {
+        setDialogOpen(true);
+    };
+
+    const handleSubmitSubjects = () => {
+        if (selectedSubjects.length === 0) return;
+        setDialogOpen(false);
+    };
+
+    const handleRemoveSubject = (id: string) => {
+        setSelectedSubjects(prev => prev.filter(s => s.id !== id));
+    };
+
+    const toggleSubject = (subject: Subject) => {
+        setSelectedSubjects(prev =>
+            prev.some(s => s.id === subject.id)
+                ? prev.filter(s => s.id !== subject.id)
+                : [...prev, subject]
+        );
+    };
+
+
+    const handleSave = async () => {
+        setErrorMsg("")
+        if (!role) { setErrorMsg("Please select a role"); return; }
+        if (!selectedClass) { setErrorMsg("Please select a class"); return; }
+        if (selectedSubjects.length === 0) { setErrorMsg("Please add at least one subject"); return; }
+        if (!selectedLineManager) { setErrorMsg("Please add line Manager"); return; }
+
+        const teacherPayload = localData.retrieve("th_t") as IcreateUserRequest;
+        if (!teacherPayload) {
+            setErrorMsg("Teacher information missing, please go back and try again");
+            return;
+        }
+
+        const finalPayload: IcreateUserRequest = {
+            ...teacherPayload,
+            lineManagerId: selectedLineManager?.id,
+            userClassroomsId: [selectedClass.id],
+            userSubjects: selectedSubjects.map(s => s.id),
+        };
+
+        try {
+            setLoading(true);
+            await authService.createUser(finalPayload);
+            localData.remove("th_t");
+            navigate('/admin');
+        } catch (error) {
+            const msg =
+                error instanceof AxiosError
+                    ? error.response?.data?.responseMessage ??
+                    error.response?.data?.message ??
+                    error.message
+                    : (error as Error).message;
+            setErrorMsg(msg);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleCheckboxChange = (course: string) => {
-        console.log(course)
-    };
 
-    const roles = [{ label: "subject-teacher" }, { label: "head-Teacher" }];
-
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragActive(false);
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            setFileName(e.dataTransfer.files[0].name);
-        }
-    };
     return (
-        <div className="space-y-4 px-6 max-w-full min-w-[90%] mx-auto  min-h-[96vh]">
-            <div className=" backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">
-                <div className="bg-linear-to-r from-chestnut to-chestnut/90 p-4">
-                    <div className="flex items-center gap-1">
-                        <h2 className="font-bold text-base text-white">
-                            Register Teacher’s Role
-                        </h2>
-                        <p className="text-white/80 text-sm">
-                            <ChevronRight />
-                        </p>
+        <div className="p-6 font-poppins">
+            <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm bg-white">
+
+                {/* ── Top Nav ─────────────────────────────────────────────── */}
+                <div className="flex items-center justify-between px-6 py-4 bg-chestnut">
+                    <div className="flex items-center gap-2 text-white text-sm font-semibold">
+                        <Users className="w-4 h-4 text-white/70" />
+                        <span>Register Teacher's Role</span>
+                        <ChevronRight className="w-4 h-4 text-white/40" />
                     </div>
                 </div>
 
-                {/* Form Content */}
-                <div className="p-8  h-[90vh] bg-linear-to-br from-white/95 to-white/85">
-                    <div className="flex gap-12">
-                        {/* Profile Picture Upload */}
-                        <div className="space-y-3">
-                            <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
-                                <Camera className="w-4 h-4" />
-                                Profile Picture*
-                            </Label>
+                {/* ── Body ────────────────────────────────────────────────── */}
+                <div className="p-8">
+                    <div className="flex gap-10">
 
-                            <label
-                                htmlFor="fileInput"
-                                onDragEnter={handleDrag}
-                                onDragLeave={handleDrag}
-                                onDragOver={handleDrag}
-                                onDrop={handleDrop}
-                                className={`group relative flex items-center justify-center flex-col gap-4 
-                  border-2 border-dashed w-60 h-50 rounded-2xl cursor-pointer 
-                  transition-all duration-300 overflow-hidden
-                  ${dragActive
-                                        ? "border-chestnut bg-chestnut/10 scale-105"
-                                        : fileName
-                                            ? "border-green-500 bg-green-50"
-                                            : "border-chestnut/40 hover:border-chestnut bg-chestnut/5 hover:bg-chestnut/10"
-                                    }`}
-                            >
-                                <Input
-                                    type="file"
-                                    id="fileInput"
-                                    className="hidden"
-                                    onChange={handleFileChange}
-                                    accept="image/*"
-                                />
-
-                                <div className="absolute inset-0 bg-linear-to-br from-chestnut/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-
-                                <div
-                                    className={`p-4 rounded-full transition-all duration-300 ${fileName
-                                        ? "bg-green-500"
-                                        : "bg-chestnut/10 group-hover:bg-chestnut/20"
-                                        }`}
-                                >
-                                    {fileName ? (
-                                        <Camera className="w-8 h-8 text-white" />
+                        {/* ── Left Column ─────────────────────────────────── */}
+                        <div className="flex flex-col gap-6 w-48 shrink-0">
+                            {/* Photo Upload */}
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">
+                                    Photo
+                                </Label>
+                                <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-chestnut/20 rounded-2xl cursor-pointer hover:border-chestnut/40 hover:bg-chestnut/2 transition-all bg-gray-50/60 overflow-hidden group">
+                                    {photoPreview ? (
+                                        <img src={photoPreview} alt="preview" className="w-full h-full object-cover" />
                                     ) : (
-                                        <Upload className="w-8 h-8 text-chestnut" />
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="w-10 h-10 rounded-xl bg-chestnut/10 flex items-center justify-center group-hover:bg-chestnut/20 transition-colors">
+                                                <svg className="w-5 h-5 text-chestnut/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
+                                                </svg>
+                                            </div>
+                                            <span className="text-xs font-semibold text-chestnut/60">Upload photo</span>
+                                            <span className="text-[10px] text-chestnut/30 text-center px-2">Click to select image file</span>
+                                        </div>
                                     )}
-                                </div>
+                                    <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+                                </label>
+                            </div>
 
-                                <div className="text-center px-4 space-y-1">
-                                    <p
-                                        className={`font-semibold text-sm transition-colors ${fileName
-                                            ? "text-green-700"
-                                            : "text-chestnut group-hover:text-chestnut/80"
-                                            }`}
-                                    >
-                                        {fileName ? "Image Selected" : "Upload Image"}
-                                    </p>
-                                    <p className="text-xs text-chestnut/60 font-medium">
-                                        {fileName || "Click or drag to select file"}
-                                    </p>
-                                    {fileName && (
-                                        <p className="text-xs text-green-600 font-medium truncate max-w-50">
-                                            {fileName}
-                                        </p>
-                                    )}
-                                </div>
-                            </label>
                         </div>
 
-                        {/* Form Fields */}
-                        <div className="flex-1 space-y-8">
-                            {/* Row 1 */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                <div className="space-y-3 w-full">
-                                    <label className="text-chestnut font-semibold text-base flex items-center gap-2">
-                                        Role*
-                                    </label>
+                        {/* ── Right Column ────────────────────────────────── */}
+                        <div className="flex-1 space-y-6">
 
-                                    <DropdownMenu onOpenChange={setIsDropdownOpen}>
+                            {/* Row 1 — Role + Class */}
+                            <div className="grid grid-cols-2 gap-5">
+                                {/* Role */}
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">Role</Label>
+                                    <DropdownMenu onOpenChange={setIsRoleOpen}>
                                         <DropdownMenuTrigger asChild>
                                             <Button
                                                 variant="outline"
-                                                className={`relative ring-2 w-full justify-between font-medium transition-all duration-300 border-0 py-6 px-4 text-base rounded-xl group ${selectRole
-                                                    ? "ring-chestnut/40 text-chestnut bg-chestnut/5"
-                                                    : "ring-chestnut/20 text-chestnut/50 bg-white/80"
-                                                    } hover:ring-chestnut/40 hover:bg-chestnut/5 focus:ring-chestnut/50 focus:ring-4`}
+                                                className={`w-full justify-between font-medium border-0 ring-2 py-2.5 px-4 text-sm rounded-xl transition-all ${role
+                                                    ? "ring-chestnut/30 text-chestnut bg-chestnut/5"
+                                                    : "ring-gray-200 text-gray-400 bg-white"
+                                                    } hover:ring-chestnut/40`}
                                             >
-                                                <span
-                                                    className={
-                                                        selectRole ? "text-chestnut font-semibold" : ""
-                                                    }
-                                                >
-                                                    {selectRole || "Select Role"}
+                                                <span className={role ? "font-semibold text-chestnut" : ""}>
+                                                    {role || "Select role"}
                                                 </span>
-
-                                                <div
-                                                    className={`transition-transform duration-300 ${isDropdownOpen ? "rotate-180" : ""
-                                                        }`}
-                                                >
-                                                    <ChevronDown className="w-5 h-5 text-chestnut/70" />
-                                                </div>
+                                                <ChevronDown className={`w-4 h-4 text-chestnut/50 transition-transform duration-200 ${isRoleOpen ? "rotate-180" : ""}`} />
                                             </Button>
                                         </DropdownMenuTrigger>
-
-                                        <DropdownMenuContent
-                                            className="w-(--radix-dropdown-menu-trigger-width) rounded-xl border-2 border-chestnut/10 shadow-xl bg-white/95 backdrop-blur-sm p-2"
-                                            align="start"
-                                            sideOffset={8}
-                                        >
-                                            <DropdownMenuGroup className="space-y-1">
-                                                {roles.map((role) => (
+                                        <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-xl border border-gray-100 shadow-lg bg-white p-1.5" align="start" sideOffset={6}>
+                                            <DropdownMenuGroup className="space-y-0.5">
+                                                {ROLE_OPTIONS.map((option) => (
                                                     <DropdownMenuItem
-                                                        key={role.label}
-                                                        className={`font-medium text-base py-3 px-4 rounded-lg cursor-pointer transition-all duration-200 ${selectRole === role.label
-                                                            ? "bg-chestnut text-white"
-                                                            : "text-chestnut hover:bg-chestnut/10 hover:text-chestnut"
+                                                        key={option}
+                                                        className={`text-sm py-2.5 px-3 rounded-lg cursor-pointer ${role === option ? "bg-chestnut text-white" : "text-gray-700 hover:bg-chestnut/5 hover:text-chestnut"
                                                             }`}
-                                                        onClick={() => {
-                                                            setSelectRole(role.label);
-                                                        }}
+                                                        onClick={() => setRole(option)}
                                                     >
-                                                        <div className="flex items-center justify-between w-full">
-                                                            <span>{role.label}</span>
-                                                            {selectRole === role.label && (
-                                                                <Check className="w-5 h-5 ml-2 text-white" />
-                                                            )}
-                                                        </div>
+                                                        <span className="flex-1">{option}</span>
+                                                        {role === option && <Check className="w-3.5 h-3.5" />}
                                                     </DropdownMenuItem>
                                                 ))}
                                             </DropdownMenuGroup>
@@ -230,206 +273,259 @@ const AssignRoles = () => {
                                     </DropdownMenu>
                                 </div>
 
-                                <div className="space-y-3">
-                                    <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
-                                        Class*
-                                    </Label>
-                                    <Input
-                                        type="text"
-                                        placeholder="Jss1 love"
-                                        className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-6 px-4 text-base placeholder:text-chestnut/50 placeholder:font-semibold placeholder:pl-2 bg-white/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:ring-chestnut/30"
-                                    />
+                                {/* Class */}
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">Class</Label>
+                                    <DropdownMenu onOpenChange={setIsClassOpen}>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                variant="outline"
+                                                className={`w-full justify-between font-medium border-0 ring-2 py-2.5 px-4 text-sm rounded-xl transition-all ${selectedClass
+                                                    ? "ring-chestnut/30 text-chestnut bg-chestnut/5"
+                                                    : "ring-gray-200 text-gray-400 bg-white"
+                                                    } hover:ring-chestnut/40`}
+                                            >
+                                                <span className={selectedClass ? "font-semibold text-chestnut" : ""}>
+                                                    {selectedClass ? selectedClass.name : "Select class"}
+                                                </span>
+                                                <ChevronDown className={`w-4 h-4 text-chestnut/50 transition-transform duration-200 ${isClassOpen ? "rotate-180" : ""}`} />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) h-50 rounded-xl border border-gray-100 shadow-lg bg-white p-1.5" align="start" sideOffset={6}>
+                                            <DropdownMenuGroup className="space-y-0.5">
+                                                {classes.map((classroom) => (
+                                                    <DropdownMenuItem
+                                                        key={classroom.id}
+                                                        onClick={() => setSelectedClass(classroom)}
+                                                        className={`text-sm py-2.5 px-3 rounded-lg cursor-pointer ${selectedClass?.id === classroom.id ? "bg-chestnut text-white" : "text-gray-700 hover:bg-chestnut/5 hover:text-chestnut"
+                                                            }`}
+                                                    >
+                                                        <span className="flex-1">{classroom.name}</span>
+                                                        {selectedClass?.id === classroom.id && <Check className="w-3.5 h-3.5" />}
+                                                    </DropdownMenuItem>
+                                                ))}
+                                            </DropdownMenuGroup>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </div>
                             </div>
 
-                            {/* Row 2 */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                <div className="space-y-3">
-                                    <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
-                                        Register Subject*
-                                    </Label>
-                                    <Input
-                                        type="text"
-                                        placeholder="mathematics, english, physics"
-                                        className="ring-2 ring-chestnut/20 focus:ring-chestnut/40 border-0 py-6 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-xl transition-all duration-300 hover:ring-chestnut/30"
-                                    />
-
-                                    <Dialog>
-                                        <DialogTrigger asChild>
-                                            <div className="flex justify-end">
-                                                <Button className="bg-linear-to-r from-chestnut font-poppins cursor-pointer to-chestnut/90 hover:from-chestnut/90 hover:to-chestnut text-white font-bold text-sm   p-4 rounded-md transition-all duration-300 transform hover:scale-105">
-                                                    Add subject
-                                                </Button>
-                                            </div>
-                                        </DialogTrigger>
-                                        <DialogContent className="sm:max-w-106.25 border border-white/20 backdrop-blur-xl  rounded-sm shadow-2xl">
-                                            <DialogHeader className="font-bold text-xl tex-[#343434] border-b-2 border-chestnut pb-4">
-                                                <DialogTitle className="text-center">
-                                                    Select Subject
-                                                </DialogTitle>
-                                            </DialogHeader>
-                                            <div className="grid grid-cols-2 gap-4 ">
-                                                <div className="p-0 m-0">
-                                                    <h2 className="font-semibold text-base text-[#4A5D58] mb-10 ">  Major course </h2>
-                                                    {" "}
-                                                    {tagSubject.map((courseItem, idx) => (
-                                                        <div
-                                                            key={idx}
-                                                            className="flex items-center gap-0 mb-3"
-                                                        >
-                                                            <Label className="flex items-center cursor-pointer relative">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id={`course-${idx}`}
-                                                                    onChange={() =>
-                                                                        handleCheckboxChange(courseItem)
-                                                                    }
-                                                                    className="peer size-5 mr-2.5 appearance-none rounded border border-slate-300 checked:bg-chestnut checked:border-chestnut"
-                                                                />
-                                                                <span className="absolute text-white opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-[84%] -translate-y-1/2">
-                                                                    <svg
-                                                                        xmlns="http://www.w3.org/2000/svg"
-                                                                        viewBox="0 0 20 20"
-                                                                        fill="currentColor"
-                                                                        className="w-full"
-                                                                    >
-                                                                        <path
-                                                                            fillRule="evenodd"
-                                                                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                                                            clipRule="evenodd"
-                                                                        />
-                                                                    </svg>
-                                                                </span>
-                                                            </Label>
-                                                            <p className="text-[#4A5D58] font-medium text-base font-poppins">
-                                                                {courseItem}
-                                                            </p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <div className="p-0 m-0">
-                                                    <h2 className=" font-semibold text-base text-[#4A5D58] mb-10 ">  Minor course </h2>
-                                                    {tagSubject.map((courseItem, idx) => (
-                                                        <div
-                                                            key={idx}
-                                                            className="flex items-center gap-0 mb-3"
-                                                        >
-                                                            <Label className="flex items-center cursor-pointer relative">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id={`course-${idx}`}
-                                                                    onChange={() =>
-                                                                        handleCheckboxChange(courseItem)
-                                                                    }
-                                                                    className="peer size-5 mr-2.5 appearance-none rounded border border-slate-300 checked:bg-chestnut checked:border-chestnut"
-                                                                />
-                                                                <span className="absolute text-white opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-[84%] -translate-y-1/2">
-                                                                    <svg
-                                                                        xmlns="http://www.w3.org/2000/svg"
-                                                                        viewBox="0 0 20 20"
-                                                                        fill="currentColor"
-                                                                        className="w-full"
-                                                                    >
-                                                                        <path
-                                                                            fillRule="evenodd"
-                                                                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                                                            clipRule="evenodd"
-                                                                        />
-                                                                    </svg>
-                                                                </span>
-                                                            </Label>
-                                                            <p className="text-[#4A5D58] font-medium text-base font-poppins">
-                                                                {courseItem}
-                                                            </p>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                            <DialogFooter className="">
-                                                <DialogClose asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        className=" w-28 h-8.5 hover:bg-transparent cursor-pointer rounded-[3px] border border-[#C4C4C4] font-semibold text-[12px]"
-                                                    >
-                                                        Back
-                                                    </Button>
-                                                </DialogClose>
-                                                <Button
-                                                    type="submit"
-                                                    className=" w-28 h-8.5 bg-chestnut text-white rounded-[3px]  font-semibold text-[12px] hover:bg-chestnut cursor-pointer"
+                            {/* Line Manager */}
+                            <div className="space-y-2">
+                                <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">Line Manager</Label>
+                                <DropdownMenu onOpenChange={setIsLineManagerOpen}>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button
+                                            variant="outline"
+                                            className={`w-full justify-between font-medium border-0 ring-2 py-2.5 px-4 text-sm rounded-xl transition-all ${selectedLineManager
+                                                ? "ring-chestnut/30 text-chestnut bg-chestnut/5"
+                                                : "ring-gray-200 text-gray-400 bg-white"
+                                                } hover:ring-chestnut/40`}
+                                        >
+                                            <span className={selectedLineManager ? "font-semibold text-chestnut" : ""}>
+                                                {selectedLineManager
+                                                    ? `${selectedLineManager.firstName} ${selectedLineManager.lastName}`
+                                                    : "Select line manager"}
+                                            </span>
+                                            <ChevronDown className={`w-4 h-4 text-chestnut/50 transition-transform duration-200 ${isLineManagerOpen ? "rotate-180" : ""}`} />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) h-50 rounded-xl border border-gray-100 shadow-lg bg-white p-1.5" align="start" sideOffset={6}>
+                                        <DropdownMenuGroup className="space-y-0.5">
+                                            {lineManagers.map((lm) => (
+                                                <DropdownMenuItem
+                                                    key={lm.id}
+                                                    onClick={() => setSelectedLineManager(lm)}
+                                                    className={`text-sm py-2.5 px-3 rounded-lg cursor-pointer ${selectedLineManager?.id === lm.id
+                                                        ? "bg-chestnut text-white"
+                                                        : "text-gray-700 hover:bg-chestnut/5 hover:text-chestnut"
+                                                        }`}
                                                 >
-                                                    Submit
-                                                </Button>
-                                            </DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
-                                </div>
+                                                    <span className="flex-1">{lm.firstName} {lm.lastName}</span>
+                                                    {selectedLineManager?.id === lm.id && <Check className="w-3.5 h-3.5" />}
+                                                </DropdownMenuItem>
+                                            ))}
+                                        </DropdownMenuGroup>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
 
-                                <div className="space-y-3">
-                                    <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
-                                        Register Subject*
+                            {/* Row 2 — Subjects */}
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">
+                                        Assigned Subjects
                                     </Label>
-                                    <Card className="relative w-full h-50 ring-2 ring-chestnut/20 focus-within:ring-chestnut/40 border-0 bg-white/80 backdrop-blur-sm rounded-xl transition-all duration-300  overflow-hidden">
-                                        <CardContent className="p-0 h-full">
-                                            <div className="">
-                                                <span className="absolute top-2 right-2 text-xs font-medium text-chestnut/60 bg-chestnut/10 px-2 py-1 rounded-full">
-                                                    {tagSubject.length} subjects
-                                                </span>
-                                            </div>
-
-                                            <ScrollArea className="h-72 px-4">
-                                                <div className="py-3 space-y-2">
-                                                    {tagSubject.length > 0 ? (
-                                                        tagSubject.map((tag, index) => (
-                                                            <div key={tag}>
-                                                                <div className="group flex items-center justify-between py-2 px-3 rounded-lg hover:bg-chestnut/5 transition-all duration-200">
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div className="w-2 h-2 rounded-full bg-chestnut/40"></div>
-                                                                        <span className="text-sm font-medium text-chestnut/80 group-hover:text-chestnut">
-                                                                            {tag}
-                                                                        </span>
-                                                                    </div>
-                                                                    <button
-                                                                        onClick={() => removeTagSubject(tag)}
-                                                                        className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-red-50 rounded-md"
-                                                                    >
-                                                                        <X className="w-4 h-4 text-red-500" />
-                                                                    </button>
-                                                                </div>
-                                                                {index < tagSubject.length - 1 && (
-                                                                    <Separator className="my-1 bg-chestnut/10" />
-                                                                )}
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <div className="flex flex-col items-center justify-center py-8 text-center">
-                                                            <div className="w-12 h-12 bg-chestnut/10 rounded-full flex items-center justify-center mb-3">
-                                                                <Tag className="w-6 h-6 text-chestnut/40" />
-                                                            </div>
-                                                            <p className="text-sm text-chestnut/60 font-medium">
-                                                                No subjects added yet.
-                                                            </p>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </ScrollArea>
-                                        </CardContent>
-                                    </Card>
+                                    {selectedSubjects.length > 0 && (
+                                        <span className="text-[10px] font-semibold text-chestnut/50">
+                                            {selectedSubjects.length} selected
+                                        </span>
+                                    )}
                                 </div>
+
+                                <div className="min-h-20 ring-2 ring-gray-200 focus-within:ring-chestnut/30 rounded-xl bg-gray-50/60 px-3 py-2.5 flex flex-wrap gap-1.5 transition-all">
+                                    {selectedSubjects.length === 0 ? (
+                                        <span className="text-xs text-gray-400 w-full text-center self-center py-2">
+                                            No subjects added yet — click below to add
+                                        </span>
+                                    ) : (
+                                        selectedSubjects.map(subject => (
+                                            <span
+                                                key={subject.id}
+                                                className="inline-flex items-center gap-1 bg-chestnut/10 text-chestnut text-xs font-semibold px-2.5 py-1 rounded-full"
+                                            >
+                                                {subject.name}
+                                                <button
+                                                    onClick={() => handleRemoveSubject(subject.id)}
+                                                    className="hover:text-red-500 transition-colors ml-0.5"
+                                                >
+                                                    <X className="w-3 h-3" />
+                                                </button>
+                                            </span>
+                                        ))
+                                    )}
+                                </div>
+
+                                <button
+                                    onClick={handleOpenDialog}
+                                    className="flex items-center gap-1.5 text-xs font-semibold text-chestnut hover:opacity-70 transition-opacity mt-1"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    Add subjects
+                                </button>
+                            </div>
+
+                            {/* Divider */}
+                            <div className="border-t border-gray-100" />
+
+                            {/* Save Button */}
+                            <div className="flex justify-between">
+                                {errorMsg && (
+                                    <div
+                                        role="alert"
+                                        className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-xs mb-5"
+                                    >
+                                        <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
+                                        <span>{errorMsg}</span>
+                                    </div>
+                                )}
+
+                                <Button
+                                    onClick={handleSave}
+                                    disabled={loading}
+                                    className="flex ml-auto items-center gap-2 text-white text-sm font-semibold rounded-xl px-8 py-2.5 transition-opacity hover:opacity-90 bg-chestnut shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    {loading ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            <span>Saving...</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Check className="w-4 h-4" />
+                                            <span>Save and Continue</span>
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ── Select Subject Dialog ──────────────────────────────────── */}
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogContent className="max-w-lg rounded-2xl p-0 overflow-hidden">
+                    {/* Dialog header */}
+                    <div className="px-6 py-5 border-b border-gray-100">
+                        <DialogTitle className="text-sm font-bold text-chestnut">
+                            Select Subjects
+                        </DialogTitle>
+                        <p className="text-[11px] text-gray-400 mt-0.5">Choose major and minor subjects for this teacher</p>
+                    </div>
+
+                    <div className="flex gap-0 px-6 py-5">
+                        {/* Major Column */}
+                        <div className="flex-1 pr-5 border-r border-gray-100">
+                            <p className="text-[10px] font-bold text-chestnut mb-3 uppercase tracking-wide flex items-center gap-1.5">
+                                <LayoutGrid className="w-3 h-3" />
+                                Major
+                            </p>
+                            <div className="flex flex-col gap-0.5 max-h-60 overflow-y-auto pr-1">
+                                {majorSubjects.map(s => (
+                                    <label
+                                        key={s.id}
+                                        onClick={() => toggleSubject(s)}
+                                        className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
+                                    >
+                                        <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.id) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
+                                            }`}>
+                                            {isChecked(s.id) && (
+                                                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                        </span>
+                                        <span className={`text-xs select-none ${isChecked(s.id) ? "text-chestnut font-semibold" : "text-gray-600 font-medium"}`}>
+                                            {s.name}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Minor Column */}
+                        <div className="flex-1 pl-5">
+                            <p className="text-[10px] font-bold text-gray-400 mb-3 uppercase tracking-wide">Minor</p>
+                            <div className="flex flex-col gap-0.5 max-h-60 overflow-y-auto pr-1">
+                                {minorSubjects.map(s => (
+                                    <label
+                                        key={s.id}
+                                        onClick={() => toggleSubject(s)}
+                                        className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
+                                    >
+                                        <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.id) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
+                                            }`}>
+                                            {isChecked(s.id) && (
+                                                <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            )}
+                                        </span>
+                                        <span className={`text-xs select-none ${isChecked(s.id) ? "text-chestnut font-semibold" : "text-gray-600 font-medium"}`}>
+                                            {s.name}
+                                        </span>
+                                    </label>
+                                ))}
                             </div>
                         </div>
                     </div>
 
-                    {/* Action Button */}
-                    <div className="flex justify-end mt-12 ">
-                        <Button className="w-50 h-10  rounded-md bg-chestnut  hover:bg-chestnut/90 cursor-pointer hover:to-chestnut text-white font-semibold text-xl font-poppins  transition-all duration-300 transform hover:scale-105">
-                            Submit
-                        </Button>
+                    {/* Dialog footer */}
+                    <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+                        <span className="text-[11px] text-gray-400 font-medium">
+                            {selectedSubjects.length} subject{selectedSubjects.length !== 1 ? "s" : ""} selected
+                        </span>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                className="border border-gray-200 text-gray-600 text-xs font-semibold rounded-lg px-5 py-2 hover:bg-gray-50"
+                                onClick={() => setDialogOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                className="text-white text-xs font-semibold rounded-lg px-5 py-2 hover:opacity-90 transition-opacity bg-chestnut"
+                                onClick={handleSubmitSubjects}
+                            >
+                                Confirm
+                            </Button>
+                        </div>
                     </div>
-                </div>
-            </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };
 
-export default AssignRoles;
+export default RegisterTeacherRole;

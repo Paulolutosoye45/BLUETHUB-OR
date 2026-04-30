@@ -20,13 +20,14 @@ interface IUser {
   roleId: number;
   roleName: string;
   userName: string;
+  refreshToken?: string
 }
 interface AuthContextType {
   user: IUser | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isLoggingOut: boolean;
-  login: (tokenValue: string, userData: any) => void;
+  login: (tokenValue: string, userData: any, refreshToken: string) => void;
   logout: () => void;
   setUser: (user: IUser | null) => void;
   refreshUser: () => Promise<void>;
@@ -70,8 +71,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     init();
   }, []);
 
-  const login = (tokenValue: string, userData: IUser) => {
-    token.login(tokenValue);
+  const login = (tokenValue: string, userData: IUser, refreshToken: string) => {
+    token.login(tokenValue, refreshToken);
     setUser({
       ...userData,
       roleName: userData.roleName ?? userData.roleName,  // ← normalize here too

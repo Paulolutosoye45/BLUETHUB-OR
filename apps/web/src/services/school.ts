@@ -32,20 +32,16 @@ interface Ischool {
 }
 
 interface IRegisterSubject {
-  createdBy: string;
-  SchoolId: string;
   subjects: Ischool[];
 }
 
 interface IregClass {
   name: string;
-  teacherName?: string;
   noOfStudents?: number;
+  subjectIds: any[]
 }
 
- export interface ICreateSchool {
-  createdBy: string;
-  SchoolId: string;
+export interface ICreateSchool {
   classrooms: IregClass[];
 }
 
@@ -77,12 +73,37 @@ export const schoolService = {
     );
   },
 
+  getAllSubject: () => {
+    return API.get(endpoints.getAllSubjects, {
+        headers: {
+            "X-Tenant-ID": X_Tenant_ID,
+        },
+    });
+},
+
+
   createClassRoom: (data: ICreateSchool) => {
     return API.post(endpoints.createSchoolClass, data, {
       headers: {
         "X-Tenant-ID": X_Tenant_ID,
-        "Authorization":   `Bearer ${token.getToken()}`
+        "Authorization": `Bearer ${token.getToken()}`
       },
+    });
+  },
+
+  getAllClassRooms: () => {
+    return API.get(endpoints.getAllClassrooms, {
+      headers: {
+        "X-Tenant-ID": X_Tenant_ID,
+        "Authorization": `Bearer ${token.getToken()}`
+      },
+    });
+  },
+
+  getSubjectsByClassroomId: (classroomId: string) => {
+    return API.get(endpoints.getSubjectsByClassroom, {
+      params: { classroomId },
+      headers: { "X-Tenant-ID": X_Tenant_ID },
     });
   },
 };

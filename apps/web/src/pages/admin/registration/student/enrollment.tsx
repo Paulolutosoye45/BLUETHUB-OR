@@ -1,119 +1,438 @@
-import { useState } from "react";
-import { UserCircle, BookOpen, GraduationCap } from "lucide-react";
-import FileUpload from "@/shared/file-upload";
-import CustomDropdown from "@/shared/custom-dropdown";
-import SubjectSelection from "@/shared/subject-selection";
+import { useEffect, useRef, useState } from "react";
+import { EllipsisVertical, Camera, Plus, CircleAlert, CalendarIcon, Loader2, Info, LayoutGrid } from "lucide-react";
+import { format } from "date-fns"
+import { Calendar, Input, Label, Popover, PopoverContent, PopoverTrigger } from "@bluethub/ui-kit";
+import { cn } from "@/lib/utils";
+import { type IcreateUserRequest } from "@/services/auth";
 
-// Data constants
-const CLASS_OPTIONS = [
-    { label: "JSS1", value: "jss1" },
-    { label: "JSS2", value: "jss2" },
-    { label: "JSS3", value: "jss3" },
-    { label: "SS1", value: "ss1" },
-    { label: "SS2", value: "ss2" },
-    { label: "SS3", value: "ss3" },
-];
-
-const TEACHER_OPTIONS = [
-    { label: "Dr. Stevenson", value: "stevenson" },
-    { label: "Mrs. Johnson", value: "johnson" },
-    { label: "Mr. Williams", value: "williams" },
-    { label: "Ms. Anderson", value: "anderson" },
-];
-
-const SUBJECT_OPTIONS = [
-    { label: "Mathematics", value: "mathematics" },
-    { label: "English", value: "english" },
-    { label: "Physics", value: "physics" },
-    { label: "Chemistry", value: "chemistry" },
-    { label: "Biology", value: "biology" },
-    { label: "Computer Science", value: "computer_science" },
-];
 
 const Enrollment = () => {
-    const [selectClass, setSelectClass] = useState("");
-    const [selectTeacher, setSelectTeacher] = useState("");
-    const [selectSubject, setSelectSubject] = useState("");
-    const [fileName, setFileName] = useState<string | null>(null);
-    const [dragActive, setDragActive] = useState(false);
+    // const [fileName, setFileName] = useState<string | null>(null);
+    // const [dragActive, setDragActive] = useState(false);
+    const [classDialogOpen, setClassDialogOpen] = useState(false);
+    const fileRef = useRef<HTMLInputElement>(null);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [successfully, setSuccessfully] = useState(false);
+    const [errorMsg, setErrorMsg] = useState("");
+    const [loading, setLoading] = useState(false);
+
+
+    const {
+        register,
+        handleSubmit,
+        control,
+        watch,
+        setValue,
+        formState: { errors },
+    } = useForm<StudentFormValues>({
+        resolver: yupResolver(studentFormSchema)as Resolver<StudentFormValues>,
+        defaultValues: {
+        firstName: '',
+        lastName: '',
+    },
+    });
+
+    const firstName = watch("firstName");
+    const lastName = watch("lastName");
+    const studentName = `${firstName ?? ""} ${lastName ?? ""}`.trim();
+    const username = `${firstName ?? ""}.${lastName ?? ""}`.toLowerCase().trim();
+    const TDob = watch("dateOfBirth")
+
+    // Auto-generate username whenever firstName or lastName changes
+    useEffect(() => {
+        if (firstName || lastName) {
+            const generated = `${firstName ?? ''}.${lastName ?? ''}`.toLowerCase().trim();
+            setValue("username", generated);
+        }
+    }, [firstName, lastName, setValue]);
+
+
+    const handleClick = () => fileRef.current?.click();
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files?.[0]) {
-            setFileName(e.target.files[0].name);
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setPhotoPreview(URL.createObjectURL(file));
+    };
+
+    // const handleDrag = (e: React.DragEvent) => {
+    //     e.preventDefault();
+    //     e.stopPropagation();
+    //     setDragActive(e.type === "dragenter" || e.type === "dragover");
+    // };
+
+    // const handleDrop = (e: React.DragEvent) => {
+    //     e.preventDefault();
+    //     e.stopPropagation();
+    //     setDragActive(false);
+    //     if (e.dataTransfer.files?.[0]) {
+    //         setFileName(e.dataTransfer.files[0].name);
+    //     }
+
+    // };
+
+    const schoolId = localData.retrieve("schoolInfo") as SchoolInfo
+    const createdBy = localData.retrieve("user") as Tuser
+
+    const handleRegister = async (data: StudentFormValues) => {
+        if (!schoolId?.id) {
+            console.error("School info is missing. Cannot proceed.");
+            return;
         }
-    };
 
-    const handleDrag = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragActive(e.type === "dragenter" || e.type === "dragover");
-    };
+        const phassed = `${data.firstName}.${data.lastName}`.toLowerCase().trim();
+        if (!phassed) return;
 
-    const handleDrop = (e: React.DragEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setDragActive(false);
-        if (e.dataTransfer.files?.[0]) {
-            setFileName(e.dataTransfer.files[0].name);
+        const hashPassword = await Hashing(phassed);
+
+        const payload: IcreateUserRequest = {
+            createdby: createdBy.id,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            hashPassword,
+            isActive: true,
+            hasAccess: true,
+            userName: phassed,
+            schoolId: schoolId.id,
+            dob: format(new Date(data.dateOfBirth!), 'yyyy-MM-dd'),
+            role: UserRole.Student,
+        };
+
+        localData.save("th_student", payload);
+
+        try {
+            setLoading(true);
+            // fake 3s loading before opening dialog
+            await new Promise(resolve => setTimeout(resolve, 3000));
+            setClassDialogOpen(true);
+        } catch (error) {
+            const msg =
+                error instanceof AxiosError
+                    ? error.response?.data?.responseMessage ??
+                    error.response?.data?.message ??
+                    error.message
+                    : (error as Error).message;
+            setErrorMsg(msg);
+        } finally {
+            setLoading(false);
         }
     };
 
     return (
-        <div className="space-y-8">
-            {/* Main Content Area - Two Columns */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-2">
-
-                <div className="space-y-6">
-                    <div className="flex gap-6 flex-wrap md:flex-nowrap shrink-0">
-                        {/* File Upload */}
-                        <FileUpload
-                            fileName={fileName}
-                            onFileChange={handleFileChange}
-                            onDrag={handleDrag}
-                            onDrop={handleDrop}
-                            dragActive={dragActive}
-                        />
-
-                        {/* Form Dropdowns */}
-                        <div className="flex-1 space-y-6">
-                            <CustomDropdown
-                                label="Class*"
-                                icon={<GraduationCap className="w-4 h-4" />}
-                                placeholder="Select Class"
-                                options={CLASS_OPTIONS}
-                                value={selectClass}
-                                onChange={setSelectClass}
-                            />
-
-                            <CustomDropdown
-                                label="Class Teacher*"
-                                icon={<UserCircle className="w-4 h-4" />}
-                                placeholder="Select Teacher"
-                                options={TEACHER_OPTIONS}
-                                value={selectTeacher}
-                                onChange={setSelectTeacher}
-                            />
-
-                            <CustomDropdown
-                                label="Subject"
-                                icon={<BookOpen className="w-4 h-4" />}
-                                placeholder="Select Subject"
-                                options={SUBJECT_OPTIONS}
-                                value={selectSubject}
-                                onChange={setSelectSubject}
-                            />
+        <>
+            <div className="p-6 font-poppins">
+                <div className="backdrop-blur-sm rounded-2xl border border-white/70  overflow-hidden">
+                    <div
+                        className="flex items-center justify-between px-5 h-12 sticky top-0 z-30 bg-chestnut">
+                        <div className="flex items-center gap-2.5">
+                            <LayoutGrid className="w-5 h-5 text-white" />
+                            <span className="text-white font-semibold text-sm">Register Subject</span>
                         </div>
+                        <EllipsisVertical />
                     </div>
-                </div>
 
-                {/* Right Column - Subject Selection */}
-                <div className="shrink">
-                    <SubjectSelection selectClass={selectClass} />
+                    {successfully ? (
+                        <StudentRegisteredSuccessfully setSuccessfully={setSuccessfully} />
+                    ) : (
+                        <div className="bg-white/35 backdrop-blur-sm px-8 pb-8 pt-6">
+
+                            {/* Step badge */}
+                            <div className="inline-flex items-center gap-2 bg-chestnut/8 rounded-full pl-1.5 pr-3 py-1 mb-5">
+                                <span className="w-5 h-5 rounded-full bg-chestnut text-white text-[10px] font-bold flex items-center justify-center">
+                                    1
+                                </span>
+                                <span className="text-[11px] font-bold text-chestnut tracking-wide uppercase">
+                                    Personal Information
+                                </span>
+                            </div>
+
+                            {/* ── Avatar ──────────────────────────────────────────── */}
+                            <div className="flex items-center gap-4 pb-5 border-b border-chestnut/10 mb-6">
+                                <div
+                                    onClick={handleClick}
+                                    className="relative w-[72px] h-[72px] rounded-full border-[2.5px] border-chestnut bg-chestnut/5 flex items-center justify-center cursor-pointer group overflow-hidden flex-shrink-0"
+                                >
+                                    {photoPreview ? (
+                                        <img src={photoPreview} alt="preview" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <svg className="w-7 h-7 text-chestnut/40" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                                        </svg>
+                                    )}
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <Camera className="text-white w-5 h-5" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-bold text-chestnut mb-0.5">Profile Picture</h3>
+                                    <p className="text-xs text-gray-400">JPG or PNG · max 2MB · passport-style photo</p>
+                                    <span className="mt-1.5 inline-block text-[10px] font-bold text-chestnut bg-chestnut/8 border border-chestnut/20 rounded-full px-3 py-0.5 tracking-wide uppercase">
+                                        Click to upload
+                                    </span>
+                                </div>
+                                <input
+                                    type="file"
+                                    ref={fileRef}
+                                    accept="image/png, image/jpeg"
+                                    className="hidden"
+                                    onChange={handleFileChange}
+                                />
+                            </div>
+
+                            <form onSubmit={handleSubmit(handleRegister)} className="w-[766px] mx-auto space-y-2.5 mt-[50px]">
+
+                                    {errorMsg && (
+                                        <div
+                                            role="alert"
+                                            className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm mb-5"
+                                        >
+                                            <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-50" />
+                                            <span>{errorMsg}</span>
+                                        </div>
+                                    )}
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-chestnut text-sm font-semibold">First Name</Label>
+                                        <Input {...register("firstName")} placeholder="student name " className="relative ring-2 ring-chestnut/40 w-full font-medium border-0 px-4 py-2 text-base rounded-md shadow-sm placeholder:text-chestnut text-chestnut placeholder:font-normal outline-none" />
+                                        {errors.firstName && (
+                                            <p className="text-red-500 text-xs mt-1 pl-2">{errors.firstName.message}</p>
+                                        )}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-chestnut text-sm font-semibold">Last  Name</Label>
+                                        <Input {...register("lastName")} placeholder="student last name " className="relative ring-2 ring-chestnut/40 w-full font-medium border-0 px-4 py-2 text-base rounded-md shadow-sm placeholder:text-chestnut text-chestnut placeholder:font-normal outline-none" />
+                                        {errors.lastName && (
+                                            <p className="text-red-500 text-xs mt-1 pl-2">{errors.lastName.message}</p>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="text-chestnut text-sm font-semibold">Middle Name </Label>
+                                    <Input {...register("middleName")} placeholder="student middle name " className="relative ring-2 ring-chestnut/40 w-full font-medium border-0 px-4 py-2 text-base rounded-md shadow-sm placeholder:text-chestnut text-chestnut placeholder:font-normal outline-none" />
+                                    {errors.middleName && (
+                                        <p className="text-red-500 text-xs mt-1 pl-2">{errors.middleName.message}</p>
+                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-2 items-center gap-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-chestnut text-sm font-semibold">Username</Label>
+                                        <Input readOnly
+                                            placeholder="Auto-generated" {...register("username")} className="relative ring-2 ring-chestnut/40 w-full font-medium border-0 px-4 py-2 text-base rounded-md shadow-sm placeholder:text-chestnut text-chestnut placeholder:font-normal outline-none" />
+                                        {errors.username && (
+                                            <p className="text-red-500 text-xs mt-1 pl-2">{errors.username.message}</p>
+                                        )}
+                                    </div>
+
+                                    <Controller
+                                        name="dateOfBirth"
+                                        control={control}
+                                        rules={{ required: "Date of birth is required" }}
+                                        render={({ field }) => (
+                                            <div className="space-y-1.5 mt-1.5">
+                                                <Label className="text-chestnut text-xs font-bold">
+                                                    Date of Birth
+                                                </Label>
+
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <div
+                                                            className={cn(
+                                                                "w-full ring-2 ring-chestnut/40 bg-transparent rounded-md px-3 py-2 text-sm font-medium flex items-center gap-2 outline-none hover:ring-chestnut/50 transition",
+                                                                field.value ? "text-chestnut" : "text-chestnut/30"
+                                                            )}
+                                                        >
+                                                            <CalendarIcon className="w-4 h-4 text-chestnut/50 shrink-0" />
+                                                            {field.value
+                                                                ? format(new Date(field.value), "dd MMM yyyy")  // ← wrap in new Date() to be safe
+                                                                : "Select date of birth"}
+
+                                                        </div>
+                                                    </PopoverTrigger>
+
+                                                    <PopoverContent className="w-auto p-0" align="start">
+                                                        <Calendar
+                                                            mode="single"
+                                                            selected={field.value}
+                                                            onSelect={field.onChange}
+                                                            initialFocus
+                                                            captionLayout="dropdown"
+                                                            fromYear={1990}
+                                                            toYear={new Date().getFullYear()}
+                                                        />
+                                                    </PopoverContent>
+                                                </Popover>
+                                                {errors.dateOfBirth && (
+                                                    <p className="text-red-500 text-xs mt-1 pl-2">{errors.dateOfBirth.message}</p>
+                                                )}
+                                            </div>
+                                        )}
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label className="text-chestnut text-sm font-semibold">Guardian  Name (optional)</Label>
+                                    <Input {...register("guardianName")} placeholder="student Guardian  name" className="relative ring-2 ring-chestnut/40 w-full font-medium border-0 px-4 py-2 text-base rounded-md shadow-sm placeholder:text-chestnut text-chestnut placeholder:font-normal outline-none" />
+                                    {errors.guardianName && (
+                                        <p className="text-red-500 text-xs mt-1 pl-2">{errors.guardianName.message}</p>
+                                    )}
+                                </div>
+
+                                <div className="mt-7 flex items-center justify-center flex-col">
+                                    {/* Register button */}
+                                    <button
+                                        type="submit"
+                                        disabled={loading}
+                                        className="flex items-center justify-center gap-2 text-white font-semibold text-sm px-8 py-3 rounded-md transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed mb-3 bg-chestnut"
+                                    >
+                                        {loading ? (
+                                            <>
+                                                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                                                <span>Creating...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Plus className="size-4" aria-hidden="true" />
+                                                <span>Continue</span>
+                                            </>
+                                        )}
+                                    </button>
+
+                                    {/* Hint */}
+                                    <div className="flex items-center gap-1.5">
+                                        <CircleAlert className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                        <span className="text-[11px] text-gray-400">
+                                            You can add multiple student one after another
+                                        </span>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>)}
                 </div>
             </div>
 
+            <ClassDialog
+                open={classDialogOpen}
+                onOpenChange={setClassDialogOpen}
+                studentName={studentName}
+                studentUsername={username}
+                studentDob={TDob ? format(new Date(TDob), 'dd MMM yyyy') : "—"}
+                onSave={(data) => {
+                    setSuccessfully(true)
+                    console.log(data); // { assignedClass, levels, subjects }
+                }}
+            />
+        </>
+    )
+};
+export default Enrollment;
+
+
+import { motion } from "framer-motion";
+import ClassDialog from "./class-dialog";
+import { useNavigate } from "react-router-dom";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { Controller, useForm, type Resolver } from "react-hook-form";
+import { studentFormSchema, UserRole, type StudentFormValues } from "@/utils/validate";
+import { AxiosError } from "axios";
+import { Hashing, localData } from "@/utils";
+import type { Tuser } from "@/utils/decode";
+import type { SchoolInfo } from "@/services";
+
+const AnimatedSuccessIcon = () => {
+    return (
+        <motion.div
+            initial={{ scale: 0.6, opacity: 0, filter: "blur(6px)" }}
+            animate={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
+            transition={{
+                type: "spring",
+                stiffness: 200,
+                damping: 12,
+            }}
+            className="relative flex items-center justify-center"
+        >
+            {/* Glow */}
+            <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{
+                    scale: [1, 1.4],
+                    opacity: [0.3, 0],
+                }}
+                transition={{
+                    duration: 1,
+                    ease: "easeOut",
+                }}
+                className="absolute w-28 h-28 rounded-full bg-green-400/30"
+            />
+
+            {/* Circle */}
+            <div className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center">
+                <svg viewBox="0 0 52 52" className="w-10 h-10" fill="none">
+                    <motion.path
+                        d="M14 27 L22 35 L38 19"
+                        stroke="white"
+                        strokeWidth="4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        initial={{ pathLength: 0 }}
+                        animate={{
+                            pathLength: 1,
+                            rotate: [0, 10, -10, 0],
+                        }}
+                        transition={{
+                            duration: 0.5,
+                            ease: "easeInOut",
+                            delay: 0.2,
+                        }}
+                    />
+                </svg>
+            </div>
+        </motion.div>
+    );
+};
+
+const StudentRegisteredSuccessfully = ({ setSuccessfully }: { setSuccessfully: (boolean: false) => void }) => {
+    const navigate = useNavigate()
+    return (
+        <div className="min-h-[80vh] bg-white/35 backdrop-blur-sm flex items-center justify-center px-4">
+            <div className="w-full max-w-md text-center space-y-6">
+
+                {/* 🔥 Animated Success Icon */}
+                <AnimatedSuccessIcon />
+
+                {/* TEXT */}
+                <div className="space-y-2">
+                    <h3 className="text-gray-900 font-semibold text-xl">
+                        Student registered successfully!
+                    </h3>
+
+                    <p className="text-gray-500 text-sm leading-relaxed">
+                        Tee Wealth has been added to{" "}
+                        <span className="font-medium text-gray-700">
+                            JSS 1A Section
+                        </span>{" "}
+                        for the{" "}
+                        <span className="font-medium text-gray-700">
+                            2026 / 2027
+                        </span>{" "}
+                        session.
+                    </p>
+                </div>
+
+                {/* ACTIONS */}
+                <div className="space-y-3 pt-2">
+                    <button onClick={() => setSuccessfully(false)} className="w-full flex items-center justify-center gap-2.5 border border-gray-200 text-gray-600 font-medium text-sm py-3 rounded-xl hover:bg-gray-50 transition">
+                        <Plus className="w-4 h-4" />
+                        Add Another Student
+                    </button>
+
+                    <button onClick={() => navigate("/admin/registration/student/students")} className="w-full py-3 rounded-xl bg-chestnut text-white font-medium text-sm hover:opacity-90 transition">
+                        View All Students
+                    </button>
+                </div>
+            </div>
         </div>
     );
 };
 
-export default Enrollment;

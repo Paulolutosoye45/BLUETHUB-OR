@@ -12,7 +12,7 @@ import { Check, ChevronDown, UserCircle } from "lucide-react";
 
 const TeacherMain = () => {
     // Define your roles in an array
-    const roles = [{ label: "subject-teacher" }, { label: "head-Teacher" }];
+    const roles = [{ label: "Teacher" }, { label: "head-Teacher" }];
 
     const actions = [
         { label: "New User", variant: "primary", path: "" },
@@ -22,8 +22,8 @@ const TeacherMain = () => {
     const [selectRole, setSelectRole] = useState<string>("");
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     return (
-        <div className="pt-4">
-            <section className=" rounded-2xl shadow-sm drop-shadow-sm bg-white/85  bg-opacity-80 h-[97vh] ">
+        <div>
+            <section className="rounded-2xl shadow-sm drop-shadow-sm bg-white/85  bg-opacity-80 h-[97vh] ">
                 <section className="bg-chestnut   py-4 px-7 rounded-t-4xl ">
                     <h1 className="font-poppins font-semibold text-white text-xl">
                         Teacher’s Details

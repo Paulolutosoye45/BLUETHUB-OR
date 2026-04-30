@@ -1,157 +1,167 @@
-import { useState } from "react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  Label,
-  Button,
-  RadioGroup,
-  RadioGroupItem,
-} from "@bluethub/ui-kit";
-import { Check, ChevronDown } from "lucide-react";
-import { ClassCategory, type course, type SubjectType } from "@/utils/constant";
-import Tabs from "@/component/tabs";
+import { useEffect, useState } from "react";
+// import EmptyClass from "./class/empty-subject";
+import { schoolService } from "@/services/school";
+// import type { SchoolInfo } from "@/services";
+// import { localData } from "@/utils";
+import { AxiosError } from "axios";
+import { AlertCircle, RefreshCcw } from "lucide-react";
+import ViewAllSubject from "./class/view-all-subject";
+import EmptySubject from "./class/empty-subject";
+
+export interface Subject {
+  id: string;
+  name: string;
+  description: string | null;
+  classCategory: number;
+  classCategoryName: string;
+  subjectCategory: number;
+  subjectCategoryName: "Major" | "Minor";
+  isActive: boolean;
+  creationDate: string;
+  modifiedDate: string;
+}
 
 const CoursesMain = () => {
-  const options = [
-    { label: "MAJOR", value: 1 },
-    { label: "MINOR", value: 2 },
-  ] satisfies { label: string; value: SubjectType }[];
-  const [selected, setSelected] = useState<SubjectType | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [subjectName, setSubjectName] = useState<string>("");
-  const [courses, setCourses] = useState<course[]>([]);
-  const [classType, setClassType] = useState<ClassCategory>(ClassCategory.Primary)
+  const [loading, setLoading] = useState(false);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const handleSelect = (value: SubjectType) => {
-    setSelected(value);
-    setIsOpen(false);
-  };
 
-  const status = true;
-  const handleCourse = () => {
-    if (selected && subjectName.trim()) {
-      setCourses((prev) => [
-        ...prev,
-        { category: selected, subject: subjectName, isActive: status, classCategory: classType },
-      ]);
-      setSubjectName("");
-      // setSelected(null);
+  const fetchSubjects = async () => {
+    try {
+      setLoading(true);
+      const { data } = await schoolService.getAllSubject();
+      setSubjects(data.data.subjects ?? []);
+    } catch (error) {
+      const msg =
+        error instanceof AxiosError
+          ? error.response?.data?.responseMessage ??
+          error.response?.data?.message ??
+          error.message
+          : (error as Error).message;
+      setErrorMsg(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchSubjects();
+  }, []);
+
+  if (loading) return (
+    <div className="animate-shimmer p-6">
+        {/* Top bar skeleton */}
+        <div className="bg-chestnut px-5 py-3 flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+                <div className="w-5 h-5 bg-white/20 rounded" />
+                <div className="h-4 w-32 bg-white/20 rounded-md" />
+            </div>
+            <div className="w-5 h-5 bg-white/20 rounded" />
+        </div>
+
+        <div className="p-6 space-y-6 bg-student-chestnut">
+            {/* Title + button */}
+            <div className="flex items-start justify-between">
+                <div className="space-y-2">
+                    <div className="h-6 w-44 bg-gray-200 rounded-md" />
+                    <div className="h-3 w-72 bg-gray-100 rounded-md" />
+                </div>
+                <div className="h-9 w-32 bg-gray-200 rounded-lg" />
+            </div>
+
+            {/* Stat cards */}
+            <div className="grid grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className="border border-gray-100 rounded-xl p-4 flex items-center gap-3">
+                        <div className="w-8 h-8 bg-gray-100 rounded-lg shrink-0" />
+                        <div className="space-y-1.5">
+                            <div className="h-5 w-8 bg-gray-200 rounded" />
+                            <div className="h-3 w-24 bg-gray-100 rounded" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            {/* Search + filter */}
+            <div className="flex items-center gap-3">
+                <div className="flex-1 h-10 bg-gray-100 rounded-lg" />
+                <div className="flex gap-2">
+                    {[...Array(4)].map((_, i) => (
+                        <div key={i} className="h-8 w-14 bg-gray-100 rounded-lg" />
+                    ))}
+                </div>
+            </div>
+
+            {/* Table header */}
+            <div className="border border-gray-100 rounded-xl overflow-hidden">
+                <div className="grid grid-cols-4 px-5 py-3 bg-gray-50 gap-4">
+                    {["w-4", "w-32", "w-20", "w-16"].map((w, i) => (
+                        <div key={i} className={`h-3 ${w} bg-gray-200 rounded`} />
+                    ))}
+                </div>
+
+                {/* Table rows */}
+                <div className="divide-y divide-gray-50">
+                    {[...Array(8)].map((_, i) => (
+                        <div
+                            key={i}
+                            className="grid grid-cols-4 px-5 py-4 gap-4 items-center"
+                            style={{ opacity: 1 - i * 0.08 }} // fade out towards bottom
+                        >
+                            <div className="h-3 w-5 bg-gray-100 rounded" />
+                            <div className="h-3.5 w-36 bg-gray-200 rounded" />
+                            <div className="h-6 w-16 bg-green-50 rounded-full" />
+                            <div className="flex items-center justify-between">
+                                <div className="h-3 w-14 bg-gray-100 rounded" />
+                                <div className="h-7 w-12 bg-gray-200 rounded-lg" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    </div>
+);
+
+  if (errorMsg) return (
+    <div className="flex flex-col min-h-screen items-center justify-center py-16 px-6 text-center space-y-4">
+      {/* Icon */}
+      <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
+        <AlertCircle className="size-8 text-red-500" />
+      </div>
+
+      {/* Text */}
+      <div className="space-y-1">
+        <h3 className="text-sm font-semibold text-gray-800">Something went wrong</h3>
+        <p className="text-xs text-gray-500 max-w-xs">{errorMsg}</p>
+      </div>
+
+      {/* Retry */}
+      <button
+        onClick={() => {
+          setErrorMsg("");
+          setLoading(true);
+          fetchSubjects();
+        }}
+        className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-chestnut rounded-lg hover:opacity-90 transition-opacity"
+      >
+        <RefreshCcw className="size-3.5" />
+        Try again
+      </button>
+    </div>
+  );
 
 
   return (
-    <div>
-      <section className="max-w-7xl mx-auto flex flex-col md:flex-row md:space-x-10 justify-between my-7 md:px-7 pb-7">
-        {/* Left Column */}
-        <div className="w-full md:w-95.5 relative mb-6 md:mb-0">
-          <div className="space-y-3 w-full max-w-105">
-            <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
-              Category
-            </Label>
-
-            <DropdownMenu onOpenChange={setIsOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={`relative ring-2 w-full justify-between font-medium transition-all duration-300 border-0 py-6 px-4 text-base rounded-xl group ${selected
-                    ? "ring-chestnut/40 text-chestnut bg-chestnut/5"
-                    : "ring-chestnut/20 text-chestnut/50 bg-white/80"
-                    } hover:ring-chestnut/40 hover:bg-chestnut/5 focus:ring-chestnut/50 focus:ring-4`}
-                >
-                  <span className={selected ? "text-chestnut font-semibold" : ""}>
-                    {selected
-                      ? options.find((o) => o.value === selected)?.label
-                      : "Select subject type"}
-                  </span>
-                  <ChevronDown
-                    className={`w-5 h-5 text-chestnut/70 transition-transform duration-300 ${isOpen ? "rotate-180" : ""
-                      }`}
-                  />
-                </Button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent
-                className="w-(--radix-dropdown-menu-trigger-width) rounded-xl border-2 border-chestnut/10 shadow-xl bg-white/95 backdrop-blur-sm p-2"
-                align="start"
-                sideOffset={8}
-              >
-                <DropdownMenuGroup className="space-y-1">
-                  {options.map(({ label, value }) => (
-                    <DropdownMenuItem
-                      key={label}
-                      className={`font-medium text-base py-3 px-4 rounded-lg cursor-pointer transition-all duration-200 ${selected === value
-                        ? "bg-chestnut text-white"
-                        : "text-chestnut hover:bg-chestnut/10 hover:text-chestnut"
-                        }`}
-                      onClick={() => handleSelect(value)}
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <span>{label} </span>
-                        {selected === value && (
-                          <Check className="w-5 h-5 ml-2 text-white" />
-                        )}
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-
-          {/* Subject Name Input */}
-          <div>
-            <h2 className="text-chestnut  text-xl font-medium my-4">
-              Subject Name
-            </h2>
-            <input
-              placeholder="E.g. Mathematics"
-              className="relative ring-2 ring-chestnut/40 w-full justify-between font-medium transition-all duration-300 border-0 p-4 text-base rounded-xl group shadow-sm placeholder:text-chestnut text-chestnut placeholder:font-semibold placeholder:font-hand outline-none"
-              value={subjectName}
-              onChange={(e) => setSubjectName(e.target.value)}
-            />
-          </div>
-
-          <div className=" py-6 rounded-lg">
-            <div>
-              <Label className="text-chestnut font-medium mb-3 block">
-                Class Category
-              </Label>
-              <RadioGroup
-                value={String(classType)}
-                onValueChange={(value) => setClassType(Number(value) as ClassCategory)}
-                className="flex"
-              >
-                {Object.entries(ClassCategory).map(([label, value]) => (
-                  <div key={value} className="flex items-center gap-2">
-                    <RadioGroupItem className="text-chestnut" value={String(value)} id={`r${value}`} />
-                    <Label className="text-chestnut" htmlFor={`r${value}`}>{label}</Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-          </div>
-
-          <Button
-            className="py-4 px-7 cursor-pointer rounded-[10px] float-end mr-2 my-7 hover:opacity-75 hover:bg-[#EC1B2C] bg-[#EC1B2C] border font-poppins font-semibold text-base leading-[18.67px]"
-            onClick={handleCourse}
-          >
-            Add subject{" "}
-          </Button>
-        </div>
-
-        {/* Right Column (Tabs) */}
-        <div className="w-full md:basis-180 shadow-inner">
-          <Tabs tabs={courses} selected={selected} />
-        </div>
-      </section>
-    </div>
+    <>
+      {subjects.length === 0 ? (
+        <EmptySubject />
+      ) : (
+        <ViewAllSubject />
+      )}
+    </>
   );
 };
 
 export default CoursesMain;
-// PickaTestApp2305$

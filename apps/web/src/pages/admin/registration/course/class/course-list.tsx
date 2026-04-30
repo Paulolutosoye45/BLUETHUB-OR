@@ -1,12 +1,12 @@
 // import type { course } from "@/utils/constant";
 import { Label } from "@bluethub/ui-kit";
-import type { ISubjectList } from "./class-registration";
+// import type { ISubjectList } from "./class-registration";
 
 interface CourseListProps {
     title: string;
-    courses: ISubjectList[];
-    activeCourses: ISubjectList[];
-    setActiveCourses: React.Dispatch<React.SetStateAction<ISubjectList[]>>;
+    courses: any[];
+    activeCourses: any[];
+    setActiveCourses: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
 const CourseList = ({
@@ -17,7 +17,7 @@ const CourseList = ({
 }: CourseListProps) => {
 
     
-    const handleCheckboxChange = (course: ISubjectList) => {
+    const handleCheckboxChange = (course: any) => {
         if (activeCourses.some((c) => c.subject === course.subject)) {
             setActiveCourses((prev) =>
                 prev.filter((c) => c.subject !== course.subject)

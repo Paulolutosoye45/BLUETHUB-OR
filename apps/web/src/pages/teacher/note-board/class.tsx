@@ -11,10 +11,11 @@ import {
 } from "react-konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBezierPoints, gzipCompress } from "@/utils/gzip";
-import { addStrokes } from "@/services/class";
+import { addStrokes } from "@/utils/db";
 import { formatTime, parseTime } from "@/utils";
 import type { RootState } from "@/store";
 import { holdCurrentTime, setSendQueueRefList } from "@/store/class-action-slice";
+import { useSession } from "@/contexts/session-context"; // kept for sendMediaShow/sendMediaHide only
 import { useDispatch, useSelector } from "react-redux";
 import { useGlobalTimer } from "@/hooks/useGlobalTimer";
 import { type Position } from "@/utils/constant";
@@ -42,6 +43,44 @@ const Class = () => {
     const sessionIdRef = useSelector((state: RootState) => state.action.sessionIdRef);
     const selectedImage = useSelector((state: RootState) => state.action.selectedImage);
 
+    // useSession used only for media show/hide manifest tracking
+    const { sendMediaShow, sendMediaHide } = useSession();
+
+    // Track media show/hide for manifest
+    const prevSelectedImageIdRef = useRef<string | null>(null);
+    const timerDisplay = useSelector((state: RootState) => state.action.timerDisplay);
+
+    useEffect(() => {
+        const prev = prevSelectedImageIdRef.current;
+        const next = selectedImage?.id ?? null;
+
+        if (next && next !== prev && isRecording) {
+            // A new image was shown
+            sendMediaShow({
+                mediaId:      next,
+                name:         selectedImage!.name,
+                mediaType:    selectedImage!.type,
+                url:          selectedImage!.url,
+                timerDisplay,
+            });
+        } else if (!next && prev && isRecording) {
+            // The image was hidden
+            sendMediaHide(prev, timerDisplay);
+        } else if (next && prev && next !== prev && isRecording) {
+            // Switched from one image to another — hide old, show new
+            sendMediaHide(prev, timerDisplay);
+            sendMediaShow({
+                mediaId:      next,
+                name:         selectedImage!.name,
+                mediaType:    selectedImage!.type,
+                url:          selectedImage!.url,
+                timerDisplay,
+            });
+        }
+
+        prevSelectedImageIdRef.current = next;
+    }, [selectedImage?.id, isRecording]);
+
     const [actions, setAction] = useState<string | null>(ACTIONS.SELECT);
     const [strokes, setStrokes] = useState<Stroke[]>([]);
     const [currentStroke, setCurrentStroke] = useState<number[]>([]);
@@ -57,7 +96,9 @@ const Class = () => {
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
     const trRef = useRef<Konva.Transformer | null>(null);
     const parentRef = useRef<HTMLDivElement>(null);
-    const strokeTimesRef = useRef({ start: "", end: "" });
+    // startWallMs / endWallMs: ms-precise wall-clock captured at mousedown/mouseup.
+    // Used instead of timerDisplay (1-second floor resolution) for replay sync.
+    const strokeTimesRef = useRef({ start: "", end: "", startWallMs: 0, endWallMs: 0 });
     const rectRef = useRef(null);
     const isDrawing = useRef(false);
     const strokeColor = "#000";
@@ -171,29 +212,27 @@ const Class = () => {
         stroke?: string;
         strokeWidth?: number;
     }) => {
-        const strokeId = isRecording && sessionIdRef ? sessionIdRef : null;
         const startTime = strokeTimesRef.current.start;
-        const endTime = strokeTimesRef.current.end;
+        const endTime   = strokeTimesRef.current.end;
 
         const compressed = await gzipCompress(JSON.stringify(shape));
         const base64Data = btoa(String.fromCharCode(...compressed));
 
         const compressedShape = {
-            id: shape.id,
-            sessionId: strokeId,
-            data: base64Data,
-            color: shape.stroke || shape.fillColor || "#df4b26",
-            width: shape.strokeWidth || 2,
-            type: shape.type,
-            timestamp: Date.now(),
-            duration: 0,
+            id:           shape.id,
+            sessionId:    sessionIdRef,
+            data:         base64Data,
+            color:        shape.stroke || shape.fillColor || "#df4b26",
+            width:        shape.strokeWidth || 2,
+            type:         shape.type,
+            timestamp:    Date.now(),
+            duration:     0,
             currentBoard,
             startTime,
             endTime,
         };
 
         dispatch(setSendQueueRefList([compressedShape]));
-
         try {
             if (isRecording) await addStrokes([compressedShape]);
         } catch (err) {
@@ -202,8 +241,6 @@ const Class = () => {
     }, [isRecording, sessionIdRef, currentBoard, dispatch]);
 
     const penDownEvent = useCallback(async (p: Position | null, type: "stroke" | "eraser" = "stroke") => {
-        const eventStartTime = performance.now();
-
         const updatedStroke = p ? [...currentStroke, p.x, p.y] : currentStroke;
 
         if (updatedStroke.length < 4) {
@@ -211,37 +248,44 @@ const Class = () => {
             return;
         }
 
-        const smoothed = getBezierPoints(updatedStroke);
+        // ⚠️ Capture ALL ref values BEFORE the first await.
+        // gzipCompress is async — another mousedown can fire during that gap and
+        // overwrite strokeTimesRef fields, causing every rapid stroke to share
+        // the same timestamp and appear simultaneously in replay.
+        const timestamp = strokeTimesRef.current.startWallMs || Date.now();
+        const duration  = strokeTimesRef.current.endWallMs - strokeTimesRef.current.startWallMs;
+        const startTime = strokeTimesRef.current.start;
+        const endTime   = strokeTimesRef.current.end;
+        const strokeId  = isRecording && sessionIdRef ? sessionIdRef : null;
+
+        const smoothed  = getBezierPoints(updatedStroke);
         const compressed = await gzipCompress(JSON.stringify(smoothed));
         const base64Stroke = btoa(String.fromCharCode(...compressed));
 
-        const strokeId = isRecording && sessionIdRef ? sessionIdRef : null;
-        const interactionDuration = performance.now() - eventStartTime;
-
         const newStroke = {
             type,
-            id: crypto.randomUUID(),
-            points: smoothed,
-            color: type === "eraser" ? "#000" : selectedFillColor || "#df4b26",
-            width: type === "eraser" ? 30 : 2,
-            timestamp: Date.now(),
-            duration: interactionDuration,
-            startTime: strokeTimesRef.current.start,
-            endTime: strokeTimesRef.current.end,
+            id:        crypto.randomUUID(),
+            points:    smoothed,
+            color:     type === "eraser" ? "#000" : selectedFillColor || "#df4b26",
+            width:     type === "eraser" ? 30 : 2,
+            timestamp,
+            duration,
+            startTime,
+            endTime,
         };
 
         const compressedStroke = {
-            id: newStroke.id,
-            sessionId: strokeId,
-            data: base64Stroke,
-            color: newStroke.color,
-            width: newStroke.width,
+            id:           newStroke.id,
+            sessionId:    strokeId,
+            data:         base64Stroke,
+            color:        newStroke.color,
+            width:        newStroke.width,
             type,
-            timestamp: newStroke.timestamp,
-            duration: newStroke.duration,
+            timestamp,
+            duration,
             currentBoard,
-            startTime: newStroke.startTime,
-            endTime: newStroke.endTime,
+            startTime,
+            endTime,
         };
 
         setStrokes((prev) => [...prev, newStroke]);
@@ -264,7 +308,8 @@ const Class = () => {
 
         isDrawing.current = true;
         shapeStartPos.current = pos;
-        strokeTimesRef.current.start = timer.timerDisplay;
+        strokeTimesRef.current.start      = timer.timerDisplay;
+        strokeTimesRef.current.startWallMs = Date.now(); // ms-precise mousedown time
 
         switch (actions) {
             case ACTIONS.PEN:
@@ -405,7 +450,8 @@ const Class = () => {
         if (!isRecording || pauseTime) return;
         if (!isDrawing.current) return;
         isDrawing.current = false;
-        strokeTimesRef.current.end = timer.timerDisplay;
+        strokeTimesRef.current.end      = timer.timerDisplay;
+        strokeTimesRef.current.endWallMs = Date.now(); // ms-precise mouseup time
 
         switch (actions) {
             case ACTIONS.PEN:

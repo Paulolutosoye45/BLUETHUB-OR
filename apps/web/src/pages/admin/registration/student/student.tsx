@@ -1,25 +1,100 @@
-import { Link } from "react-router-dom"
+import { authService } from "@/services/auth";
+import { AxiosError } from "axios";
+// import { AlertCircle, RefreshCcw } from "lucide-react";
+import { useEffect, useState } from "react";
+import EmptyStudent from "./empty-student";
 
 const Student = () => {
-    return (
-        <div className="flex items-center justify-center">
-            <div className="w-full max-w-2xl border rounded-[5px] border-white/20 shadow-xl overflow-hidden drop-shadow-white">
-                <div className="flex justify-center h-[70vh] flex-col p-8 space-y-4 text-center">
-                    <Link
-                        to="/admin/registration/student/new"
-                        className="w-full py-7 bg-[#2B3E8F] hover:bg-[#2B3E8F]/90 text-white font-semibold text-lg rounded-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg"
-                    >
-                        New User
-                    </Link>
-                    <Link
-                        to="/admin/registration/student/edit"
-                        className="w-full py-7 bg-white hover:bg-gray-50 border-2 border-gray-300 text-[#EC1B2C] font-semibold text-lg rounded-lg transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                        Edit Profile
-                    </Link>
-                </div>
-            </div>
+    const [loading, setLoading] = useState(false);
+  // const [subjects, setSubjects] = useState<any[]>([]);
+  const [, setErrorMsg] = useState("");
+
+
+  const fetchStudent = async () => {
+    try {
+      setLoading(true);
+      const { data } = await authService.getStudents({ pageNumber: 2, pageSize: 100 });
+      console.log(data)
+    } catch (error) {
+      const msg =
+        error instanceof AxiosError
+          ? error.response?.data?.responseMessage ??
+          error.response?.data?.message ??
+          error.message
+          : (error as Error).message;
+      setErrorMsg(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+ fetchStudent();
+  }, []);
+
+  if (loading) return (
+    <div className="p-6 space-y-6 animate-pulse">
+      {/* Header skeleton */}
+      <div className="flex items-center justify-between">
+        <div className="h-7 w-40 bg-gray-200 rounded-md" />
+        <div className="h-9 w-32 bg-gray-200 rounded-lg" />
+      </div>
+
+      {/* Two column subject list skeleton */}
+      <div className="flex gap-6">
+        {/* Major column */}
+        <div className="flex-1 space-y-3">
+          <div className="h-8 w-28 bg-chestnut/20 rounded-lg" />
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-9 w-full bg-gray-100 rounded-md" />
+          ))}
         </div>
+
+        {/* Divider */}
+        <div className="w-1 bg-gray-200 self-stretch rounded-full" />
+
+        {/* Minor column */}
+        <div className="flex-1 space-y-3">
+          <div className="h-8 w-28 bg-gray-200 rounded-lg" />
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="h-9 w-full bg-gray-100 rounded-md" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // if (errorMsg) return (
+  //   <div className="flex flex-col min-h-screen items-center justify-center py-16 px-6 text-center space-y-4">
+  //     {/* Icon */}
+  //     <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center">
+  //       <AlertCircle className="size-8 text-red-500" />
+  //     </div>
+
+  //     {/* Text */}
+  //     <div className="space-y-1">
+  //       <h3 className="text-sm font-semibold text-gray-800">Something went wrong</h3>
+  //       <p className="text-xs text-gray-500 max-w-xs">{errorMsg}</p>
+  //     </div>
+
+  //     {/* Retry */}
+  //     <button
+  //       onClick={() => {
+  //         setErrorMsg("");
+  //         setLoading(true);
+  //         fetchStudent();
+  //       }}
+  //       className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white bg-chestnut rounded-lg hover:opacity-90 transition-opacity"
+  //     >
+  //       <RefreshCcw className="size-3.5" />
+  //       Try again
+  //     </button>
+  //   </div>
+  // );
+
+
+    return (
+        <div><EmptyStudent/></div>
     )
 }
 

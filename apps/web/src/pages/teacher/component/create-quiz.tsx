@@ -136,7 +136,7 @@ const CreateQuizQuestion = () => {
   return (
     <div className="p-6 font-poppins">
       <div className="backdrop-blur-sm rounded-2xl border border-white/20  overflow-hidden">
-        <TitleBar title="question" hasVertical />
+        <TitleBar title="question" hasVertical hasBackIcons />
         <div className="flex-1 p-8 bg-white/70 backdrop-blur-sm">
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>

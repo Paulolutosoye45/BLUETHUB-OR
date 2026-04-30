@@ -1,5 +1,7 @@
-import schoolProfile from '@/assets/png/School.png'
+// import schoolProfile from '@/assets/png/School.png'
 import { useAuthContext } from '@/contexts/auth-context';
+import type { SchoolInfo } from '@/services';
+import { localData } from '@/utils';
 
 const AdminAppbar = () => {
   const { user } = useAuthContext();
@@ -14,6 +16,8 @@ const AdminAppbar = () => {
     day: "numeric",
     year: "numeric",
   });
+
+  const schoolProfile = localData.retrieve("schoolInfo") as SchoolInfo | null;
   return (
     <div className="w-full mx-auto border-0 bg-white rounded-lg flex h-[89px]  justify-between items-center mt-5 mb-4 py-5  px-7">
       <section>
@@ -28,8 +32,8 @@ const AdminAppbar = () => {
             {formattedDate}
           </span>
         </h2>
-        <div className=" rounded-full">
-          <img src={schoolProfile} alt="" className=" bg-white border-2 border-[#292382] w-[45.79px] h-[45.79px] rounded-full cursor-pointer" />
+        <div className="w-[45.79px] h-[45.79px]  rounded-full">
+          <img src={schoolProfile?.logoUrl} alt="" className=" bg-white border-2 border-chestnut  rounded-full  w-full h-full cursor-pointer" />
         </div>
       </section>
     </div>

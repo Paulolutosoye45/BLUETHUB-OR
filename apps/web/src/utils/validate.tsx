@@ -43,6 +43,12 @@ export const regUserSchema = yup.object({
     .required()
     .label("Username"),
 
+    dateOfBirth: yup
+  .date()
+  .required('Date of birth is required')
+  .max(new Date(), 'Date of birth cannot be in the future')
+  .typeError('Please select a valid date'),
+
   password: yup
     .string()
     .required()
@@ -101,3 +107,46 @@ export const UserRoleLabels: Record<UserRoleType, string> = {
   [UserRole.SuperAdministrator]: "Super Administrator",
   [UserRole.SubjectTeacher]: "Subject Teacher",
 };
+
+
+
+export const studentFormSchema = yup.object({
+  firstName: yup
+    .string()
+    .trim()
+    .required('First name is required')
+    .min(2, 'First name must be at least 2 characters')
+    .max(50, 'First name must not exceed 50 characters'),
+
+  lastName: yup
+    .string()
+    .trim()
+    .required('Last name is required')
+    .min(2, 'Last name must be at least 2 characters')
+    .max(50, 'Last name must not exceed 50 characters'),
+
+  middleName: yup
+    .string()
+    .trim()
+    .max(50, 'Middle name must not exceed 50 characters')
+    .optional(),
+
+  username: yup
+    .string()
+    .trim()
+    .optional(),
+
+dateOfBirth: yup
+  .date()
+  .required('Date of birth is required')
+  .max(new Date(), 'Date of birth cannot be in the future')
+  .typeError('Please select a valid date'),
+
+  guardianName: yup
+    .string()
+    .trim()
+    .max(100, 'Guardian name must not exceed 100 characters')
+    .optional(),
+});
+
+export type StudentFormValues = yup.InferType<typeof studentFormSchema>;

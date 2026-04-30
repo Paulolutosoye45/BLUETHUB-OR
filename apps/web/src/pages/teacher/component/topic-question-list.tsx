@@ -1,5 +1,6 @@
 import TitleBar from "@/shared/title-bar";
 import { Button } from "@bluethub/ui-kit";
+import { useNavigate } from "react-router-dom";
 // import { Link } from "react-router-dom";
 
 // ── Data ───────────────────────────────────────────────────────────────────
@@ -44,10 +45,12 @@ const TOPICS = [
 
 
 const TopicQuestionList = () => {
+
+  const navigate = useNavigate()
   return (
     <div className="p-6 font-poppins">
       <div className="backdrop-blur-sm rounded-2xl border border-white/20  overflow-hidden">
-        <TitleBar title="question" hasVertical />
+        <TitleBar title="question" hasVertical hasBackIcons onBack={() => navigate(-1)} />
         <div className="flex-1 p-8 bg-white/70 backdrop-blur-sm">
 
           <div className="flex items-center justify-between mb-6">
