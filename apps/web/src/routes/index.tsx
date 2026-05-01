@@ -64,6 +64,8 @@ import ClassviewAll from '@/pages/admin/registration/course/class/class-view-all
 import LessonApproval from '@/pages/admin/dashboard/lesson-approval';
 import MyLesson from '@/pages/teacher/component/my-lesson';
 import SubmitLesson from '@/pages/teacher/component/submit-lesson';
+import QuizIndex from '@/pages/teacher/quiz';
+import MySyllabus from '@/pages/teacher/Syllabus/my-syllabus';
 
 const router = createBrowserRouter([
     {
@@ -172,7 +174,7 @@ const router = createBrowserRouter([
 
             },
             {
-                path:'lesson-approval',
+                path: 'lesson-approval',
                 element: <LessonApproval />
             }
 
@@ -210,7 +212,9 @@ const router = createBrowserRouter([
                     { path: "classes/approval-status", element: <ApprovalStatus /> },
                     { path: "classes/approval-status/:id", element: <ApprovalStatusId /> },
                 ]
-            }
+            },
+            { path: "quiz", element: <QuizIndex /> },
+            { path: "syllabus", element: <MySyllabus /> },
         ]
     },
 

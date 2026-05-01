@@ -7,7 +7,7 @@ import { FileList, type FileItem } from "@/shared/file-list";
 import { MediaUpload } from "@/shared/media-upload";
 import { Button, Calendar, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, Input, Label, Popover, PopoverContent, PopoverTrigger, Textarea } from "@bluethub/ui-kit"
 import { format } from "date-fns";
-import { ArrowRight, CalendarIcon, Check, ChevronDown, Clock, EllipsisVertical, Plus } from "lucide-react"
+import {CalendarIcon, Check, ChevronDown, Clock, EllipsisVertical, Plus } from "lucide-react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import Recordedclass from "../dashboard/recorded-class";
@@ -40,7 +40,7 @@ const RecordedMain = () => {
         { id: "8", name: "SSS 3A" },
     ]);
 
-    const [selectedClass, setSelectedClass] = useState(null);
+    const [selectedClass, setSelectedClass] = useState<{ id: string; name: string } | null>(null);
 
     const [subjects,] = useState([
         { id: "1", name: "Mathematics", subjectCategoryName: "Major" },

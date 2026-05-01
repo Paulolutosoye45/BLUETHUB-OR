@@ -1,7 +1,7 @@
 import SchoolRef from "@/component/school-ref"
 import SideBar from "@/pages/admin/side-bar"
-import AdminTabMenu from "@/pages/admin/tab-menu"
-import schoolImage from "@/assets/png/School.png"
+// import AdminTabMenu from "@/pages/admin/tab-menu"
+// import schoolImage from "@/assets/png/School.png"
 import { Outlet } from "react-router-dom"
 
 const AdminLayout = () => {

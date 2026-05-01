@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, Input } from "@bluethub/ui-kit"
 import { SquarePen, X } from "lucide-react"
 import books from "@/assets/png/book.png"
-import { QuizReviewModal } from "./quiz-review-modal";
+import { QuizReviewModal, type Quiz } from "./quiz-review-modal";
 import { useState } from "react";
 
 interface SetQProps {
@@ -9,30 +9,30 @@ interface SetQProps {
     onOpenChange: (open: boolean) => void;
 }
 
+ export const quiz: Quiz = {
+    title: "Photosynthesis and plant nutrition",
+    teacher: "Mrs. Adaeze Okafor",
+    subject: "Basic Science",
+    class: "JSS 2A",
+    term: "Second term",
+    id: "SYL-2025-019",
+    questions: [
+        {
+            id: "q1",
+            question: "Which organelle is responsible for producing energy in the cell?",
+            type: "MCQ",
+            level: "Easy",
+        },
+        {  
+            id: "q2",
+            question: "The process by which plants make food using sunlight is called ___?",
+            type: "True/false",
+            level: "Medium",
+        },
+    ],
+};
 const SetQuestion = ({ open, onOpenChange }: SetQProps) => {
 
-    const quiz = {
-        title: "Photosynthesis and plant nutrition",
-        teacher: "Mrs. Adaeze Okafor",
-        subject: "Basic Science",
-        class: "JSS 2A",
-        term: "Second term",
-        id: "SYL-2025-019",
-        questions: [
-            {
-                id: "q1",
-                question: "Which organelle is responsible for producing energy in the cell?",
-                type: "MCQ",
-                level: "Easy",
-            },
-            {  
-                id: "q2",
-                question: "The process by which plants make food using sunlight is called ___?",
-                type: "True/false",
-                level: "Medium",
-            },
-        ],
-    };
     const [openModal, setOpenModal] = useState(false);
 
     return (

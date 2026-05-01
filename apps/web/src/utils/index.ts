@@ -27,6 +27,7 @@ export const token = {
     localStorage.removeItem("refreshToken"); // ✅ clear refresh token on logout
     localStorage.removeItem("schoolInfo");
     localStorage.removeItem("user");
+    localStorage.removeItem("school");
   },
 
   clearAll() {

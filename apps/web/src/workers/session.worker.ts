@@ -170,7 +170,7 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
       sessionId         = msg.sessionId;
       sessionStartMs    = msg.sessionStartMs;
       currentSlot       = 0;
-      strokeBuffer      = [];
+      // strokeBuffer      = [];
       batchMediaActions = [];
       hasStrokesInBatch = false;
       manifest          = { totalDuration: 0, totalBatches: 0, batches: [] };

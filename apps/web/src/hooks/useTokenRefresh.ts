@@ -27,7 +27,7 @@ export const useTokenRefresh = () => {
                     );
                 } catch {
                     localStorage.clear();
-                    window.location.href = '/auth';
+                    // window.location.href = '/auth';
                 }
             }
         };
