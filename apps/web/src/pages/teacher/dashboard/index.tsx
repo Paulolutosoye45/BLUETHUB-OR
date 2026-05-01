@@ -10,7 +10,7 @@ import UpcomingDeadlines from "./upcoming-deadlines"
 
 const TeacherDashboard = () => {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen px-6 pb-9">
       <div className="rounded-2xl overflow-hidden shadow-lg">
         <div className="flex items-center justify-between px-6 py-5 bg-chestnut">
           <h3 className="text-white font-semibold text-sm">Dashboard</h3>

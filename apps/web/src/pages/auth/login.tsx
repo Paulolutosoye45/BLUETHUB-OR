@@ -110,6 +110,7 @@ function Login() {
       if (result.firstTimeLogin) {
 
         // ✅ Store tokens before navigating
+        localStorage.setItem("username", data.userName);
         localStorage.setItem("token", result.token);
         localStorage.setItem("refreshToken", result.refreshToken);
         localData.save("schoolInfo", result.schoolInfo);

@@ -49,7 +49,7 @@ import Login from '@/pages/auth/login';
 import NewPassword from '@/pages/auth/new-password';
 import AdminProtectedRoute from '@/component/protected-routes/admin-routes';
 import { PublicRoute } from '@/component/protected-routes/public-route';
-// import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
+import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
 import StudentProtectedRoute from '@/component/protected-routes/student-routes';
 import UploadScan from '@/pages/teacher/component/upload-scan';
 import ReviewQuestion from '@/pages/teacher/component/review-question';
@@ -185,7 +185,7 @@ const router = createBrowserRouter([
     {
         path: '/teacher',
         element:
-            <TeacherLayout />,
+            <TeacherProtectedRoute><TeacherLayout /></TeacherProtectedRoute>,
         children: [
             {
                 index: true,

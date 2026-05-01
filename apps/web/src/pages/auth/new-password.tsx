@@ -39,10 +39,15 @@ const NewPassword = () => {
     } = useForm({ resolver: yupResolver(newPasswordSchema) });
 
     const schoolId = localData.retrieve("schoolInfo") as schoolInfo
-
+    
     const handleUpdatePassword = async (data: { hashPassword: string, password: string, confirmPassword: string }) => {
+        const username = localStorage.getItem("username")
         if (!schoolId?.id) {
             console.error("School info is missing. Cannot proceed.");
+            return;
+        }
+        if (!username) {
+            setErrorMsg("Username is missing. Cannot proceed.");
             return;
         }
         const deviceType = /Mobi|Android/i.test(navigator.userAgent) ? "Mobile" : "Desktop";
@@ -53,7 +58,7 @@ const NewPassword = () => {
             deviceType,
             deviceIp: "",
             schoolId: schoolId.id,
-            username: data.hashPassword,
+            username,
         }
         setErrorMsg("")
         try {
@@ -95,6 +100,8 @@ const NewPassword = () => {
                 navigate("/student");
             }
             // navigate('/auth')
+
+            localData.remove("username")
 
         } catch (error) {
             const msg =
