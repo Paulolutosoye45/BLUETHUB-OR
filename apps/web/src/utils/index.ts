@@ -73,15 +73,16 @@ export async function Hashing(password: string) {
     .join("");
   return hashHex;
 }
-//class Hashing {
-// static async hashPassword(password: string) {
-//     const salt = await bcrypt.genSalt(10);
-//     const hash = await bcrypt.hash(password, salt);
-//     return hash;
-// }
-// static async comparePassword(password: string, hash: string) {
-//     return await bcrypt.compare(password, hash);
-// }
+
+export async function hashPassword(plainPassword: string): Promise<string> {
+    const bytes = new TextEncoder().encode(plainPassword);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", bytes);
+    return Array.from(new Uint8Array(hashBuffer))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+}
+// const result = await hashPassword("hello");
+// console.log(result);
 
 //device type utility
 export function getDeviceType(): deciveType {

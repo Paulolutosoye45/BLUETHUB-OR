@@ -1,11 +1,11 @@
 const SchoolProgress = () => {
   return (
     <section className="border-0 border-red-900">
-      <div className="mb-6  grid grid-cols-5 gap-2  overflow-auto snap-x snap-mandatory scroll-smooth px-2 scrollbar-hide">
+      <div className="flex md:mb-6  md:grid md:grid-cols-5 gap-2  overflow-auto snap-x snap-mandatory scroll-smooth px-2 scrollbar-hide">
         {[...Array(5)].map((_, idx) => (
           <section
             key={idx}
-            className="w-[100%] shrink-0 snap-start border-none px-4 py-2 rounded-xl bg-white flex-grow flex justify-between items-center shadow-sm"
+            className="md:w-full shrink-0 snap-start border-none px-4 py-2 rounded-xl bg-white flex-grow flex justify-between items-center shadow-sm"
           >
             <div className="text-chestnut font-medium font-poppins">
               <h4 className="text-[#29238280] text-sm">New Student</h4>

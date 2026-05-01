@@ -18,8 +18,8 @@ import type { Subject } from "../course/main";
 import { authService, type IcreateUserRequest } from "@/services/auth";
 
 
-type SchoolLevel = "Primary" | "Junior Secondary" | "Senior Secondary";
-const levels: SchoolLevel[] = ["Primary", "Junior Secondary", "Senior Secondary"];
+ export type SchoolLevel = "Primary" | "Junior Secondary" | "Senior Secondary";
+export const levels: SchoolLevel[] = ["Primary", "Junior Secondary", "Senior Secondary"];
 
 interface ClassCourseDialogProps {
     open: boolean;
@@ -61,7 +61,6 @@ const ClassDialog = ({
                 ]);
 
                 const all: Subject[] = subjectsRes.data.data.subjects;
-                console.log(all)
                 setMajorSubjects(all.filter(s => s.subjectCategoryName === "Major"));
                 setMinorSubjects(all.filter(s => s.subjectCategoryName === "Minor"));
                 setClasses(classroomsRes.data.data.classrooms);
@@ -85,6 +84,12 @@ const ClassDialog = ({
 
 
     const isChecked = (id: string) => subjectIds.includes(id);
+
+ useEffect(() => {
+    if (majorSubjects.length === 0) return;
+    setSubjectIds(majorSubjects.map(s => s.id));
+}, [majorSubjects]);
+
     const schoolId = localData.retrieve("schoolInfo") as SchoolInfo;
 
     const toggleSubject = (id: string) => {
@@ -129,19 +134,23 @@ const ClassDialog = ({
             console.error("Student payload missing");
             return;
         }
+        if (!subjectIds) {
+            setErrorMsg("Student must be assigned to at least one subject");
+            return;
+        }
 
         if (!assignedClass) {
             setErrorMsg("Students must be assigned to a classroom");
             return;
         }
 
+        setErrorMsg("");
         const finalPayload: IcreateUserRequest = {
             ...studentPayload,
             userClassroomsId: [assignedClass],
             userSubjects: subjectIds,
         };
 
-        setErrorMsg("")
         try {
             setLoading(true);
             await authService.createUser(finalPayload);
@@ -343,7 +352,6 @@ const ClassDialog = ({
                                         {filteredMajor.map(s => (
                                             <label
                                                 key={s.id}
-                                                onClick={() => toggleSubject(s.id)}
                                                 className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
                                             >
                                                 <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.id) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
@@ -411,7 +419,7 @@ const ClassDialog = ({
                     <div className="flex items-center ml-auto justify-end gap-3">
                         <Button
                             variant="outline"
-                            onClick={() => onOpenChange(false)}
+                            onClick={() => {onOpenChange(false); setErrorMsg("")}}
                             className="px-5 py-2 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                         >
                             Cancel

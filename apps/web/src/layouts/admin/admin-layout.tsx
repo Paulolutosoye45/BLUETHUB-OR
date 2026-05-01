@@ -19,9 +19,9 @@ const AdminLayout = () => {
                 [&::-webkit-scrollbar-thumb]:bg-gray-400">
 
                 {/* Tab menu — tablet only (768px – 1023px) */}
-                <div className="block lg:hidden">
+                {/* <div className="block lg:hidden">
                     <AdminTabMenu schoolLogoUrl={schoolImage} />
-                </div>
+                </div> */}
 
                 <div className="flex-1 overflow-y-auto">
                     <SchoolRef

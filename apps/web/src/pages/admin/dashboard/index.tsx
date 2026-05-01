@@ -5,7 +5,7 @@ import SchoolProgress from "./school-progress";
 const AdminDashboard = () => {
   return (
     <div
-      className="px-6  h-screen transition-all duration-300 border-none 
+      className=" px-2 md:px-6  h-screen transition-all duration-300 border-none 
       overflow-y-auto 
       [&::-webkit-scrollbar]:w-1
       [&::-webkit-scrollbar]:h-2.5
