@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "react";
+import { useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import type { RootState } from "@/store";
 import { setTimerDisplay, setTimerRunning, setTimerElapsed, setTimeUp } from "@/store/class-action-slice";
@@ -7,13 +7,13 @@ interface UseGlobalTimerProps {
   onTargetReached?: () => void;
 }
 
+let globalIntervalRef: ReturnType<typeof setInterval> | null = null;
+let globalStartTimeMs: number | null = null;
+let globalElapsedSeconds = 0;
+let globalTargetSeconds: number | null = null;
+
 export const useGlobalTimer = ({ onTargetReached }: UseGlobalTimerProps = {}) => {
   const dispatch = useDispatch();
-
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTimeRef = useRef<number | null>(null);
-  const elapsedRef = useRef<number>(0);
-  const targetSecondsRef = useRef<number | null>(null);
 
   // ← all state lives in Redux now, shared across every component
   const timerDisplay   = useSelector((state: RootState) => state.action.timerDisplay);
@@ -37,51 +37,70 @@ export const useGlobalTimer = ({ onTargetReached }: UseGlobalTimerProps = {}) =>
       : `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  const tick = () => {
-    if (!startTimeRef.current) return;
-
-    const now = performance.now();
-    elapsedRef.current = (now - startTimeRef.current) / 1000;
-
-    if (targetSecondsRef.current !== null && elapsedRef.current >= targetSecondsRef.current) {
-      elapsedRef.current = targetSecondsRef.current;
-      dispatch(setTimerDisplay(formatTime(elapsedRef.current)));
-      dispatch(setTimerElapsed(elapsedRef.current));
-      stop();
-      onTargetReached?.();
-      return;
-    }
-
-    dispatch(setTimerDisplay(formatTime(elapsedRef.current)));
-    dispatch(setTimerElapsed(elapsedRef.current));
-  };
-
   const start = useCallback(() => {
     if (isRunning) return;
-    if (classDuration) targetSecondsRef.current = parseToSeconds(classDuration);
 
-    startTimeRef.current = performance.now() - elapsedRef.current * 1000;
-    intervalRef.current = setInterval(tick, 200);
+    if (classDuration && globalTargetSeconds === null) {
+      globalTargetSeconds = parseToSeconds(classDuration);
+    }
+
+    globalStartTimeMs = performance.now() - globalElapsedSeconds * 1000;
+    if (globalIntervalRef) {
+      clearInterval(globalIntervalRef);
+    }
+
+    globalIntervalRef = setInterval(() => {
+      if (globalStartTimeMs === null) return;
+
+      const now = performance.now();
+      globalElapsedSeconds = (now - globalStartTimeMs) / 1000;
+
+      if (globalTargetSeconds !== null && globalElapsedSeconds >= globalTargetSeconds) {
+        globalElapsedSeconds = globalTargetSeconds;
+        dispatch(setTimerDisplay(formatTime(globalElapsedSeconds)));
+        dispatch(setTimerElapsed(globalElapsedSeconds));
+
+        if (globalIntervalRef) {
+          clearInterval(globalIntervalRef);
+          globalIntervalRef = null;
+        }
+        globalStartTimeMs = null;
+        dispatch(setTimerRunning(false));
+        dispatch(setTimeUp());
+        onTargetReached?.();
+        return;
+      }
+
+      dispatch(setTimerDisplay(formatTime(globalElapsedSeconds)));
+      dispatch(setTimerElapsed(globalElapsedSeconds));
+    }, 200);
+
     dispatch(setTimerRunning(true));
   }, [isRunning, classDuration]);
 
   const pause = useCallback(() => {
     if (!isRunning) return;
-    clearInterval(intervalRef.current!);
-    intervalRef.current = null;
+
+    if (globalIntervalRef) {
+      clearInterval(globalIntervalRef);
+      globalIntervalRef = null;
+    }
     dispatch(setTimerRunning(false));
   }, [isRunning]);
 
   const stop = useCallback(() => {
-    clearInterval(intervalRef.current!);
-    intervalRef.current = null;
-    startTimeRef.current = null;
+    if (globalIntervalRef) {
+      clearInterval(globalIntervalRef);
+      globalIntervalRef = null;
+    }
+    globalStartTimeMs = null;
     dispatch(setTimerRunning(false));
   }, []);
 
   const reset = useCallback(() => {
     stop();
-    elapsedRef.current = 0;
+    globalElapsedSeconds = 0;
+    globalTargetSeconds = null;
     dispatch(setTimerDisplay("00:00"));
     dispatch(setTimerElapsed(0));
   }, [stop]);

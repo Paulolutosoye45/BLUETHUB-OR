@@ -11,9 +11,8 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBezierPoints, gzipCompress, gzipDecompress } from "@/utils/gzip";
 import { addStrokes, getClassByBoard } from "@/utils/db";
-import { formatTime, parseTime } from "@/utils";
 import type { RootState } from "@/store";
-import { holdCurrentTime, setSendQueueRefList } from "@/store/class-action-slice";
+import { resetClassRuntime, setEndClass, setSendQueueRefList } from "@/store/class-action-slice";
 import { useDispatch, useSelector } from "react-redux";
 import { useGlobalTimer } from "@/hooks/useGlobalTimer";
 import { type Position } from "@/utils/constant";
@@ -32,13 +31,13 @@ import MediaFrame from "./media-frame";
 
 const Class = () => {
     const dispatch = useDispatch();
-    const classDuration = useSelector((state: RootState) => state.action.classDuration);
     const pauseTime = useSelector((state: RootState) => state.action.pauseTime);
     const currentBoard = useSelector((state: RootState) => state.action.currentBoard);
     const actionSelect = useSelector((state: RootState) => state.action.value);
     const selectedFillColor = useSelector((state: RootState) => state.action.fillColor);
     const isRecording = useSelector((state: RootState) => state.action.isRecording);
     const sessionIdRef = useSelector((state: RootState) => state.action.sessionIdRef);
+    const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
 
     const [actions, setAction] = useState<string | null>(ACTIONS.SELECT);
     const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -50,13 +49,12 @@ const Class = () => {
     const [arrows, setArrows] = useState<arrow[]>([]);
     const [triangles, setTriangles] = useState<triangle[]>([]);
 
-    const [timeLeft, setTimeLeft] = useState(parseTime(classDuration));
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
     const trRef = useRef<Konva.Transformer | null>(null);
     const parentRef = useRef<HTMLDivElement>(null);
-    // startWallMs / endWallMs: ms-precise wall-clock captured at mousedown/mouseup.
-    // Used instead of timerDisplay (1-second floor resolution) for replay sync.
-    const strokeTimesRef = useRef({ start: "", end: "", startWallMs: 0, endWallMs: 0 });
+    // startElapsedMs / endElapsedMs are captured from the active lesson timer.
+    // This excludes paused time from replay timing.
+    const strokeTimesRef = useRef({ start: "", end: "", startElapsedMs: 0, endElapsedMs: 0 });
     const rectRef = useRef(null);
     const isDrawing = useRef(false);
     const strokeColor = "#000";
@@ -67,9 +65,6 @@ const Class = () => {
     const boardW = dimensions.width;
     const boardH = dimensions.height;
 
-    // ✅ FIX 1: Track previous formatted time to avoid dispatching every second
-    const prevFormattedTimeRef = useRef<string>("");
-
     useEffect(() => {
         setAction(actionSelect);
     }, [actionSelect]);
@@ -77,11 +72,14 @@ const Class = () => {
     const timer = useGlobalTimer({
         onTargetReached: () => {
             isDrawing.current = false;
+            dispatch(setEndClass());
         },
     });
 
     useEffect(() => {
-        timer.start();
+        // Entering the class should always start from a neutral runtime state.
+        timer.reset();
+        dispatch(resetClassRuntime());
     }, []);
 
     useEffect(() => {
@@ -202,26 +200,6 @@ const Class = () => {
         loadBoardStrokes();
     }, [currentBoard]);
 
-    // ✅ FIX 1: Only dispatch when the formatted string actually changes
-    useEffect(() => {
-        if (timeLeft <= 0 || pauseTime) return;
-
-        const interval = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) return 0;
-                const next = prev - 1;
-                const formatted = formatTime(next);
-                if (formatted !== prevFormattedTimeRef.current) {
-                    prevFormattedTimeRef.current = formatted;
-                    dispatch(holdCurrentTime(formatted));
-                }
-                return next;
-            });
-        }, 1000);
-
-        return () => clearInterval(interval);
-    }, [pauseTime, dispatch]);
-
     /* ✅ FIX 2: Stable dragBoundFunc factories memoized by board dimensions */
     const boardClamp = useCallback(
         (pos: Position) => clampToBoard(pos, boardW, boardH),
@@ -245,6 +223,7 @@ const Class = () => {
     }) => {
         const startTime = strokeTimesRef.current.start;
         const endTime   = strokeTimesRef.current.end;
+        const timestamp = strokeTimesRef.current.startElapsedMs || Math.round(timerElapsedSeconds * 1000);
 
         const compressed = await gzipCompress(JSON.stringify(shape));
         const base64Data = btoa(String.fromCharCode(...compressed));
@@ -256,7 +235,7 @@ const Class = () => {
             color:        shape.stroke || shape.fillColor || "#df4b26",
             width:        shape.strokeWidth || 2,
             type:         shape.type,
-            timestamp:    Date.now(),
+            timestamp,
             duration:     0,
             currentBoard,
             startTime,
@@ -269,7 +248,7 @@ const Class = () => {
         } catch (err) {
             console.error("❌ Failed to save shape to IndexedDB:", err);
         }
-    }, [sessionIdRef, currentBoard, dispatch]);
+    }, [sessionIdRef, currentBoard, dispatch, timerElapsedSeconds]);
 
     const penDownEvent = useCallback(async (p: Position | null, type: "stroke" | "eraser" = "stroke") => {
         const updatedStroke = p ? [...currentStroke, p.x, p.y] : currentStroke;
@@ -283,8 +262,8 @@ const Class = () => {
         // gzipCompress is async — another mousedown can fire during that gap and
         // overwrite strokeTimesRef fields, causing every rapid stroke to share
         // the same timestamp and appear simultaneously in replay.
-        const timestamp = strokeTimesRef.current.startWallMs || Date.now();
-        const duration  = strokeTimesRef.current.endWallMs - strokeTimesRef.current.startWallMs;
+        const timestamp = strokeTimesRef.current.startElapsedMs || Math.round(timerElapsedSeconds * 1000);
+        const duration  = Math.max(0, strokeTimesRef.current.endElapsedMs - strokeTimesRef.current.startElapsedMs);
         const startTime = strokeTimesRef.current.start;
         const endTime   = strokeTimesRef.current.end;
         const strokeId  = isRecording && sessionIdRef ? sessionIdRef : null;
@@ -329,18 +308,18 @@ const Class = () => {
         }
 
         setCurrentStroke([]);
-    }, [currentStroke, isRecording, sessionIdRef, selectedFillColor, currentBoard, dispatch]);
+    }, [currentStroke, isRecording, sessionIdRef, selectedFillColor, currentBoard, dispatch, timerElapsedSeconds]);
 
     /* ── startDrawing ───────────────────────────────────────────────────────── */
     const startDrawing = useCallback((rawPos: Position) => {
-        if (pauseTime) return;
+        if (pauseTime || !timer.isRunning) return;
 
         const pos = clampToBoard(rawPos, boardW, boardH);
 
         isDrawing.current = true;
         shapeStartPos.current = pos;
         strokeTimesRef.current.start      = timer.timerDisplay;
-        strokeTimesRef.current.startWallMs = Date.now(); // ms-precise mousedown time
+        strokeTimesRef.current.startElapsedMs = Math.round(timerElapsedSeconds * 1000);
 
         switch (actions) {
             case ACTIONS.PEN:
@@ -405,11 +384,11 @@ const Class = () => {
                 break;
             }
         }
-    }, [pauseTime, boardW, boardH, actions, selectedFillColor, timer.timerDisplay]);
+    }, [pauseTime, boardW, boardH, actions, selectedFillColor, timer.timerDisplay, timer.isRunning, timerElapsedSeconds]);
 
     /* ── updateDrawing ──────────────────────────────────────────────────────── */
     const updateDrawing = useCallback((rawPos: Position) => {
-        if (pauseTime) return;
+        if (pauseTime || !timer.isRunning) return;
         if (!isDrawing.current || !shapeStartPos.current) return;
 
         const pos = clampToBoard(rawPos, boardW, boardH);
@@ -474,15 +453,15 @@ const Class = () => {
                 ));
                 break;
         }
-    }, [pauseTime, boardW, boardH, actions]);
+    }, [pauseTime, boardW, boardH, actions, timer.isRunning]);
 
     /* ── finishDrawing ──────────────────────────────────────────────────────── */
     const finishDrawing = useCallback(async () => {
-        if (pauseTime) return;
+        if (pauseTime || !timer.isRunning) return;
         if (!isDrawing.current) return;
         isDrawing.current = false;
         strokeTimesRef.current.end      = timer.timerDisplay;
-        strokeTimesRef.current.endWallMs = Date.now(); // ms-precise mouseup time
+        strokeTimesRef.current.endElapsedMs = Math.round(timerElapsedSeconds * 1000);
 
         switch (actions) {
             case ACTIONS.PEN:
@@ -520,7 +499,7 @@ const Class = () => {
 
         activeShapeId.current = null;
         shapeStartPos.current = null;
-    }, [pauseTime, actions, rectangles, circles, triangles, arrows, straightLines, penDownEvent, shapeDownEvent, timer.timerDisplay]);
+    }, [pauseTime, actions, rectangles, circles, triangles, arrows, straightLines, penDownEvent, shapeDownEvent, timer.timerDisplay, timer.isRunning, timerElapsedSeconds]);
 
     /* ── Event handlers ─────────────────────────────────────────────────────── */
     const handleMouseDown = useCallback((e: KonvaEventObject<MouseEvent>) => {

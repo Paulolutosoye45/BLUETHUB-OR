@@ -27,7 +27,7 @@ const initialState: classActiveState = {
   fillColor: "#000000",
   classDuration: "23:45",
   currentTime: "",
-  pauseTime: false,
+  pauseTime: true,
   timeUp: false,
   currentBoard: 1,
   availableBoards: [1],
@@ -70,6 +70,9 @@ const ClassActionSlice = createSlice({
       state.pauseTime = !state.pauseTime;
       state.isRecording = false;
     },
+    setPauseTime: (state, action: PayloadAction<boolean>) => {
+      state.pauseTime = action.payload;
+    },
     setTimeUp: (state) => {
       state.timeUp = true;
     },
@@ -102,6 +105,8 @@ const ClassActionSlice = createSlice({
     setEndClass: (state) => {
       state.pauseTime = true;
       state.isRecording = false;
+      state.classEnded = true;
+      state.timeUp = true;
     },
 
     setSelectedImage: (state, action: PayloadAction<IActiveMedia>) => {
@@ -121,6 +126,15 @@ const ClassActionSlice = createSlice({
     setTimerElapsed: (state, action: PayloadAction<number>) => {
       state.timerElapsedSeconds = action.payload;
     },
+    resetClassRuntime: (state) => {
+      state.pauseTime = true;
+      state.timeUp = false;
+      state.classEnded = false;
+      state.isRecording = false;
+      state.timerDisplay = "00:00";
+      state.timerRunning = false;
+      state.timerElapsedSeconds = 0;
+    },
   },
 });
 
@@ -129,6 +143,7 @@ export const {
   onSetFillColor,
   holdCurrentTime,
   pauseCurrentTime,
+  setPauseTime,
   setCurrentTime,
   setTimeUp,
   setCurrentBoard,
@@ -144,5 +159,6 @@ export const {
   setTimerDisplay,
   setTimerRunning,
   setTimerElapsed,
+  resetClassRuntime,
 } = ClassActionSlice.actions;
 export default ClassActionSlice.reducer;

@@ -9,7 +9,7 @@ import { useTimer } from "@/hooks/useTimer";
 import { Clock } from "lucide-react";
 
 const Audio = () => {
-  const { isRecording, startRecording } = useSession();
+  const { isRecording, startRecording, stopRecording } = useSession();
   const { startTimer, time } = useTimer();
 
 
@@ -23,10 +23,15 @@ const Audio = () => {
       return;
     }
 
-    if (!isRecording) {
-      startTimer();
-      await startRecording();
+    if (isRecording) {
+      stopRecording();
+      toast.success("Mic muted");
+      return;
     }
+
+    startTimer();
+    await startRecording();
+    toast.success("Mic unmuted");
   };
 
   return (
