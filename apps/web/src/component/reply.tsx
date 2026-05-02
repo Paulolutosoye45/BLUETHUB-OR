@@ -11,10 +11,11 @@ import {
   Circle,
   Loader,
 } from 'lucide-react';
-import type { AudioBatch, CompressedStroke, Stroke } from '@/utils/constant';
+import type { AudioBatch, CompressedStroke, IActions, IActiveMedia, Stroke } from '@/utils/constant';
 import { clearAudio, clearClass, getAudio, getClass } from '@/utils/db';
 import { base64ToUint8 } from '@/utils';
 import { gzipDecompress } from '@/utils/gzip';
+import PdfScrollViewer from '@/component/pdf-scroll-viewer';
 
 // ─── local helper — converts "MM:SS" or "HH:MM:SS" → milliseconds ────────────
 // This lives here so we are 100% sure of the unit: always returns MS.
@@ -48,6 +49,118 @@ const formatReplayMs = (ms: number): string => {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 };
 
+const mediaClockMs = (value: string | null | undefined): number => {
+  if (!value || value === '—') return Number.POSITIVE_INFINITY;
+  return timeToMs(value);
+};
+
+const resolvePdfPage = (media: IActiveMedia, sessionMs: number): number | undefined => {
+  if (media.type.toLowerCase() !== 'pdf' || !media.pdfPages || media.pdfPages.length === 0) {
+    return undefined;
+  }
+
+  let page = 1;
+  for (const event of media.pdfPages) {
+    const eventMs = event.elapsedMs ?? mediaClockMs(event.timerDisplay);
+    if (sessionMs >= eventMs) {
+      page = event.page;
+    } else {
+      break;
+    }
+  }
+
+  return page;
+};
+
+const resolvePdfScrollRatio = (media: IActiveMedia, sessionMs: number): number | undefined => {
+  if (media.type.toLowerCase() !== 'pdf' || !media.pdfScrollEvents || media.pdfScrollEvents.length === 0) {
+    return undefined;
+  }
+
+  let ratio: number | undefined = undefined;
+  for (const event of media.pdfScrollEvents) {
+    const eventMs = event.elapsedMs ?? mediaClockMs(event.timerDisplay);
+    if (sessionMs >= eventMs) {
+      ratio = event.scrollRatio;
+    } else {
+      break;
+    }
+  }
+
+  return ratio;
+};
+
+const getReplayFrameClassByType = (type?: string): string => {
+  const mediaType = (type ?? '').toLowerCase();
+
+  if (mediaType.includes('pdf')) {
+    return 'h-[58vh] w-[min(94vw,1020px)]';
+  }
+
+  if (mediaType.includes('video')) {
+    return 'h-[54vh] w-[min(86vw,860px)]';
+  }
+
+  return 'h-[50vh] w-[min(80vw,760px)]';
+};
+
+const buildMediaTimelineFromManifest = (raw: string | null): Array<{ media: IActiveMedia; showMs: number; closeMs: number }> => {
+  if (!raw) return [];
+
+  const parsed = JSON.parse(raw) as IActions;
+  const timeline: Array<{ media: IActiveMedia; showMs: number; closeMs: number }> = [];
+  const fallbackCloseMs = Math.max(0, parsed.totalDuration || 0);
+
+  for (const batch of parsed.batches ?? []) {
+    for (const media of batch.mediaAction ?? []) {
+      const normalizedMedia: IActiveMedia = {
+        ...media,
+        pdfPages: media.pdfPages?.length
+          ? [...media.pdfPages].sort(
+            (a, b) => (a.elapsedMs ?? mediaClockMs(a.timerDisplay)) - (b.elapsedMs ?? mediaClockMs(b.timerDisplay))
+          )
+          : media.pdfPages,
+      };
+
+      const showMs = normalizedMedia.showMs ?? mediaClockMs(normalizedMedia.show);
+      const parsedClose = normalizedMedia.closedMs ?? mediaClockMs(normalizedMedia.closed);
+      const baseCloseMs = Number.isFinite(parsedClose)
+        ? parsedClose
+        : (fallbackCloseMs > 0 ? fallbackCloseMs : Number.POSITIVE_INFINITY);
+      const closeMs = Number.isFinite(baseCloseMs) ? baseCloseMs : baseCloseMs;
+
+      timeline.push({
+        media: normalizedMedia,
+        showMs,
+        closeMs,
+      });
+    }
+  }
+
+  return timeline.sort((a, b) => a.showMs - b.showMs);
+};
+
+const buildMediaEventsFromManifest = (raw: string | null): Array<{
+  atMs: number;
+  type: 'show' | 'hide';
+  media: IActiveMedia;
+}> => {
+  const timeline = buildMediaTimelineFromManifest(raw);
+  const events: Array<{ atMs: number; type: 'show' | 'hide'; media: IActiveMedia }> = [];
+
+  for (const item of timeline) {
+    events.push({ atMs: item.showMs, type: 'show', media: item.media });
+    if (Number.isFinite(item.closeMs)) {
+      events.push({ atMs: item.closeMs, type: 'hide', media: item.media });
+    }
+  }
+
+  return events.sort((a, b) => {
+    if (a.atMs !== b.atMs) return a.atMs - b.atMs;
+    return a.type === 'show' && b.type === 'hide' ? -1 : 1;
+  });
+};
+
 export default function Replay() {
 
   // ── UI state ──────────────────────────────────────────────────────────────
@@ -63,6 +176,9 @@ export default function Replay() {
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [_renderTick, setRenderTick] = useState(0);
   const [replayMs, setReplayMs] = useState(0);
+  const [activeFrame, setActiveFrame] = useState<IActiveMedia | null>(null);
+  const [activePdfPage, setActivePdfPage] = useState<number | undefined>(undefined);
+  const [activePdfScrollRatio, setActivePdfScrollRatio] = useState<number | undefined>(undefined);
 
   // ── Refs ──────────────────────────────────────────────────────────────────
 
@@ -79,6 +195,21 @@ export default function Replay() {
 
   // RAF handle
   const rafRef = useRef<number | null>(null);
+  const mediaTimelineRef = useRef<Array<{
+    media: IActiveMedia;
+    showMs: number;
+    closeMs: number;
+  }>>([]);
+  const mediaEventsRef = useRef<Array<{
+    atMs: number;
+    type: 'show' | 'hide';
+    media: IActiveMedia;
+  }>>([]);
+  const mediaEventIndexRef = useRef(0);
+  const activeFrameSigRef = useRef('');
+  const activeFrameRef = useRef<IActiveMedia | null>(null);
+  const activePdfPageRef = useRef<number | undefined>(undefined);
+  const activePdfScrollRatioRef = useRef<number | undefined>(undefined);
 
   // ─────────────────────────────────────────────────────────────────────────
   // THE SYNC ANCHOR
@@ -166,6 +297,25 @@ export default function Replay() {
       }
     })();
     return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    const refreshTimeline = () => {
+      try {
+        const raw = localStorage.getItem('currentBatches');
+        mediaTimelineRef.current = buildMediaTimelineFromManifest(raw);
+        mediaEventsRef.current = buildMediaEventsFromManifest(raw);
+      } catch (err) {
+        console.error('Failed to parse replay manifest media actions:', err);
+        mediaTimelineRef.current = [];
+        mediaEventsRef.current = [];
+      }
+    };
+
+    // Initial parse + periodic refresh so replay can react to late manifest writes.
+    refreshTimeline();
+    const id = setInterval(refreshTimeline, 1000);
+    return () => clearInterval(id);
   }, []);
 
   // ── Step 2: Parallel decompress + cache in ref ────────────────────────────
@@ -297,7 +447,7 @@ export default function Replay() {
       // drawWindow: stroke.duration is 0 in current impl so we use 50ms min.
       // The stroke "pops" in fully at startMs which is accurate to the ms.
       const drawWindow = Math.max(
-        s.duration > 0 ? s.duration : 0,
+        (s.duration ?? 0) > 0 ? (s.duration ?? 0) : 0,
         50
       );
       return {
@@ -309,6 +459,14 @@ export default function Replay() {
     });
 
     strokeCursorsRef.current = new Map(timelines.map(t => [t.stroke.id, 0]));
+    mediaEventIndexRef.current = 0;
+    activeFrameSigRef.current = '';
+    activeFrameRef.current = null;
+    activePdfPageRef.current = undefined;
+    activePdfScrollRatioRef.current = undefined;
+    setActiveFrame(null);
+    setActivePdfPage(undefined);
+    setActivePdfScrollRatio(undefined);
 
     const frame = () => {
       if (stopRef.current) return;
@@ -316,6 +474,53 @@ export default function Replay() {
       // ✅ Session position derived from audio's own clock — never drifts
       const sessionMs = batchStartMsRef.current +
         (audioRef.current?.currentTime ?? 0) * 1000;
+
+      // Media frames: drive from exact manifest events, not broad time-window filtering.
+      while (
+        mediaEventIndexRef.current < mediaEventsRef.current.length &&
+        sessionMs >= mediaEventsRef.current[mediaEventIndexRef.current].atMs
+      ) {
+        const event = mediaEventsRef.current[mediaEventIndexRef.current];
+        if (event.type === 'show') {
+          const pdfPage = resolvePdfPage(event.media, sessionMs);
+          const pdfScrollRatio = resolvePdfScrollRatio(event.media, sessionMs);
+          activeFrameSigRef.current = `${event.media.id}:${pdfPage ?? ''}`;
+          activeFrameRef.current = event.media;
+          activePdfPageRef.current = pdfPage;
+          activePdfScrollRatioRef.current = pdfScrollRatio;
+          setActiveFrame(event.media);
+          setActivePdfPage(pdfPage);
+          setActivePdfScrollRatio(pdfScrollRatio);
+        } else if (activeFrameSigRef.current.startsWith(`${event.media.id}:`) || activeFrameSigRef.current === event.media.id) {
+          activeFrameSigRef.current = '';
+          activeFrameRef.current = null;
+          activePdfPageRef.current = undefined;
+          activePdfScrollRatioRef.current = undefined;
+          setActiveFrame(null);
+          setActivePdfPage(undefined);
+          setActivePdfScrollRatio(undefined);
+        }
+        mediaEventIndexRef.current += 1;
+      }
+
+      const activeMedia = activeFrameRef.current;
+      if (activeMedia && activeMedia.type.toLowerCase().includes('pdf')) {
+        const pdfPage = resolvePdfPage(activeMedia, sessionMs);
+
+        if (pdfPage !== activePdfPageRef.current) {
+          activePdfPageRef.current = pdfPage;
+          setActivePdfPage(pdfPage);
+        }
+
+        const pdfScrollRatio = resolvePdfScrollRatio(activeMedia, sessionMs);
+        if (
+          pdfScrollRatio !== undefined &&
+          (activePdfScrollRatioRef.current === undefined || Math.abs(pdfScrollRatio - activePdfScrollRatioRef.current) > 0.005)
+        ) {
+          activePdfScrollRatioRef.current = pdfScrollRatio;
+          setActivePdfScrollRatio(pdfScrollRatio);
+        }
+      }
 
       let dirty = false;
 
@@ -351,7 +556,8 @@ export default function Replay() {
         ({ stroke, totalPoints }) =>
           (strokeCursorsRef.current.get(stroke.id) ?? 0) >= totalPoints
       );
-      if (!allDone) rafRef.current = requestAnimationFrame(frame);
+      const hasMediaTimeline = mediaTimelineRef.current.length > 0;
+      if (!allDone || hasMediaTimeline) rafRef.current = requestAnimationFrame(frame);
     };
 
     rafRef.current = requestAnimationFrame(frame);
@@ -423,12 +629,21 @@ export default function Replay() {
     const readyStrokes = preloadedStrokesRef.current;
     const hasStrokes = readyStrokes.length > 0;
     const hasAudio = audioList.length > 0;
-    if (!hasStrokes && !hasAudio) return;
+    const hasMedia = mediaTimelineRef.current.length > 0;
+    if (!hasStrokes && !hasAudio && !hasMedia) return;
 
     stopRef.current = false;
     batchStartMsRef.current = 0;
     drawnMapRef.current = new Map();
     strokeCursorsRef.current = new Map();
+    mediaEventIndexRef.current = 0;
+    activeFrameSigRef.current = '';
+    activeFrameRef.current = null;
+    activePdfPageRef.current = undefined;
+    activePdfScrollRatioRef.current = undefined;
+    setActiveFrame(null);
+    setActivePdfPage(undefined);
+    setActivePdfScrollRatio(undefined);
     setRenderTick(0);
     setCurrentBatch(0);
     setIsPlaying(true);
@@ -445,13 +660,19 @@ export default function Replay() {
       stopRaf();
 
     } else if (hasAudio && !hasStrokes) {
-      // Audio only — no RAF needed
+      // Audio only (or media + audio)
+      if (hasMedia) {
+        startRaf([]);
+      }
       for (let i = 0; i < sortedAudio.length; i++) {
         if (stopRef.current) break;
         try { await playAudioBatch(i, sortedAudio); } catch (_) { }
       }
+      if (hasMedia) {
+        stopRaf();
+      }
 
-    } else if (hasStrokes && !hasAudio) {
+    } else if ((hasStrokes || hasMedia) && !hasAudio) {
       // Board only — feed performance.now() into batchStartMsRef each frame
       // so the RAF formula still works: sessionMs = batchStartMs + 0 = elapsed
       const wallStart = performance.now();
@@ -462,7 +683,18 @@ export default function Replay() {
       };
       startRaf(readyStrokes);
       driveRef();
-      const totalDurationMs = Math.max(...readyStrokes.map(s => timeToMs(s.endTime)));
+      const strokeDurationMs = hasStrokes
+        ? Math.max(...readyStrokes.map(s => timeToMs(s.endTime)))
+        : 0;
+      const finiteMediaCloseMs = mediaTimelineRef.current
+        .filter((item) => Number.isFinite(item.closeMs))
+        .map((item) => item.closeMs);
+      const mediaDurationMs = finiteMediaCloseMs.length > 0
+        ? Math.max(...finiteMediaCloseMs)
+        : mediaTimelineRef.current.length > 0
+          ? Math.max(...mediaTimelineRef.current.map((item) => item.showMs)) + 5000
+          : 0;
+      const totalDurationMs = Math.max(strokeDurationMs, mediaDurationMs, 1000);
       await new Promise<void>(resolve => {
         const check = setInterval(() => {
           if (stopRef.current || (performance.now() - wallStart) >= totalDurationMs) {
@@ -482,6 +714,14 @@ export default function Replay() {
     stopRef.current = true;
     stopRaf();
     setIsPlaying(false);
+    activeFrameRef.current = null;
+    activePdfPageRef.current = undefined;
+    activePdfScrollRatioRef.current = undefined;
+    setActiveFrame(null);
+    setActivePdfPage(undefined);
+    setActivePdfScrollRatio(undefined);
+    mediaEventIndexRef.current = 0;
+    activeFrameSigRef.current = '';
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -625,7 +865,7 @@ export default function Replay() {
       <div className="flex-1 p-4 overflow-hidden">
         <div
           ref={parentRef}
-          className="h-full bg-white rounded-lg shadow-lg border-2 border-gray-300 overflow-hidden"
+          className="relative h-full bg-white rounded-lg shadow-lg border-2 border-gray-300 overflow-hidden"
         >
           <Stage
             width={dimensions.width}
@@ -656,6 +896,31 @@ export default function Replay() {
               ))}
             </Layer>
           </Stage>
+
+          {activeFrame && (
+            <div className="pointer-events-none absolute inset-0 flex items-start justify-center p-2 sm:p-4">
+              <div className={`pointer-events-auto relative overflow-hidden border border-slate-200 bg-white shadow-2xl rounded-xl ${getReplayFrameClassByType(activeFrame.type)}`}>
+                <div className="absolute left-2 top-2 z-10 rounded bg-black/60 px-2 py-1 text-xs text-white">
+                  Frame 1
+                </div>
+
+                {activeFrame.type.toLowerCase().includes('video') ? (
+                  <video src={activeFrame.url} className="h-full w-full object-contain bg-black" />
+                ) : activeFrame.type.toLowerCase().includes('pdf') ? (
+                  <PdfScrollViewer
+                    fileUrl={activeFrame.url}
+                    mode="replay"
+                    preferIframe={false}
+                    controlledPage={activePdfPage}
+                                       controlledScrollRatio={activePdfScrollRatio}
+                    className="bg-white"
+                  />
+                ) : (
+                  <img src={activeFrame.url} alt={activeFrame.name} className="h-full w-full object-contain bg-black" />
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

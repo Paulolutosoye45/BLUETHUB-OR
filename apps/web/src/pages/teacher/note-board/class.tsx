@@ -7,15 +7,13 @@ import {
     Circle,
     Arrow,
     RegularPolygon,
-    Image as KonvaImage,
 } from "react-konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getBezierPoints, gzipCompress } from "@/utils/gzip";
-import { addStrokes } from "@/utils/db";
+import { getBezierPoints, gzipCompress, gzipDecompress } from "@/utils/gzip";
+import { addStrokes, getClassByBoard } from "@/utils/db";
 import { formatTime, parseTime } from "@/utils";
 import type { RootState } from "@/store";
 import { holdCurrentTime, setSendQueueRefList } from "@/store/class-action-slice";
-import { useSession } from "@/contexts/session-context"; // kept for sendMediaShow/sendMediaHide only
 import { useDispatch, useSelector } from "react-redux";
 import { useGlobalTimer } from "@/hooks/useGlobalTimer";
 import { type Position } from "@/utils/constant";
@@ -29,7 +27,7 @@ import ClassMenu from "@/layouts/teacher/class/component/class-menu";
 import ClassBottom from "@/layouts/teacher/class/component/class-bottom";
 import { clampCircle, clampRect, clampToBoard, clampTriangle, makeDragBoundFunc } from "@/utils/clamp";
 import type { Box } from "konva/lib/shapes/Transformer";
-import useImage from 'use-image';
+import MediaFrame from "./media-frame";
 
 
 const Class = () => {
@@ -41,45 +39,6 @@ const Class = () => {
     const selectedFillColor = useSelector((state: RootState) => state.action.fillColor);
     const isRecording = useSelector((state: RootState) => state.action.isRecording);
     const sessionIdRef = useSelector((state: RootState) => state.action.sessionIdRef);
-    const selectedImage = useSelector((state: RootState) => state.action.selectedImage);
-
-    // useSession used only for media show/hide manifest tracking
-    const { sendMediaShow, sendMediaHide } = useSession();
-
-    // Track media show/hide for manifest
-    const prevSelectedImageIdRef = useRef<string | null>(null);
-    const timerDisplay = useSelector((state: RootState) => state.action.timerDisplay);
-
-    useEffect(() => {
-        const prev = prevSelectedImageIdRef.current;
-        const next = selectedImage?.id ?? null;
-
-        if (next && next !== prev && isRecording) {
-            // A new image was shown
-            sendMediaShow({
-                mediaId:      next,
-                name:         selectedImage!.name,
-                mediaType:    selectedImage!.type,
-                url:          selectedImage!.url,
-                timerDisplay,
-            });
-        } else if (!next && prev && isRecording) {
-            // The image was hidden
-            sendMediaHide(prev, timerDisplay);
-        } else if (next && prev && next !== prev && isRecording) {
-            // Switched from one image to another — hide old, show new
-            sendMediaHide(prev, timerDisplay);
-            sendMediaShow({
-                mediaId:      next,
-                name:         selectedImage!.name,
-                mediaType:    selectedImage!.type,
-                url:          selectedImage!.url,
-                timerDisplay,
-            });
-        }
-
-        prevSelectedImageIdRef.current = next;
-    }, [selectedImage?.id, isRecording]);
 
     const [actions, setAction] = useState<string | null>(ACTIONS.SELECT);
     const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -90,7 +49,6 @@ const Class = () => {
     const [circles, setCircles] = useState<circle[]>([]);
     const [arrows, setArrows] = useState<arrow[]>([]);
     const [triangles, setTriangles] = useState<triangle[]>([]);
-    const [vaderImage] = useImage(selectedImage?.url ?? "");
 
     const [timeLeft, setTimeLeft] = useState(parseTime(classDuration));
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
@@ -167,6 +125,83 @@ const Class = () => {
         };
     }, []);
 
+    // Load board strokes on board change
+    useEffect(() => {
+        const loadBoardStrokes = async () => {
+            try {
+                const boardStrokes = await getClassByBoard(currentBoard);
+                const nextStrokes: Stroke[] = [];
+                const nextRectangles: rectangle[] = [];
+                const nextCircles: circle[] = [];
+                const nextArrows: arrow[] = [];
+                const nextTriangles: triangle[] = [];
+                const nextStraightLines: straightLine[] = [];
+
+                const sortedStrokes = [...boardStrokes].sort((a, b) => a.timestamp - b.timestamp);
+
+                for (const saved of sortedStrokes) {
+                    try {
+                        const compressedBytes = Uint8Array.from(atob(saved.data), (char) => char.charCodeAt(0));
+                        const decompressed = await gzipDecompress(compressedBytes);
+                        const parsed = JSON.parse(decompressed);
+
+                        switch (saved.type) {
+                            case "stroke":
+                            case "eraser": {
+                                if (!Array.isArray(parsed)) break;
+                                nextStrokes.push({
+                                    id: saved.id,
+                                    type: saved.type,
+                                    points: parsed,
+                                    color: saved.color,
+                                    width: saved.width,
+                                    timestamp: saved.timestamp,
+                                    duration: saved.duration,
+                                    startTime: saved.startTime,
+                                    endTime: saved.endTime,
+                                });
+                                break;
+                            }
+                            case "rectangle": {
+                                nextRectangles.push(parsed as rectangle);
+                                break;
+                            }
+                            case "circle": {
+                                nextCircles.push(parsed as circle);
+                                break;
+                            }
+                            case "triangle": {
+                                nextTriangles.push(parsed as triangle);
+                                break;
+                            }
+                            case "arrow": {
+                                nextArrows.push(parsed as arrow);
+                                break;
+                            }
+                            case "line": {
+                                nextStraightLines.push(parsed as straightLine);
+                                break;
+                            }
+                        }
+                    } catch (decodeErr) {
+                        console.error("❌ Failed to decode saved board item:", decodeErr);
+                    }
+                }
+
+                setStrokes(nextStrokes);
+                setCurrentStroke([]);
+                setStraightLines(nextStraightLines);
+                setRectangles(nextRectangles);
+                setCircles(nextCircles);
+                setArrows(nextArrows);
+                setTriangles(nextTriangles);
+            } catch (err) {
+                console.error("❌ Failed to load board strokes:", err);
+            }
+        };
+        loadBoardStrokes();
+    }, [currentBoard]);
+
     // ✅ FIX 1: Only dispatch when the formatted string actually changes
     useEffect(() => {
         if (timeLeft <= 0 || pauseTime) return;
@@ -186,10 +221,6 @@ const Class = () => {
 
         return () => clearInterval(interval);
     }, [pauseTime, dispatch]);
-
-    useEffect(() => {
-        if (!selectedImage) return;
-    }, [selectedImage]);
 
     /* ✅ FIX 2: Stable dragBoundFunc factories memoized by board dimensions */
     const boardClamp = useCallback(
@@ -234,11 +265,11 @@ const Class = () => {
 
         dispatch(setSendQueueRefList([compressedShape]));
         try {
-            if (isRecording) await addStrokes([compressedShape]);
+            await addStrokes([compressedShape]);
         } catch (err) {
             console.error("❌ Failed to save shape to IndexedDB:", err);
         }
-    }, [isRecording, sessionIdRef, currentBoard, dispatch]);
+    }, [sessionIdRef, currentBoard, dispatch]);
 
     const penDownEvent = useCallback(async (p: Position | null, type: "stroke" | "eraser" = "stroke") => {
         const updatedStroke = p ? [...currentStroke, p.x, p.y] : currentStroke;
@@ -292,7 +323,7 @@ const Class = () => {
         dispatch(setSendQueueRefList([compressedStroke]));
 
         try {
-            if (isRecording) await addStrokes([compressedStroke]);
+            await addStrokes([compressedStroke]);
         } catch (err) {
             console.error("❌ Failed to save stroke to IndexedDB:", err);
         }
@@ -302,7 +333,7 @@ const Class = () => {
 
     /* ── startDrawing ───────────────────────────────────────────────────────── */
     const startDrawing = useCallback((rawPos: Position) => {
-        if (!isRecording || pauseTime) return;
+        if (pauseTime) return;
 
         const pos = clampToBoard(rawPos, boardW, boardH);
 
@@ -374,11 +405,11 @@ const Class = () => {
                 break;
             }
         }
-    }, [isRecording, pauseTime, boardW, boardH, actions, selectedFillColor, timer.timerDisplay]);
+    }, [pauseTime, boardW, boardH, actions, selectedFillColor, timer.timerDisplay]);
 
     /* ── updateDrawing ──────────────────────────────────────────────────────── */
     const updateDrawing = useCallback((rawPos: Position) => {
-        if (!isRecording || pauseTime) return;
+        if (pauseTime) return;
         if (!isDrawing.current || !shapeStartPos.current) return;
 
         const pos = clampToBoard(rawPos, boardW, boardH);
@@ -443,11 +474,11 @@ const Class = () => {
                 ));
                 break;
         }
-    }, [isRecording, pauseTime, boardW, boardH, actions]);
+    }, [pauseTime, boardW, boardH, actions]);
 
     /* ── finishDrawing ──────────────────────────────────────────────────────── */
     const finishDrawing = useCallback(async () => {
-        if (!isRecording || pauseTime) return;
+        if (pauseTime) return;
         if (!isDrawing.current) return;
         isDrawing.current = false;
         strokeTimesRef.current.end      = timer.timerDisplay;
@@ -489,7 +520,7 @@ const Class = () => {
 
         activeShapeId.current = null;
         shapeStartPos.current = null;
-    }, [isRecording, pauseTime, actions, rectangles, circles, triangles, arrows, straightLines, penDownEvent, shapeDownEvent, timer.timerDisplay]);
+    }, [pauseTime, actions, rectangles, circles, triangles, arrows, straightLines, penDownEvent, shapeDownEvent, timer.timerDisplay]);
 
     /* ── Event handlers ─────────────────────────────────────────────────────── */
     const handleMouseDown = useCallback((e: KonvaEventObject<MouseEvent>) => {
@@ -583,8 +614,9 @@ const Class = () => {
 
     return (
         <div className="h-[90vh] max-h-[94vh] flex overflow-y-auto">
-            <div className="">
+            <div className="relative z-40 shrink-0 flex flex-col items-center justify-between py-4 gap-6">
                 <ClassMenu />
+                <ClassBottom />
             </div>
 
             <div
@@ -610,6 +642,24 @@ const Class = () => {
                             height={boardH}
                             fill="#ffffff"
                             onClick={() => trRef.current && trRef.current.nodes([])}
+                        />
+
+                        <Line
+                            points={[24, 0, Math.max(24, boardW - 24), 0]}
+                            stroke="#D1D5DB"
+                            strokeWidth={1}
+                            dash={[6, 6]}
+                            opacity={0.7}
+                            listening={false}
+                        />
+
+                        <Line
+                            points={[boardW - 24, 0, boardW - 24, boardH]}
+                            stroke="#D1D5DB"
+                            strokeWidth={1}
+                            dash={[6, 6]}
+                            opacity={0.7}
+                            listening={false}
                         />
 
                         {strokes.map((s) => (
@@ -767,19 +817,6 @@ const Class = () => {
                         ))}
 
 
-                        {selectedImage && vaderImage && (
-                            <KonvaImage
-                                image={vaderImage}
-                                x={boardW - 200}
-                                y={20}
-                                width={200}
-                                height={200}
-                                draggable={isDraggable}
-                                onClick={onClick}
-                            />
-                        )}
-
-
                         <Transformer
                             ref={trRef}
                             rotateEnabled={false}
@@ -803,9 +840,9 @@ const Class = () => {
                     </Layer>
                 </Stage>
 
-                <div className="absolute bottom-5 w-full flex justify-center">
-                    <ClassBottom />
-                </div>
+                <MediaFrame />
+
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-slate-300 via-slate-400 to-slate-300"></div>
             </div>
         </div>
     );
