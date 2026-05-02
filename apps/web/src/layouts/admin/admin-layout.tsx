@@ -1,7 +1,7 @@
 import SchoolRef from "@/component/school-ref"
 import SideBar from "@/pages/admin/side-bar"
-import AdminTabMenu from "@/pages/admin/tab-menu"
-import schoolImage from "@/assets/png/School.png"
+// import AdminTabMenu from "@/pages/admin/tab-menu"
+// import schoolImage from "@/assets/png/School.png"
 import { Outlet } from "react-router-dom"
 
 const AdminLayout = () => {
@@ -19,9 +19,9 @@ const AdminLayout = () => {
                 [&::-webkit-scrollbar-thumb]:bg-gray-400">
 
                 {/* Tab menu — tablet only (768px – 1023px) */}
-                <div className="block lg:hidden">
+                {/* <div className="block lg:hidden">
                     <AdminTabMenu schoolLogoUrl={schoolImage} />
-                </div>
+                </div> */}
 
                 <div className="flex-1 overflow-y-auto">
                     <SchoolRef

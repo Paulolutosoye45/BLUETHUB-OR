@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom';
 
 
 const BluehubLeftPanel = () => (
-  <div className="relative w-full h-full flex flex-col gap-50  lg:justify-between p-10 overflow-hidden font-poppins"
+  <div className="relative w-full h-full flex flex-col   lg:justify-between p-10 overflow-hidden font-poppins"
     style={{ background: "linear-gradient(135deg, #1a1a6e 0%, #292382 40%, #3730a3 70%, #1e3a8a 100%)" }}
   >
     {/* Background decorative circles */}

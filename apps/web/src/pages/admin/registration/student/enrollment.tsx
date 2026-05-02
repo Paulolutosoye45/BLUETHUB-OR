@@ -23,13 +23,14 @@ const Enrollment = () => {
         control,
         watch,
         setValue,
+        reset,
         formState: { errors },
     } = useForm<StudentFormValues>({
-        resolver: yupResolver(studentFormSchema)as Resolver<StudentFormValues>,
+        resolver: yupResolver(studentFormSchema) as Resolver<StudentFormValues>,
         defaultValues: {
-        firstName: '',
-        lastName: '',
-    },
+            firstName: '',
+            lastName: '',
+        },
     });
 
     const firstName = watch("firstName");
@@ -80,7 +81,7 @@ const Enrollment = () => {
             return;
         }
 
-        const phassed = `${data.firstName}.${data.lastName}`.toLowerCase().trim();
+        const phassed = `${data.firstName.toLowerCase()}.${data.lastName.toLowerCase()}`.trim();
         if (!phassed) return;
 
         const hashPassword = await Hashing(phassed);
@@ -90,6 +91,7 @@ const Enrollment = () => {
             firstName: data.firstName,
             lastName: data.lastName,
             hashPassword,
+            emailAddress: '',
             isActive: true,
             hasAccess: true,
             userName: phassed,
@@ -118,6 +120,11 @@ const Enrollment = () => {
         }
     };
 
+    const onReset = () => {
+        reset();
+        setSuccessfully(false)
+    }
+
     return (
         <>
             <div className="p-6 font-poppins">
@@ -132,7 +139,7 @@ const Enrollment = () => {
                     </div>
 
                     {successfully ? (
-                        <StudentRegisteredSuccessfully setSuccessfully={setSuccessfully} />
+                        <StudentRegisteredSuccessfully setSuccessfully={setSuccessfully} onReset={onReset} />
                     ) : (
                         <div className="bg-white/35 backdrop-blur-sm px-8 pb-8 pt-6">
 
@@ -181,15 +188,15 @@ const Enrollment = () => {
 
                             <form onSubmit={handleSubmit(handleRegister)} className="w-[766px] mx-auto space-y-2.5 mt-[50px]">
 
-                                    {errorMsg && (
-                                        <div
-                                            role="alert"
-                                            className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm mb-5"
-                                        >
-                                            <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-50" />
-                                            <span>{errorMsg}</span>
-                                        </div>
-                                    )}
+                                {errorMsg && (
+                                    <div
+                                        role="alert"
+                                        className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm mb-5"
+                                    >
+                                        <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-50" />
+                                        <span>{errorMsg}</span>
+                                    </div>
+                                )}
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
@@ -320,7 +327,7 @@ const Enrollment = () => {
                 studentDob={TDob ? format(new Date(TDob), 'dd MMM yyyy') : "—"}
                 onSave={(data) => {
                     setSuccessfully(true)
-                    console.log(data); // { assignedClass, levels, subjects }
+                    data // { assignedClass, levels, subjects }
                 }}
             />
         </>
@@ -392,7 +399,7 @@ const AnimatedSuccessIcon = () => {
     );
 };
 
-const StudentRegisteredSuccessfully = ({ setSuccessfully }: { setSuccessfully: (boolean: false) => void }) => {
+const StudentRegisteredSuccessfully = ({ onReset }: { setSuccessfully: (boolean: false) => void; onReset: () => void }) => {
     const navigate = useNavigate()
     return (
         <div className="min-h-[80vh] bg-white/35 backdrop-blur-sm flex items-center justify-center px-4">
@@ -422,7 +429,9 @@ const StudentRegisteredSuccessfully = ({ setSuccessfully }: { setSuccessfully: (
 
                 {/* ACTIONS */}
                 <div className="space-y-3 pt-2">
-                    <button onClick={() => setSuccessfully(false)} className="w-full flex items-center justify-center gap-2.5 border border-gray-200 text-gray-600 font-medium text-sm py-3 rounded-xl hover:bg-gray-50 transition">
+                    <button onClick={() => {
+                        onReset();
+                    }} className="w-full flex items-center justify-center gap-2.5 border border-gray-200 text-gray-600 font-medium text-sm py-3 rounded-xl hover:bg-gray-50 transition">
                         <Plus className="w-4 h-4" />
                         Add Another Student
                     </button>

@@ -80,6 +80,13 @@ export const newPasswordSchema = yup.object({
             /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]+$/,
             "Password must contain at least one letter and one number",
         )
+        .test(
+  "not-same-as-old",
+  "New password must be different from your current password",
+  function (value) {
+    return value !== this.parent.hashPassword;
+  }
+)
         .label("Password"),
     confirmPassword: yup
         .string()

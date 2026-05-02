@@ -1,11 +1,11 @@
-import RecordedAppbar from "@/pages/teacher/recorded/recorded-bar"
+// import RecordedAppbar from "@/pages/teacher/recorded/recorded-bar"
 import { Outlet } from "react-router-dom"
 
 const RecordedLayout = () => {
     return (
-        <div className=" p-6">
+        <div>
             <div>
-                <RecordedAppbar />
+                {/* <RecordedAppbar /> */}
             </div>
             <div>
                 <Outlet />
