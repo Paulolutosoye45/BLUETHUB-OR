@@ -10,6 +10,7 @@ interface classActiveState {
   pauseTime: boolean;
   timeUp: boolean;
   currentBoard: number;
+  availableBoards: number[];
   sessionIdRef: string;
   isRecording: boolean;
   sendQueueRefList: CompressedStroke[];
@@ -29,6 +30,7 @@ const initialState: classActiveState = {
   pauseTime: false,
   timeUp: false,
   currentBoard: 1,
+  availableBoards: [1],
   sessionIdRef: "",
   isRecording: false,
   sendQueueRefList: [],
@@ -74,6 +76,17 @@ const ClassActionSlice = createSlice({
     setCurrentBoard: (state, action: PayloadAction<number>) => {
       state.currentBoard = action.payload;
     },
+    setAvailableBoards: (state, action: PayloadAction<number[]>) => {
+      state.availableBoards = action.payload;
+    },
+    addNewBoard: (state) => {
+      const nextBoardNumber = Math.max(...state.availableBoards, 0) + 1;
+      if (!state.availableBoards.includes(nextBoardNumber)) {
+        state.availableBoards.push(nextBoardNumber);
+        state.availableBoards.sort((a, b) => a - b);
+      }
+      state.currentBoard = nextBoardNumber;
+    },
     setIsRecording: (state, action: PayloadAction<boolean>) => {
       state.isRecording = action.payload;
     },
@@ -95,7 +108,9 @@ const ClassActionSlice = createSlice({
       state.selectedImage = action.payload;
     },
 
-    // setSelectedImageToNull
+    clearSelectedImage: (state) => {
+      state.selectedImage = null;
+    },
 
     setTimerDisplay: (state, action: PayloadAction<string>) => {
       state.timerDisplay = action.payload;
@@ -117,12 +132,15 @@ export const {
   setCurrentTime,
   setTimeUp,
   setCurrentBoard,
+  setAvailableBoards,
+  addNewBoard,
   setSessionIdRef,
   setIsRecording,
   setSendQueueRefList,
   clearSendQueueRefList,
   setEndClass,
   setSelectedImage,
+  clearSelectedImage,
   setTimerDisplay,
   setTimerRunning,
   setTimerElapsed,

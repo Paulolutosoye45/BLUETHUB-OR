@@ -48,7 +48,17 @@ interface SessionContextValue {
   sendMediaShow: (media: MediaEventPayload) => void;
 
   /** Call when a media asset is removed from the board */
-  sendMediaHide: (mediaId: string, timerDisplay: string) => void;
+  sendMediaHide: (mediaId: string, timerDisplay: string, elapsedMs?: number) => void;
+
+  /** Call when the user navigates to a different PDF page */
+  sendPdfPage: (mediaId: string, page: number, timerDisplay: string, elapsedMs?: number) => void;
+
+  /** Call when the media frame container is scrolled */
+  sendMediaScroll: (mediaId: string, scrollRatio: number, timerDisplay: string, elapsedMs?: number) => void;
+}
+
+export interface PdfScrollPayload {
+  scrollRatio: number;
 }
 
 export interface StrokePayload {
@@ -81,6 +91,8 @@ export interface MediaEventPayload {
   mediaType:    string;
   url:          string;
   timerDisplay: string;
+  elapsedMs?: number;
+  frameIndex?: 0 | 1;
 }
 
 // ── Context ───────────────────────────────────────────────────────────────────
@@ -92,6 +104,7 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 export function SessionProvider({ children }: { children: ReactNode }) {
   const dispatch     = useDispatch();
   const isRecording  = useSelector((state: RootState) => state.action.isRecording);
+  const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
 
   const workerRef        = useRef<Worker | null>(null);
   const streamRef        = useRef<MediaStream | null>(null);
@@ -217,6 +230,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       sessionStartMsRef.current = Date.now();
       batchIndexRef.current     = 0;
 
+      localStorage.setItem('sessionStartWallMs', String(sessionStartMsRef.current));
+      localStorage.setItem('recordingStartTimerMs', String(Math.round(timerElapsedSeconds * 1000)));
+
       // Initialise worker — anchors the master clock
       workerRef.current?.postMessage({
         type:           'INIT',
@@ -242,7 +258,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch {
       toast.error('Recording failed — check microphone permissions');
     }
-  }, [dispatch]);
+  }, [dispatch, timerElapsedSeconds]);
 
   const stopRecording = useCallback(() => {
     isRecordingRef.current = false;
@@ -285,8 +301,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     workerRef.current?.postMessage({ type: 'MEDIA_SHOW', ...media });
   }, []);
 
-  const sendMediaHide = useCallback((mediaId: string, timerDisplay: string) => {
-    workerRef.current?.postMessage({ type: 'MEDIA_HIDE', mediaId, timerDisplay });
+  const sendMediaHide = useCallback((mediaId: string, timerDisplay: string, elapsedMs?: number) => {
+    workerRef.current?.postMessage({ type: 'MEDIA_HIDE', mediaId, timerDisplay, elapsedMs });
+  }, []);
+
+  const sendPdfPage = useCallback((mediaId: string, page: number, timerDisplay: string, elapsedMs?: number) => {
+    workerRef.current?.postMessage({ type: 'PDF_PAGE', mediaId, page, timerDisplay, elapsedMs });
+  }, []);
+
+  const sendMediaScroll = useCallback((mediaId: string, scrollRatio: number, timerDisplay: string, elapsedMs?: number) => {
+    workerRef.current?.postMessage({ type: 'MEDIA_SCROLL', mediaId, scrollRatio, timerDisplay, elapsedMs });
   }, []);
 
   return (
@@ -298,6 +322,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       sendShape,
       sendMediaShow,
       sendMediaHide,
+      sendPdfPage,
+      sendMediaScroll,
     }}>
       {children}
     </SessionContext.Provider>

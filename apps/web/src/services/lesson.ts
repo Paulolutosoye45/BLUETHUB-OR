@@ -1,5 +1,6 @@
 import { API, type TResponse } from ".";
 import { X_Tenant_ID } from "./school";
+import type { IActions } from "@/utils/constant";
 
 export interface CloudinarySignature {
   signature: string;
@@ -93,6 +94,16 @@ export interface MyLessonsData {
   filteredBy: string;
 }
 
+export interface SubmitManifestPayload {
+  sessionId: string;
+  manifest: IActions;
+}
+
+export interface SubmitManifestResponse {
+  sessionId: string;
+  status: string;
+}
+
 export const lessonService = {
   getUploadSignature: () =>
     API.get<TResponse<CloudinarySignature>>("api/lessons/upload-signature", {
@@ -126,6 +137,12 @@ export const lessonService = {
   // GET api/School/subtopics/{topicId}
   getSubTopicsByTopic: (topicId: string) =>
     API.get<TResponse<LessonSubTopic[]>>(`api/School/subtopics/${topicId}`, {
+      headers: { "X-Tenant-ID": X_Tenant_ID },
+    }),
+
+  // POST api/sessions/manifest — submits the full session manifest for replay
+  submitManifest: (payload: SubmitManifestPayload) =>
+    API.post<TResponse<SubmitManifestResponse>>("api/sessions/manifest", payload, {
       headers: { "X-Tenant-ID": X_Tenant_ID },
     }),
 };

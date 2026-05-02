@@ -26,16 +26,16 @@ const ClassBottom = () => {
     }
 
     return (
-        <div className="flex items-center justify-space-between space-x-2">
+        <div className="relative z-50 pointer-events-auto flex flex-col items-center gap-2.5 rounded-full border border-slate-200/80 bg-white/90 p-2.5 shadow-xl backdrop-blur-sm">
             <Button
                 onClick={timeHanlder}
-                className=" hover:bg- cursor-pointer bg-student-chestnut drop-shadow-xl rounded-full size-14 flex items-center justify-center"
+                className="size-10 cursor-pointer rounded-full bg-[#B1432E] text-white shadow-md transition-all duration-200 hover:bg-[#9B3A28]"
             >
-                <span className="font-Irish-Grover text-white font-medium text-2xl leading-[100%]">
+                <span className="flex items-center justify-center">
                     {pauseTime ? (
-                        <PlayIcon className="size-6 text-white" />
+                        <PlayIcon className="size-5 text-white" />
                     ) : (
-                        <PauseIcon className="size-6" />
+                        <PauseIcon className="size-5 text-white" />
                     )}
                 </span>
             </Button>

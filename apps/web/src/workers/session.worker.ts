@@ -34,8 +34,10 @@ type ToWorkerMsg =
       startTime: string; endTime: string; timestamp: number; }
   | { type: 'AUDIO_CHUNK'; blob: Blob; batchIndex: number; duration: number; }
   | { type: 'MEDIA_SHOW'; mediaId: string; name: string; mediaType: string;
-      url: string; timerDisplay: string; }
-  | { type: 'MEDIA_HIDE'; mediaId: string; timerDisplay: string; }
+      url: string; timerDisplay: string; elapsedMs?: number; frameIndex?: 0 | 1; }
+    | { type: 'MEDIA_HIDE'; mediaId: string; timerDisplay: string; elapsedMs?: number; }
+    | { type: 'PDF_PAGE';   mediaId: string; page: number; timerDisplay: string; elapsedMs?: number; }
+    | { type: 'MEDIA_SCROLL'; mediaId: string; scrollRatio: number; timerDisplay: string; elapsedMs?: number; }
   | { type: 'END'; }
 
 // ── Session state ─────────────────────────────────────────────────────────────
@@ -115,6 +117,17 @@ function scheduleNextBatch() {
   const nextBoundaryMs = sessionStartMs + (currentSlot + 1) * BATCH_MS;
   const delay = Math.max(0, nextBoundaryMs - Date.now());
   batchTimer = setTimeout(flushAndTick, delay);
+}
+
+function secondsToClock(totalSeconds: number): string {
+  const secs = Math.max(0, Math.floor(totalSeconds));
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+  if (h > 0) {
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 async function flushAndTick() {
@@ -249,7 +262,7 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
     }
 
     case 'MEDIA_SHOW': {
-      const { mediaId, name, mediaType, url, timerDisplay } = msg;
+      const { mediaId, name, mediaType, url, timerDisplay, elapsedMs, frameIndex } = msg;
 
       // Close any still-open instance of the same asset in this batch
       const prev = batchMediaActions.find(m => m.id === mediaId && m.closed === null);
@@ -261,22 +274,71 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
         type:   mediaType as 'video' | 'pdf' | 'image',
         url,
         show:   timerDisplay,
+        showMs: elapsedMs,
         closed: null,
+        frameIndex,
       });
       break;
     }
 
+    case 'PDF_PAGE': {
+      const { mediaId, page, timerDisplay, elapsedMs } = msg;
+      // Find the active media entry in current batch or previous batches
+      const active = batchMediaActions.find(m => m.id === mediaId && m.closed === null);
+      if (active) {
+        if (!active.pdfPages) active.pdfPages = [];
+        active.pdfPages.push({ page, timerDisplay, elapsedMs });
+      } else {
+        // Media spans a previous batch — append to the most recent open entry there
+        for (let i = manifest.batches.length - 1; i >= 0; i--) {
+          const prev = manifest.batches[i].mediaAction?.find(m => m.id === mediaId && m.closed === null);
+          if (prev) {
+            if (!prev.pdfPages) prev.pdfPages = [];
+            prev.pdfPages.push({ page, timerDisplay, elapsedMs });
+            break;
+          }
+        }
+      }
+      break;
+    }
+
+    case 'MEDIA_SCROLL': {
+      const { mediaId, scrollRatio, timerDisplay, elapsedMs } = msg;
+      const event = { scrollRatio, timerDisplay, elapsedMs };
+
+      const active = batchMediaActions.find(m => m.id === mediaId && m.closed === null);
+      if (active) {
+        if (!active.pdfScrollEvents) active.pdfScrollEvents = [];
+        active.pdfScrollEvents.push(event);
+      } else {
+        for (let i = manifest.batches.length - 1; i >= 0; i--) {
+          const prev = manifest.batches[i].mediaAction?.find(m => m.id === mediaId && m.closed === null);
+          if (prev) {
+            if (!prev.pdfScrollEvents) prev.pdfScrollEvents = [];
+            prev.pdfScrollEvents.push(event);
+            break;
+          }
+        }
+      }
+      break;
+    }
+
     case 'MEDIA_HIDE': {
-      const { mediaId, timerDisplay } = msg;
+      const { mediaId, timerDisplay, elapsedMs } = msg;
 
       // Try current batch first, then search previous batches
       const current = batchMediaActions.find(m => m.id === mediaId && m.closed === null);
       if (current) {
         current.closed = timerDisplay;
+        current.closedMs = elapsedMs;
       } else {
         for (const batch of manifest.batches) {
           const prev = batch.mediaAction?.find(m => m.id === mediaId && m.closed === null);
-          if (prev) { prev.closed = timerDisplay; break; }
+          if (prev) {
+            prev.closed = timerDisplay;
+            prev.closedMs = elapsedMs;
+            break;
+          }
         }
       }
       break;
@@ -287,7 +349,40 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
 
       // Strokes are already in IDB — just finalise the manifest.
       // Close any media still open at session end.
-      batchMediaActions.forEach(m => { if (!m.closed) m.closed = '—'; });
+      const elapsedSecs = Math.ceil(Math.max(0, Date.now() - sessionStartMs) / 1000);
+      const endClock = secondsToClock(elapsedSecs);
+      batchMediaActions.forEach(m => { if (!m.closed) m.closed = endClock; });
+
+      // Also close any still-open media stored in already-flushed batches.
+      for (const batch of manifest.batches) {
+        for (const media of batch.mediaAction ?? []) {
+          if (!media.closed || media.closed === '—') {
+            media.closed = endClock;
+          }
+        }
+      }
+
+      // If class ended before the next 10s tick, flush a final partial batch
+      // so media open/close actions are not lost from the manifest.
+      if (hasStrokesInBatch || batchMediaActions.length > 0) {
+        const startVal = currentSlot * 10;
+        const endVal = Math.max(startVal + 1, elapsedSecs);
+
+        const batch: IBatch = {
+          id:        crypto.randomUUID(),
+          startTime: String(startVal),
+          endTime:   String(endVal),
+          hasAudio:  true,
+          hasBoard:  hasStrokesInBatch,
+          ...(batchMediaActions.length > 0
+            ? { mediaAction: batchMediaActions.slice() }
+            : {}),
+        };
+
+        manifest.batches.push(batch);
+        manifest.totalBatches  = manifest.batches.length;
+        manifest.totalDuration = BATCH_MS * manifest.totalBatches;
+      }
 
       // Emit final manifest
       self.postMessage({ type: 'MANIFEST_UPDATE', manifest: JSON.stringify(manifest) });

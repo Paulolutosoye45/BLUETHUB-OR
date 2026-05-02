@@ -38,6 +38,17 @@ export async function getClass(): Promise<CompressedStroke[]> {
   return (await db()).getAll(STORE_CLASS);
 }
 
+export async function getClassByBoard(boardNumber: number): Promise<CompressedStroke[]> {
+  const allStrokes = await (await db()).getAll(STORE_CLASS);
+  return allStrokes.filter(stroke => stroke.currentBoard === boardNumber);
+}
+
+export async function getAvailableBoards(): Promise<number[]> {
+  const allStrokes = await (await db()).getAll(STORE_CLASS);
+  const boards = new Set<number>(allStrokes.map(stroke => stroke.currentBoard));
+  return Array.from(boards).sort((a, b) => a - b);
+}
+
 export async function getClassById(id: string): Promise<CompressedStroke | undefined> {
   return (await db()).get(STORE_CLASS, id);
 }

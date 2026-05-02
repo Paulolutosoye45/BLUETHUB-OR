@@ -1,7 +1,7 @@
 import { Button } from "@bluethub/ui-kit";
 import OffMicIcon from "@/assets/svg/off-mic.svg?react";
 import MicIcon from "@/assets/svg/mic.svg?react";
-import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { useSession } from "@/contexts/session-context";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import toast from "react-hot-toast";
@@ -9,7 +9,7 @@ import { useTimer } from "@/hooks/useTimer";
 import { Clock } from "lucide-react";
 
 const Audio = () => {
-  const { isRecording, startRecording } = useAudioRecorder();
+  const { isRecording, startRecording } = useSession();
   const { startTimer, time } = useTimer();
 
 
@@ -30,23 +30,23 @@ const Audio = () => {
   };
 
   return (
-    <div>
-      <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg border border-gray-300">
-        <Clock className="w-5 h-5 text-gray-600" />
-        <div className="font-mono text-2xl font-bold text-gray-800">
+    <div className="relative flex items-center justify-center">
+      <div className="pointer-events-none absolute -top-32 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200 bg-white/95 px-2 py-1 shadow-sm">
+        <Clock className="size-3.5 text-slate-500" />
+        <div className="font-mono text-xs font-semibold text-slate-700">
           {time}
         </div>
       </div>
+
       <Button
         onClick={handleMic}
         disabled={classEnded}
-        className="cursor-pointer bg-white drop-shadow-xl rounded-full size-14 flex items-center justify-center disabled:opacity-50"
+        className="size-10 cursor-pointer rounded-full bg-white text-[#1EE23E] shadow-md transition-all duration-200 hover:bg-slate-50 disabled:opacity-50"
       >
         {!isRecording ? (
-          <OffMicIcon className="size-4 text-[#1EE23E]" />
-
+          <OffMicIcon className="size-4" />
         ) : (
-          <MicIcon className="size-4 text-[#1EE23E]" />
+          <MicIcon className="size-4" />
         )}
       </Button>
     </div>

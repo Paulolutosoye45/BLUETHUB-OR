@@ -6,11 +6,32 @@ import { onSetAction, setSelectedImage } from "@/store/class-action-slice";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useRef, useState } from "react";
 import type { IActiveMedia, IMedia } from '@/utils/constant';
-import { fetchImageAsBlob } from '@/utils/blob';
+import { fetchImageAsBlob, loadPdfAsBlob } from '@/utils/blob';
 import { getImage } from '@/services/class-media';
 import type { RootState } from '@/store';
 import { useGlobalTimer } from '@/hooks/useGlobalTimer';
+import { useSession } from '@/contexts/session-context';
 // import { useAudioRecorder } from '@/hooks/useAudioRecorder';
+
+const getRecordingElapsedMs = (timerElapsedSeconds: number): number => {
+  const recordingStartTimerMs = parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10);
+  return Math.max(0, Math.round(timerElapsedSeconds * 1000) - recordingStartTimerMs);
+};
+
+const BOARD_PDF_CANDIDATES = ['/invoiceMar-v2.pdf', '/pdf.pdf'];
+
+const resolveBoardPdfUrl = async (): Promise<string> => {
+  for (const candidate of BOARD_PDF_CANDIDATES) {
+    try {
+      const response = await fetch(candidate, { method: 'HEAD' });
+      if (response.ok) return candidate;
+    } catch {
+      // Try next candidate.
+    }
+  }
+
+  return '/pdf.pdf';
+};
 
 const Media = () => {
   const [availableMedia, setAvailableMedia] = useState<IMedia[]>([]);
@@ -20,8 +41,7 @@ const Media = () => {
 
   const selectedImage = useSelector((state: RootState) => state.action.selectedImage);
   const timerDisplay = useSelector((state: RootState) => state.action.timerDisplay);
-  const isRunning = useSelector((state: RootState) => state.action.timerRunning);
-  const pauseTime = useSelector((state: RootState) => state.action.pauseTime);
+  const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
 
   const timer = useGlobalTimer({
     onTargetReached: () => {
@@ -36,10 +56,13 @@ const Media = () => {
 
   // console.log(timer.displayTime)
   const dispatch = useDispatch();
+  const { sendMediaShow, sendMediaHide } = useSession();
   // ✅ Load media AND auto-cache to IndexedDB on mount
   useEffect(() => {
     const MediaLoader = async () => {
       try {
+        const boardPdfUrl = await resolveBoardPdfUrl();
+
         const loadedImages: IMedia[] = [
           {
             id: "0d20e684-95d4-4ca6-9b81-da9a3e88eca9",
@@ -52,6 +75,12 @@ const Media = () => {
             name: "Nature Image 2",
             type: "image",
             url: "https://source.unsplash.com/600x400/?forest",
+          },
+          {
+            id: "pdf-1",
+            name: boardPdfUrl.includes('invoiceMar-v2') ? 'invoiceMar-v2' : 'pdf',
+            type: "pdf",
+            url: boardPdfUrl,
           },
         ];
 
@@ -69,7 +98,13 @@ const Media = () => {
             } else {
               // Not cached — fetch and store silently
               try {
-                await fetchImageAsBlob(media.url, media.id, media.type, media.name);
+                if (media.type === "pdf") {
+                  // Extract filename from URL
+                  const fileName = media.url.split('/').pop() || "pdf.pdf";
+                  await loadPdfAsBlob(fileName, media.id, media.name);
+                } else {
+                  await fetchImageAsBlob(media.url, media.id, media.type, media.name);
+                }
                 cached.add(media.id);
               } catch {
                 console.warn(`Failed to pre-cache: ${media.name}`);
@@ -110,7 +145,7 @@ const Media = () => {
         </PopoverTrigger>
         <PopoverContent
           side="right"
-          className="w-70 p-0 ml-3 border border-gray-200 shadow-lg rounded-lg overflow-hidden"
+          className="w-52 p-0 ml-3 border border-gray-200 shadow-lg rounded-lg overflow-hidden"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 bg-linear-to-r from-blue-500 to-blue-600">
@@ -142,15 +177,30 @@ const Media = () => {
                       className="flex-1"
                       onClick={() => {
                         if (!cachedIds.has(media.id)) return;
-                        if (!isRunning && !pauseTime) return;
+
+                        const elapsedMs = getRecordingElapsedMs(timerElapsedSeconds);
+
+                        if (selectedImage?.id) {
+                          sendMediaHide(selectedImage.id, timerDisplay, elapsedMs);
+                        }
 
                         const mediaWithTime: IActiveMedia = {
                           ...media,
                           show: timerDisplay,
+                          showMs: elapsedMs,
                           closed: null,
                         };
                         MediaTimesRef.current.show = timerDisplay;
                         dispatch(setSelectedImage(mediaWithTime));
+
+                        sendMediaShow({
+                          mediaId: media.id,
+                          name: media.name,
+                          mediaType: media.type,
+                          url: media.url,
+                          timerDisplay,
+                          elapsedMs,
+                        });
                         // trackMediaInteraction(mediaWithTime);  // ← record the interaction
                       }}
                     >
@@ -176,14 +226,6 @@ const Media = () => {
                 <p className="text-xs text-gray-500">
                   Upload or record media to see it here
                 </p>
-              </div>
-            )}
-
-            {availableMedia.length > 0 && (
-              <div className="p-3 bg-gray-50 border-t border-gray-200">
-                <button className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors">
-                  View All Media
-                </button>
               </div>
             )}
           </div>
