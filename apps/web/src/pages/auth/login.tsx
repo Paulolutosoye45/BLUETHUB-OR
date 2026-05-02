@@ -10,6 +10,7 @@ import { Hashing, localData, token } from "@/utils";
 import { getParsedToken } from "@/utils/decode";
 import { useAuthContext } from "@/contexts/auth-context";
 import { loginSchema } from "@/utils/validate";
+import { API } from "@/services";
 
 
 export interface UserLoginInput {
@@ -62,7 +63,6 @@ function Login() {
   const [errorMsg, setErrorMsg] = useState("");
   const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | null>(null);
   const [schoolName, setSchoolName] = useState<string | null>(null);
-
   // Restore school branding from a previous session
   useEffect(() => {
     const stored =
@@ -81,11 +81,11 @@ function Login() {
   const handleLogin = async (data: UserLoginInput) => {
     setErrorMsg("");
 
-    // Detect device (no external library — uses navigator.userAgent)
     const deviceType = /Mobi|Android/i.test(navigator.userAgent) ? "Mobile" : "Desktop";
 
-    // SHA-256 hash password via SubtleCrypto (built-in, no external library)
+
     const hashedPassword = await Hashing(data.password);
+
 
     const payload = {
       username: data.userName,
@@ -108,6 +108,15 @@ function Login() {
 
       // First-time login → force password change
       if (result.firstTimeLogin) {
+
+        // ✅ Store tokens before navigating
+        localStorage.setItem("username", data.userName);
+        localStorage.setItem("token", result.token);
+        localStorage.setItem("refreshToken", result.refreshToken);
+        localData.save("schoolInfo", result.schoolInfo);
+
+        // Set auth header for subsequent requests
+        API.defaults.headers.common.Authorization = `Bearer ${result.token}`;
         navigate("/auth/new-password");
         return;
       }

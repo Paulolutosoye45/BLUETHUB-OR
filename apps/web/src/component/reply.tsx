@@ -518,7 +518,7 @@ export default function Replay() {
       // drawWindow: stroke.duration is 0 in current impl so we use 50ms min.
       // The stroke "pops" in fully at startMs which is accurate to the ms.
       const drawWindow = Math.max(
-        (s.duration ?? 0) > 0 ? (s.duration ?? 0) : 0,
+        s.duration ?? 0,
         50
       );
       return {

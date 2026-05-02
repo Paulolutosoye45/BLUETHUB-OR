@@ -14,12 +14,22 @@ import { schoolService } from "@/services/school";
 import { AxiosError } from "axios";
 import type { SchoolInfo } from "@/services";
 import { localData } from "@/utils";
-import type { Subject } from "../course/main";
 import { authService, type IcreateUserRequest } from "@/services/auth";
 
 
-type SchoolLevel = "Primary" | "Junior Secondary" | "Senior Secondary";
-const levels: SchoolLevel[] = ["Primary", "Junior Secondary", "Senior Secondary"];
+export type SchoolLevel = "Primary" | "Junior Secondary" | "Senior Secondary";
+export const levels: SchoolLevel[] = ["Primary", "Junior Secondary", "Senior Secondary"];
+
+
+interface Subject {
+    id: string;
+    subject: string;
+    category: string;
+    classCategory: string;
+    isActive: boolean;
+    creationDate: string;
+    modifiedDate: string;
+}
 
 interface ClassCourseDialogProps {
     open: boolean;
@@ -55,16 +65,8 @@ const ClassDialog = ({
             if (!schoolId?.id) return;
             try {
                 setLoading(true);
-                const [subjectsRes, classroomsRes] = await Promise.all([
-                    schoolService.getAllSubject(),
-                    schoolService.getAllClassRooms(),
-                ]);
-
-                const all: Subject[] = subjectsRes.data.data.subjects;
-                console.log(all)
-                setMajorSubjects(all.filter(s => s.subjectCategoryName === "Major"));
-                setMinorSubjects(all.filter(s => s.subjectCategoryName === "Minor"));
-                setClasses(classroomsRes.data.data.classrooms);
+                const getClassRoom = await schoolService.getAllClassRooms()
+                setClasses(getClassRoom.data.data.classrooms);
             } catch (error) {
                 const msg =
                     error instanceof AxiosError
@@ -81,10 +83,43 @@ const ClassDialog = ({
         fetchAll();
     }, []);
 
+    useEffect(() => {
+        const fetchSubjectsForClass = async () => {
+            if (!assignedClass) return;
+            setErrorMsg("")
+            try {
+                const response = await schoolService.getSubjectsByClassroomId(assignedClass);
+                const data = response.data.data;
+
+                if (!data.majorSubjects?.length && !data.minorSubjects?.length) {
+                    setErrorMsg("No subjects found for the assigned class.");
+                    setMajorSubjects([]);
+                    setMinorSubjects([]);
+                    return;
+                }
+
+                setMajorSubjects(data.majorSubjects ?? []);
+                setMinorSubjects(data.minorSubjects ?? []);
+
+            } catch (error) {
+                const msg =
+                    error instanceof AxiosError
+                        ? error.response?.data?.responseMessage ??
+                        error.response?.data?.message ??
+                        error.message
+                        : (error as Error).message;
+                setErrorMsg(msg);
+            }
+        };
+
+        fetchSubjectsForClass();
+    }, [assignedClass])
+
 
 
 
     const isChecked = (id: string) => subjectIds.includes(id);
+
     const schoolId = localData.retrieve("schoolInfo") as SchoolInfo;
 
     const toggleSubject = (id: string) => {
@@ -97,11 +132,11 @@ const ClassDialog = ({
 
 
     const filteredMajor = majorSubjects.filter(s =>
-        s.name.toLowerCase().includes(subjectSearch.toLowerCase())
+        s.subject.toLowerCase().includes(subjectSearch.toLowerCase())
     );
 
     const filteredMinor = minorSubjects.filter(s =>
-        s.name.toLowerCase().includes(subjectSearch.toLowerCase())
+        s.subject.toLowerCase().includes(subjectSearch.toLowerCase())
     );
 
 
@@ -129,19 +164,23 @@ const ClassDialog = ({
             console.error("Student payload missing");
             return;
         }
+        if (!subjectIds) {
+            setErrorMsg("Student must be assigned to at least one subject");
+            return;
+        }
 
         if (!assignedClass) {
             setErrorMsg("Students must be assigned to a classroom");
             return;
         }
 
+        setErrorMsg("");
         const finalPayload: IcreateUserRequest = {
             ...studentPayload,
             userClassroomsId: [assignedClass],
             userSubjects: subjectIds,
         };
 
-        setErrorMsg("")
         try {
             setLoading(true);
             await authService.createUser(finalPayload);
@@ -233,6 +272,16 @@ const ClassDialog = ({
                                 </div>
                             </div>
 
+                            {errorMsg && (
+                                <div
+                                    role="alert"
+                                    className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-xs mb-5"
+                                >
+                                    <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
+                                    <span>{errorMsg}</span>
+                                </div>
+                            )}
+
                             {/* Assigned Class */}
                             <div className="space-y-3 mt-3.5">
                                 <Label className="text-xs font-medium text-blck-b2">
@@ -320,120 +369,111 @@ const ClassDialog = ({
 
                     {/* ── Subjects Tab ──────────────────────────────────────── */}
                     {activeTab === "subjects" && (
-                        <div className="space-y-4">
-                            {/* Search */}
-                            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
-                                <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                                <input
-                                    type="text"
-                                    value={subjectSearch}
-                                    onChange={e => setSubjectSearch(e.target.value)}
-                                    placeholder="Search Subjects..."
-                                    className="flex-1 text-xs text-gray-600 placeholder-gray-400 outline-none bg-transparent"
-                                />
-                            </div>
-
-                            {/* Two columns */}
-                            <div className="flex gap-4">
-
-                                {/* Major column */}
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-bold text-chestnut mb-2.5">Major course</p>
-                                    <div className="flex flex-col space-y-1 h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-chestnut/30 scrollbar-track-transparent">
-                                        {filteredMajor.map(s => (
-                                            <label
-                                                key={s.id}
-                                                onClick={() => toggleSubject(s.id)}
-                                                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
-                                            >
-                                                <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.id) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
-                                                    }`}>
-                                                    {isChecked(s.id) && (
-                                                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                        </svg>
-                                                    )}
-                                                </span>
-                                                <span className={`text-xs font-medium select-none ${isChecked(s.id) ? "text-chestnut font-bold" : "text-gray-600"
-                                                    }`}>
-                                                    {s.name}
-                                                </span>
-                                            </label>
-                                        ))}
-                                    </div>
+                        <>
+                            {!majorSubjects?.length && !minorSubjects?.length ? (
+                                <div className="text-center text-sm text-gray-500">
+                                    No subjects found for this classroom
+                                </div>
+                            ) : (<div className="space-y-4">
+                                {/* Search */}
+                                <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                                    <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                    <input
+                                        type="text"
+                                        value={subjectSearch}
+                                        onChange={e => setSubjectSearch(e.target.value)}
+                                        placeholder="Search Subjects..."
+                                        className="flex-1 text-xs text-gray-600 placeholder-gray-400 outline-none bg-transparent"
+                                    />
                                 </div>
 
-                                {/* Divider */}
-                                <div className="w-px bg-chestnut/10 self-stretch" />
+                                {/* Two columns */}
+                                <div className="flex gap-4">
 
-                                {/* Minor column */}
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-bold text-gray-500 mb-2.5">Minor course</p>
-                                    <div className="flex flex-col space-y-1 h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-chestnut/30 scrollbar-track-transparent">
-                                        {filteredMinor.map(s => (
-                                            <label
-                                                key={s.id}
-                                                onClick={() => toggleSubject(s.id)}
-                                                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
-                                            >
-                                                <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.id) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
-                                                    }`}>
-                                                    {isChecked(s.id) && (
-                                                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                        </svg>
-                                                    )}
-                                                </span>
-                                                <span className={`text-xs font-medium select-none ${isChecked(s.id) ? "text-chestnut font-bold" : "text-gray-600"
-                                                    }`}>
-                                                    {s.name}
-                                                </span>
-                                            </label>
-                                        ))}
+                                    {/* Major column */}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-bold text-chestnut mb-2.5">Major course</p>
+                                        <div className="flex flex-col space-y-1 h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-chestnut/30 scrollbar-track-transparent">
+                                            {filteredMajor.map(s => (
+                                                <label
+                                                    key={s.id}
+                                                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
+                                                >
+                                                    <span className="w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors border-chestnut bg-chestnut">
+                                                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                    </span>
+                                                    <span className="text-xs select-none text-chestnut font-bold">
+                                                        {s.subject}
+                                                    </span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Divider */}
+                                    <div className="w-px bg-chestnut/10 self-stretch" />
+
+                                    {/* Minor column */}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-bold text-gray-500 mb-2.5">Minor course</p>
+                                        <div className="flex flex-col space-y-1 h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-chestnut/30 scrollbar-track-transparent">
+                                            {filteredMinor.map(s => (
+                                                <label
+                                                    key={s.id}
+                                                    onClick={() => toggleSubject(s.id)}
+                                                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
+                                                >
+                                                    <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.id) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
+                                                        }`}>
+                                                        {isChecked(s.id) && (
+                                                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                            </svg>
+                                                        )}
+                                                    </span>
+                                                    <span className={`text-xs font-medium select-none ${isChecked(s.id) ? "text-chestnut font-bold" : "text-gray-600"
+                                                        }`}>
+                                                        {s.subject}
+                                                    </span>
+                                                </label>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                            )}
+                        </>
                     )}
                 </div>
 
                 {/* ── Footer ──────────────────────────────────────────────── */}
-                <div className="flex justify-between px-5 py-3 border-t border-gray-100 bg-white/60">
-                    {errorMsg && (
-                        <div
-                            role="alert"
-                            className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm mb-5"
-                        >
-                            <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
-                            <span>{errorMsg}</span>
-                        </div>
-                    )}
-                    <div className="flex items-center ml-auto justify-end gap-3">
-                        <Button
-                            variant="outline"
-                            onClick={() => onOpenChange(false)}
-                            className="px-5 py-2 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                        >
-                            Cancel
-                        </Button>
-                        <button
-                            onClick={handleSave}
-                            disabled={loading}
-                            className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90 bg-[#292382] disabled:opacity-60 disabled:cursor-not-allowed"
-                        >
-                            {loading ? (
-                                <>
-                                    <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                                    <span>Submitting...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <span>Save & Register</span>
-                                </>
-                            )}
-                        </button>
+                <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-gray-100 bg-white/60">
+                    <Button
+                        variant="outline"
+                        onClick={() => { onOpenChange(false); setErrorMsg("") }}
+                        className="px-5 py-2 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                        Cancel
+                    </Button>
+                    <button
+                        onClick={handleSave}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90 bg-[#292382] disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                        {loading ? (
+                            <>
+                                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                                <span>Submitting...</span>
+                            </>
+                        ) : (
+                            <>
+                                <span>Save & Register</span>
+                            </>
+                        )}
+                    </button>
 
-                    </div>
                 </div>
             </DialogContent>
         </Dialog>

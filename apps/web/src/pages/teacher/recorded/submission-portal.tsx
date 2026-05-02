@@ -39,12 +39,14 @@ const SubmissionPortal = () => {
       type: "audio",
       name: "Recording Audio file 12...",
       date: "21 July 2025, 12:04Am",
+      size: "2.4MB"
     },
     {
       id: "2",
       type: "video",
       name: "Video Content file mp4.",
       date: "21 July 2025, 12:07Am",
+      size: "2.4MB"
     },
   ];
 

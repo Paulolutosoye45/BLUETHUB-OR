@@ -49,7 +49,7 @@ import Login from '@/pages/auth/login';
 import NewPassword from '@/pages/auth/new-password';
 import AdminProtectedRoute from '@/component/protected-routes/admin-routes';
 import { PublicRoute } from '@/component/protected-routes/public-route';
-// import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
+import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
 import StudentProtectedRoute from '@/component/protected-routes/student-routes';
 import UploadScan from '@/pages/teacher/component/upload-scan';
 import ReviewQuestion from '@/pages/teacher/component/review-question';
@@ -64,6 +64,8 @@ import ClassviewAll from '@/pages/admin/registration/course/class/class-view-all
 import LessonApproval from '@/pages/admin/dashboard/lesson-approval';
 import MyLesson from '@/pages/teacher/component/my-lesson';
 import SubmitLesson from '@/pages/teacher/component/submit-lesson';
+import QuizIndex from '@/pages/teacher/quiz';
+import MySyllabus from '@/pages/teacher/Syllabus/my-syllabus';
 
 const router = createBrowserRouter([
     {
@@ -172,7 +174,7 @@ const router = createBrowserRouter([
 
             },
             {
-                path:'lesson-approval',
+                path: 'lesson-approval',
                 element: <LessonApproval />
             }
 
@@ -183,7 +185,7 @@ const router = createBrowserRouter([
     {
         path: '/teacher',
         element:
-            <TeacherLayout />,
+            <TeacherProtectedRoute><TeacherLayout /></TeacherProtectedRoute>,
         children: [
             {
                 index: true,
@@ -210,7 +212,9 @@ const router = createBrowserRouter([
                     { path: "classes/approval-status", element: <ApprovalStatus /> },
                     { path: "classes/approval-status/:id", element: <ApprovalStatusId /> },
                 ]
-            }
+            },
+            { path: "quiz", element: <QuizIndex /> },
+            { path: "syllabus", element: <MySyllabus /> },
         ]
     },
 
