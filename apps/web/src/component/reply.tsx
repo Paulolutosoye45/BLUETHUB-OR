@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import type { AudioBatch, CompressedStroke, IActions, IActiveMedia, Stroke } from '@/utils/constant';
 import { clearAudio, clearClass, getAudio, getClass } from '@/utils/db';
+import { getImage } from '@/services/class-media';
 import { base64ToUint8 } from '@/utils';
 import { gzipDecompress } from '@/utils/gzip';
 import PdfScrollViewer from '@/component/pdf-scroll-viewer';
@@ -90,18 +91,38 @@ const resolvePdfScrollRatio = (media: IActiveMedia, sessionMs: number): number |
   return ratio;
 };
 
+const resolveVideoPlaybackState = (media: IActiveMedia, sessionMs: number): 'play' | 'pause' => {
+  if (media.type.toLowerCase() !== 'video' || !media.playbackEvents || media.playbackEvents.length === 0) {
+    return 'pause';
+  }
+
+  let state: 'play' | 'pause' = 'pause';
+  for (const event of media.playbackEvents) {
+    const eventMs = event.elapsedMs ?? mediaClockMs(event.timerDisplay);
+    if (sessionMs >= eventMs) {
+      state = event.state;
+    } else {
+      break;
+    }
+  }
+
+  return state;
+};
+
+
+
 const getReplayFrameClassByType = (type?: string): string => {
   const mediaType = (type ?? '').toLowerCase();
 
   if (mediaType.includes('pdf')) {
-    return 'h-[58vh] w-[min(94vw,1020px)]';
+    return 'h-[min(88vh,980px)] w-[min(94vw,1100px)]';
   }
 
   if (mediaType.includes('video')) {
-    return 'h-[54vh] w-[min(86vw,860px)]';
+    return 'h-[64vh] w-[min(86vw,920px)]';
   }
 
-  return 'h-[50vh] w-[min(80vw,760px)]';
+  return 'h-[60vh] w-[min(82vw,840px)]';
 };
 
 const buildMediaTimelineFromManifest = (raw: string | null): Array<{ media: IActiveMedia; showMs: number; closeMs: number }> => {
@@ -120,6 +141,11 @@ const buildMediaTimelineFromManifest = (raw: string | null): Array<{ media: IAct
             (a, b) => (a.elapsedMs ?? mediaClockMs(a.timerDisplay)) - (b.elapsedMs ?? mediaClockMs(b.timerDisplay))
           )
           : media.pdfPages,
+        playbackEvents: media.playbackEvents?.length
+          ? [...media.playbackEvents].sort(
+            (a, b) => (a.elapsedMs ?? mediaClockMs(a.timerDisplay)) - (b.elapsedMs ?? mediaClockMs(b.timerDisplay))
+          )
+          : media.playbackEvents,
       };
 
       const showMs = normalizedMedia.showMs ?? mediaClockMs(normalizedMedia.show);
@@ -177,8 +203,17 @@ export default function Replay() {
   const [_renderTick, setRenderTick] = useState(0);
   const [replayMs, setReplayMs] = useState(0);
   const [activeFrame, setActiveFrame] = useState<IActiveMedia | null>(null);
+  const [activeFrameUrl, setActiveFrameUrl] = useState<string | null>(null);
   const [activePdfPage, setActivePdfPage] = useState<number | undefined>(undefined);
   const [activePdfScrollRatio, setActivePdfScrollRatio] = useState<number | undefined>(undefined);
+  const [isPdfAutoFollowEnabled, setIsPdfAutoFollowEnabled] = useState(true);
+  const [isReplayVideoPlaying, setIsReplayVideoPlaying] = useState(false);
+  const [targetVideoPlaybackState, setTargetVideoPlaybackState] = useState<'play' | 'pause'>('pause');
+  const [currentBoardInReplay, setCurrentBoardInReplay] = useState(1);
+  const totalBoards = Math.max(
+    1,
+    new Set(strokes.map((s) => s.currentBoard ?? 1)).size,
+  );
 
   // ── Refs ──────────────────────────────────────────────────────────────────
 
@@ -210,6 +245,9 @@ export default function Replay() {
   const activeFrameRef = useRef<IActiveMedia | null>(null);
   const activePdfPageRef = useRef<number | undefined>(undefined);
   const activePdfScrollRatioRef = useRef<number | undefined>(undefined);
+  const targetVideoPlaybackStateRef = useRef<'play' | 'pause'>('pause');
+  const replayVideoRef = useRef<HTMLVideoElement | null>(null);
+  const currentBoardInReplayRef = useRef<number>(1);
 
   // ─────────────────────────────────────────────────────────────────────────
   // THE SYNC ANCHOR
@@ -243,8 +281,40 @@ export default function Replay() {
   // const __trRef = useRef<Konva.Transformer | null>(null);
   // const _rectRef = useRef(null);
 
-  // Snapshot of drawnMapRef for Konva — re-evaluated each time renderTick ticks
-  const drawn = Array.from(drawnMapRef.current.values());
+  // Snapshot of drawnMapRef for Konva, limited to current replay board.
+  const drawn = Array.from(drawnMapRef.current.values()).filter(
+    (stroke) => (stroke.currentBoard ?? 1) === currentBoardInReplay,
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    const resolveActiveFrameUrl = async () => {
+      if (!activeFrame) {
+        if (mounted) setActiveFrameUrl(null);
+        return;
+      }
+
+      const mediaType = activeFrame.type.toLowerCase();
+      if (mediaType.includes('pdf')) {
+        if (mounted) setActiveFrameUrl(activeFrame.url);
+        return;
+      }
+
+      try {
+        const cached = await getImage(activeFrame.id);
+        if (mounted) setActiveFrameUrl(cached ?? activeFrame.url);
+      } catch {
+        if (mounted) setActiveFrameUrl(activeFrame.url);
+      }
+    };
+
+    resolveActiveFrameUrl();
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeFrame]);
 
   // Header clock is driven by the same session clock used by drawing.
   // This removes drift between visual timer and audio playback.
@@ -358,6 +428,7 @@ export default function Replay() {
               points,
               color: comp.color,
               width: comp.width,
+              currentBoard: comp.currentBoard,
               duration: comp.duration ?? 600,
               timestamp: comp.timestamp ?? Date.now(),
               startTime: comp.startTime,  // "MM:SS" string
@@ -464,7 +535,14 @@ export default function Replay() {
     activeFrameRef.current = null;
     activePdfPageRef.current = undefined;
     activePdfScrollRatioRef.current = undefined;
+    currentBoardInReplayRef.current = 1;
     setActiveFrame(null);
+    setActiveFrameUrl(null);
+    setIsPdfAutoFollowEnabled(true);
+    setIsReplayVideoPlaying(false);
+    targetVideoPlaybackStateRef.current = 'pause';
+    setTargetVideoPlaybackState('pause');
+    setCurrentBoardInReplay(1);
     setActivePdfPage(undefined);
     setActivePdfScrollRatio(undefined);
 
@@ -484,11 +562,17 @@ export default function Replay() {
         if (event.type === 'show') {
           const pdfPage = resolvePdfPage(event.media, sessionMs);
           const pdfScrollRatio = resolvePdfScrollRatio(event.media, sessionMs);
+          const videoState = resolveVideoPlaybackState(event.media, sessionMs);
           activeFrameSigRef.current = `${event.media.id}:${pdfPage ?? ''}`;
           activeFrameRef.current = event.media;
           activePdfPageRef.current = pdfPage;
           activePdfScrollRatioRef.current = pdfScrollRatio;
+          targetVideoPlaybackStateRef.current = videoState;
           setActiveFrame(event.media);
+          setActiveFrameUrl(null);
+          setIsPdfAutoFollowEnabled(true);
+          setIsReplayVideoPlaying(videoState === 'play');
+          setTargetVideoPlaybackState(videoState);
           setActivePdfPage(pdfPage);
           setActivePdfScrollRatio(pdfScrollRatio);
         } else if (activeFrameSigRef.current.startsWith(`${event.media.id}:`) || activeFrameSigRef.current === event.media.id) {
@@ -496,14 +580,41 @@ export default function Replay() {
           activeFrameRef.current = null;
           activePdfPageRef.current = undefined;
           activePdfScrollRatioRef.current = undefined;
+          targetVideoPlaybackStateRef.current = 'pause';
           setActiveFrame(null);
+          setActiveFrameUrl(null);
+          setIsPdfAutoFollowEnabled(true);
+          setIsReplayVideoPlaying(false);
+          setTargetVideoPlaybackState('pause');
           setActivePdfPage(undefined);
           setActivePdfScrollRatio(undefined);
         }
         mediaEventIndexRef.current += 1;
       }
 
+      // ── Board tracking — uses same timing logic as stroke drawing ──────────
+      // Track the LATEST board (chronologically), not the max. If you write on
+      // board 1, then 2, then 1 again, the board should be 1 at the end.
+      let activeBoard = 1;
+      for (const { stroke, startMs } of timelines) {
+        if (sessionMs >= startMs) {
+          activeBoard = stroke.currentBoard ?? 1;  // Latest board, not max
+        }
+      }
+      if (activeBoard !== currentBoardInReplayRef.current) {
+        currentBoardInReplayRef.current = activeBoard;
+        setCurrentBoardInReplay(activeBoard);
+      }
+
       const activeMedia = activeFrameRef.current;
+      if (activeMedia && activeMedia.type.toLowerCase().includes('video')) {
+        const target = resolveVideoPlaybackState(activeMedia, sessionMs);
+        if (target !== targetVideoPlaybackStateRef.current) {
+          targetVideoPlaybackStateRef.current = target;
+          setTargetVideoPlaybackState(target);
+        }
+      }
+
       if (activeMedia && activeMedia.type.toLowerCase().includes('pdf')) {
         const pdfPage = resolvePdfPage(activeMedia, sessionMs);
 
@@ -642,6 +753,11 @@ export default function Replay() {
     activePdfPageRef.current = undefined;
     activePdfScrollRatioRef.current = undefined;
     setActiveFrame(null);
+    setActiveFrameUrl(null);
+    setIsPdfAutoFollowEnabled(true);
+    setIsReplayVideoPlaying(false);
+    targetVideoPlaybackStateRef.current = 'pause';
+    setTargetVideoPlaybackState('pause');
     setActivePdfPage(undefined);
     setActivePdfScrollRatio(undefined);
     setRenderTick(0);
@@ -718,6 +834,11 @@ export default function Replay() {
     activePdfPageRef.current = undefined;
     activePdfScrollRatioRef.current = undefined;
     setActiveFrame(null);
+    setActiveFrameUrl(null);
+    setIsPdfAutoFollowEnabled(true);
+    setIsReplayVideoPlaying(false);
+    targetVideoPlaybackStateRef.current = 'pause';
+    setTargetVideoPlaybackState('pause');
     setActivePdfPage(undefined);
     setActivePdfScrollRatio(undefined);
     mediaEventIndexRef.current = 0;
@@ -732,6 +853,18 @@ export default function Replay() {
       currentBlobUrlRef.current = null;
     }
   };
+
+  useEffect(() => {
+    const video = replayVideoRef.current;
+    if (!video) return;
+
+    if (targetVideoPlaybackState === 'play') {
+      video.play().then(() => setIsReplayVideoPlaying(true)).catch(() => setIsReplayVideoPlaying(false));
+    } else {
+      video.pause();
+      setIsReplayVideoPlaying(false);
+    }
+  }, [targetVideoPlaybackState, activeFrameUrl, activeFrame?.id]);
 
   // ── Clear ─────────────────────────────────────────────────────────────────
   const Cleardata = async () => {
@@ -839,7 +972,12 @@ export default function Replay() {
           </div>
 
 
-          <div className='font-medium'>s</div>
+          <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-lg">
+            <Edit3 className="w-4 h-4 text-indigo-600" />
+            <div className="text-sm font-medium text-indigo-700">
+              Current Board: {Math.min(currentBoardInReplay, totalBoards)}/{totalBoards}
+            </div>
+          </div>
 
           {isPlaying && (
             <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -898,25 +1036,55 @@ export default function Replay() {
           </Stage>
 
           {activeFrame && (
-            <div className="pointer-events-none absolute inset-0 flex items-start justify-center p-2 sm:p-4">
+            <div className={`pointer-events-none absolute inset-0 flex justify-center p-2 sm:p-4 ${activeFrame.type.toLowerCase().includes('pdf') ? 'items-start' : 'items-center'}`}>
               <div className={`pointer-events-auto relative overflow-hidden border border-slate-200 bg-white shadow-2xl rounded-xl ${getReplayFrameClassByType(activeFrame.type)}`}>
                 <div className="absolute left-2 top-2 z-10 rounded bg-black/60 px-2 py-1 text-xs text-white">
                   Frame 1
                 </div>
 
+                {activeFrame.type.toLowerCase().includes('pdf') && (
+                  <button
+                    type="button"
+                    className="absolute right-2 top-2 z-10 rounded bg-black/70 px-2 py-1 text-xs text-white hover:bg-black/80"
+                    onClick={() => setIsPdfAutoFollowEnabled((prev) => !prev)}
+                  >
+                    {isPdfAutoFollowEnabled ? 'Manual scroll' : 'Follow replay'}
+                  </button>
+                )}
+
                 {activeFrame.type.toLowerCase().includes('video') ? (
-                  <video src={activeFrame.url} className="h-full w-full object-contain bg-black" />
+                  <>
+                    <div className="absolute left-2 top-10 z-10 rounded bg-black/60 px-2 py-1 text-xs text-white">
+                      Video: {isReplayVideoPlaying ? 'Playing' : 'Paused'}
+                    </div>
+                    <video
+                      ref={replayVideoRef}
+                      src={activeFrameUrl ?? activeFrame.url}
+                      controls
+                      muted={false}
+                      playsInline
+                      onPlay={() => setIsReplayVideoPlaying(true)}
+                      onPause={() => setIsReplayVideoPlaying(false)}
+                      onEnded={() => setIsReplayVideoPlaying(false)}
+                      className="h-full w-full object-contain bg-black"
+                    />
+                  </>
                 ) : activeFrame.type.toLowerCase().includes('pdf') ? (
                   <PdfScrollViewer
-                    fileUrl={activeFrame.url}
+                    fileUrl={activeFrameUrl ?? activeFrame.url}
                     mode="replay"
                     preferIframe={false}
-                    controlledPage={activePdfPage}
-                                       controlledScrollRatio={activePdfScrollRatio}
+                    controlledPage={isPdfAutoFollowEnabled ? activePdfPage : undefined}
+                    controlledScrollRatio={isPdfAutoFollowEnabled ? activePdfScrollRatio : undefined}
+                    onScrollRatioChange={() => {
+                      if (isPdfAutoFollowEnabled) {
+                        setIsPdfAutoFollowEnabled(false);
+                      }
+                    }}
                     className="bg-white"
                   />
                 ) : (
-                  <img src={activeFrame.url} alt={activeFrame.name} className="h-full w-full object-contain bg-black" />
+                  <img src={activeFrameUrl ?? activeFrame.url} alt={activeFrame.name} className="h-full w-full object-contain bg-black" />
                 )}
               </div>
             </div>

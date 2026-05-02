@@ -26,5 +26,5 @@ export const loadPdfAsBlob = async (
     throw new Error(`Failed to load PDF: ${response.statusText}`);
   }
   const blob = await response.blob();
-  await saveImage(id, blob, "pdf", name);
+  await saveImage(id, blob, "pdf", name, url);
 };

@@ -6,14 +6,6 @@ import { parseTime } from "@/utils";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-// "MM:SS" or "HH:MM:SS" → total seconds
-const toSeconds = (time: string): number => {
-  const parts = time.split(":").map(Number);
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  return 0;
-};
-
 // total seconds → "MM:SS" or "HH:MM:SS"
 const fromSeconds = (total: number): string => {
   const s = total % 60;
@@ -31,17 +23,14 @@ const Time = () => {
   const timeUp = useSelector((state: RootState) => state.action.timeUp);
   const pauseTime = useSelector((state: RootState) => state.action.pauseTime);
 
-  // timerDisplay is the elapsed time dispatched by useGlobalTimer every 200ms
-  // e.g. "00:08" means 8 seconds have elapsed since recording started
-  const timerDisplay = useSelector((state: RootState) => state.action.timerDisplay);
-  const isRecording = useSelector((state: RootState) => state.action.isRecording);
+  const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
 
   // ── Compute countdown from elapsed ────────────────────────────────────────
   // classDuration is the total class length e.g. "30:00"
   // timerDisplay is how much has elapsed e.g. "00:08"
   // remaining = classDuration - elapsed, clamped to 0
   const totalSeconds = parseTime(classDuration);          // uses your existing util
-  const elapsedSeconds = isRecording ? toSeconds(timerDisplay) : 0;
+  const elapsedSeconds = Math.max(0, Math.floor(timerElapsedSeconds));
   const remaining = Math.max(0, totalSeconds - elapsedSeconds);
   const displayTime = fromSeconds(remaining);
 
@@ -69,7 +58,7 @@ const Time = () => {
           className={`font-Poppins font-semibold text-sm leading-[100%] transition-colors duration-200
           ${timeUp ? "text-[#EC1B2C] group-hover:text-white" : "text-white"}`}
         >
-          {isRecording ? displayTime : fromSeconds(totalSeconds)}
+          {displayTime}
         </span>
       </Button>
     </div>

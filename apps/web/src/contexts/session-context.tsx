@@ -55,6 +55,9 @@ interface SessionContextValue {
 
   /** Call when the media frame container is scrolled */
   sendMediaScroll: (mediaId: string, scrollRatio: number, timerDisplay: string, elapsedMs?: number) => void;
+
+  /** Call when a video is played or paused */
+  sendMediaPlayback: (mediaId: string, state: 'play' | 'pause', timerDisplay: string, elapsedMs?: number) => void;
 }
 
 export interface PdfScrollPayload {
@@ -262,6 +265,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const stopRecording = useCallback(() => {
     isRecordingRef.current = false;
+    dispatch(setIsRecording(false));
 
     if (recorderRef.current?.state === 'recording') {
       // stop() triggers: ondataavailable → onstop (in that order, guaranteed).
@@ -276,7 +280,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
 
     toast.success('Recording stopped');
-  }, []);
+  }, [dispatch]);
 
   // React when Redux isRecording is turned off externally (e.g. EndClass)
   useEffect(() => {
@@ -313,6 +317,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     workerRef.current?.postMessage({ type: 'MEDIA_SCROLL', mediaId, scrollRatio, timerDisplay, elapsedMs });
   }, []);
 
+  const sendMediaPlayback = useCallback((mediaId: string, state: 'play' | 'pause', timerDisplay: string, elapsedMs?: number) => {
+    workerRef.current?.postMessage({ type: 'MEDIA_PLAYBACK', mediaId, state, timerDisplay, elapsedMs });
+  }, []);
+
   return (
     <SessionContext.Provider value={{
       isRecording,
@@ -324,6 +332,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       sendMediaHide,
       sendPdfPage,
       sendMediaScroll,
+      sendMediaPlayback,
     }}>
       {children}
     </SessionContext.Provider>

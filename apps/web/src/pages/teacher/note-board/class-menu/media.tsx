@@ -6,8 +6,8 @@ import { onSetAction, setSelectedImage } from "@/store/class-action-slice";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useRef, useState } from "react";
 import type { IActiveMedia, IMedia } from '@/utils/constant';
-import { fetchImageAsBlob, loadPdfAsBlob } from '@/utils/blob';
-import { getImage } from '@/services/class-media';
+import { fetchImageAsBlob } from '@/utils/blob';
+import { deleteImage, getImage, getImageSourceUrl } from '@/services/class-media';
 import type { RootState } from '@/store';
 import { useGlobalTimer } from '@/hooks/useGlobalTimer';
 import { useSession } from '@/contexts/session-context';
@@ -18,6 +18,7 @@ const getRecordingElapsedMs = (timerElapsedSeconds: number): number => {
   return Math.max(0, Math.round(timerElapsedSeconds * 1000) - recordingStartTimerMs);
 };
 
+// List preferred PDFs in priority order. First one found in public/ wins.
 const BOARD_PDF_CANDIDATES = ['/invoiceMar-v2.pdf', '/pdf.pdf'];
 
 const resolveBoardPdfUrl = async (): Promise<string> => {
@@ -63,22 +64,30 @@ const Media = () => {
       try {
         const boardPdfUrl = await resolveBoardPdfUrl();
 
+        // Derive the cache ID from the filename so switching the PDF file
+        // automatically busts the old cached blob.
+        const pdfFileName = boardPdfUrl.split('/').pop()?.replace(/\.pdf$/i, '') ?? 'pdf';
+        const pdfCacheId = `pdf-${pdfFileName}`;
+
+        // Evict any legacy fixed-id entry so it doesn't shadow the new file.
+        await deleteImage('pdf-1').catch(() => undefined);
+
         const loadedImages: IMedia[] = [
           {
-            id: "0d20e684-95d4-4ca6-9b81-da9a3e88eca9",
-            name: "Nature Image 1",
+            id: "image01",
+            name: "image01",
             type: "image",
             url: "https://cdn-jagbh.nitrocdn.com/TYVZHePxisufUuSiVWDElscksnaOxEbE/assets/images/source/rev-50b38d4/s39613.pcdn.co/wp-content/uploads/2019/11/Implementing-active-learning-and-student-centered-pedagogy.jpg",
           },
           {
-            id: "109b604f-c59e-473a-91f1-eb0fe9cceb0d",
-            name: "Nature Image 2",
-            type: "image",
-            url: "https://source.unsplash.com/600x400/?forest",
+            id: "video01",
+            name: "video01",
+            type: "video",
+            url: "/video01.mp4",
           },
           {
-            id: "pdf-1",
-            name: boardPdfUrl.includes('invoiceMar-v2') ? 'invoiceMar-v2' : 'pdf',
+            id: pdfCacheId,
+            name: pdfFileName,
             type: "pdf",
             url: boardPdfUrl,
           },
@@ -91,20 +100,26 @@ const Media = () => {
 
         await Promise.all(
           loadedImages.map(async (media) => {
-            const existing = await getImage(media.id);
+            if (media.type === "pdf") {
+              // PDFs are loaded directly from public URL in the board frame.
+              cached.add(media.id);
+              return;
+            }
+
+            const cachedSourceUrl = await getImageSourceUrl(media.id);
+            const sourceUrl = media.url;
+            const existing = cachedSourceUrl === sourceUrl ? await getImage(media.id) : null;
+            if (cachedSourceUrl !== sourceUrl) {
+              // Source URL changed — evict stale blob so it re-fetches below.
+              await deleteImage(media.id).catch(() => undefined);
+            }
             if (existing) {
-              // Already cached — just mark it
+              // Already cached with matching source — just mark it
               cached.add(media.id);
             } else {
               // Not cached — fetch and store silently
               try {
-                if (media.type === "pdf") {
-                  // Extract filename from URL
-                  const fileName = media.url.split('/').pop() || "pdf.pdf";
-                  await loadPdfAsBlob(fileName, media.id, media.name);
-                } else {
-                  await fetchImageAsBlob(media.url, media.id, media.type, media.name);
-                }
+                await fetchImageAsBlob(media.url, media.id, media.type, media.name);
                 cached.add(media.id);
               } catch {
                 console.warn(`Failed to pre-cache: ${media.name}`);

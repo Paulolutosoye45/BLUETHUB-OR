@@ -38,6 +38,7 @@ type ToWorkerMsg =
     | { type: 'MEDIA_HIDE'; mediaId: string; timerDisplay: string; elapsedMs?: number; }
     | { type: 'PDF_PAGE';   mediaId: string; page: number; timerDisplay: string; elapsedMs?: number; }
     | { type: 'MEDIA_SCROLL'; mediaId: string; scrollRatio: number; timerDisplay: string; elapsedMs?: number; }
+    | { type: 'MEDIA_PLAYBACK'; mediaId: string; state: 'play' | 'pause'; timerDisplay: string; elapsedMs?: number; }
   | { type: 'END'; }
 
 // ── Session state ─────────────────────────────────────────────────────────────
@@ -316,6 +317,27 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
           if (prev) {
             if (!prev.pdfScrollEvents) prev.pdfScrollEvents = [];
             prev.pdfScrollEvents.push(event);
+            break;
+          }
+        }
+      }
+      break;
+    }
+
+    case 'MEDIA_PLAYBACK': {
+      const { mediaId, state, timerDisplay, elapsedMs } = msg;
+      const event = { state, timerDisplay, elapsedMs };
+
+      const active = batchMediaActions.find(m => m.id === mediaId && m.closed === null);
+      if (active) {
+        if (!active.playbackEvents) active.playbackEvents = [];
+        active.playbackEvents.push(event);
+      } else {
+        for (let i = manifest.batches.length - 1; i >= 0; i--) {
+          const prev = manifest.batches[i].mediaAction?.find(m => m.id === mediaId && m.closed === null);
+          if (prev) {
+            if (!prev.playbackEvents) prev.playbackEvents = [];
+            prev.playbackEvents.push(event);
             break;
           }
         }
