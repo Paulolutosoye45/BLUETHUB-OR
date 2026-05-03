@@ -12,7 +12,14 @@ import {
 } from "@bluethub/ui-kit";
 import { Check, ChevronDown, PencilLine, PenTool, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import toast from "react-hot-toast";
+import {
+  questionService,
+  QuestionTypeEnum,
+  DifficultyLevelEnum,
+  type CreateOptionPayload,
+} from "@/services/question";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type QuestionType = "Multiple Choice" | "True/False" | "Short Answer" | "Essay";
@@ -38,6 +45,7 @@ const DEFAULT_OPTIONS: Option[] = [
 ];
 
 const CORRECT_ANSWER_OPTIONS = ["A", "B", "C", "D"];
+const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
@@ -105,11 +113,20 @@ const SelectDropdown = ({
 
 // ── Main Component ─────────────────────────────────────────────────────────
 const CreateQuizQuestion = () => {
+  const [searchParams] = useSearchParams();
   const [questionType, setQuestionType] = useState<QuestionType>("Multiple Choice");
   const [question, setQuestion] = useState("What is the basic unit of life?");
   const [options, setOptions] = useState<Option[]>(DEFAULT_OPTIONS);
   const [correctAnswer, setCorrectAnswer] = useState<string | undefined>("B");
-  const [quizType, setQuizType] = useState<"questions" | "board">('questions')
+  const [quizType, setQuizType] = useState<"questions" | "board">('questions');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const subjectId = searchParams.get("subjectId") ?? "";
+  const topicId = searchParams.get("topicId") ?? "";
+  const topic = searchParams.get("topic") ?? "";
+  const subTopic = searchParams.get("subTopic") ?? EMPTY_GUID;
+  const boardSessionId = searchParams.get("boardSessionId") ?? "";
+  const scanSessionId = searchParams.get("scanSessionId") ?? "";
 
   const updateOption = (key: string, val: string) => {
     setOptions((prev) =>
@@ -132,6 +149,141 @@ const CreateQuizQuestion = () => {
 
   const showOptions = questionType === "Multiple Choice";
   const showTrueFalse = questionType === "True/False";
+
+  const toEnumQuestionType = (): number => {
+    if (quizType === "board") {
+      return question.trim() ? QuestionTypeEnum.Mixed : QuestionTypeEnum.BoardBased;
+    }
+
+    switch (questionType) {
+      case "Multiple Choice":
+        return QuestionTypeEnum.MultipleChoice;
+      case "True/False":
+        return QuestionTypeEnum.TrueOrFalse;
+      case "Short Answer":
+        return QuestionTypeEnum.ShortAnswer;
+      case "Essay":
+        return QuestionTypeEnum.Essay;
+      default:
+        return QuestionTypeEnum.ShortAnswer;
+    }
+  };
+
+  const buildOptionsPayload = (): CreateOptionPayload[] => {
+    if (questionType === "True/False") {
+      return [
+        { optionLabel: "A", optionText: "True", isCorrect: correctAnswer === "True", orderIndex: 1 },
+        { optionLabel: "B", optionText: "False", isCorrect: correctAnswer === "False", orderIndex: 2 },
+      ];
+    }
+
+    if (questionType !== "Multiple Choice") {
+      return [];
+    }
+
+    return options.map((opt, idx) => ({
+      optionLabel: opt.key,
+      optionText: opt.value.trim(),
+      isCorrect: correctAnswer === opt.key,
+      orderIndex: idx + 1,
+    }));
+  };
+
+  const validateBeforePublish = (): boolean => {
+    if (!subjectId) {
+      toast.error("Subject is missing. Please start from Assessment subject selection.");
+      return false;
+    }
+
+    if (!question.trim() && quizType !== "board") {
+      toast.error("Question title is required.");
+      return false;
+    }
+
+    if (questionType === "Multiple Choice") {
+      const filledOptions = options.filter((o) => o.value.trim());
+      if (filledOptions.length < 2) {
+        toast.error("Multiple choice questions require at least 2 options.");
+        return false;
+      }
+      if (filledOptions.length > 6) {
+        toast.error("Multiple choice questions cannot have more than 6 options.");
+        return false;
+      }
+      if (!correctAnswer) {
+        toast.error("Select a correct answer.");
+        return false;
+      }
+    }
+
+    if (questionType === "True/False" && !correctAnswer) {
+      toast.error("Select True or False as the correct answer.");
+      return false;
+    }
+
+    if (quizType === "board" && !boardSessionId) {
+      toast.error("Board session id is missing. Save board updates first.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const resetForNextQuestion = () => {
+    setQuestionType("Multiple Choice");
+    setQuestion("");
+    setOptions([
+      { key: "A", value: "" },
+      { key: "B", value: "" },
+      { key: "C", value: "" },
+      { key: "D", value: "" },
+    ]);
+    setCorrectAnswer(undefined);
+    setQuizType("questions");
+  };
+
+  const handlePublishQuestion = async () => {
+    if (!validateBeforePublish()) return;
+
+    try {
+      setIsSubmitting(true);
+
+      const payload = {
+        clientId: crypto.randomUUID(),
+        originDevice: "web",
+        createdAtDevice: new Date().toISOString(),
+        subjectId,
+        topicId: topicId || null,
+        topic: topic || undefined,
+        subTopic,
+        title: question.trim() || "Board Question",
+        textContent: question.trim(),
+        questionType: toEnumQuestionType(),
+        difficultyLevel: DifficultyLevelEnum.Medium,
+        marksAllocation: 1,
+        options: buildOptionsPayload(),
+        boardSessionId: boardSessionId || null,
+        scanSessionId: scanSessionId || null,
+        isScanned: !!scanSessionId,
+        extractedQuestionIndex: null,
+        aiConfidenceScore: null,
+      };
+
+      const res = await questionService.createQuestion(payload);
+      const duplicate = res.data?.data?.isDuplicate;
+
+      if (duplicate) {
+        toast("Question already exists on server. Synced existing record.");
+      } else {
+        toast.success("Question published successfully.");
+      }
+    } catch (err) {
+      const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
+      toast.error(e?.response?.data?.responseMessage ?? e?.message ?? "Could not publish question");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="p-6 font-poppins">
@@ -300,12 +452,19 @@ const CreateQuizQuestion = () => {
                         
                 <div className="bg-[#D9D9D9] p-px w-full" />
                    <div className="flex justify-end items-center gap-6 my-7">
-                        <Button className="rounded-[5px] cursor-pointer p-6 bg-linear-to-r from-[#FFFFFF] to-[#E7EAFF] border border-chestnut drop-shadow-[#C3C7EB]">
+                        <Button
+                          onClick={resetForNextQuestion}
+                          className="rounded-[5px] cursor-pointer p-6 bg-linear-to-r from-[#FFFFFF] to-[#E7EAFF] border border-chestnut drop-shadow-[#C3C7EB]"
+                        >
                           <Plus className="size-6 text-chestnut" />
                             <span className="text-chestnut font-semibold text-[15px]">Add Another Question </span>
                         </Button>
-                        <Button className=" p-6 rounded-[5px] cursor-pointer bg-linear-to-r from-chestnut to-chestnut drop-shadow-[#C3C7EB]">
-                        <span className="text-white font-semibold text-[15px]" >Publish Question </span>
+                        <Button
+                          onClick={handlePublishQuestion}
+                          disabled={isSubmitting}
+                          className=" p-6 rounded-[5px] cursor-pointer bg-linear-to-r from-chestnut to-chestnut drop-shadow-[#C3C7EB]"
+                        >
+                        <span className="text-white font-semibold text-[15px]" >{isSubmitting ? "Publishing..." : "Publish Question"} </span>
                         </Button>
                    </div>
               </div>

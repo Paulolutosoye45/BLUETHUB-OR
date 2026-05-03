@@ -49,7 +49,6 @@ import Login from '@/pages/auth/login';
 import NewPassword from '@/pages/auth/new-password';
 import AdminProtectedRoute from '@/component/protected-routes/admin-routes';
 import { PublicRoute } from '@/component/protected-routes/public-route';
-import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
 import StudentProtectedRoute from '@/component/protected-routes/student-routes';
 import UploadScan from '@/pages/teacher/component/upload-scan';
 import ReviewQuestion from '@/pages/teacher/component/review-question';
@@ -66,6 +65,7 @@ import MyLesson from '@/pages/teacher/component/my-lesson';
 import SubmitLesson from '@/pages/teacher/component/submit-lesson';
 import QuizIndex from '@/pages/teacher/quiz';
 import MySyllabus from '@/pages/teacher/Syllabus/my-syllabus';
+import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
 
 const router = createBrowserRouter([
     {
@@ -185,11 +185,11 @@ const router = createBrowserRouter([
     {
         path: '/teacher',
         element:
-            <TeacherProtectedRoute><TeacherLayout /></TeacherProtectedRoute>,
+            <TeacherLayout />,
         children: [
             {
                 index: true,
-                element: <TeacherDashboard />
+                element: <TeacherProtectedRoute><TeacherDashboard /></TeacherProtectedRoute>
             },
             { path: "resume-class", element: <ResumeClass /> },
             { path: "class-info", element: <ClassInfo /> },
