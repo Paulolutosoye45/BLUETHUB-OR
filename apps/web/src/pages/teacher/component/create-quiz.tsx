@@ -1,4 +1,5 @@
 import TitleBar from "@/shared/title-bar";
+import QuizBoard, { type BoardQuestionResult } from "./quiz-board";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,16 +11,29 @@ import {
   Input,
   Textarea,
 } from "@bluethub/ui-kit";
-import { Check, ChevronDown, PencilLine, PenTool, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import {
+  Check,
+  ChevronDown,
+  ImagePlus,
+  Loader2,
+  PencilLine,
+  PenTool,
+  Plus,
+  Star,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   questionService,
   QuestionTypeEnum,
-  DifficultyLevelEnum,
   type CreateOptionPayload,
 } from "@/services/question";
+import { schoolService } from "@/services/school";
+import { lessonService } from "@/services/lesson";
+import { useAuthContext } from "@/contexts/auth-context";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type QuestionType = "Multiple Choice" | "True/False" | "Short Answer" | "Essay";
@@ -27,6 +41,24 @@ type QuestionType = "Multiple Choice" | "True/False" | "Short Answer" | "Essay";
 interface Option {
   key: string;
   value: string;
+}
+
+interface ApiItem {
+  id: string;
+  name: string;
+}
+
+interface QuestionDraft {
+  id: string;
+  questionType: QuestionType;
+  question: string;
+  options: Option[];
+  correctAnswers: string[];
+  difficultyLevel: number;
+  imagePreview: string | null;
+  imageFile: File | null;
+  isSubmitting: boolean;
+  isPublished: boolean;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────
@@ -37,53 +69,68 @@ const QUESTION_TYPES: QuestionType[] = [
   "Essay",
 ];
 
-const DEFAULT_OPTIONS: Option[] = [
-  { key: "A", value: "Tissue" },
-  { key: "B", value: "Organ" },
-  { key: "C", value: "Cell" },
-  { key: "D", value: "Organism" },
+const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
+const ADMIN_ROLES = ["SuperAdministrator", "Administrator"];
+
+const DIFFICULTY_META = [
+  { label: "Easy",   color: "text-emerald-500", fill: "#10b981" },
+  { label: "Medium", color: "text-amber-400",   fill: "#fbbf24" },
+  { label: "Hard",   color: "text-orange-500",  fill: "#f97316" },
+  { label: "Expert", color: "text-red-500",      fill: "#ef4444" },
 ];
 
-const CORRECT_ANSWER_OPTIONS = ["A", "B", "C", "D"];
-const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
+const createDraft = (): QuestionDraft => ({
+  id: crypto.randomUUID(),
+  questionType: "Multiple Choice",
+  question: "",
+  options: [
+    { key: "A", value: "" },
+    { key: "B", value: "" },
+    { key: "C", value: "" },
+    { key: "D", value: "" },
+  ],
+  correctAnswers: [],
+  difficultyLevel: 0,
+  imagePreview: null,
+  imageFile: null,
+  isSubmitting: false,
+  isPublished: false,
+});
 
-// ── Sub-components ─────────────────────────────────────────────────────────
-
+// ── SelectDropdown ─────────────────────────────────────────────────────────
 const SelectDropdown = ({
   value,
   options,
   placeholder,
   onSelect,
-  width = "w-44",
+  className = "",
 }: {
   value: string | undefined;
   options: string[];
   placeholder: string;
   onSelect: (v: string) => void;
-  width?: string;
+  className?: string;
 }) => {
   const [open, setOpen] = useState(false);
-
   return (
     <DropdownMenu onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className={`${width} font-poppins justify-between font-Poppins text-sm font-medium py-5 px-4 rounded-[6px] border border-black/20 hover:border-chestnut transition-all duration-200 ${value ? "text-chestnut" : "text-[#9A9A9A]"
-            }`}
+          className={`w-full justify-between font-Poppins text-sm font-medium py-5 px-4 rounded-lg border border-black/20 hover:border-chestnut transition-all duration-200 ${
+            value ? "text-chestnut" : "text-[#9A9A9A]"
+          } ${className}`}
         >
-          <span className="font-Poppins text-sm font-medium">
-            {value || placeholder}
-          </span>
+          <span className="truncate">{value || placeholder}</span>
           <ChevronDown
-            className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${open ? "rotate-180" : ""
-              }`}
+            className={`w-4 h-4 text-slate-400 shrink-0 ml-2 transition-transform duration-300 ${
+              open ? "rotate-180" : ""
+            }`}
           />
         </Button>
       </DropdownMenuTrigger>
-
       <DropdownMenuContent
-        className="w-[--radix-dropdown-menu-trigger-width] rounded-[6px] border border-black/10 shadow-lg bg-white/95 backdrop-blur-sm p-1.5"
+        className="w-[--radix-dropdown-menu-trigger-width] rounded-lg border border-black/10 shadow-lg bg-white/95 backdrop-blur-sm p-1.5"
         align="start"
         sideOffset={6}
       >
@@ -91,10 +138,11 @@ const SelectDropdown = ({
           {options.map((opt) => (
             <DropdownMenuItem
               key={opt}
-              className={`font-Poppins text-sm font-medium py-2.5 px-3.5 rounded-md cursor-pointer transition-all duration-150 ${value === opt
-                ? "bg-indigo-50 text-indigo-500"
-                : "text-slate-600 hover:bg-indigo-500 focus:bg-slate-50"
-                }`}
+              className={`font-Poppins text-sm font-medium py-2.5 px-3.5 rounded-md cursor-pointer transition-all duration-150 ${
+                value === opt
+                  ? "bg-indigo-50 text-indigo-500"
+                  : "text-slate-600 hover:bg-slate-50"
+              }`}
               onClick={() => onSelect(opt)}
             >
               <div className="flex items-center justify-between w-full">
@@ -111,382 +159,957 @@ const SelectDropdown = ({
   );
 };
 
-// ── Main Component ─────────────────────────────────────────────────────────
-const CreateQuizQuestion = () => {
-  const [searchParams] = useSearchParams();
-  const [questionType, setQuestionType] = useState<QuestionType>("Multiple Choice");
-  const [question, setQuestion] = useState("What is the basic unit of life?");
-  const [options, setOptions] = useState<Option[]>(DEFAULT_OPTIONS);
-  const [correctAnswer, setCorrectAnswer] = useState<string | undefined>("B");
-  const [quizType, setQuizType] = useState<"questions" | "board">('questions');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+// ── ApiDropdown ────────────────────────────────────────────────────────────
+const ApiDropdown = ({
+  value,
+  items,
+  placeholder,
+  onSelect,
+  loading = false,
+  disabled = false,
+  className = "",
+}: {
+  value: string | undefined;
+  items: ApiItem[];
+  placeholder: string;
+  onSelect: (item: ApiItem) => void;
+  loading?: boolean;
+  disabled?: boolean;
+  className?: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const selected = items.find((i) => i.id === value);
 
-  const subjectId = searchParams.get("subjectId") ?? "";
-  const topicId = searchParams.get("topicId") ?? "";
-  const topic = searchParams.get("topic") ?? "";
-  const subTopic = searchParams.get("subTopic") ?? EMPTY_GUID;
-  const boardSessionId = searchParams.get("boardSessionId") ?? "";
-  const scanSessionId = searchParams.get("scanSessionId") ?? "";
+  return (
+    <DropdownMenu onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild disabled={disabled || loading}>
+        <Button
+          variant="outline"
+          className={`w-full justify-between font-Poppins text-sm font-medium py-5 px-4 rounded-lg border border-black/20 hover:border-chestnut transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+            selected ? "text-chestnut" : "text-[#9A9A9A]"
+          } ${className}`}
+        >
+          {loading ? (
+            <span className="flex items-center gap-2 text-slate-400">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Loading...
+            </span>
+          ) : (
+            <span className="truncate">{selected?.name || placeholder}</span>
+          )}
+          <ChevronDown
+            className={`w-4 h-4 text-slate-400 shrink-0 ml-2 transition-transform duration-300 ${
+              open ? "rotate-180" : ""
+            }`}
+          />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        className="w-[--radix-dropdown-menu-trigger-width] max-h-60 overflow-y-auto rounded-lg border border-black/10 shadow-lg bg-white/95 backdrop-blur-sm p-1.5"
+        align="start"
+        sideOffset={6}
+      >
+        <DropdownMenuGroup className="space-y-0.5">
+          {items.length === 0 ? (
+            <div className="py-4 text-center text-sm text-slate-400 font-Poppins">
+              No options available
+            </div>
+          ) : (
+            items.map((item) => (
+              <DropdownMenuItem
+                key={item.id}
+                className={`font-Poppins text-sm font-medium py-2.5 px-3.5 rounded-md cursor-pointer transition-all duration-150 ${
+                  value === item.id
+                    ? "bg-indigo-50 text-indigo-500"
+                    : "text-slate-600 hover:bg-slate-50"
+                }`}
+                onClick={() => onSelect(item)}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span>{item.name}</span>
+                  {value === item.id && (
+                    <Check className="w-3.5 h-3.5 ml-2 text-emerald-600" />
+                  )}
+                </div>
+              </DropdownMenuItem>
+            ))
+          )}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};
 
-  const updateOption = (key: string, val: string) => {
-    setOptions((prev) =>
-      prev.map((o) => (o.key === key ? { ...o, value: val } : o))
-    );
+// ── StarPicker ─────────────────────────────────────────────────────────────
+const StarPicker = ({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (level: number) => void;
+}) => {
+  const [hovered, setHovered] = useState(0);
+  const active = hovered || value;
+  const meta = active ? DIFFICULTY_META[active - 1] : null;
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label className="text-sm font-medium text-chestnut">Difficulty Level:</Label>
+      <div className="flex items-center gap-4">
+        <div
+          className="flex items-center gap-1"
+          onMouseLeave={() => setHovered(0)}
+        >
+          {[1, 2, 3, 4].map((level) => {
+            const lit = level <= active;
+            const levelMeta = DIFFICULTY_META[level - 1];
+            return (
+              <button
+                key={level}
+                type="button"
+                onClick={() => onChange(level)}
+                onMouseEnter={() => setHovered(level)}
+                title={levelMeta.label}
+                className="cursor-pointer transition-transform duration-100 hover:scale-110 active:scale-95 p-0.5"
+              >
+                <Star
+                  size={28}
+                  strokeWidth={1.5}
+                  fill={lit ? levelMeta.fill : "none"}
+                  color={lit ? levelMeta.fill : "#cbd5e1"}
+                />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Label pill */}
+        <span
+          className={`text-sm font-semibold px-3 py-1 rounded-full transition-all duration-200 ${
+            meta
+              ? `${meta.color} bg-current/10`
+              : "text-slate-300"
+          }`}
+          style={meta ? { backgroundColor: `${meta.fill}18` } : {}}
+        >
+          {meta ? meta.label : "Select difficulty"}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+// ── QuestionCard ───────────────────────────────────────────────────────────
+const QuestionCard = ({
+  draft,
+  index,
+  canDelete,
+  onDelete,
+  onUpdate,
+}: {
+  draft: QuestionDraft;
+  index: number;
+  canDelete: boolean;
+  onDelete: () => void;
+  onUpdate: (updates: Partial<QuestionDraft>) => void;
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const showOptions = draft.questionType === "Multiple Choice";
+  const showTrueFalse = draft.questionType === "True/False";
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () =>
+      onUpdate({ imagePreview: reader.result as string, imageFile: file });
+    reader.readAsDataURL(file);
+    // reset so same file can be re-picked
+    e.target.value = "";
   };
+
+  const updateOption = (key: string, val: string) =>
+    onUpdate({
+      options: draft.options.map((o) => (o.key === key ? { ...o, value: val } : o)),
+    });
 
   const addOption = () => {
     const keys = ["A", "B", "C", "D", "E", "F"];
-    const next = keys[options.length];
+    const next = keys[draft.options.length];
     if (!next) return;
-    setOptions((prev) => [...prev, { key: next, value: "" }]);
+    onUpdate({ options: [...draft.options, { key: next, value: "" }] });
   };
 
   const removeOption = (key: string) => {
-    if (options.length <= 2) return;
-    setOptions((prev) => prev.filter((o) => o.key !== key));
-    if (correctAnswer === key) setCorrectAnswer(undefined);
+    if (draft.options.length <= 2) return;
+    onUpdate({
+      options: draft.options.filter((o) => o.key !== key),
+      correctAnswers: draft.correctAnswers.filter((k) => k !== key),
+    });
   };
 
-  const showOptions = questionType === "Multiple Choice";
-  const showTrueFalse = questionType === "True/False";
+  const toggleCorrectAnswer = (key: string) =>
+    onUpdate({
+      correctAnswers: draft.correctAnswers.includes(key)
+        ? draft.correctAnswers.filter((k) => k !== key)
+        : [...draft.correctAnswers, key],
+    });
 
-  const toEnumQuestionType = (): number => {
-    if (quizType === "board") {
-      return question.trim() ? QuestionTypeEnum.Mixed : QuestionTypeEnum.BoardBased;
+  return (
+    <div
+      className={`border rounded-2xl overflow-hidden transition-all duration-300 ${
+        draft.isPublished
+          ? "border-emerald-300 bg-emerald-50/30"
+          : "border-[#29238280]"
+      }`}
+    >
+      {/* Card Header */}
+      <div className="flex items-center justify-between px-4 sm:px-6 pt-4 pb-3 border-b border-[#D9D9D9] bg-white/60">
+        <div className="flex items-center gap-3">
+          <span
+            className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0 ${
+              draft.isPublished
+                ? "bg-emerald-500 text-white"
+                : "bg-chestnut/10 text-chestnut"
+            }`}
+          >
+            {draft.isPublished ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : index + 1}
+          </span>
+          <h2 className="font-semibold text-chestnut text-sm sm:text-base tracking-tight">
+            {draft.isPublished ? "Published" : `Question ${index + 1}`}
+          </h2>
+        </div>
+
+        {/* Header actions */}
+        {!draft.isPublished && canDelete && (
+          <button
+            onClick={onDelete}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-rose-500 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-rose-50"
+          >
+            <X size={14} />
+            <span className="hidden sm:inline">Remove</span>
+          </button>
+        )}
+        {draft.isPublished && (
+          <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2.5 py-1 rounded-full">
+            ✓ Saved
+          </span>
+        )}
+      </div>
+
+      {/* Card Body */}
+      {!draft.isPublished && (
+        <div className="flex flex-col gap-5 p-4 sm:p-6">
+          {/* Question Type */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+            <Label className="font-medium text-sm text-chestnut whitespace-nowrap sm:w-32 shrink-0">
+              Question Type:
+            </Label>
+            <div className="w-full sm:w-52">
+              <SelectDropdown
+                value={draft.questionType}
+                options={QUESTION_TYPES}
+                placeholder="Select type"
+                onSelect={(v) =>
+                  onUpdate({ questionType: v as QuestionType, correctAnswers: [] })
+                }
+              />
+            </div>
+          </div>
+
+          {/* Question Text */}
+          <div className="flex flex-col gap-2">
+            <Label className="text-sm font-medium text-chestnut">Question:</Label>
+            <Textarea
+              value={draft.question}
+              onChange={(e) => onUpdate({ question: e.target.value })}
+              placeholder="Type your question here..."
+              rows={3}
+              className="w-full px-4 py-3 text-sm text-slate-700 font-medium placeholder:text-slate-300 bg-white border border-black/15 rounded-xl resize-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 transition-all duration-200"
+            />
+          </div>
+
+          {/* ── Image upload (optional) ── */}
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/30 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-indigo-100">
+              <div className="flex items-center gap-2">
+                <ImagePlus size={14} className="text-indigo-400 shrink-0" />
+                <span className="text-sm font-semibold text-indigo-600">
+                  Attach Image
+                </span>
+                <span className="text-[11px] text-indigo-300 font-medium">optional</span>
+              </div>
+              {draft.imagePreview && (
+                <button
+                  type="button"
+                  onClick={() => onUpdate({ imagePreview: null, imageFile: null })}
+                  className="text-xs font-semibold text-rose-400 hover:text-rose-600 cursor-pointer flex items-center gap-1 transition-colors"
+                >
+                  <X size={12} /> Remove
+                </button>
+              )}
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageChange}
+            />
+
+            <div className="p-3">
+              {draft.imagePreview ? (
+                <div
+                  className="w-full rounded-lg bg-white border border-slate-100 flex items-center justify-center overflow-hidden"
+                  style={{ height: 200 }}
+                >
+                  <img
+                    src={draft.imagePreview}
+                    alt="Uploaded"
+                    style={{ maxWidth: "100%", maxHeight: 200, objectFit: "contain", display: "block" }}
+                  />
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex flex-col items-center justify-center gap-2 w-full py-6 rounded-lg border-2 border-dashed border-indigo-200 bg-white hover:border-indigo-400 hover:bg-indigo-50 transition-all duration-200 cursor-pointer"
+                >
+                  <ImagePlus size={28} className="text-indigo-300" />
+                  <span className="text-sm font-semibold text-indigo-400">
+                    Click to upload an image
+                  </span>
+                  <span className="text-xs text-slate-400">PNG, JPG, GIF up to 10MB</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Difficulty */}
+          <StarPicker
+            value={draft.difficultyLevel}
+            onChange={(level) => onUpdate({ difficultyLevel: level })}
+          />
+
+          {/* Options (optional for all types) */}
+          {showOptions && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium text-chestnut">Options:</Label>
+                <span className="text-[11px] text-slate-400 font-medium">
+                  Tick checkbox to mark correct answer(s)
+                </span>
+              </div>
+
+              {draft.options.map((opt) => {
+                const isCorrect = draft.correctAnswers.includes(opt.key);
+                return (
+                  <div
+                    key={opt.key}
+                    className={`flex items-center gap-3 rounded-xl border px-3 py-1 transition-all duration-200 ${
+                      isCorrect ? "border-emerald-400 bg-emerald-50" : "border-black/10 bg-white"
+                    }`}
+                  >
+                    {/* Checkbox */}
+                    <button
+                      type="button"
+                      onClick={() => toggleCorrectAnswer(opt.key)}
+                      className={`shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-150 cursor-pointer ${
+                        isCorrect
+                          ? "bg-emerald-500 border-emerald-500"
+                          : "border-slate-300 bg-white hover:border-emerald-400"
+                      }`}
+                      title="Mark as correct"
+                    >
+                      {isCorrect && (
+                        <Check className="w-3 h-3 text-white" strokeWidth={3} />
+                      )}
+                    </button>
+
+                    {/* Key badge */}
+                    <span
+                      className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                        isCorrect ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {opt.key}
+                    </span>
+
+                    {/* Input */}
+                    <div className="flex-1 relative group">
+                      <Input
+                        value={opt.value}
+                        onChange={(e) => updateOption(opt.key, e.target.value)}
+                        placeholder={`Enter option ${opt.key}`}
+                        className="w-full px-3 py-4 text-sm text-slate-700 font-medium placeholder:text-slate-300 border-0 bg-transparent focus:ring-0 outline-none pr-8"
+                      />
+                      {draft.options.length > 2 && (
+                        <button
+                          onClick={() => removeOption(opt.key)}
+                          className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-400 transition-all duration-150 cursor-pointer"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {draft.options.length < 6 && (
+                <button
+                  onClick={addOption}
+                  className="self-start flex items-center gap-1.5 text-xs font-semibold text-chestnut mt-1 hover:text-chestnut/70 transition-colors cursor-pointer"
+                >
+                  <Plus size={13} />
+                  Add option
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* True/False */}
+          {showTrueFalse && (
+            <div className="flex flex-col gap-2">
+              <Label className="text-sm font-medium text-chestnut">
+                Select correct answer:
+              </Label>
+              <div className="flex items-center gap-3">
+                {["True", "False"].map((opt) => {
+                  const isCorrect = draft.correctAnswers.includes(opt);
+                  return (
+                    <button
+                      key={opt}
+                      onClick={() => onUpdate({ correctAnswers: [opt] })}
+                      className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 transition-all duration-200 cursor-pointer ${
+                        isCorrect
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                          : "border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200"
+                      }`}
+                    >
+                      {isCorrect && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Main Component ─────────────────────────────────────────────────────────
+const CreateQuizQuestion = () => {
+  const [searchParams] = useSearchParams();
+  const { user } = useAuthContext();
+  const isAdmin = ADMIN_ROLES.includes(user?.roleName ?? "");
+
+  // ── Multi-draft state ───────────────────────────────────────────────────
+  const [drafts, setDrafts] = useState<QuestionDraft[]>([createDraft()]);
+  const [quizType, setQuizType] = useState<"questions" | "board">("questions");
+  const [isPublishingAll, setIsPublishingAll] = useState(false);
+  const [publishProgress, setPublishProgress] = useState<{ done: number; total: number } | null>(null);
+  const [boardSubmitting, setBoardSubmitting] = useState(false);
+
+  // ── Admin context state ─────────────────────────────────────────────────
+  const [classrooms, setClassrooms] = useState<ApiItem[]>([]);
+  const [subjects, setSubjects] = useState<ApiItem[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string>();
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>();
+  const [adminTopic, setAdminTopic] = useState("");
+  const [adminTopicId, setAdminTopicId] = useState("");
+  const [adminSubTopic, setAdminSubTopic] = useState("");
+  const [classroomsLoading, setClassroomsLoading] = useState(false);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
+
+  // ── URL params (teacher flow) ───────────────────────────────────────────
+  const subjectIdParam = searchParams.get("subjectId") ?? "";
+  const topicIdParam = searchParams.get("topicId") ?? "";
+  const topicParam = searchParams.get("topic") ?? "";
+  const subTopicParam = searchParams.get("subTopic") ?? EMPTY_GUID;
+  const boardSessionId = searchParams.get("boardSessionId") ?? "";
+  const scanSessionId = searchParams.get("scanSessionId") ?? "";
+
+  const effectiveSubjectId = isAdmin ? (selectedSubjectId ?? "") : subjectIdParam;
+  const effectiveTopicId = isAdmin ? adminTopicId || null : topicIdParam || null;
+  const effectiveTopic = isAdmin ? adminTopic : topicParam;
+  const effectiveSubTopic = isAdmin ? adminSubTopic || EMPTY_GUID : subTopicParam;
+
+  // ── Fetch classrooms for admin ──────────────────────────────────────────
+  useEffect(() => {
+    if (!isAdmin) return;
+    setClassroomsLoading(true);
+    schoolService
+      .getAllClassRooms()
+      .then((res) => {
+        const raw: { id: string; name: string }[] =
+          (res.data as any)?.data?.classrooms ?? [];
+        setClassrooms(raw.map((c) => ({ id: c.id, name: c.name })));
+      })
+      .catch(() => toast.error("Failed to load classrooms"))
+      .finally(() => setClassroomsLoading(false));
+  }, [isAdmin]);
+
+  // ── Fetch subjects when class changes ───────────────────────────────────
+  useEffect(() => {
+    if (!isAdmin || !selectedClassId) return;
+    setSelectedSubjectId(undefined);
+    setSubjects([]);
+    setSubjectsLoading(true);
+    schoolService
+      .getSubjectsByClassroomId(selectedClassId)
+      .then((res) => {
+        const raw: { id: string; name: string }[] =
+          (res.data as any)?.data?.subjects ??
+          (res.data as any)?.data ??
+          [];
+        setSubjects(raw.map((s) => ({ id: s.id, name: s.name })));
+      })
+      .catch(() => toast.error("Failed to load subjects"))
+      .finally(() => setSubjectsLoading(false));
+  }, [isAdmin, selectedClassId]);
+
+  // ── Draft helpers ───────────────────────────────────────────────────────
+  const updateDraft = (id: string, updates: Partial<QuestionDraft>) =>
+    setDrafts((prev) =>
+      prev.map((d) => (d.id === id ? { ...d, ...updates } : d))
+    );
+
+  const addDraft = () => setDrafts((prev) => [...prev, createDraft()]);
+
+  const deleteDraft = (id: string) =>
+    setDrafts((prev) => prev.filter((d) => d.id !== id));
+
+  // ── Board question saved → publish it immediately then add to list ───────
+  const handleBoardSaved = async (result: BoardQuestionResult) => {
+    if (isAdmin) {
+      if (!selectedClassId)   { toast.error("Please select a class.");   return; }
+      if (!selectedSubjectId) { toast.error("Please select a subject."); return; }
+    } else if (!effectiveSubjectId) {
+      toast.error("Subject is missing.");
+      return;
     }
 
-    switch (questionType) {
-      case "Multiple Choice":
-        return QuestionTypeEnum.MultipleChoice;
-      case "True/False":
-        return QuestionTypeEnum.TrueOrFalse;
-      case "Short Answer":
-        return QuestionTypeEnum.ShortAnswer;
-      case "Essay":
-        return QuestionTypeEnum.Essay;
-      default:
-        return QuestionTypeEnum.ShortAnswer;
+    setBoardSubmitting(true);
+    try {
+      const res = await questionService.createQuestion({
+        clientId: crypto.randomUUID(),
+        originDevice: "web",
+        createdAtDevice: new Date().toISOString(),
+        subjectId: effectiveSubjectId,
+        topicId: effectiveTopicId,
+        topic: effectiveTopic || undefined,
+        subTopic: effectiveSubTopic,
+        title: "Board Question",
+        textContent: "",
+        questionType: QuestionTypeEnum.BoardBased,
+        difficultyLevel: result.difficultyLevel,
+        marksAllocation: 1,
+        options: result.options,
+        boardSessionId: result.boardSessionId,
+        scanSessionId: scanSessionId || null,
+        isScanned: false,
+        extractedQuestionIndex: null,
+        aiConfidenceScore: null,
+        classroomId: selectedClassId ?? null,
+      });
+
+      const duplicate = res.data?.data?.isDuplicate;
+      if (!duplicate) toast.success("Board question published.");
+
+      // Add a locked/published card to the draft list so teacher can see it
+      const boardDraft: QuestionDraft = {
+        id: crypto.randomUUID(),
+        questionType: "Short Answer",
+        question: `Board Question (session: ${result.boardSessionId.slice(0, 8)}…)`,
+        options: [],
+        correctAnswers: result.correctAnswers,
+        difficultyLevel: result.difficultyLevel,
+        isSubmitting: false,
+        isPublished: true,
+      };
+      setDrafts((prev) => [...prev, boardDraft]);
+      setQuizType("questions");
+    } catch (err) {
+      const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
+      toast.error(e?.response?.data?.responseMessage ?? e?.message ?? "Failed to publish board question.");
+    } finally {
+      setBoardSubmitting(false);
     }
   };
 
-  const buildOptionsPayload = (): CreateOptionPayload[] => {
-    if (questionType === "True/False") {
+  // ── Helpers shared by publish flow ─────────────────────────────────────
+  const toQuestionTypeEnum = (qt: QuestionType): number => {
+    switch (qt) {
+      case "Multiple Choice": return QuestionTypeEnum.MultipleChoice;
+      case "True/False":      return QuestionTypeEnum.TrueOrFalse;
+      case "Short Answer":    return QuestionTypeEnum.ShortAnswer;
+      case "Essay":           return QuestionTypeEnum.Essay;
+      default:                return QuestionTypeEnum.ShortAnswer;
+    }
+  };
+
+  const buildOptionsPayload = (draft: QuestionDraft): CreateOptionPayload[] => {
+    if (draft.questionType === "True/False") {
       return [
-        { optionLabel: "A", optionText: "True", isCorrect: correctAnswer === "True", orderIndex: 1 },
-        { optionLabel: "B", optionText: "False", isCorrect: correctAnswer === "False", orderIndex: 2 },
+        { optionLabel: "A", optionText: "True",  isCorrect: draft.correctAnswers.includes("True"),  orderIndex: 1 },
+        { optionLabel: "B", optionText: "False", isCorrect: draft.correctAnswers.includes("False"), orderIndex: 2 },
       ];
     }
-
-    if (questionType !== "Multiple Choice") {
-      return [];
-    }
-
-    return options.map((opt, idx) => ({
+    if (draft.questionType !== "Multiple Choice") return [];
+    return draft.options.map((opt, idx) => ({
       optionLabel: opt.key,
       optionText: opt.value.trim(),
-      isCorrect: correctAnswer === opt.key,
+      isCorrect: draft.correctAnswers.includes(opt.key),
       orderIndex: idx + 1,
     }));
   };
 
-  const validateBeforePublish = (): boolean => {
-    if (!subjectId) {
+  const validateDraft = (draft: QuestionDraft, num: number): string | null => {
+    if (!draft.question.trim() && !draft.imagePreview)
+      return `Question ${num}: Add a question or upload an image.`;
+    const filledOptions = draft.options.filter((o) => o.value.trim());
+    if (filledOptions.length > 0 && draft.correctAnswers.length === 0 && draft.questionType !== "True/False")
+      return `Question ${num}: Tick at least one correct answer.`;
+    if (draft.questionType === "True/False" && draft.correctAnswers.length === 0)
+      return `Question ${num}: Select True or False.`;
+    if (draft.difficultyLevel === 0)
+      return `Question ${num}: Select a difficulty level.`;
+    return null;
+  };
+
+  // ── Cloudinary image upload ─────────────────────────────────────────────
+  const uploadImage = async (file: File): Promise<string> => {
+    const { data } = await lessonService.getUploadSignature();
+    const sig = data.data;
+    const form = new FormData();
+    form.append("file", file);
+    form.append("api_key", sig.apiKey);
+    form.append("timestamp", String(sig.timestamp));
+    form.append("signature", sig.signature);
+    form.append("folder", sig.folder);
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${sig.cloudName}/image/upload`,
+      { method: "POST", body: form }
+    );
+    if (!res.ok) throw new Error("Image upload failed");
+    const json = await res.json();
+    return json.secure_url as string;
+  };
+
+  // ── Publish all unpublished drafts at once ──────────────────────────────
+  const handlePublishAll = async () => {
+    // Validate context
+    if (isAdmin) {
+      if (!selectedClassId)    { toast.error("Please select a class.");   return; }
+      if (!selectedSubjectId)  { toast.error("Please select a subject."); return; }
+    } else if (!effectiveSubjectId) {
       toast.error("Subject is missing. Please start from Assessment subject selection.");
-      return false;
+      return;
     }
 
-    if (!question.trim() && quizType !== "board") {
-      toast.error("Question title is required.");
-      return false;
+    const pending = drafts.filter((d) => !d.isPublished);
+
+    // Validate all drafts upfront
+    for (let i = 0; i < pending.length; i++) {
+      const err = validateDraft(pending[i], drafts.indexOf(pending[i]) + 1);
+      if (err) { toast.error(err); return; }
     }
 
-    if (questionType === "Multiple Choice") {
-      const filledOptions = options.filter((o) => o.value.trim());
-      if (filledOptions.length < 2) {
-        toast.error("Multiple choice questions require at least 2 options.");
-        return false;
+    setIsPublishingAll(true);
+    setPublishProgress({ done: 0, total: pending.length });
+
+    let successCount = 0;
+
+    for (let i = 0; i < pending.length; i++) {
+      const draft = pending[i];
+      updateDraft(draft.id, { isSubmitting: true });
+
+      try {
+        // Upload image first if present
+        let imageUrl: string | null = null;
+        if (draft.imageFile) {
+          try {
+            imageUrl = await uploadImage(draft.imageFile);
+          } catch {
+            toast.error(`Q${drafts.indexOf(draft) + 1}: Image upload failed — question skipped.`);
+            updateDraft(draft.id, { isSubmitting: false });
+            setPublishProgress({ done: i + 1, total: pending.length });
+            continue;
+          }
+        }
+
+        const res = await questionService.createQuestion({
+          clientId: crypto.randomUUID(),
+          originDevice: "web",
+          createdAtDevice: new Date().toISOString(),
+          subjectId: effectiveSubjectId,
+          topicId: effectiveTopicId,
+          topic: effectiveTopic || undefined,
+          subTopic: effectiveSubTopic,
+          title: draft.question.trim() || "Image Question",
+          textContent: draft.question.trim(),
+          questionType: draft.imagePreview
+            ? QuestionTypeEnum.ImageBased
+            : toQuestionTypeEnum(draft.questionType),
+          difficultyLevel: draft.difficultyLevel,
+          marksAllocation: 1,
+          options: buildOptionsPayload(draft),
+          boardSessionId: boardSessionId || null,
+          scanSessionId: scanSessionId || null,
+          isScanned: !!scanSessionId,
+          extractedQuestionIndex: null,
+          aiConfidenceScore: null,
+          classroomId: selectedClassId ?? null,
+          imageUrl,
+        });
+
+        const duplicate = res.data?.data?.isDuplicate;
+        updateDraft(draft.id, { isPublished: true, isSubmitting: false });
+        if (!duplicate) successCount++;
+      } catch (err) {
+        const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
+        toast.error(
+          `Q${drafts.indexOf(draft) + 1}: ${e?.response?.data?.responseMessage ?? e?.message ?? "Failed"}`
+        );
+        updateDraft(draft.id, { isSubmitting: false });
       }
-      if (filledOptions.length > 6) {
-        toast.error("Multiple choice questions cannot have more than 6 options.");
-        return false;
-      }
-      if (!correctAnswer) {
-        toast.error("Select a correct answer.");
-        return false;
-      }
+
+      setPublishProgress({ done: i + 1, total: pending.length });
     }
 
-    if (questionType === "True/False" && !correctAnswer) {
-      toast.error("Select True or False as the correct answer.");
-      return false;
-    }
+    setIsPublishingAll(false);
+    setPublishProgress(null);
 
-    if (quizType === "board" && !boardSessionId) {
-      toast.error("Board session id is missing. Save board updates first.");
-      return false;
-    }
-
-    return true;
-  };
-
-  const resetForNextQuestion = () => {
-    setQuestionType("Multiple Choice");
-    setQuestion("");
-    setOptions([
-      { key: "A", value: "" },
-      { key: "B", value: "" },
-      { key: "C", value: "" },
-      { key: "D", value: "" },
-    ]);
-    setCorrectAnswer(undefined);
-    setQuizType("questions");
-  };
-
-  const handlePublishQuestion = async () => {
-    if (!validateBeforePublish()) return;
-
-    try {
-      setIsSubmitting(true);
-
-      const payload = {
-        clientId: crypto.randomUUID(),
-        originDevice: "web",
-        createdAtDevice: new Date().toISOString(),
-        subjectId,
-        topicId: topicId || null,
-        topic: topic || undefined,
-        subTopic,
-        title: question.trim() || "Board Question",
-        textContent: question.trim(),
-        questionType: toEnumQuestionType(),
-        difficultyLevel: DifficultyLevelEnum.Medium,
-        marksAllocation: 1,
-        options: buildOptionsPayload(),
-        boardSessionId: boardSessionId || null,
-        scanSessionId: scanSessionId || null,
-        isScanned: !!scanSessionId,
-        extractedQuestionIndex: null,
-        aiConfidenceScore: null,
-      };
-
-      const res = await questionService.createQuestion(payload);
-      const duplicate = res.data?.data?.isDuplicate;
-
-      if (duplicate) {
-        toast("Question already exists on server. Synced existing record.");
-      } else {
-        toast.success("Question published successfully.");
-      }
-    } catch (err) {
-      const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
-      toast.error(e?.response?.data?.responseMessage ?? e?.message ?? "Could not publish question");
-    } finally {
-      setIsSubmitting(false);
+    if (successCount > 0) {
+      toast.success(
+        successCount === pending.length
+          ? `All ${successCount} question${successCount !== 1 ? "s" : ""} published!`
+          : `${successCount} of ${pending.length} questions published.`
+      );
     }
   };
 
+  // ── Derived label ───────────────────────────────────────────────────────
+  const selectedSubjectName = subjects.find((s) => s.id === selectedSubjectId)?.name;
+  const selectedClassName = classrooms.find((c) => c.id === selectedClassId)?.name;
+  const contextLabel =
+    isAdmin && selectedSubjectName
+      ? `${selectedClassName ? `${selectedClassName} — ` : ""}${selectedSubjectName}${adminTopic ? `: ${adminTopic}` : ""}`
+      : topicParam || "Create Quiz Question";
+
+  const unpublishedCount = drafts.filter((d) => !d.isPublished).length;
+
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 font-poppins">
-      <div className="backdrop-blur-sm rounded-2xl border border-white/20  overflow-hidden">
+    <div className="p-3 sm:p-6 font-poppins">
+      <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
         <TitleBar title="question" hasVertical hasBackIcons />
-        <div className="flex-1 p-8 bg-white/70 backdrop-blur-sm">
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-white/70 backdrop-blur-sm">
+
+          {/* ── Page Header ── */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
             <div>
-              <h1 className="text-chestnut font-bold " style={{ fontSize: 26, margin: 0, letterSpacing: -0.3 }}>
-              Biology:  Cells
+              <h1 className="text-chestnut font-bold text-xl sm:text-2xl tracking-tight leading-tight">
+                {contextLabel}
               </h1>
-              <p style={{ fontSize: 13.5, color: "#7B7FA8", margin: "5px 0 0", fontWeight: 400 }}>
-                Upload Question to Teacher's portal
+              <p className="text-[13px] text-[#7B7FA8] mt-1 font-normal">
+                Upload questions to the Teacher&apos;s portal
               </p>
             </div>
-            <Link to='questionlist' style={{
-              background: "#E8302C",
-              color: "#fff",
-              border: "none",
-              borderRadius: 8,
-              padding: "11px 22px",
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: "pointer",
-              boxShadow: "0 3px 10px rgba(232,48,44,0.28)",
-              letterSpacing: 0.2,
-              transition: "transform 0.15s",
-            }}
-              onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-1px)")}
-              onMouseLeave={e => (e.currentTarget.style.transform = "translateY(0)")}
+            <Link
+              to="questionlist"
+              className="inline-flex items-center justify-center self-start sm:self-auto bg-chestnut text-white text-sm font-semibold rounded-lg px-5 py-2.5 shadow-sm hover:-translate-y-0.5 transition-transform duration-150 whitespace-nowrap"
             >
-              View Past Question
+              View Past Questions
             </Link>
           </div>
 
-          <div className="bg-[#29238280] p-px w-full" />
-          {quizType === 'questions' ? (<div className="border border-[#29238280] drop-shadow-[#2923821A] rounded-2xl px-7 mt-4">
-            {/* ── Card Header ── */}
-            <div className="flex items-center justify-between px-6 pt-7 pb-4 border-b border-[#D9D9D9]">
-              <h2 className="font-semibold text-chestnut text-xl tracking-tight">
-                Create Quiz Questions
-              </h2>
-              <Button onClick={() => setQuizType('board')} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-semibold px-4 py-2.5 rounded-[8px] transition-all duration-200 shadow-sm shadow-emerald-200 cursor-pointer">
-                <PenTool size={14} className="text-white" />
-                Use Board
-              </Button>
-            </div>
+          <div className="h-px bg-[#29238280] w-full mb-5" />
 
-            {/* ── Card Body ── */}
-            <div className="flex flex-col gap-6 pb-7">
-
-              {/* Question Type */}
-              <div className="flex items-center gap-4 pt-5.25">
-                <Label className="font-poppins font-medium text-[15px] text-chestnut whitespace-nowrap w-28 shrink-0">
-                  Question Type :
-                </Label>
-                <SelectDropdown
-                  value={questionType}
-                  options={QUESTION_TYPES}
-                  placeholder="Select type"
-                  onSelect={(v) => {
-                    setQuestionType(v as QuestionType);
-                    setCorrectAnswer(undefined);
-                  }}
-                  width="w-52"
-                />
+          {/* ── Admin Context Panel ── */}
+          {isAdmin && (
+            <div className="mb-5 rounded-xl border border-indigo-100 bg-indigo-50/40 overflow-hidden">
+              <div className="flex items-center gap-2.5 px-4 sm:px-5 py-3 border-b border-indigo-100 bg-indigo-50">
+                <div className="w-1 h-4 rounded-full bg-indigo-500" />
+                <h3 className="font-semibold text-xs text-indigo-600 uppercase tracking-widest">
+                  Admin Context
+                </h3>
               </div>
 
-              {/* Question */}
-              <div className="flex flex-col gap-2">
-                <Label className="font-Poppins text-sm font-medium text-chestnut">
-                  Question:
-                </Label>
-                <Textarea
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  placeholder="Type your question here..."
-                  rows={4}
-                  className="w-full h-25.5 px-4 py-3.5 text-sm text-slate-700 font-medium placeholder:text-slate-300 bg-white border border-black/15 rounded-xl resize-none outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 transition-all duration-200 font-Poppins"
-                />
-              </div>
-
-              {/* Multiple Choice Options */}
-              {showOptions && (
-                <div className="flex flex-col gap-3">
-                  {options.map((opt) => (
-                    <div key={opt.key} className="flex items-center gap-3">
-                      <Label className="font-Poppins text-sm font-medium text-chestnut w-20 shrink-0">
-                        Option {opt.key}:
-                      </Label>
-                      <div className="flex-1 relative group">
-                        <Input
-                          value={opt.value}
-                          onChange={(e) => updateOption(opt.key, e.target.value)}
-                          placeholder={`Enter option ${opt.key}`}
-                          className="w-full px-4 py-5 text-sm text-student-chestnut font-medium placeholder:text-slate-300 border border-black/15 rounded-xl outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 transition-all duration-200 font-Poppins pr-10"
-                        />
-                        {options.length > 2 && (
-                          <button
-                            onClick={() => removeOption(opt.key)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-400 transition-all duration-150 cursor-pointer"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Add Option */}
-                  {options.length < 6 && (
-                    <button
-                      onClick={addOption}
-                      className="self-start flex items-center gap-1.5 text-[12px] font-semibold text-student-chestnut mt-1 transition-colors cursor-pointer"
-                    >
-                      <Plus size={13} />
-                      Add option
-                    </button>
-                  )}
+              <div className="p-4 sm:p-5 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
+                      Class <span className="text-red-400">*</span>
+                    </Label>
+                    <ApiDropdown
+                      value={selectedClassId}
+                      items={classrooms}
+                      placeholder="Select class"
+                      onSelect={(item) => setSelectedClassId(item.id)}
+                      loading={classroomsLoading}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
+                      Subject <span className="text-red-400">*</span>
+                    </Label>
+                    <ApiDropdown
+                      value={selectedSubjectId}
+                      items={subjects}
+                      placeholder={selectedClassId ? "Select subject" : "Select class first"}
+                      onSelect={(item) => setSelectedSubjectId(item.id)}
+                      loading={subjectsLoading}
+                      disabled={!selectedClassId}
+                    />
+                  </div>
                 </div>
-              )}
 
-              {/* True / False Options */}
-              {showTrueFalse && (
-                <div className="flex items-center gap-4">
-                  {["True", "False"].map((opt) => (
-                    <button
-                      key={opt}
-                      onClick={() => setCorrectAnswer(opt)}
-                      className={`flex-1 py-3 rounded-xl text-sm font-semibold border-2 transition-all duration-200 cursor-pointer ${correctAnswer === opt
-                        ? "border-emerald-500 bg-emerald-50 text-emerald-700"
-                        : "border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200"
-                        }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
+                      Topic
+                    </Label>
+                    <Input
+                      value={adminTopic}
+                      onChange={(e) => setAdminTopic(e.target.value)}
+                      placeholder="e.g. Cells & their functions"
+                      className="h-10 px-3 text-sm border border-black/15 rounded-lg focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
+                      Sub-topic
+                    </Label>
+                    <Input
+                      value={adminSubTopic}
+                      onChange={(e) => setAdminSubTopic(e.target.value)}
+                      placeholder="e.g. Cell Properties and Functions"
+                      className="h-10 px-3 text-sm border border-black/15 rounded-lg focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
+                    />
+                  </div>
                 </div>
-              )}
 
-
-
-              {/* Correct Answer */}
-              <div className="flex items-center gap-4">
-                <Label className="font-Poppins text-sm font-medium text-slate-600 whitespace-nowrap w-28 shrink-0">
-                  Correct Answer:
-                </Label>
-
-                {showTrueFalse ? (
-                  <span className="text-sm font-semibold text-emerald-600">
-                    {correctAnswer || "—"}
-                  </span>
-                ) : (
-                  <SelectDropdown
-                    value={correctAnswer}
-                    options={CORRECT_ANSWER_OPTIONS.slice(0, options.length)}
-                    placeholder="Select"
-                    onSelect={setCorrectAnswer}
-                    width="w-24"
+                <div className="flex flex-col gap-1.5">
+                  <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
+                    Topic ID{" "}
+                    <span className="text-slate-300 normal-case font-normal tracking-normal">
+                      — optional
+                    </span>
+                  </Label>
+                  <Input
+                    value={adminTopicId}
+                    onChange={(e) => setAdminTopicId(e.target.value)}
+                    placeholder="Paste topic UUID if available"
+                    className="h-10 px-3 text-sm border border-black/15 rounded-lg focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all sm:max-w-sm"
                   />
-                )}
-              </div>
-
-              <div>
-                        
-                <div className="bg-[#D9D9D9] p-px w-full" />
-                   <div className="flex justify-end items-center gap-6 my-7">
-                        <Button
-                          onClick={resetForNextQuestion}
-                          className="rounded-[5px] cursor-pointer p-6 bg-linear-to-r from-[#FFFFFF] to-[#E7EAFF] border border-chestnut drop-shadow-[#C3C7EB]"
-                        >
-                          <Plus className="size-6 text-chestnut" />
-                            <span className="text-chestnut font-semibold text-[15px]">Add Another Question </span>
-                        </Button>
-                        <Button
-                          onClick={handlePublishQuestion}
-                          disabled={isSubmitting}
-                          className=" p-6 rounded-[5px] cursor-pointer bg-linear-to-r from-chestnut to-chestnut drop-shadow-[#C3C7EB]"
-                        >
-                        <span className="text-white font-semibold text-[15px]" >{isSubmitting ? "Publishing..." : "Publish Question"} </span>
-                        </Button>
-                   </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* ── Question Cards or Board ── */}
+          {quizType === "questions" ? (
+            <div className="flex flex-col gap-4">
+              {/* Board toggle header */}
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-slate-500">
+                  {unpublishedCount} question{unpublishedCount !== 1 ? "s" : ""} pending
+                </span>
+                <Button
+                  onClick={() => setQuizType("board")}
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 shadow-sm cursor-pointer"
+                >
+                  <PenTool size={14} className="shrink-0" />
+                  <span className="hidden sm:inline">Use Board</span>
+                </Button>
+              </div>
+
+              {/* Draft cards */}
+              {drafts.map((draft, index) => (
+                <QuestionCard
+                  key={draft.id}
+                  draft={draft}
+                  index={index}
+                  canDelete={drafts.length > 1}
+                  onDelete={() => deleteDraft(draft.id)}
+                  onUpdate={(updates) => updateDraft(draft.id, updates)}
+                />
+              ))}
+
+              {/* Add Another Question */}
+              <button
+                onClick={addDraft}
+                disabled={isPublishingAll}
+                className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl border-2 border-dashed border-chestnut/30 text-chestnut font-semibold text-sm hover:border-chestnut/60 hover:bg-chestnut/5 transition-all duration-200 cursor-pointer disabled:opacity-40"
+              >
+                <Plus size={16} className="shrink-0" />
+                Add Another Question
+              </button>
+
+              {/* Publish All */}
+              {unpublishedCount > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-[#D9D9D9]">
+                  <div className="text-sm text-slate-500 font-medium">
+                    {publishProgress
+                      ? `Publishing ${publishProgress.done} of ${publishProgress.total}…`
+                      : `${unpublishedCount} question${unpublishedCount !== 1 ? "s" : ""} ready to publish`}
+                  </div>
+                  <Button
+                    onClick={handlePublishAll}
+                    disabled={isPublishingAll}
+                    className="flex items-center justify-center gap-2 px-8 py-5 rounded-xl cursor-pointer bg-chestnut hover:bg-chestnut/90 disabled:opacity-60 transition-all shadow-sm shadow-chestnut/20 w-full sm:w-auto"
+                  >
+                    {isPublishingAll ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />
+                        <span className="text-white font-semibold text-sm">
+                          Publishing {publishProgress?.done ?? 0}/{publishProgress?.total ?? unpublishedCount}…
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-white font-semibold text-sm">
+                        Publish {unpublishedCount} Question{unpublishedCount !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
           ) : (
-          <div className="border border-[#29238280] drop-shadow-[#2923821A] rounded-2xl px-7 mt-4">
-            {/* ── Card Header ── */}
-            <div className="flex items-center justify-between px-6 pt-7 pb-4 border-b border-[#D9D9D9]">
-              <h2 className="font-semibold text-chestnut text-xl tracking-tight">
-                Create Quiz Questions
-              </h2>
-              <Button onClick={() => setQuizType('questions')} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-semibold px-4 py-2.5 rounded-[8px] transition-all duration-200 shadow-sm shadow-emerald-200 cursor-pointer">
-                <PencilLine size={14} className="text-white" />
-                Type Your Question 
-              </Button>
-            </div>
+            /* ── Board view ── */
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold text-chestnut text-base tracking-tight">
+                    Board Question
+                  </h2>
+                  <p className="text-[12px] text-slate-400 mt-0.5">
+                    Draw your question, save the board, then add answer options
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setQuizType("questions")}
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 shadow-sm cursor-pointer"
+                >
+                  <PencilLine size={14} className="shrink-0" />
+                  <span className="hidden sm:inline">Type Instead</span>
+                </Button>
+              </div>
 
-            <div className="h-153 rounded-[8px] mt-4 mb-9 border border-red-900">
-
+              <QuizBoard
+                onCancel={() => setQuizType("questions")}
+                onSaved={handleBoardSaved}
+                isSubmitting={boardSubmitting}
+              />
             </div>
-          </div>
           )}
         </div>
       </div>

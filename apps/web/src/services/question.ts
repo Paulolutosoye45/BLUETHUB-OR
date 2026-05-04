@@ -1,22 +1,23 @@
 import { API, type TResponse } from ".";
 import { X_Tenant_ID } from "./school";
 
-export enum QuestionTypeEnum {
-  MultipleChoice = 1,
-  ShortAnswer = 2,
-  Essay = 3,
-  TrueOrFalse = 4,
-  FillInTheBlank = 5,
-  ImageBased = 6,
-  BoardBased = 7,
-  Mixed = 8,
-}
+export const QuestionTypeEnum = {
+  MultipleChoice: 1,
+  ShortAnswer: 2,
+  Essay: 3,
+  TrueOrFalse: 4,
+  FillInTheBlank: 5,
+  ImageBased: 6,
+  BoardBased: 7,
+  Mixed: 8,
+} as const;
 
-export enum DifficultyLevelEnum {
-  Easy = 1,
-  Medium = 2,
-  Hard = 3,
-}
+export const DifficultyLevelEnum = {
+  Easy: 1,
+  Medium: 2,
+  Hard: 3,
+  Expert: 4,
+} as const;
 
 export interface CreateOptionPayload {
   optionLabel: string;
@@ -44,6 +45,8 @@ export interface CreateQuestionPayload {
   isScanned: boolean;
   extractedQuestionIndex?: number | null;
   aiConfidenceScore?: string | null;
+  classroomId?: string | null;
+  imageUrl?: string | null;
 }
 
 export interface CreateQuestionResponseData {
