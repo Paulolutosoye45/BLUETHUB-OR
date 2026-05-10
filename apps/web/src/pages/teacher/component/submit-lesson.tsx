@@ -19,6 +19,9 @@ import {
   Info,
   Save,
   RotateCcw,
+  BookOpen,
+  Layers,
+  FolderOpen,
 } from "lucide-react";
 import {
   Button,
@@ -41,9 +44,8 @@ import { useAuthContext } from "@/contexts/auth-context";
 import { localData } from "@/utils";
 import toast from "react-hot-toast";
 
-// ── Constants ────────────���──────────────────────��─────────────────────────────
+// ── Constants ────────────────────────────────────────────────────────────────
 
-/** Max simultaneous Cloudinary XHR uploads */
 const UPLOAD_CONCURRENCY = 2;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -52,8 +54,8 @@ type UploadStatus = "idle" | "uploading" | "done" | "error";
 
 interface UploadFile {
   uid: string;
-  file?: File;            // undefined for draft-restored entries
-  displayName: string;   // always present
+  file?: File;
+  displayName: string;
   displaySize: number;
   displayMimeType: string;
   status: UploadStatus;
@@ -67,8 +69,6 @@ interface SelectItem {
   label: string;
 }
 
-// ── Draft schema (localStorage) ─────────────��─────────────────────────────────
-
 interface DraftFile {
   uid: string;
   name: string;
@@ -78,7 +78,7 @@ interface DraftFile {
 }
 
 interface LessonDraft {
-  savedAt: string;           // ISO timestamp — shown in "Draft saved X ago"
+  savedAt: string;
   classroomId: string;
   classroomLabel: string;
   subjectId: string;
@@ -88,7 +88,7 @@ interface LessonDraft {
   subTopicValue: string;
   aim: string;
   description: string;
-  uploadedFiles: DraftFile[]; // only "done" files with Cloudinary data
+  uploadedFiles: DraftFile[];
 }
 
 const draftKey = (userId: string) => `lesson_draft_${userId}`;
@@ -101,7 +101,7 @@ function relativeTime(iso: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-// ── Helpers ──────────────────────────────────────────��────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 const extractLabel = (item: Record<string, unknown>): string =>
   String(
@@ -117,19 +117,15 @@ const formatBytes = (bytes: number): string => {
 
 function getFileIcon(mimeType: string) {
   if (mimeType.startsWith("video/"))
-    return <FileVideo className="w-5 h-5 text-violet-500 shrink-0" />;
+    return <FileVideo className="w-5 h-5 text-violet-500" />;
   if (mimeType.startsWith("audio/"))
-    return <FileAudio className="w-5 h-5 text-blue-500 shrink-0" />;
+    return <FileAudio className="w-5 h-5 text-blue-500" />;
   if (mimeType.startsWith("image/"))
-    return <FileImage className="w-5 h-5 text-emerald-500 shrink-0" />;
+    return <FileImage className="w-5 h-5 text-emerald-500" />;
   if (mimeType === "application/pdf")
-    return <FileIcon className="w-5 h-5 text-red-400 shrink-0" />;
-  return <FileIcon className="w-5 h-5 text-gray-400 shrink-0" />;
+    return <FileIcon className="w-5 h-5 text-red-400" />;
+  return <FileIcon className="w-5 h-5 text-gray-400" />;
 }
-
-// ── Worker-pool concurrency limiter ──────────────────────────────────────────
-// Runs `fn` on each item, but never more than `limit` at once.
-// Uses a shared queue: each worker dequeues and processes until empty.
 
 async function runConcurrent<T>(
   items: T[],
@@ -142,17 +138,12 @@ async function runConcurrent<T>(
     async () => {
       while (queue.length > 0) {
         const item = queue.shift()!;
-        await fn(item).catch(() => {}); // errors are handled inside fn
+        await fn(item).catch(() => {});
       }
     }
   );
   await Promise.all(workers);
 }
-
-// ── Cloudinary XHR upload ──────────────���──────────────────────────────────────
-// XHR is the only browser API that exposes upload progress events.
-// xhr.send() hands I/O to the browser networking thread — the JS main
-// thread stays free and the UI remains responsive regardless of file size.
 
 function uploadToCloudinary(
   file: File,
@@ -198,7 +189,7 @@ function uploadToCloudinary(
   });
 }
 
-// ── FieldSelect ────────────���──────────────────────────────────────────────────
+// ── FieldSelect Component ────────────────────────────────────────────────────
 
 interface FieldSelectProps {
   label: string;
@@ -209,23 +200,25 @@ interface FieldSelectProps {
   disabled?: boolean;
   required?: boolean;
   emptyMessage?: string;
+  icon?: React.ReactNode;
   onChange: (id: string, label: string) => void;
 }
 
 function FieldSelect({
   label, placeholder, value, items, loading, disabled, required,
-  emptyMessage = "No options available", onChange,
+  emptyMessage = "No options available", icon, onChange,
 }: FieldSelectProps) {
   const [open, setOpen] = useState(false);
   const selected = items.find((i) => i.id === value);
   const isDisabled = disabled || loading;
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       {label && (
-        <Label className="text-sm font-semibold text-chestnut">
+        <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+          {icon}
           {label}
-          {required && <span className="text-red-500 ml-0.5">*</span>}
+          {required && <span className="text-red-500">*</span>}
         </Label>
       )}
       <DropdownMenu onOpenChange={setOpen}>
@@ -233,46 +226,55 @@ function FieldSelect({
           <Button
             variant="outline"
             className={cn(
-              "w-full justify-between rounded-xl text-sm transition-all ring-2 min-h-[46px] px-4",
-              selected ? "ring-chestnut/40 text-chestnut bg-chestnut/5"
-                       : "ring-chestnut/20 text-chestnut/50 bg-white",
-              "hover:ring-chestnut/40 hover:bg-chestnut/5",
-              isDisabled && "opacity-50 cursor-not-allowed pointer-events-none"
+              "w-full justify-between rounded-xl text-sm transition-all h-12 px-4 border-2",
+              selected
+                ? "border-blue-200 text-gray-900 bg-blue-50/50"
+                : "border-gray-200 text-gray-400 bg-white",
+              "hover:border-blue-300 hover:bg-blue-50/30",
+              "focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400",
+              isDisabled && "opacity-50 cursor-not-allowed pointer-events-none bg-gray-50"
             )}
           >
-            <span className={cn("truncate text-left text-sm",
-              selected ? "text-chestnut font-semibold" : "text-chestnut/50")}>
+            <span className={cn("truncate text-left", selected ? "text-gray-900 font-medium" : "text-gray-400")}>
               {loading ? "Loading…" : selected?.label ?? placeholder}
             </span>
-            {loading
-              ? <Loader2 className="w-4 h-4 animate-spin text-chestnut/50 shrink-0 ml-2" />
-              : <ChevronDown className={cn("w-4 h-4 text-chestnut/60 shrink-0 ml-2 transition-transform duration-200", open && "rotate-180")} />
-            }
+            {loading ? (
+              <Loader2 className="w-4 h-4 animate-spin text-gray-400 shrink-0" />
+            ) : (
+              <ChevronDown className={cn(
+                "w-4 h-4 text-gray-400 shrink-0 transition-transform duration-200",
+                open && "rotate-180"
+              )} />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          className="w-(--radix-dropdown-menu-trigger-width) rounded-xl border border-chestnut/10 shadow-xl bg-white p-1.5 max-h-56 overflow-y-auto z-50"
-          align="start" sideOffset={6}
+          className="w-(--radix-dropdown-menu-trigger-width) rounded-xl border border-gray-200 shadow-xl bg-white p-1.5 max-h-64 overflow-y-auto z-50"
+          align="start"
+          sideOffset={4}
         >
           <DropdownMenuGroup>
-            {items.length === 0
-              ? <div className="px-3 py-5 text-center text-xs text-gray-400">{emptyMessage}</div>
-              : items.map((item) => (
-                  <DropdownMenuItem
-                    key={item.id}
-                    className={cn(
-                      "rounded-lg py-3 px-3 text-sm font-medium cursor-pointer transition-colors",
-                      value === item.id ? "bg-chestnut text-white" : "text-chestnut hover:bg-chestnut/8"
-                    )}
-                    onClick={() => onChange(item.id, item.label)}
-                  >
-                    <div className="flex items-center justify-between w-full gap-2">
-                      <span className="truncate">{item.label}</span>
-                      {value === item.id && <Check className="w-3.5 h-3.5 shrink-0" />}
-                    </div>
-                  </DropdownMenuItem>
-                ))
-            }
+            {items.length === 0 ? (
+              <div className="px-3 py-6 text-center text-sm text-gray-400">{emptyMessage}</div>
+            ) : (
+              items.map((item) => (
+                <DropdownMenuItem
+                  key={item.id}
+                  className={cn(
+                    "rounded-lg py-3 px-3 text-sm cursor-pointer transition-colors",
+                    value === item.id
+                      ? "bg-blue-600 text-white font-medium"
+                      : "text-gray-700 hover:bg-gray-100"
+                  )}
+                  onClick={() => onChange(item.id, item.label)}
+                >
+                  <div className="flex items-center justify-between w-full gap-2">
+                    <span className="truncate">{item.label}</span>
+                    {value === item.id && <Check className="w-4 h-4 shrink-0" />}
+                  </div>
+                </DropdownMenuItem>
+              ))
+            )}
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -280,7 +282,7 @@ function FieldSelect({
   );
 }
 
-// ── FileRow ────────────────────────────────��──────────────────────────────────
+// ── FileRow Component ────────────────────────────────────────────────────────
 
 interface FileRowProps {
   entry: UploadFile;
@@ -295,7 +297,6 @@ interface FileRowProps {
 
 function FileRow({ entry, index, onRemove, onRetry, onDragStart, onDragOver, onDrop, isDragTarget }: FileRowProps) {
   const { uid, displayName, displaySize, displayMimeType, status, progress, error } = entry;
-  const barColor = status === "done" ? "bg-green-500" : status === "error" ? "bg-red-400" : "bg-chestnut";
 
   return (
     <div
@@ -304,43 +305,60 @@ function FileRow({ entry, index, onRemove, onRetry, onDragStart, onDragOver, onD
       onDragOver={(e) => onDragOver(e, index)}
       onDrop={(e) => onDrop(e, index)}
       className={cn(
-        "group flex items-center gap-2.5 rounded-xl border bg-white px-3 py-3 transition-all select-none",
-        isDragTarget ? "border-chestnut/50 bg-chestnut/5 scale-[1.01] shadow-md" : "border-gray-200 shadow-sm",
-        status === "error" && "border-red-200 bg-red-50/40"
+        "group flex items-center gap-3 rounded-xl border-2 bg-white p-3 transition-all select-none",
+        isDragTarget && "border-blue-400 bg-blue-50 scale-[1.01] shadow-lg",
+        !isDragTarget && status === "error" && "border-red-200 bg-red-50/50",
+        !isDragTarget && status === "done" && "border-green-200 bg-green-50/30",
+        !isDragTarget && status !== "error" && status !== "done" && "border-gray-200 hover:border-gray-300"
       )}
     >
-      <GripVertical className="hidden sm:block w-4 h-4 text-gray-300 group-hover:text-chestnut/40 cursor-grab shrink-0" />
-      <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-gray-100 shrink-0">
+      <GripVertical className="hidden md:block w-4 h-4 text-gray-300 group-hover:text-gray-400 cursor-grab shrink-0" />
+
+      <div className={cn(
+        "flex items-center justify-center w-10 h-10 rounded-lg shrink-0",
+        status === "done" ? "bg-green-100" : status === "error" ? "bg-red-100" : "bg-gray-100"
+      )}>
         {getFileIcon(displayMimeType)}
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-1 mb-1">
-          <p className="truncate text-sm font-semibold text-[#0F0F0E]">{displayName}</p>
-          <span className="text-[11px] text-gray-400 shrink-0 hidden sm:inline">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <p className="truncate text-sm font-medium text-gray-900">{displayName}</p>
+          <span className="text-xs text-gray-400 shrink-0 hidden sm:inline">
             {formatBytes(displaySize)}
           </span>
         </div>
-        {status === "error"
-          ? <p className="text-[11px] text-red-500 truncate">{error}</p>
-          : <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div className={cn("h-full rounded-full transition-all duration-300", barColor)} style={{ width: `${progress}%` }} />
-              </div>
-              <span className="text-[11px] text-gray-400 w-8 text-right shrink-0">
-                {status === "done" ? "Done" : status === "idle" ? "Queued" : `${progress}%`}
-              </span>
+        {status === "error" ? (
+          <p className="text-xs text-red-600 truncate">{error}</p>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-300",
+                  status === "done" ? "bg-green-500" : "bg-blue-500"
+                )}
+                style={{ width: `${progress}%` }}
+              />
             </div>
-        }
+            <span className="text-xs text-gray-500 w-12 text-right shrink-0">
+              {status === "done" ? "Done" : status === "idle" ? "Queued" : `${progress}%`}
+            </span>
+          </div>
+        )}
       </div>
 
-      <div className="shrink-0 w-5 flex justify-center">
-        {status === "uploading" && <Loader2 className="w-4 h-4 animate-spin text-chestnut" />}
-        {status === "idle" && <div className="w-2 h-2 rounded-full bg-gray-300" title="Queued" />}
-        {status === "done" && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+      <div className="shrink-0 flex items-center gap-1">
+        {status === "uploading" && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
+        {status === "idle" && <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />}
+        {status === "done" && <CheckCircle2 className="w-5 h-5 text-green-500" />}
         {status === "error" && (
-          <button onClick={() => onRetry(uid)} title="Retry" className="p-1 rounded-md hover:bg-red-100 transition-colors">
-            <RefreshCw className="w-3.5 h-3.5 text-red-500" />
+          <button
+            onClick={() => onRetry(uid)}
+            title="Retry"
+            className="p-1.5 rounded-lg hover:bg-red-100 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4 text-red-500" />
           </button>
         )}
       </div>
@@ -349,36 +367,23 @@ function FileRow({ entry, index, onRemove, onRetry, onDragStart, onDragOver, onD
         onClick={() => onRemove(uid)}
         disabled={status === "uploading"}
         title="Remove"
-        className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-30"
+        className="shrink-0 p-1.5 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-30"
       >
-        <X className="w-3.5 h-3.5 text-gray-400 hover:text-red-500 transition-colors" />
+        <X className="w-4 h-4 text-gray-400 hover:text-red-500" />
       </button>
     </div>
   );
 }
 
-// ── StepBadge ──────────���──────────────────────────────────────────────────────
-
-function StepBadge({ n, done }: { n: number; done: boolean }) {
-  return (
-    <span className={cn(
-      "inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold shrink-0 transition-colors",
-      done ? "bg-green-500 text-white" : "bg-chestnut/15 text-chestnut"
-    )}>
-      {done ? <Check className="w-3.5 h-3.5" /> : n}
-    </span>
-  );
-}
-
-// ── SetQuestionsModal ─────────────────────────────────────────────────────────
+// ── SetQuestionsModal Component ──────────────────────────────────────────────
 
 interface SetQuestionsModalProps {
   open: boolean;
   subjectLabel: string;
   classroomLabel: string;
-  onSkip: () => void;       // submit without quiz
-  onConfirm: (quizId: string) => void; // submit with quiz ID
-  onDismiss: () => void;    // close without submitting
+  onSkip: () => void;
+  onConfirm: (quizId: string) => void;
+  onDismiss: () => void;
   isSubmitting: boolean;
 }
 
@@ -389,133 +394,105 @@ function SetQuestionsModal({
 
   if (!open) return null;
 
-  // Two-letter abbreviation from subject label
   const abbr = subjectLabel
     .split(" ")
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
 
-  const handleSend = () => {
-    if (quizId.trim()) onConfirm(quizId.trim());
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: "rgba(30, 27, 75, 0.65)", backdropFilter: "blur(2px)" }}>
-      <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-
-        {/* Header */}
-        <div className="bg-chestnut px-5 py-4 flex items-center justify-between">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: "rgba(0, 0, 0, 0.5)", backdropFilter: "blur(4px)" }}
+    >
+      <div className="bg-white w-full max-w-md rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-white/20 rounded-lg">
-              <FileIcon className="w-4 h-4 text-white" />
+            <div className="p-2 bg-white/20 rounded-lg">
+              <BookOpen className="w-5 h-5 text-white" />
             </div>
-            <span className="text-sm font-semibold text-white">Set Questions</span>
+            <span className="text-base font-semibold text-white">Set Questions</span>
           </div>
-          <button onClick={onDismiss}
-            className="p-1 rounded-full hover:bg-white/10 transition-colors text-white">
+          <button
+            onClick={onDismiss}
+            className="p-1.5 rounded-full hover:bg-white/20 transition-colors text-white"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="px-6 py-7 flex flex-col items-center text-center">
-
-          {/* Class info banner */}
-          <div className="w-full bg-chestnut/5 border border-chestnut/10 rounded-2xl px-4 py-3.5
-            flex items-center justify-between mb-7">
+        <div className="p-6">
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-chestnut/20 rounded-xl flex items-center justify-center
-                text-chestnut font-bold text-xs shrink-0">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600 font-bold text-sm">
                 {abbr || "CL"}
               </div>
-              <div className="text-left">
-                <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wide">Current Class</p>
-                <p className="text-sm font-bold text-gray-800 leading-tight">{subjectLabel || "—"}</p>
+              <div>
+                <p className="text-xs text-gray-500 font-medium">Current Class</p>
+                <p className="text-sm font-semibold text-gray-900">{subjectLabel || "—"}</p>
               </div>
             </div>
-            <span className="text-chestnut font-bold text-xs bg-chestnut/10 px-2.5 py-1 rounded-lg">
+            <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-3 py-1.5 rounded-lg">
               {classroomLabel || "—"}
             </span>
           </div>
 
-          {/* Book illustration */}
-          <div className="w-28 h-28 relative mx-auto mb-6 select-none">
-            {/* Shadow book */}
-            <div className="absolute inset-0 bg-chestnut/80 rounded-xl shadow-lg"
-              style={{ transform: "rotate(-10deg) translate(-3px, 3px)" }} />
-            {/* Back cover */}
-            <div className="absolute inset-0 bg-chestnut rounded-xl shadow-md" />
-            {/* Pages side effect */}
-            <div className="absolute top-2 right-2 bottom-2 w-1.5 bg-white/20 rounded-full" />
-            <div className="absolute top-2 right-4 bottom-2 w-0.5 bg-white/10 rounded-full" />
-            {/* Lines on cover */}
-            <div className="absolute inset-x-4 top-5 space-y-1.5">
-              <div className="h-1 bg-white/30 rounded-full" />
-              <div className="h-1 bg-white/20 rounded-full w-3/4" />
-              <div className="h-1 bg-white/20 rounded-full w-1/2" />
+          <div className="text-center mb-6">
+            <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-100 to-blue-200 rounded-2xl flex items-center justify-center">
+              <BookOpen className="w-10 h-10 text-blue-600" />
             </div>
-            {/* Bookmark ribbon */}
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-5 bg-pink-400 rounded-t-sm"
-              style={{ clipPath: "polygon(0 0, 100% 0, 100% 80%, 50% 100%, 0 80%)" }} />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Add a Quiz?
+            </h3>
+            <p className="text-sm text-gray-500">
+              Attach a quiz for students to complete after the lesson
+            </p>
           </div>
 
-          <h3 className="text-base font-bold text-gray-800 mb-1.5">
-            Do you want to set a question?
-          </h3>
-          <p className="text-xs text-gray-400 mb-5">
-            Attach a quiz to this lesson — students will see it after class
-          </p>
-
-          <button onClick={onSkip} disabled={isSubmitting}
-            className="text-xs text-gray-400 underline decoration-gray-300 underline-offset-4
-              font-medium mb-7 hover:text-chestnut transition-colors disabled:opacity-50">
+          <button
+            onClick={onSkip}
+            disabled={isSubmitting}
+            className="w-full text-sm text-gray-500 hover:text-blue-600 font-medium mb-6 transition-colors disabled:opacity-50"
+          >
             Skip — submit without a quiz
           </button>
 
-          {/* Quiz ID input */}
-          <div className="w-full flex gap-2">
+          <div className="flex gap-2">
             <input
               type="text"
               value={quizId}
               onChange={(e) => setQuizId(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              onKeyDown={(e) => e.key === "Enter" && quizId.trim() && onConfirm(quizId.trim())}
               placeholder="Enter quiz ID"
-              className="flex-1 border border-gray-200 rounded-xl px-4 py-3 text-sm
-                focus:ring-2 focus:ring-chestnut/40 focus:border-chestnut/40 outline-none transition"
+              className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 outline-none transition"
             />
             <button
-              onClick={handleSend}
+              onClick={() => quizId.trim() && onConfirm(quizId.trim())}
               disabled={!quizId.trim() || isSubmitting}
               className={cn(
-                "px-5 py-3 rounded-xl text-sm font-bold transition-all",
+                "px-6 py-3 rounded-xl text-sm font-semibold transition-all",
                 quizId.trim() && !isSubmitting
-                  ? "bg-chestnut/10 text-chestnut hover:bg-chestnut/20"
+                  ? "bg-blue-600 text-white hover:bg-blue-700"
                   : "bg-gray-100 text-gray-400 cursor-not-allowed"
               )}
             >
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Add"}
             </button>
           </div>
-
-          <button onClick={onDismiss}
-            className="mt-5 text-xs text-chestnut/50 font-medium hover:text-chestnut transition-colors">
-            Dismiss
-          </button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ── Main Component ───────────────────────────────────────────────────────────
 
 const SubmitLesson = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const isAdmin = user?.roleName === "SuperAdministrator" || user?.roleName === "Administrator";
 
-  // ── Cascade data ──
+  // ── Data State ──
   const [classrooms, setClassrooms] = useState<SelectItem[]>([]);
   const [subjects, setSubjects] = useState<SelectItem[]>([]);
   const [topics, setTopics] = useState<SelectItem[]>([]);
@@ -526,7 +503,7 @@ const SubmitLesson = () => {
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [loadingSubTopics, setLoadingSubTopics] = useState(false);
 
-  // ── Form ──
+  // ── Form State ──
   const [classroomId, setClassroomId] = useState("");
   const [classroomLabel, setClassroomLabel] = useState("");
   const [subjectId, setSubjectId] = useState("");
@@ -537,25 +514,25 @@ const SubmitLesson = () => {
   const [aim, setAim] = useState("");
   const [description, setDescription] = useState("");
 
-  // ── Files ──
+  // ── Upload State ──
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragItemIdx = useRef<number | null>(null);
   const [dragTargetIdx, setDragTargetIdx] = useState<number | null>(null);
 
-  // ── Draft ──
+  // ── Draft State ──
   const [draftTimestamp, setDraftTimestamp] = useState<string | null>(null);
   const [pendingDraft, setPendingDraft] = useState<LessonDraft | null>(null);
   const draftRestored = useRef(false);
 
-  // ── Submission ──
+  // ── Submission State ──
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [serverDraftSaved, setServerDraftSaved] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
 
-  // ── On mount: check for saved draft ──────────────────────────────────────
+  // ── Draft Logic ──
   useEffect(() => {
     if (!user?.id || draftRestored.current) return;
     const saved = localData.retrieve<LessonDraft>(draftKey(user.id));
@@ -564,14 +541,10 @@ const SubmitLesson = () => {
     }
   }, [user?.id]);
 
-  // ── Auto-save draft whenever stable form state changes ───────────────────
-  // Only fires when a file finishes (not on every progress tick) because
-  // completedCount only increments when status flips to "done".
   const completedCount = uploadFiles.filter((f) => f.status === "done").length;
 
   useEffect(() => {
     if (!user?.id || !draftRestored.current) return;
-    // Don't save an empty draft
     if (!classroomId && !aim && !description && completedCount === 0) return;
 
     const draft: LessonDraft = {
@@ -643,14 +616,13 @@ const SubmitLesson = () => {
     toast("Draft cleared");
   };
 
-  // Mark as restored immediately if no draft (so auto-save works on fresh sessions)
   useEffect(() => {
     if (!user?.id) return;
     const saved = localData.retrieve<LessonDraft>(draftKey(user.id));
     if (!saved) draftRestored.current = true;
   }, [user?.id]);
 
-  // ── Cascade: classrooms ───────────────────────────────────────────────────
+  // ── Data Fetching ──
   useEffect(() => {
     schoolService.getAllClassRooms()
       .then((res) => {
@@ -662,7 +634,6 @@ const SubmitLesson = () => {
       .finally(() => setLoadingClassrooms(false));
   }, []);
 
-  // ── Cascade: classroom → subjects ─────────────────────────────────────────
   useEffect(() => {
     if (!classroomId) return;
     setSubjectId(""); setSubjectLabel("");
@@ -680,7 +651,6 @@ const SubmitLesson = () => {
       .finally(() => setLoadingSubjects(false));
   }, [classroomId]);
 
-  // ── Cascade: subject ��� topics ─────────────────────��───────────────────────
   useEffect(() => {
     if (!subjectId) return;
     setTopicId(""); setTopicLabel("");
@@ -697,7 +667,6 @@ const SubmitLesson = () => {
       .finally(() => setLoadingTopics(false));
   }, [subjectId]);
 
-  // ── Cascade: topic → subtopics ───────────────────────────────────────��────
   useEffect(() => {
     if (!topicId) return;
     setSubTopicValue("");
@@ -713,8 +682,7 @@ const SubmitLesson = () => {
       .finally(() => setLoadingSubTopics(false));
   }, [topicId]);
 
-  // ── Upload logic ─────────────��────────────────────────────────────────────
-
+  // ── Upload Logic ──
   const runUpload = useCallback(async (uid: string, file: File, sig: CloudinarySignature) => {
     setUploadFiles((p) => p.map((f) => f.uid === uid ? { ...f, status: "uploading" } : f));
     try {
@@ -765,11 +733,10 @@ const SubmitLesson = () => {
       setUploadFiles((p) =>
         p.map((f) => uids.has(f.uid) ? { ...f, status: "error", error: "Could not get upload credentials" } : f)
       );
-      toast.error("Could not get upload credentials from server");
+      toast.error("Could not get upload credentials");
       return;
     }
 
-    // Worker-pool: max UPLOAD_CONCURRENCY at once
     await runConcurrent(incoming, UPLOAD_CONCURRENCY, ({ uid, file }) =>
       runUpload(uid, file!, sig)
     );
@@ -792,7 +759,7 @@ const SubmitLesson = () => {
   const handleRemove = useCallback((uid: string) =>
     setUploadFiles((p) => p.filter((f) => f.uid !== uid)), []);
 
-  // ── Drop zone ──
+  // ── Drag & Drop ──
   const handleDZDragOver = (e: DragEvent<HTMLDivElement>) => { e.preventDefault(); setIsDraggingOver(true); };
   const handleDZDragLeave = (e: DragEvent<HTMLDivElement>) => {
     if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDraggingOver(false);
@@ -802,7 +769,6 @@ const SubmitLesson = () => {
     if (e.dataTransfer.files.length > 0) processFiles(e.dataTransfer.files);
   };
 
-  // ── Row reorder ──
   const handleRowDragStart = (e: DragEvent<HTMLDivElement>, idx: number) => {
     dragItemIdx.current = idx; e.dataTransfer.effectAllowed = "move";
   };
@@ -821,7 +787,7 @@ const SubmitLesson = () => {
     dragItemIdx.current = null;
   };
 
-  // ── Submit / draft ────────────────────────────────────────────────────────
+  // ── Validation ──
   const allUploaded = uploadFiles.length > 0 && uploadFiles.every((f) => f.status === "done");
   const isUploading = uploadFiles.some((f) => f.status === "uploading" || f.status === "idle");
   const busy = isSubmitting || isSavingDraft;
@@ -829,16 +795,19 @@ const SubmitLesson = () => {
   const formValid = !!classroomId && !!subjectId && !!topicId && subTopicValue.trim().length > 0 &&
     aim.trim().length > 0 && description.trim().length > 0;
 
-  // Draft: all text fields required, media optional
   const canSaveDraft = formValid && !busy;
-  // Submit: text fields + at least one uploaded file
   const canSubmit = formValid && allUploaded && !busy;
+
+  const step1Done = !!classroomId && !!subjectId && !!topicId && subTopicValue.trim().length > 0;
+  const step2Done = aim.trim().length > 0 && description.trim().length > 0;
+  const step3Done = allUploaded;
 
   const buildMediaPayload = (): MediaFilePayload[] =>
     uploadFiles
       .filter((f) => f.status === "done" && f.result)
       .map((f, idx) => ({ ...f.result!, displayOrder: idx + 1 }));
 
+  // ── Submission ──
   const handleSaveDraft = async () => {
     if (!canSaveDraft) return;
     setIsSavingDraft(true);
@@ -857,7 +826,7 @@ const SubmitLesson = () => {
       await lessonService.saveDraft(payload);
       setServerDraftSaved(true);
       setDraftTimestamp(new Date().toISOString());
-      toast.success("Draft saved");
+      toast.success("Draft saved to server");
     } catch (err: unknown) {
       const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
       toast.error(e?.response?.data?.responseMessage ?? e?.message ?? "Could not save draft");
@@ -866,7 +835,6 @@ const SubmitLesson = () => {
     }
   };
 
-  // Opens the quiz modal — actual API call happens in handleConfirmSubmit
   const handleSubmit = () => {
     if (!canSubmit) return;
     setShowQuizModal(true);
@@ -895,313 +863,461 @@ const SubmitLesson = () => {
     }
   };
 
-  // ── Step done indicators ──
-  const step1Done = !!classroomId && !!subjectId && !!topicId && subTopicValue.trim().length > 0;
-  const step2Done = aim.trim().length > 0 && description.trim().length > 0;
-  const step3Done = allUploaded;
-
-  // ── Render ───────────────��────────────────────────────────────────────────
-
+  // ── Render ──
   return (
     <>
-      <div className="min-h-screen bg-[#F7F7FB] pb-36 sm:pb-8">
-
-        {/* ── Mobile sticky top bar ─────────────────────────────────────── */}
-        <div className="sticky top-0 z-30 sm:hidden bg-chestnut flex items-center gap-3 px-4 py-3.5 shadow-md">
-          <button
-            onClick={() => navigate(-1)}
-            className="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 text-white shrink-0"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-white font-semibold text-base leading-tight truncate">Submit Lesson</h1>
-            {(classroomLabel || subjectLabel) && (
-              <p className="text-white/60 text-[11px] truncate mt-0.5">
-                {[classroomLabel, subjectLabel].filter(Boolean).join(" · ")}
-              </p>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5">
-            {draftTimestamp && (
-              <span className="flex items-center gap-1 text-[10px] text-white/60">
-                <Save size={10} />
-                {relativeTime(draftTimestamp)}
-              </span>
-            )}
-            <div className="flex gap-1">
-              {[step1Done, step2Done, step3Done].map((done, i) => (
-                <span key={i} className={cn("w-2 h-2 rounded-full transition-colors", done ? "bg-green-400" : "bg-white/30")} />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Desktop back button ───────────────────────────────────────── */}
-        <div className="hidden sm:block max-w-3xl mx-auto px-4 pt-6 pb-2">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-1.5 text-sm text-chestnut/60 hover:text-chestnut transition-colors mb-4"
-          >
-            <ChevronLeft size={16} /> Back
-          </button>
-        </div>
-
-        <div className="max-w-3xl mx-auto sm:px-4">
-          <div className="bg-white sm:rounded-2xl sm:shadow-md overflow-hidden">
-
-            {/* Desktop title bar */}
-            <div className="hidden sm:flex items-center justify-between bg-gradient-to-r from-chestnut to-chestnut/90 px-6 py-5">
-              <h1 className="text-white font-semibold text-lg">Submit Lesson</h1>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
+        {/* Header */}
+        <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-gray-200/50">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-16">
               <div className="flex items-center gap-3">
-                {serverDraftSaved && draftTimestamp && (
-                  <span className="flex items-center gap-1.5 text-xs text-green-300 bg-white/10 px-2.5 py-1.5 rounded-full">
-                    <CheckCircle2 size={12} /> Saved to server {relativeTime(draftTimestamp)}
-                  </span>
-                )}
-                {!serverDraftSaved && draftTimestamp && (
-                  <span className="flex items-center gap-1.5 text-xs text-white/60">
-                    <Save size={12} /> Auto-saved {relativeTime(draftTimestamp)}
+                <button
+                  onClick={() => navigate(-1)}
+                  className="p-2 -ml-2 rounded-xl hover:bg-gray-100 transition-colors"
+                >
+                  <ChevronLeft className="w-5 h-5 text-gray-600" />
+                </button>
+                <div>
+                  <h1 className="text-lg font-semibold text-gray-900">Submit Lesson</h1>
+                  {(classroomLabel || subjectLabel) && (
+                    <p className="text-xs text-gray-500 hidden sm:block">
+                      {[classroomLabel, subjectLabel].filter(Boolean).join(" • ")}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {draftTimestamp && (
+                  <span className="hidden sm:flex items-center gap-1.5 text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
+                    <Save className="w-3 h-3" />
+                    {serverDraftSaved ? "Saved" : "Auto-saved"} {relativeTime(draftTimestamp)}
                   </span>
                 )}
                 {isAdmin && (
-                  <span className="flex items-center gap-1.5 text-xs text-white/70 bg-white/10 px-3 py-1.5 rounded-full">
-                    <Info size={12} /> Admin — all classrooms visible
+                  <span className="hidden md:flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full">
+                    <Info className="w-3 h-3" />
+                    Admin View
                   </span>
                 )}
               </div>
             </div>
+          </div>
+        </header>
 
-            {/* ── Draft restore banner ─────────────────────────────────── */}
-            {pendingDraft && (
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 sm:px-6 py-4 bg-amber-50 border-b border-amber-200">
-                <div className="flex items-start gap-2.5 min-w-0">
-                  <RotateCcw size={16} className="text-amber-600 mt-0.5 shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-amber-800">You have an unsaved draft</p>
-                    <p className="text-xs text-amber-600 mt-0.5">
+        {/* Draft Restore Banner */}
+        {pendingDraft && (
+          <div className="bg-amber-50 border-b border-amber-200">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  <RotateCcw className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-amber-900">Unsaved draft found</p>
+                    <p className="text-xs text-amber-700">
                       Saved {relativeTime(pendingDraft.savedAt)}
-                      {pendingDraft.classroomLabel && ` · ${pendingDraft.classroomLabel}`}
-                      {pendingDraft.uploadedFiles.length > 0 &&
-                        ` · ${pendingDraft.uploadedFiles.length} file${pendingDraft.uploadedFiles.length > 1 ? "s" : ""} attached`}
+                      {pendingDraft.uploadedFiles.length > 0 && ` • ${pendingDraft.uploadedFiles.length} files`}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex gap-2 w-full sm:w-auto">
                   <button
-                    onClick={() => discardDraft()}
-                    className="flex-1 sm:flex-none text-xs font-medium text-amber-700 hover:text-amber-900 px-3 py-2 rounded-lg hover:bg-amber-100 transition-colors"
+                    onClick={discardDraft}
+                    className="flex-1 sm:flex-none px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 rounded-lg transition-colors"
                   >
                     Discard
                   </button>
                   <button
                     onClick={() => restoreDraft(pendingDraft)}
-                    className="flex-1 sm:flex-none text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 px-4 py-2 rounded-lg transition-colors"
+                    className="flex-1 sm:flex-none px-4 py-2 text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors"
                   >
-                    Restore Draft
+                    Restore
                   </button>
                 </div>
               </div>
-            )}
+            </div>
+          </div>
+        )}
 
-            <div className="divide-y divide-gray-100">
-
-              {/* ══ SECTION 1: Class & Topic ══════════════════════════════ */}
-              <section className="px-4 sm:px-6 py-5 space-y-4">
-                <div className="flex items-center gap-2.5">
-                  <StepBadge n={1} done={step1Done} />
-                  <h2 className="font-semibold text-sm text-chestnut uppercase tracking-wide">Class &amp; Topic</h2>
+        {/* Main Content */}
+        <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-32 sm:pb-8">
+          <div className="space-y-6">
+              {/* Step 1: Class & Topic */}
+              <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center",
+                      step1Done ? "bg-green-500 text-white" : "bg-blue-500 text-white"
+                    )}>
+                      {step1Done ? <Check className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <h2 className="font-semibold text-gray-900">Class & Topic</h2>
+                      <p className="text-xs text-gray-500">Select the class and topic for this lesson</p>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <FieldSelect label="Classroom" placeholder="Select classroom" value={classroomId}
-                    items={classrooms} loading={loadingClassrooms} required emptyMessage="No classrooms found"
-                    onChange={(id, label) => { setClassroomId(id); setClassroomLabel(label); draftRestored.current = true; }} />
-                  <FieldSelect label="Subject" placeholder={classroomId ? "Select subject" : "Select a classroom first"}
-                    value={subjectId} items={subjects} loading={loadingSubjects} disabled={!classroomId}
-                    required emptyMessage="No subjects for this classroom"
-                    onChange={(id, label) => { setSubjectId(id); setSubjectLabel(label); }} />
-                </div>
+                <div className="p-5 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FieldSelect
+                      label="Classroom"
+                      placeholder="Select classroom"
+                      value={classroomId}
+                      items={classrooms}
+                      loading={loadingClassrooms}
+                      required
+                      onChange={(id, label) => { setClassroomId(id); setClassroomLabel(label); draftRestored.current = true; }}
+                    />
+                    <FieldSelect
+                      label="Subject"
+                      placeholder={classroomId ? "Select subject" : "Select classroom first"}
+                      value={subjectId}
+                      items={subjects}
+                      loading={loadingSubjects}
+                      disabled={!classroomId}
+                      required
+                      onChange={(id, label) => { setSubjectId(id); setSubjectLabel(label); }}
+                    />
+                  </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <FieldSelect label="Topic" placeholder={subjectId ? "Select topic" : "Select a subject first"}
-                    value={topicId} items={topics} loading={loadingTopics} disabled={!subjectId}
-                    required emptyMessage="No topics for this subject"
-                    onChange={(id, label) => { setTopicId(id); setTopicLabel(label); }} />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FieldSelect
+                      label="Topic"
+                      placeholder={subjectId ? "Select topic" : "Select subject first"}
+                      value={topicId}
+                      items={topics}
+                      loading={loadingTopics}
+                      disabled={!subjectId}
+                      required
+                      onChange={(id, label) => { setTopicId(id); setTopicLabel(label); }}
+                    />
 
-                  {/* Sub-topic */}
-                  <div className="space-y-1.5">
-                    <Label className="text-sm font-semibold text-chestnut">
-                      Sub-Topic <span className="text-red-500">*</span>
-                    </Label>
-                    {subTopics.length > 0 ? (
-                      <FieldSelect label="" placeholder="Select sub-topic"
-                        value={subTopics.find((s) => s.label === subTopicValue)?.id ?? ""}
-                        items={subTopics} loading={loadingSubTopics} disabled={!topicId}
-                        emptyMessage="No sub-topics for this topic"
-                        onChange={(_id, label) => setSubTopicValue(label)} />
-                    ) : (
-                      <div className="relative">
-                        <input type="text" value={subTopicValue}
-                          onChange={(e) => setSubTopicValue(e.target.value)}
-                          placeholder={loadingSubTopics ? "Loading…" : topicId ? "Type sub-topic" : "Select a topic first"}
-                          disabled={!topicId || loadingSubTopics}
-                          className={cn(
-                            "w-full min-h-[46px] rounded-xl border px-4 text-sm text-[#0F0F0E]",
-                            "ring-2 ring-chestnut/20 placeholder:text-chestnut/40",
-                            "focus:outline-none focus:ring-chestnut/50 transition-all",
-                            (!topicId || loadingSubTopics) && "opacity-50 cursor-not-allowed bg-gray-50"
-                          )}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700">
+                        Sub-Topic <span className="text-red-500">*</span>
+                      </Label>
+                      {subTopics.length > 0 ? (
+                        <FieldSelect
+                          label=""
+                          placeholder="Select sub-topic"
+                          value={subTopics.find((s) => s.label === subTopicValue)?.id ?? ""}
+                          items={subTopics}
+                          loading={loadingSubTopics}
+                          disabled={!topicId}
+                          onChange={(_id, label) => setSubTopicValue(label)}
                         />
-                        {loadingSubTopics && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-chestnut/50" />}
+                      ) : (
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={subTopicValue}
+                            onChange={(e) => setSubTopicValue(e.target.value)}
+                            placeholder={loadingSubTopics ? "Loading…" : topicId ? "Type sub-topic" : "Select topic first"}
+                            disabled={!topicId || loadingSubTopics}
+                            className={cn(
+                              "w-full h-12 rounded-xl border-2 px-4 text-sm text-gray-900",
+                              "border-gray-200 placeholder:text-gray-400",
+                              "focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all",
+                              (!topicId || loadingSubTopics) && "opacity-50 cursor-not-allowed bg-gray-50"
+                            )}
+                          />
+                          {loadingSubTopics && (
+                            <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {topicLabel && (
+                    <p className="text-xs text-gray-500 flex items-center gap-2 pt-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                      {[classroomLabel, subjectLabel, topicLabel].filter(Boolean).join(" → ")}
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              {/* Step 2: Lesson Content */}
+              <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-8 h-8 rounded-lg flex items-center justify-center",
+                      step2Done ? "bg-green-500 text-white" : "bg-purple-500 text-white"
+                    )}>
+                      {step2Done ? <Check className="w-4 h-4" /> : <BookOpen className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <h2 className="font-semibold text-gray-900">Lesson Content</h2>
+                      <p className="text-xs text-gray-500">Describe the lesson objectives and content</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-5 space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">
+                      Aim & Objectives <span className="text-red-500">*</span>
+                    </Label>
+                    <textarea
+                      rows={3}
+                      value={aim}
+                      onChange={(e) => setAim(e.target.value)}
+                      placeholder="e.g. Students will understand the role of photosynthesis in plant nutrition…"
+                      className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">
+                      Lesson Description <span className="text-red-500">*</span>
+                    </Label>
+                    <textarea
+                      rows={4}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Provide a detailed overview of lesson content, activities, and expected outcomes…"
+                      className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {/* Step 3: Media Files */}
+              <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-8 h-8 rounded-lg flex items-center justify-center",
+                        step3Done ? "bg-green-500 text-white" : "bg-emerald-500 text-white"
+                      )}>
+                        {step3Done ? <Check className="w-4 h-4" /> : <FolderOpen className="w-4 h-4" />}
                       </div>
+                      <div>
+                        <h2 className="font-semibold text-gray-900">Media Files</h2>
+                        <p className="text-xs text-gray-500">Upload lesson materials</p>
+                      </div>
+                    </div>
+                    <span className="hidden sm:inline text-xs text-gray-400">
+                      Drag to reorder
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-5 space-y-4">
+                  {/* Drop Zone */}
+                  <div
+                    onDragOver={handleDZDragOver}
+                    onDragLeave={handleDZDragLeave}
+                    onDrop={handleDZDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed py-10 cursor-pointer transition-all",
+                      isDraggingOver
+                        ? "border-blue-400 bg-blue-50"
+                        : "border-gray-200 bg-gray-50/50 hover:border-blue-300 hover:bg-blue-50/30"
                     )}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      className="hidden"
+                      accept="video/*,audio/*,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                      onChange={(e) => {
+                        if (e.target.files?.length) {
+                          processFiles(e.target.files);
+                          e.target.value = "";
+                        }
+                      }}
+                    />
+                    <div className={cn(
+                      "w-14 h-14 rounded-2xl flex items-center justify-center transition-colors",
+                      isDraggingOver ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-600"
+                    )}>
+                      <Upload className="w-6 h-6" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-semibold text-gray-700">
+                        {isDraggingOver ? "Drop files here" : "Click to upload or drag and drop"}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Video, Audio, Images, PDF, Documents
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                {topicLabel && (
-                  <p className="text-[11px] text-chestnut/50 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-chestnut/30 inline-block" />
-                    {[classroomLabel, subjectLabel, topicLabel].filter(Boolean).join(" → ")}
-                  </p>
-                )}
+                  {/* File List */}
+                  {uploadFiles.length > 0 && (
+                    <div
+                      className="space-y-2"
+                      onDragEnd={() => { dragItemIdx.current = null; setDragTargetIdx(null); }}
+                    >
+                      {uploadFiles.map((entry, idx) => (
+                        <FileRow
+                          key={entry.uid}
+                          entry={entry}
+                          index={idx}
+                          onRemove={handleRemove}
+                          onRetry={handleRetry}
+                          onDragStart={handleRowDragStart}
+                          onDragOver={handleRowDragOver}
+                          onDrop={handleRowDrop}
+                          isDragTarget={dragTargetIdx === idx}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Status Banner */}
+                  {uploadFiles.length > 0 && (
+                    <div className={cn(
+                      "flex items-center gap-3 rounded-xl px-4 py-3 text-sm",
+                      allUploaded && "bg-green-50 text-green-700 border border-green-200",
+                      isUploading && "bg-blue-50 text-blue-700 border border-blue-200",
+                      !allUploaded && !isUploading && "bg-amber-50 text-amber-700 border border-amber-200"
+                    )}>
+                      {allUploaded && <CheckCircle2 className="w-5 h-5 shrink-0" />}
+                      {isUploading && <Loader2 className="w-5 h-5 shrink-0 animate-spin" />}
+                      {!allUploaded && !isUploading && <AlertCircle className="w-5 h-5 shrink-0" />}
+                      <span className="font-medium">
+                        {allUploaded && `${uploadFiles.length} file${uploadFiles.length > 1 ? "s" : ""} ready`}
+                        {isUploading && "Uploading files..."}
+                        {!allUploaded && !isUploading && "Some files failed. Retry or remove them."}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </section>
 
-              {/* ══ SECTION 2: Lesson content ═════════════════════════════ */}
-              <section className="px-4 sm:px-6 py-5 space-y-4">
-                <div className="flex items-center gap-2.5">
-                  <StepBadge n={2} done={step2Done} />
-                  <h2 className="font-semibold text-sm text-chestnut uppercase tracking-wide">Lesson Content</h2>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-semibold text-chestnut">
-                    Aim &amp; Objectives <span className="text-red-500">*</span>
-                  </Label>
-                  <textarea rows={3} value={aim} onChange={(e) => setAim(e.target.value)}
-                    placeholder="e.g. Students will understand the role of photosynthesis in plant nutrition…"
-                    className="w-full rounded-xl border border-gray-200 ring-2 ring-chestnut/20 px-4 py-3 text-sm text-[#0F0F0E] placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-chestnut/50 transition-all" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-sm font-semibold text-chestnut">
-                    Lesson Description <span className="text-red-500">*</span>
-                  </Label>
-                  <textarea rows={4} value={description} onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Provide a detailed overview of lesson content, activities, and expected outcomes…"
-                    className="w-full rounded-xl border border-gray-200 ring-2 ring-chestnut/20 px-4 py-3 text-sm text-[#0F0F0E] placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-chestnut/50 transition-all" />
-                </div>
-              </section>
-
-              {/* ══ SECTION 3: Media files ════════════════════════════════ */}
-              <section className="px-4 sm:px-6 py-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <StepBadge n={3} done={step3Done} />
-                    <h2 className="font-semibold text-sm text-chestnut uppercase tracking-wide">Lesson Media</h2>
-                  </div>
-                  <span className="text-[11px] text-gray-400 hidden sm:inline">
-                    Max {UPLOAD_CONCURRENCY} uploads at once · drag rows to reorder
-                  </span>
-                </div>
-
-                {/* Drop zone */}
-                <div
-                  onDragOver={handleDZDragOver} onDragLeave={handleDZDragLeave} onDrop={handleDZDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  role="button" tabIndex={0} aria-label="Upload files"
-                  onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+            {/* Desktop Action Buttons */}
+            <div className="hidden sm:flex items-center justify-between pt-4">
+              <p className="text-sm text-gray-500">
+                {!formValid && "Fill all required fields to continue"}
+                {formValid && !allUploaded && "Add media files to submit"}
+                {formValid && allUploaded && "Ready to submit for approval"}
+              </p>
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(-1)}
+                  disabled={busy}
+                  className="rounded-xl px-5 h-11 border-gray-200 text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveDraft}
+                  disabled={!canSaveDraft}
                   className={cn(
-                    "flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-8 sm:py-10 cursor-pointer transition-all select-none",
-                    isDraggingOver ? "border-chestnut bg-chestnut/5" : "border-gray-200 bg-gray-50/60 hover:border-chestnut/40 hover:bg-chestnut/3"
+                    "rounded-xl px-5 h-11 font-medium transition-all",
+                    canSaveDraft
+                      ? "bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50"
+                      : "bg-gray-100 border-2 border-gray-200 text-gray-400 cursor-not-allowed"
                   )}
                 >
-                  <input ref={fileInputRef} type="file" multiple className="hidden"
-                    accept="video/*,audio/*,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                    onChange={(e) => { if (e.target.files?.length) { processFiles(e.target.files); e.target.value = ""; } }} />
-                  <div className={cn("w-11 h-11 rounded-xl flex items-center justify-center transition-colors",
-                    isDraggingOver ? "bg-chestnut text-white" : "bg-chestnut/10 text-chestnut")}>
-                    <Upload size={20} />
-                  </div>
-                  <div className="text-center px-4">
-                    <p className="text-sm font-semibold text-chestnut">{isDraggingOver ? "Drop to upload" : "Tap to upload"}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">Video · Audio · PDF · Images</p>
-                  </div>
-                </div>
-
-                {/* File list */}
-                {uploadFiles.length > 0 && (
-                  <div className="space-y-2" onDragEnd={() => { dragItemIdx.current = null; setDragTargetIdx(null); }}>
-                    {uploadFiles.map((entry, idx) => (
-                      <FileRow key={entry.uid} entry={entry} index={idx}
-                        onRemove={handleRemove} onRetry={handleRetry}
-                        onDragStart={handleRowDragStart} onDragOver={handleRowDragOver} onDrop={handleRowDrop}
-                        isDragTarget={dragTargetIdx === idx} />
-                    ))}
-                  </div>
-                )}
-
-                {/* Status banner */}
-                {uploadFiles.length > 0 && (
-                  <div className={cn("flex items-start gap-2 rounded-xl px-3.5 py-3 text-xs font-medium",
-                    allUploaded ? "bg-green-50 text-green-700 border border-green-200"
-                    : isUploading ? "bg-blue-50 text-blue-700 border border-blue-200"
-                    : "bg-amber-50 text-amber-700 border border-amber-200")}>
-                    {allUploaded
-                      ? <><CheckCircle2 size={14} className="mt-0.5 shrink-0" /><span>{uploadFiles.length} file{uploadFiles.length > 1 ? "s" : ""} uploaded — ready to submit.</span></>
-                      : isUploading
-                      ? <><Loader2 size={14} className="mt-0.5 shrink-0 animate-spin" /><span>Uploading ({UPLOAD_CONCURRENCY} at a time) — please wait.</span></>
-                      : <><AlertCircle size={14} className="mt-0.5 shrink-0" /><span>Some files failed. Retry or remove them to continue.</span></>
-                    }
-                  </div>
-                )}
-              </section>
-
-              {/* ══ Desktop action row ════════════════════════════════════ */}
-              <div className="hidden sm:flex items-center justify-between px-6 py-4 bg-gray-50/60">
-                <div className="flex items-center gap-3">
-                  <p className="text-xs text-gray-400">
-                    {!formValid ? "Fill all required fields to save or submit"
-                      : !allUploaded ? "Add media files to submit (draft can be saved now)"
-                      : "Ready to submit for approval"}
-                  </p>
-                  {draftTimestamp && (
-                    <button onClick={clearDraftAndReset}
-                      className="text-[11px] text-gray-400 hover:text-red-500 transition-colors underline">
-                      Clear
-                    </button>
+                  {isSavingDraft ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2">
+                      <Save className="w-4 h-4" />
+                      Save Draft
+                    </span>
                   )}
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={() => navigate(-1)} disabled={busy}
-                    className="border-gray-200 text-gray-500 hover:bg-gray-50 rounded-xl px-4 text-sm font-medium">
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSaveDraft} disabled={!canSaveDraft}
-                    className={cn(
-                      "rounded-xl px-4 text-sm font-semibold border transition-all",
-                      canSaveDraft
-                        ? "border-chestnut text-chestnut bg-white hover:bg-chestnut/5"
-                        : "border-gray-200 text-gray-400 bg-white cursor-not-allowed"
-                    )}>
-                    {isSavingDraft
-                      ? <span className="flex items-center gap-1.5"><Loader2 size={13} className="animate-spin" />Saving…</span>
-                      : <span className="flex items-center gap-1.5"><Save size={13} />Save Draft</span>}
-                  </Button>
-                  <Button onClick={handleSubmit} disabled={!canSubmit}
-                    className={cn("rounded-xl px-5 text-sm font-semibold text-white min-w-[150px] transition-all",
-                      canSubmit ? "bg-chestnut hover:bg-chestnut/90 shadow-sm" : "bg-gray-300 cursor-not-allowed")}>
-                    {isSubmitting
-                      ? <span className="flex items-center gap-2"><Loader2 size={14} className="animate-spin" />Submitting…</span>
-                      : "Submit for Approval"}
-                  </Button>
-                </div>
+                </Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!canSubmit}
+                  className={cn(
+                    "rounded-xl px-6 h-11 font-semibold text-white transition-all min-w-[160px]",
+                    canSubmit
+                      ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/25"
+                      : "bg-gray-300 cursor-not-allowed"
+                  )}
+                >
+                  {isSubmitting ? (
+                    <span className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Submitting...
+                    </span>
+                  ) : (
+                    "Submit for Approval"
+                  )}
+                </Button>
               </div>
-
             </div>
+          </div>
+        </main>
+
+        {/* Mobile Bottom Bar */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-white border-t border-gray-200 px-4 py-3 space-y-2 safe-area-pb">
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveDraft}
+              disabled={!canSaveDraft}
+              className={cn(
+                "flex-1 h-12 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border-2 transition-all",
+                canSaveDraft
+                  ? "border-blue-500 text-blue-600 bg-white active:bg-blue-50"
+                  : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
+              )}
+            >
+              {isSavingDraft ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : serverDraftSaved ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 text-green-500" />
+                  Saved
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Save Draft
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+              className={cn(
+                "flex-[2] h-12 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all",
+                canSubmit
+                  ? "bg-gradient-to-r from-blue-600 to-blue-700 active:from-blue-700 active:to-blue-800 shadow-lg shadow-blue-500/25"
+                  : "bg-gray-300 cursor-not-allowed"
+              )}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Submitting...
+                </>
+              ) : !formValid ? (
+                "Fill all fields"
+              ) : !allUploaded ? (
+                "Add media files"
+              ) : (
+                "Submit for Approval"
+              )}
+            </button>
           </div>
         </div>
       </div>
 
-      {/* ══ Quiz modal ═══════════════════════════════════════════════════════ */}
+      {/* Quiz Modal */}
       <SetQuestionsModal
         open={showQuizModal}
         subjectLabel={subjectLabel}
@@ -1211,45 +1327,6 @@ const SubmitLesson = () => {
         onDismiss={() => setShowQuizModal(false)}
         isSubmitting={isSubmitting}
       />
-
-      {/* ══ Mobile sticky bottom bar ══════════════════════════════════════════ */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-white border-t border-gray-200 px-4 py-3 space-y-2">
-        {/* Save Draft row */}
-        <button
-          onClick={handleSaveDraft}
-          disabled={!canSaveDraft}
-          className={cn(
-            "w-full min-h-[44px] rounded-2xl text-sm font-semibold flex items-center justify-center gap-2 border-2 transition-all",
-            canSaveDraft
-              ? "border-chestnut text-chestnut bg-white active:bg-chestnut/5"
-              : "border-gray-200 text-gray-400 bg-white cursor-not-allowed"
-          )}
-        >
-          {isSavingDraft
-            ? <><Loader2 size={15} className="animate-spin" />Saving Draft…</>
-            : serverDraftSaved
-            ? <><CheckCircle2 size={15} className="text-green-500" />Draft Saved</>
-            : <><Save size={15} />Save Draft</>}
-        </button>
-
-        {/* Submit row */}
-        <button
-          onClick={handleSubmit}
-          disabled={!canSubmit}
-          className={cn(
-            "w-full min-h-[50px] rounded-2xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all",
-            canSubmit
-              ? "bg-chestnut active:bg-chestnut/90 shadow-lg shadow-chestnut/25"
-              : "bg-gray-300 cursor-not-allowed"
-          )}
-        >
-          {isSubmitting
-            ? <><Loader2 size={16} className="animate-spin" />Submitting…</>
-            : !formValid ? "Fill all required fields"
-            : !allUploaded ? "Add media to submit"
-            : "Submit for Approval"}
-        </button>
-      </div>
     </>
   );
 };

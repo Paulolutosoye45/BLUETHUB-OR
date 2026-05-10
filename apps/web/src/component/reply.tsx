@@ -690,18 +690,25 @@ export default function Replay() {
   const playAudioBatch = useCallback(async (
     batchIndex: number,
     sortedBatches: AudioBatch[],
+    sessionStartWallMs: number,
   ): Promise<void> => {
     if (batchIndex >= sortedBatches.length || stopRef.current) return;
 
     const batch = sortedBatches[batchIndex];
 
-    // Sum actual recorded durations of all previous batches (no hardcoded 10s)
-    const batchStartMs = sortedBatches
-      .slice(0, batchIndex)
-      .reduce((sum, b) => sum + (b.duration ?? 10) * 1000, 0);
+    // Use the actual recorded timestamp to calculate when this batch starts in the session timeline.
+    // batch.timestamp = when the batch data was received (end of batch) minus paused time
+    // So batch start position = timestamp - sessionStartWallMs - duration
+    // This ensures audio and strokes (which also use timestamp - sessionStartWallMs) stay in sync.
+    const batchStartMs = sessionStartWallMs > 0 && batch.timestamp
+      ? batch.timestamp - sessionStartWallMs - (batch.duration ?? 10) * 1000
+      : sortedBatches.slice(0, batchIndex).reduce((sum, b) => sum + (b.duration ?? 10) * 1000, 0);
+
+    // Ensure batchStartMs is never negative
+    const safeBatchStartMs = Math.max(0, batchStartMs);
 
     // ✅ Tell the RAF where in the session timeline we now are
-    batchStartMsRef.current = batchStartMs;
+    batchStartMsRef.current = safeBatchStartMs;
 
     if (currentBlobUrlRef.current) {
       URL.revokeObjectURL(currentBlobUrlRef.current);
@@ -766,12 +773,20 @@ export default function Replay() {
 
     const sortedAudio = [...audioList].sort((a, b) => a.batchId - b.batchId);
 
+    // Get sessionStartWallMs for audio batch positioning (same value used for stroke positioning)
+    const stored = parseInt(localStorage.getItem('sessionStartWallMs') ?? '0', 10);
+    const firstBatch = sortedAudio[0];
+    const reconstructed = firstBatch
+      ? firstBatch.timestamp - (firstBatch.duration ?? 10) * 1000
+      : 0;
+    const sessionStartWallMs = stored || reconstructed || 0;
+
     if (hasAudio && hasStrokes) {
       // Normal case: board slaved to audio clock
       startRaf(readyStrokes);
       for (let i = 0; i < sortedAudio.length; i++) {
         if (stopRef.current) break;
-        try { await playAudioBatch(i, sortedAudio); } catch (_) { }
+        try { await playAudioBatch(i, sortedAudio, sessionStartWallMs); } catch (_) { }
       }
       stopRaf();
 
@@ -782,7 +797,7 @@ export default function Replay() {
       }
       for (let i = 0; i < sortedAudio.length; i++) {
         if (stopRef.current) break;
-        try { await playAudioBatch(i, sortedAudio); } catch (_) { }
+        try { await playAudioBatch(i, sortedAudio, sessionStartWallMs); } catch (_) { }
       }
       if (hasMedia) {
         stopRaf();

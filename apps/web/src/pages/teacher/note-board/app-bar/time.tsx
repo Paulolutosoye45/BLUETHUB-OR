@@ -1,10 +1,7 @@
-import { Button } from "@bluethub/ui-kit";
-import TimeIcon from "@/assets/svg/time-fill.svg?react";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import { parseTime } from "@/utils";
-
-// ─── helpers ─────────────────────────────────────────────────────────────────
+import { Clock, Timer, AlertTriangle } from "lucide-react";
 
 // total seconds → "MM:SS" or "HH:MM:SS"
 const fromSeconds = (total: number): string => {
@@ -16,51 +13,91 @@ const fromSeconds = (total: number): string => {
     : `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 const Time = () => {
   const classDuration = useSelector((state: RootState) => state.action.classDuration);
   const timeUp = useSelector((state: RootState) => state.action.timeUp);
   const pauseTime = useSelector((state: RootState) => state.action.pauseTime);
-
   const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
 
-  // ── Compute countdown from elapsed ────────────────────────────────────────
-  // classDuration is the total class length e.g. "30:00"
-  // timerDisplay is how much has elapsed e.g. "00:08"
-  // remaining = classDuration - elapsed, clamped to 0
-  const totalSeconds = parseTime(classDuration);          // uses your existing util
+  // Compute countdown from elapsed
+  const totalSeconds = parseTime(classDuration);
   const elapsedSeconds = Math.max(0, Math.floor(timerElapsedSeconds));
   const remaining = Math.max(0, totalSeconds - elapsedSeconds);
   const displayTime = fromSeconds(remaining);
+  const elapsedDisplay = fromSeconds(elapsedSeconds);
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // ✅ NO setInterval here — no Redux dispatch here.
-  //    This component is purely a display: it reads elapsed from Redux
-  //    (written by useGlobalTimer) and shows the countdown visually.
-  //    All timer logic lives in useGlobalTimer + useAudioRecorder.
-  // ─────────────────────────────────────────────────────────────────────────
+  // Calculate percentage for progress indicator
+  const progress = totalSeconds > 0 ? Math.min(100, (elapsedSeconds / totalSeconds) * 100) : 0;
+  const isLowTime = remaining < 300 && remaining > 0; // Less than 5 minutes
 
   return (
-    <div className="flex items-center justify-center gap-7">
-      <Button
-        className={`group flex items-center gap-2 cursor-pointer transition-colors duration-200 
-        ${timeUp
-            ? "bg-transparent border border-[#EC1B2C] text-[#EC1B2C] hover:bg-[#EC1B2C] hover:text-white"
-            : "bg-bLemon text-white hover:bg-bLemon/80"
-          } ${pauseTime && "bg-[#ff0000] text-white hover:bg-red-700"}`}
+    <div className="flex items-center gap-4">
+      {/* Elapsed Time */}
+      <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 border border-blue-200">
+        <Timer className="w-4 h-4 text-blue-600" />
+        <div className="flex flex-col">
+          <span className="text-[10px] font-medium text-blue-400 uppercase tracking-wide leading-none">
+            Elapsed
+          </span>
+          <span className="text-sm font-bold text-blue-700 tabular-nums">
+            {elapsedDisplay}
+          </span>
+        </div>
+      </div>
+
+      {/* Remaining Time */}
+      <div
+        className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 ${
+          timeUp
+            ? "bg-red-50 border-red-300"
+            : isLowTime
+            ? "bg-amber-50 border-amber-300 animate-pulse"
+            : pauseTime
+            ? "bg-gray-100 border-gray-300"
+            : "bg-emerald-50 border-emerald-200"
+        }`}
       >
-        <TimeIcon
-          className={`size-5 transition-colors duration-200
-          ${timeUp ? "text-[#EC1B2C] group-hover:text-white" : "text-white"}`}
-        />
-        <span
-          className={`font-Poppins font-semibold text-sm leading-[100%] transition-colors duration-200
-          ${timeUp ? "text-[#EC1B2C] group-hover:text-white" : "text-white"}`}
-        >
-          {displayTime}
-        </span>
-      </Button>
+        {timeUp ? (
+          <AlertTriangle className="w-4 h-4 text-red-600" />
+        ) : (
+          <Clock className={`w-4 h-4 ${isLowTime ? "text-amber-600" : pauseTime ? "text-gray-500" : "text-emerald-600"}`} />
+        )}
+        <div className="flex flex-col">
+          <span
+            className={`text-[10px] font-medium uppercase tracking-wide leading-none ${
+              timeUp ? "text-red-400" : isLowTime ? "text-amber-400" : pauseTime ? "text-gray-400" : "text-emerald-400"
+            }`}
+          >
+            {timeUp ? "Time Up" : "Remaining"}
+          </span>
+          <span
+            className={`text-sm font-bold tabular-nums ${
+              timeUp ? "text-red-700" : isLowTime ? "text-amber-700" : pauseTime ? "text-gray-600" : "text-emerald-700"
+            }`}
+          >
+            {displayTime}
+          </span>
+        </div>
+      </div>
+
+      {/* Progress Bar (hidden when paused) */}
+      {!pauseTime && totalSeconds > 0 && (
+        <div className="hidden md:flex flex-col gap-1">
+          <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                timeUp
+                  ? "bg-red-500"
+                  : isLowTime
+                  ? "bg-amber-500"
+                  : "bg-gradient-to-r from-blue-500 to-emerald-500"
+              }`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="text-[9px] text-gray-400 text-center">{Math.round(progress)}%</span>
+        </div>
+      )}
     </div>
   );
 };

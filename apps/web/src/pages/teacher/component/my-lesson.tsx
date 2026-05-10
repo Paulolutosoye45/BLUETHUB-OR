@@ -9,11 +9,14 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight as ChevronR,
+  Play,
 } from "lucide-react";
 import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@bluethub/ui-kit";
-import { lessonService, type LessonItem, type LessonSummary } from "@/services/lesson";
+import { lessonService, type LessonItem, type LessonSummary, type LessonForClassDto, type LessonMediaDto } from "@/services/lesson";
 import { useAuthContext } from "@/contexts/auth-context";
 import { ReviewModal, type RLesson } from "./review-modal";
+import PreClassModal from "./pre-class-modal";
+import toast from "react-hot-toast";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -129,8 +132,14 @@ const MyLesson = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Modal ──
+  // ── Review Modal ──
   const [reviewLesson, setReviewLesson] = useState<RLesson | null>(null);
+
+  // ── Pre-Class Modal (for starting approved lessons) ──
+  const [preClassModalOpen, setPreClassModalOpen] = useState(false);
+  const [selectedLessonForClass, setSelectedLessonForClass] = useState<LessonForClassDto | null>(null);
+  const [lessonMedia, setLessonMedia] = useState<LessonMediaDto[]>([]);
+  const [loadingLessonDetails, setLoadingLessonDetails] = useState(false);
 
   // ── Fetch ──
   const fetchLessons = (filter: FilterValue, pageNum: number) => {
@@ -174,6 +183,27 @@ const MyLesson = () => {
   const handleFilterChange = (f: FilterValue) => {
     setActiveFilter(f);
     setPage(1);
+  };
+
+  // ── Start Class handler ──
+  const handleStartClass = async (lessonId: string) => {
+    setPreClassModalOpen(true);
+    setLoadingLessonDetails(true);
+    setSelectedLessonForClass(null);
+    setLessonMedia([]);
+
+    try {
+      const res = await lessonService.getLessonForClass(lessonId);
+      const data = (res.data as any)?.data;
+      setSelectedLessonForClass(data?.lesson ?? null);
+      setLessonMedia(data?.media ?? []);
+    } catch (err) {
+      toast.error("Failed to load lesson details");
+      setPreClassModalOpen(false);
+      console.error(err);
+    } finally {
+      setLoadingLessonDetails(false);
+    }
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -312,13 +342,26 @@ const MyLesson = () => {
                                   </span>
                                 </TableCell>
                                 <TableCell className="pr-5 text-right">
-                                  <button
-                                    onClick={() => setReviewLesson(toRLesson(lesson, teacherName))}
-                                    className="border border-[#E8E8E3] hover:border-chestnut/30 hover:text-chestnut
-                                      text-[#0F0F0E] text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
-                                  >
-                                    Review
-                                  </button>
+                                  <div className="flex items-center justify-end gap-2">
+                                    {lesson.status === "Approved" && (
+                                      <button
+                                        onClick={() => handleStartClass(lesson.id)}
+                                        className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600
+                                          hover:from-emerald-600 hover:to-emerald-700 text-white text-xs font-semibold
+                                          px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                                      >
+                                        <Play size={12} />
+                                        Start Class
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => setReviewLesson(toRLesson(lesson, teacherName))}
+                                      className="border border-[#E8E8E3] hover:border-chestnut/30 hover:text-chestnut
+                                        text-[#0F0F0E] text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                                    >
+                                      Review
+                                    </button>
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             );
@@ -355,13 +398,25 @@ const MyLesson = () => {
                           </div>
                           <div className="flex items-center justify-between mt-3">
                             <span className="text-[11px] text-gray-400">{formatDate(lesson.createdAt)}</span>
-                            <button
-                              onClick={() => setReviewLesson(toRLesson(lesson, teacherName))}
-                              className="border border-[#E8E8E3] text-[#0F0F0E] text-xs font-medium px-3 py-1.5
-                                rounded-lg hover:border-chestnut/30 hover:text-chestnut transition-colors"
-                            >
-                              Review
-                            </button>
+                            <div className="flex items-center gap-2">
+                              {lesson.status === "Approved" && (
+                                <button
+                                  onClick={() => handleStartClass(lesson.id)}
+                                  className="flex items-center gap-1 bg-gradient-to-r from-emerald-500 to-emerald-600
+                                    text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg"
+                                >
+                                  <Play size={10} />
+                                  Start
+                                </button>
+                              )}
+                              <button
+                                onClick={() => setReviewLesson(toRLesson(lesson, teacherName))}
+                                className="border border-[#E8E8E3] text-[#0F0F0E] text-xs font-medium px-3 py-1.5
+                                  rounded-lg hover:border-chestnut/30 hover:text-chestnut transition-colors"
+                              >
+                                Review
+                              </button>
+                            </div>
                           </div>
                         </div>
                       );
@@ -419,6 +474,14 @@ const MyLesson = () => {
         open={!!reviewLesson}
         onOpenChange={(o) => !o && setReviewLesson(null)}
         lesson={reviewLesson}
+      />
+
+      <PreClassModal
+        open={preClassModalOpen}
+        onOpenChange={setPreClassModalOpen}
+        lesson={selectedLessonForClass}
+        media={lessonMedia}
+        isLoading={loadingLessonDetails}
       />
     </>
   );

@@ -1,6 +1,6 @@
 import { API, type TResponse } from ".";
 import { X_Tenant_ID } from "./school";
-import type { IActions } from "@/utils/constant";
+import type { IActions, CompressedStroke, SessionManifest } from "@/utils/constant";
 
 export interface CloudinarySignature {
   signature: string;
@@ -104,7 +104,134 @@ export interface SubmitManifestResponse {
   status: string;
 }
 
+// ── Sync Architecture Types ──────────────────────────────────────────────────
+
+export interface StrokeBatchPayload {
+  lessonId: string;
+  sessionId: string;
+  batchIndex: number;
+  startMs: number;
+  endMs: number;
+  strokes: CompressedStroke[];
+  strokeCount: number;
+}
+
+export interface SessionManifestPayload {
+  lessonId: string;
+  sessionId: string;
+  manifest: SessionManifest;
+}
+
+export interface AudioChunkMetadata {
+  lessonId: string;
+  sessionId: string;
+  chunkIndex: number;
+  startMs: number;
+  endMs: number;
+  durationMs: number;
+  cloudinaryUrl: string;
+  cloudinaryPublicId: string;
+  sizeBytes: number;
+}
+
+// ── Approval Types ───────────────────────────────────────────────────────────
+
+export interface LessonSummaryDto {
+  lessonId: string;
+  aim: string;
+  description: string;
+  subjectName: string;
+  topicName: string;
+  className: string;
+  mediaCount: number;
+}
+
+export interface ApprovalItemDto {
+  id: string;
+  operationType: string;
+  entityType: string;
+  entityId: string;
+  status: string;
+  createdAt: string;
+  expiresAt: string;
+  requestedByName: string;
+  requestedByEmail: string;
+  lesson: LessonSummaryDto | null;
+}
+
+export interface PendingApprovalsResponse {
+  count: number;
+  items: ApprovalItemDto[];
+}
+
+export interface ApprovalRespondPayload {
+  approved: boolean;
+  rejectionReason?: string;
+}
+
+// ── Lesson for Class Types ───────────────────────────────────────────────────
+
+export interface LessonForClassDto {
+  id: string;
+  aim: string;
+  description: string;
+  status: string;
+  createdAt: string;
+  approvedAt: string;
+  subTopic: string;
+  subTopicId: string | null;
+  classroomId: string;
+  className: string;
+  subjectId: string;
+  subjectName: string;
+  topicId: string;
+  topicName: string;
+  teacherId: string;
+  teacherName: string;
+  teacherEmail: string;
+  approvedByName: string | null;
+}
+
+export interface LessonMediaDto {
+  id: string;
+  fileName: string;
+  originalFileName: string;
+  fileExtension: string;
+  mediaType: string;
+  cloudinaryUrl: string;
+  publicId: string;
+  fileSizeBytes: number;
+  duration: number | null;
+  displayOrder: number;
+  metaData: string | null;
+}
+
+export interface LessonForClassResponse {
+  lesson: LessonForClassDto;
+  media: LessonMediaDto[];
+  mediaCount: number;
+}
+
 export const lessonService = {
+  // ── Lesson for Class ───────────────────────────────────────────────────────
+  getLessonForClass: (lessonId: string) =>
+    API.get<TResponse<LessonForClassResponse>>(`api/lessons/${lessonId}/class`, {
+      headers: { "X-Tenant-ID": X_Tenant_ID },
+    }),
+
+  // ── Approval endpoints ─────────────────────────────────────────────────────
+  getPendingApprovals: () =>
+    API.get<TResponse<PendingApprovalsResponse>>("api/User/approvals", {
+      headers: { "X-Tenant-ID": X_Tenant_ID },
+    }),
+
+  respondToApproval: (approvalId: string, payload: ApprovalRespondPayload) =>
+    API.post<TResponse<{ approvalId: string; newStatus: string }>>(
+      `api/User/approvals/${approvalId}/respond`,
+      payload,
+      { headers: { "X-Tenant-ID": X_Tenant_ID } }
+    ),
+
   getUploadSignature: () =>
     API.get<TResponse<CloudinarySignature>>("api/lessons/upload-signature", {
       headers: { "X-Tenant-ID": X_Tenant_ID },
@@ -144,5 +271,34 @@ export const lessonService = {
   submitManifest: (payload: SubmitManifestPayload) =>
     API.post<TResponse<SubmitManifestResponse>>("api/sessions/manifest", payload, {
       headers: { "X-Tenant-ID": X_Tenant_ID },
+    }),
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SYNC ARCHITECTURE ENDPOINTS
+  // Event-based endpoints return 204 No Content for fast processing
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // POST api/sessions/strokes — uploads a batch of compressed strokes
+  // Returns 204 on success (event-based processing)
+  uploadStrokeBatch: (payload: StrokeBatchPayload) =>
+    API.post("api/sessions/strokes", payload, {
+      headers: { "X-Tenant-ID": X_Tenant_ID },
+      validateStatus: (status) => status === 204 || status === 200,
+    }),
+
+  // POST api/sessions/audio-metadata — registers audio chunk metadata after Cloudinary upload
+  // Returns 204 on success (event-based processing)
+  registerAudioChunk: (payload: AudioChunkMetadata) =>
+    API.post("api/sessions/audio-metadata", payload, {
+      headers: { "X-Tenant-ID": X_Tenant_ID },
+      validateStatus: (status) => status === 204 || status === 200,
+    }),
+
+  // POST api/sessions/publish — submits the final session manifest for publishing
+  // This triggers backend to finalize the lesson and make it available for replay
+  publishSession: (payload: SessionManifestPayload) =>
+    API.post("api/sessions/publish", payload, {
+      headers: { "X-Tenant-ID": X_Tenant_ID },
+      validateStatus: (status) => status === 204 || status === 200,
     }),
 };

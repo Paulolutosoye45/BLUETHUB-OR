@@ -4,59 +4,71 @@ import Pen from "@/pages/teacher/note-board/class-menu/pen";
 import Select from "@/pages/teacher/note-board/class-menu/select";
 import Shapes from "@/pages/teacher/note-board/class-menu/shapes";
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@bluethub/ui-kit";
-import ArrowBack from "@/assets/svg/arrow-back.svg?react";
-import ArrowBackRight from "@/assets/svg/arrow-back-right.svg?react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState } from "react";
-// import { TooltipProvider } from "../../../../../../../packages/ui/src/components/ui/tooltip"
-// import { TooltipProvider } from ""
-
 
 const ClassMenu = () => {
-  const [closedNav, setClosedNav] = useState<boolean>(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
 
   const toggleNav = () => {
-    setClosedNav(!closedNav);
+    setIsCollapsed(!isCollapsed);
   };
+
   return (
-    <div className="font-poppins px-3 ">
-      <div className="flex  flex-col items-center justify-between max-h-screen  space-y-2">
-        {/* close-nav */}
+    <div className="font-poppins">
+      <div className="flex flex-col items-center">
+        {/* Toggle Button */}
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                variant={"ghost"}
+                variant="ghost"
                 onClick={toggleNav}
-                className="hover:bg-transparent"
+                className={`
+                  mb-1.5 p-1.5 rounded-full
+                  bg-white hover:bg-gray-100
+                  border border-gray-200
+                  shadow-sm
+                  transition-all duration-200
+                  ${isCollapsed ? 'rotate-0' : 'rotate-180'}
+                `}
               >
-                {!closedNav ? (
-                  <ArrowBack className="size-6" />
-                ) : (
-                  <ArrowBackRight className="size-4" />
-                )}
+                <ChevronLeft className="w-3.5 h-3.5 text-gray-600" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="right" align="center">
-              <p className="font-poppins">
-                {!closedNav ? "close " : "open"} menu
+              <p className="font-poppins text-xs">
+                {isCollapsed ? "Show tools" : "Hide tools"}
               </p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
 
+        {/* Tools Container */}
         <div
-          className={`w-17.5 mx-auto  overflow-hidden rounded-md shadow-md ${closedNav ? "hidden" : "block"
-            }`}
+          className={`
+            overflow-hidden transition-all duration-300 ease-in-out
+            ${isCollapsed ? "w-0 opacity-0" : "w-14 opacity-100"}
+          `}
         >
-          <Select />
-          <Pen />
-          <Media />
-          <Shapes />
-          <Paint />
+          <div className="
+            flex flex-col
+            bg-white
+            rounded-xl
+            shadow-md
+            border border-gray-200
+            overflow-hidden
+          ">
+            <Select />
+            <Pen />
+            <Media />
+            <Shapes />
+            <Paint />
+          </div>
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default ClassMenu
+export default ClassMenu;
