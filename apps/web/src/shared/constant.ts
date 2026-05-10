@@ -12,6 +12,8 @@ import libraryIcon from "@/assets/svg/library.svg";
 // import teacherIcon from "@/assets/svg/teacher.svg";
 import MonitorPlayIcon from "@/assets/svg/monitor_play.svg";
 import UploadIcon from "@/assets/svg/upload.svg";
+import BookTextIcon from "@/assets/svg/jam_book.svg";
+import PlayIcon from "@/assets/svg/play.svg";
 
 export const TACADEMICLINKS = [
   {
@@ -42,9 +44,29 @@ export const TACADEMICLINKS = [
     path: "/teacher/submit-lesson",
   },
   {
+    icons: libraryIcon,
+    name: "My Lessons",
+    path: "/teacher/my-lessons",
+  },
+  {
+    icons: PlayIcon,
+    name: "Start Class",
+    path: "/teacher/start-class",
+  },
+  {
+    icons: UploadIcon,
+    name: "My Drafts",
+    path: "/teacher/drafts",
+  },
+  {
     icons: AssignmentIcon,
     name: "Question/Assessment",
     path: "/teacher/assessment",
+  },
+  {
+    icons: BookTextIcon,
+    name: "My Syllabus",
+    path: "/teacher/syllabus",
   },
 ];
 

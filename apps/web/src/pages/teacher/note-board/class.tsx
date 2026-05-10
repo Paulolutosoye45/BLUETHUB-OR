@@ -7,15 +7,12 @@ import {
     Circle,
     Arrow,
     RegularPolygon,
-    Image as KonvaImage,
 } from "react-konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { getBezierPoints, gzipCompress } from "@/utils/gzip";
-import { addStrokes } from "@/utils/db";
-import { formatTime, parseTime } from "@/utils";
+import { getBezierPoints, gzipCompress, gzipDecompress } from "@/utils/gzip";
+import { addStrokes, getClassByBoard, getClassBySessionAndBoard, getSession } from "@/utils/db";
 import type { RootState } from "@/store";
-import { holdCurrentTime, setSendQueueRefList } from "@/store/class-action-slice";
-import { useSession } from "@/contexts/session-context"; // kept for sendMediaShow/sendMediaHide only
+import { resetClassRuntime, setEndClass, setSendQueueRefList, setSessionIdRef, setPauseTime } from "@/store/class-action-slice";
 import { useDispatch, useSelector } from "react-redux";
 import { useGlobalTimer } from "@/hooks/useGlobalTimer";
 import { type Position } from "@/utils/constant";
@@ -29,57 +26,18 @@ import ClassMenu from "@/layouts/teacher/class/component/class-menu";
 import ClassBottom from "@/layouts/teacher/class/component/class-bottom";
 import { clampCircle, clampRect, clampToBoard, clampTriangle, makeDragBoundFunc } from "@/utils/clamp";
 import type { Box } from "konva/lib/shapes/Transformer";
-import useImage from 'use-image';
+import MediaFrame from "./media-frame";
 
 
 const Class = () => {
     const dispatch = useDispatch();
-    const classDuration = useSelector((state: RootState) => state.action.classDuration);
     const pauseTime = useSelector((state: RootState) => state.action.pauseTime);
     const currentBoard = useSelector((state: RootState) => state.action.currentBoard);
     const actionSelect = useSelector((state: RootState) => state.action.value);
     const selectedFillColor = useSelector((state: RootState) => state.action.fillColor);
     const isRecording = useSelector((state: RootState) => state.action.isRecording);
     const sessionIdRef = useSelector((state: RootState) => state.action.sessionIdRef);
-    const selectedImage = useSelector((state: RootState) => state.action.selectedImage);
-
-    // useSession used only for media show/hide manifest tracking
-    const { sendMediaShow, sendMediaHide } = useSession();
-
-    // Track media show/hide for manifest
-    const prevSelectedImageIdRef = useRef<string | null>(null);
-    const timerDisplay = useSelector((state: RootState) => state.action.timerDisplay);
-
-    useEffect(() => {
-        const prev = prevSelectedImageIdRef.current;
-        const next = selectedImage?.id ?? null;
-
-        if (next && next !== prev && isRecording) {
-            // A new image was shown
-            sendMediaShow({
-                mediaId:      next,
-                name:         selectedImage!.name,
-                mediaType:    selectedImage!.type,
-                url:          selectedImage!.url,
-                timerDisplay,
-            });
-        } else if (!next && prev && isRecording) {
-            // The image was hidden
-            sendMediaHide(prev, timerDisplay);
-        } else if (next && prev && next !== prev && isRecording) {
-            // Switched from one image to another — hide old, show new
-            sendMediaHide(prev, timerDisplay);
-            sendMediaShow({
-                mediaId:      next,
-                name:         selectedImage!.name,
-                mediaType:    selectedImage!.type,
-                url:          selectedImage!.url,
-                timerDisplay,
-            });
-        }
-
-        prevSelectedImageIdRef.current = next;
-    }, [selectedImage?.id, isRecording]);
+    const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
 
     const [actions, setAction] = useState<string | null>(ACTIONS.SELECT);
     const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -90,15 +48,13 @@ const Class = () => {
     const [circles, setCircles] = useState<circle[]>([]);
     const [arrows, setArrows] = useState<arrow[]>([]);
     const [triangles, setTriangles] = useState<triangle[]>([]);
-    const [vaderImage] = useImage(selectedImage?.url ?? "");
 
-    const [timeLeft, setTimeLeft] = useState(parseTime(classDuration));
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
     const trRef = useRef<Konva.Transformer | null>(null);
     const parentRef = useRef<HTMLDivElement>(null);
-    // startWallMs / endWallMs: ms-precise wall-clock captured at mousedown/mouseup.
-    // Used instead of timerDisplay (1-second floor resolution) for replay sync.
-    const strokeTimesRef = useRef({ start: "", end: "", startWallMs: 0, endWallMs: 0 });
+    // startElapsedMs / endElapsedMs are captured from the active lesson timer.
+    // This excludes paused time from replay timing.
+    const strokeTimesRef = useRef({ start: "", end: "", startElapsedMs: 0, endElapsedMs: 0 });
     const rectRef = useRef(null);
     const isDrawing = useRef(false);
     const strokeColor = "#000";
@@ -109,22 +65,86 @@ const Class = () => {
     const boardW = dimensions.width;
     const boardH = dimensions.height;
 
-    // ✅ FIX 1: Track previous formatted time to avoid dispatching every second
-    const prevFormattedTimeRef = useRef<string>("");
-
     useEffect(() => {
         setAction(actionSelect);
     }, [actionSelect]);
 
+    const timerRunning = useSelector((state: RootState) => state.action.timerRunning);
+
     const timer = useGlobalTimer({
         onTargetReached: () => {
             isDrawing.current = false;
+            dispatch(setEndClass());
         },
     });
 
+    // Track if we're still initializing (for draft continuation)
+    const [isInitialized, setIsInitialized] = useState(false);
+    // Store the loaded session ID directly (avoids Redux async timing issues)
+    const [loadedSessionId, setLoadedSessionId] = useState<string | null>(null);
+
     useEffect(() => {
-        timer.start();
-    }, []);
+        const checkForContinuingSession = async () => {
+            const continueSessionId = localStorage.getItem('continueSessionId');
+
+            if (continueSessionId) {
+                // We're continuing from a saved draft
+                console.log('[Class] Continuing from saved session:', continueSessionId);
+
+                try {
+                    const session = await getSession(continueSessionId);
+
+                    if (session) {
+                        // Restore the session state
+                        const savedDurationMs = session.recording.totalDurationMs || 0;
+                        const savedDurationSeconds = Math.floor(savedDurationMs / 1000);
+
+                        console.log('[Class] Restoring session state:', {
+                            sessionId: continueSessionId,
+                            savedDurationMs,
+                            savedDurationSeconds,
+                        });
+
+                        // Set the session ID in local state (synchronous, immediate)
+                        setLoadedSessionId(continueSessionId);
+
+                        // Set the session ID in Redux (for other components)
+                        dispatch(setSessionIdRef(continueSessionId));
+
+                        // Set the timer to the saved position
+                        timer.setInitialTime(savedDurationSeconds);
+
+                        // Set pause state to true (paused, ready to resume)
+                        dispatch(setPauseTime(true));
+
+                        // Restore sessionStartWallMs for timestamp calculations
+                        // Calculate what sessionStartWallMs should be based on saved duration
+                        const restoredSessionStart = Date.now() - savedDurationMs;
+                        localStorage.setItem('sessionStartWallMs', String(restoredSessionStart));
+                        localStorage.setItem('totalPausedMs', String(session.recording.pausedDurationMs || 0));
+
+                        console.log('[Class] Session restored, ready to continue from', savedDurationSeconds, 'seconds');
+                    }
+                } catch (err) {
+                    console.error('[Class] Failed to restore session:', err);
+                }
+
+                // Clear the continue flags so we don't restore again on refresh
+                localStorage.removeItem('continueSessionId');
+                localStorage.removeItem('continueLessonId');
+            } else {
+                // Fresh start - reset everything
+                timer.reset();
+                dispatch(resetClassRuntime());
+            }
+
+            // Mark initialization as complete
+            setIsInitialized(true);
+        };
+
+        checkForContinuingSession();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [dispatch]);
 
     useEffect(() => {
         const element = parentRef.current;
@@ -167,29 +187,126 @@ const Class = () => {
         };
     }, []);
 
-    // ✅ FIX 1: Only dispatch when the formatted string actually changes
+    // Load board strokes on board change (filtered by session if available)
+    // Wait for initialization to complete before loading strokes
     useEffect(() => {
-        if (timeLeft <= 0 || pauseTime) return;
+        if (!isInitialized) {
+            console.log('[Class] Waiting for initialization before loading strokes...');
+            return;
+        }
 
-        const interval = setInterval(() => {
-            setTimeLeft((prev) => {
-                if (prev <= 1) return 0;
-                const next = prev - 1;
-                const formatted = formatTime(next);
-                if (formatted !== prevFormattedTimeRef.current) {
-                    prevFormattedTimeRef.current = formatted;
-                    dispatch(holdCurrentTime(formatted));
+        const loadBoardStrokes = async () => {
+            try {
+                // Use loadedSessionId (from draft continue) or sessionIdRef (from Redux)
+                const effectiveSessionId = loadedSessionId || sessionIdRef;
+                console.log('[Class] Loading strokes for board:', currentBoard, 'session:', effectiveSessionId, '(loaded:', loadedSessionId, 'redux:', sessionIdRef, ')');
+
+                // Debug: Get ALL strokes to see what's in the database
+                const { getClass } = await import('@/utils/db');
+                const allStrokes = await getClass();
+                console.log('[Class] DEBUG - Total strokes in DB:', allStrokes.length);
+                if (allStrokes.length > 0) {
+                    const sessionIds = [...new Set(allStrokes.map(s => s.sessionId))];
+                    const boards = [...new Set(allStrokes.map(s => s.currentBoard))];
+                    console.log('[Class] DEBUG - Session IDs in DB:', sessionIds);
+                    console.log('[Class] DEBUG - Boards in DB:', boards);
+                    console.log('[Class] DEBUG - Looking for sessionId:', effectiveSessionId, 'board:', currentBoard);
+                    const matchingSession = allStrokes.filter(s => s.sessionId === effectiveSessionId);
+                    console.log('[Class] DEBUG - Strokes matching sessionId:', matchingSession.length);
+                    const matchingBoard = allStrokes.filter(s => s.currentBoard === currentBoard);
+                    console.log('[Class] DEBUG - Strokes matching board:', matchingBoard.length);
+                    const matchingBoth = allStrokes.filter(s => s.sessionId === effectiveSessionId && s.currentBoard === currentBoard);
+                    console.log('[Class] DEBUG - Strokes matching BOTH:', matchingBoth.length);
                 }
-                return next;
-            });
-        }, 1000);
 
-        return () => clearInterval(interval);
-    }, [pauseTime, dispatch]);
+                // Load strokes filtered by session if available, otherwise by board only
+                let boardStrokes;
+                if (effectiveSessionId) {
+                    boardStrokes = await getClassBySessionAndBoard(effectiveSessionId, currentBoard);
+                    console.log('[Class] Loaded by session+board:', boardStrokes.length);
+                    // If no strokes found by sessionId, try loading all strokes for this board
+                    // This handles legacy strokes saved without sessionId
+                    if (boardStrokes.length === 0) {
+                        console.log('[Class] No strokes found by sessionId, trying board only (legacy fallback)...');
+                        boardStrokes = await getClassByBoard(currentBoard);
+                        console.log('[Class] Loaded by board only:', boardStrokes.length);
+                    }
+                } else {
+                    boardStrokes = await getClassByBoard(currentBoard);
+                }
+                console.log('[Class] Final loaded strokes:', boardStrokes.length);
+                const nextStrokes: Stroke[] = [];
+                const nextRectangles: rectangle[] = [];
+                const nextCircles: circle[] = [];
+                const nextArrows: arrow[] = [];
+                const nextTriangles: triangle[] = [];
+                const nextStraightLines: straightLine[] = [];
 
-    useEffect(() => {
-        if (!selectedImage) return;
-    }, [selectedImage]);
+                const sortedStrokes = [...boardStrokes].sort((a, b) => a.timestamp - b.timestamp);
+
+                for (const saved of sortedStrokes) {
+                    try {
+                        const compressedBytes = Uint8Array.from(atob(saved.data), (char) => char.charCodeAt(0));
+                        const decompressed = await gzipDecompress(compressedBytes);
+                        const parsed = JSON.parse(decompressed);
+
+                        switch (saved.type) {
+                            case "stroke":
+                            case "eraser": {
+                                if (!Array.isArray(parsed)) break;
+                                nextStrokes.push({
+                                    id: saved.id,
+                                    type: saved.type,
+                                    points: parsed,
+                                    color: saved.color,
+                                    width: saved.width,
+                                    timestamp: saved.timestamp,
+                                    duration: saved.duration,
+                                    startTime: saved.startTime,
+                                    endTime: saved.endTime,
+                                });
+                                break;
+                            }
+                            case "rectangle": {
+                                nextRectangles.push(parsed as rectangle);
+                                break;
+                            }
+                            case "circle": {
+                                nextCircles.push(parsed as circle);
+                                break;
+                            }
+                            case "triangle": {
+                                nextTriangles.push(parsed as triangle);
+                                break;
+                            }
+                            case "arrow": {
+                                nextArrows.push(parsed as arrow);
+                                break;
+                            }
+                            case "line": {
+                                nextStraightLines.push(parsed as straightLine);
+                                break;
+                            }
+                        }
+                    } catch (decodeErr) {
+                        console.error("❌ Failed to decode saved board item:", decodeErr);
+                    }
+                }
+
+                console.log('[Class] Setting state - strokes:', nextStrokes.length, 'rectangles:', nextRectangles.length, 'circles:', nextCircles.length);
+                setStrokes(nextStrokes);
+                setCurrentStroke([]);
+                setStraightLines(nextStraightLines);
+                setRectangles(nextRectangles);
+                setCircles(nextCircles);
+                setArrows(nextArrows);
+                setTriangles(nextTriangles);
+            } catch (err) {
+                console.error("❌ Failed to load board strokes:", err);
+            }
+        };
+        loadBoardStrokes();
+    }, [currentBoard, sessionIdRef, loadedSessionId, isInitialized]);
 
     /* ✅ FIX 2: Stable dragBoundFunc factories memoized by board dimensions */
     const boardClamp = useCallback(
@@ -214,6 +331,10 @@ const Class = () => {
     }) => {
         const startTime = strokeTimesRef.current.start;
         const endTime   = strokeTimesRef.current.end;
+        // Timestamp = wall clock minus total paused time
+        // This keeps strokes aligned with audio after pause/resume
+        const totalPausedMs = parseInt(localStorage.getItem('totalPausedMs') || '0', 10);
+        const timestamp = Date.now() - totalPausedMs;
 
         const compressed = await gzipCompress(JSON.stringify(shape));
         const base64Data = btoa(String.fromCharCode(...compressed));
@@ -225,7 +346,7 @@ const Class = () => {
             color:        shape.stroke || shape.fillColor || "#df4b26",
             width:        shape.strokeWidth || 2,
             type:         shape.type,
-            timestamp:    Date.now(),
+            timestamp,
             duration:     0,
             currentBoard,
             startTime,
@@ -234,11 +355,11 @@ const Class = () => {
 
         dispatch(setSendQueueRefList([compressedShape]));
         try {
-            if (isRecording) await addStrokes([compressedShape]);
+            await addStrokes([compressedShape]);
         } catch (err) {
             console.error("❌ Failed to save shape to IndexedDB:", err);
         }
-    }, [isRecording, sessionIdRef, currentBoard, dispatch]);
+    }, [sessionIdRef, currentBoard, dispatch, timerElapsedSeconds]);
 
     const penDownEvent = useCallback(async (p: Position | null, type: "stroke" | "eraser" = "stroke") => {
         const updatedStroke = p ? [...currentStroke, p.x, p.y] : currentStroke;
@@ -252,11 +373,16 @@ const Class = () => {
         // gzipCompress is async — another mousedown can fire during that gap and
         // overwrite strokeTimesRef fields, causing every rapid stroke to share
         // the same timestamp and appear simultaneously in replay.
-        const timestamp = strokeTimesRef.current.startWallMs || Date.now();
-        const duration  = strokeTimesRef.current.endWallMs - strokeTimesRef.current.startWallMs;
+        //
+        // Timestamp = wall clock minus total paused time
+        // This keeps strokes aligned with audio after pause/resume
+        const totalPausedMs = parseInt(localStorage.getItem('totalPausedMs') || '0', 10);
+        const timestamp = Date.now() - totalPausedMs;
+        const duration  = Math.max(0, strokeTimesRef.current.endElapsedMs - strokeTimesRef.current.startElapsedMs);
         const startTime = strokeTimesRef.current.start;
         const endTime   = strokeTimesRef.current.end;
-        const strokeId  = isRecording && sessionIdRef ? sessionIdRef : null;
+        // Always use sessionIdRef if available (needed for both recording and draft continuation)
+        const strokeId  = sessionIdRef || null;
 
         const smoothed  = getBezierPoints(updatedStroke);
         const compressed = await gzipCompress(JSON.stringify(smoothed));
@@ -288,28 +414,30 @@ const Class = () => {
             endTime,
         };
 
+        console.log('[Class] Saving stroke - sessionId:', strokeId, 'isRecording:', isRecording, 'sessionIdRef:', sessionIdRef, 'board:', currentBoard);
+
         setStrokes((prev) => [...prev, newStroke]);
         dispatch(setSendQueueRefList([compressedStroke]));
 
         try {
-            if (isRecording) await addStrokes([compressedStroke]);
+            await addStrokes([compressedStroke]);
         } catch (err) {
             console.error("❌ Failed to save stroke to IndexedDB:", err);
         }
 
         setCurrentStroke([]);
-    }, [currentStroke, isRecording, sessionIdRef, selectedFillColor, currentBoard, dispatch]);
+    }, [currentStroke, isRecording, sessionIdRef, selectedFillColor, currentBoard, dispatch, timerElapsedSeconds]);
 
     /* ── startDrawing ───────────────────────────────────────────────────────── */
     const startDrawing = useCallback((rawPos: Position) => {
-        if (!isRecording || pauseTime) return;
+        if (pauseTime || !timerRunning) return;
 
         const pos = clampToBoard(rawPos, boardW, boardH);
 
         isDrawing.current = true;
         shapeStartPos.current = pos;
         strokeTimesRef.current.start      = timer.timerDisplay;
-        strokeTimesRef.current.startWallMs = Date.now(); // ms-precise mousedown time
+        strokeTimesRef.current.startElapsedMs = Math.round(timerElapsedSeconds * 1000);
 
         switch (actions) {
             case ACTIONS.PEN:
@@ -374,11 +502,11 @@ const Class = () => {
                 break;
             }
         }
-    }, [isRecording, pauseTime, boardW, boardH, actions, selectedFillColor, timer.timerDisplay]);
+    }, [pauseTime, boardW, boardH, actions, selectedFillColor, timer.timerDisplay, timerRunning, timerElapsedSeconds]);
 
     /* ── updateDrawing ──────────────────────────────────────────────────────── */
     const updateDrawing = useCallback((rawPos: Position) => {
-        if (!isRecording || pauseTime) return;
+        if (pauseTime || !timerRunning) return;
         if (!isDrawing.current || !shapeStartPos.current) return;
 
         const pos = clampToBoard(rawPos, boardW, boardH);
@@ -443,15 +571,15 @@ const Class = () => {
                 ));
                 break;
         }
-    }, [isRecording, pauseTime, boardW, boardH, actions]);
+    }, [pauseTime, boardW, boardH, actions, timerRunning]);
 
     /* ── finishDrawing ──────────────────────────────────────────────────────── */
     const finishDrawing = useCallback(async () => {
-        if (!isRecording || pauseTime) return;
+        if (pauseTime || !timerRunning) return;
         if (!isDrawing.current) return;
         isDrawing.current = false;
         strokeTimesRef.current.end      = timer.timerDisplay;
-        strokeTimesRef.current.endWallMs = Date.now(); // ms-precise mouseup time
+        strokeTimesRef.current.endElapsedMs = Math.round(timerElapsedSeconds * 1000);
 
         switch (actions) {
             case ACTIONS.PEN:
@@ -489,7 +617,7 @@ const Class = () => {
 
         activeShapeId.current = null;
         shapeStartPos.current = null;
-    }, [isRecording, pauseTime, actions, rectangles, circles, triangles, arrows, straightLines, penDownEvent, shapeDownEvent, timer.timerDisplay]);
+    }, [pauseTime, actions, rectangles, circles, triangles, arrows, straightLines, penDownEvent, shapeDownEvent, timer.timerDisplay, timerRunning, timerElapsedSeconds]);
 
     /* ── Event handlers ─────────────────────────────────────────────────────── */
     const handleMouseDown = useCallback((e: KonvaEventObject<MouseEvent>) => {
@@ -582,35 +710,64 @@ const Class = () => {
     }, [boardW, boardH]);
 
     return (
-        <div className="h-[90vh] max-h-[94vh] flex overflow-y-auto">
-            <div className="">
+        <div className="h-[90vh] max-h-[94vh] flex bg-slate-50">
+            {/* Left Sidebar - Tools */}
+            <div className="relative z-40 shrink-0 flex flex-col items-center justify-between py-3 px-1.5">
                 <ClassMenu />
+                <ClassBottom />
             </div>
 
+            {/* Main Board Area */}
             <div
                 ref={parentRef}
-                className="flex-1 stage h-full border-x-2 border-[#3A3A3A80] relative overflow-hidden"
+                className="flex-1 h-full relative overflow-hidden my-2 mr-2"
             >
-                <Stage
-                    width={boardW}
-                    height={boardH}
-                    style={{ cursor: getCursor(actions ?? "") }}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    onTouchStart={handleTouchStart}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                >
-                    <Layer>
-                        <Rect
-                            x={0}
-                            y={0}
-                            width={boardW}
-                            height={boardH}
-                            fill="#ffffff"
-                            onClick={() => trRef.current && trRef.current.nodes([])}
-                        />
+                {/* Board Container with shadow and rounded corners */}
+                <div className="
+                    absolute inset-0
+                    bg-white
+                    rounded-xl
+                    shadow-lg
+                    border border-gray-200
+                    overflow-hidden
+                ">
+                    <Stage
+                        width={boardW}
+                        height={boardH}
+                        style={{ cursor: getCursor(actions ?? "") }}
+                        onMouseDown={handleMouseDown}
+                        onMouseMove={handleMouseMove}
+                        onMouseUp={handleMouseUp}
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                    >
+                        <Layer>
+                            {/* Board background */}
+                            <Rect
+                                x={0}
+                                y={0}
+                                width={boardW}
+                                height={boardH}
+                                fill="#ffffff"
+                                onClick={() => trRef.current && trRef.current.nodes([])}
+                            />
+
+                            {/* Subtle grid pattern for visual guidance */}
+                            <Line
+                                points={[40, 0, 40, boardH]}
+                                stroke="#E5E7EB"
+                                strokeWidth={1}
+                                opacity={0.5}
+                                listening={false}
+                            />
+                            <Line
+                                points={[boardW - 40, 0, boardW - 40, boardH]}
+                                stroke="#E5E7EB"
+                                strokeWidth={1}
+                                opacity={0.5}
+                                listening={false}
+                            />
 
                         {strokes.map((s) => (
                             <Line
@@ -767,19 +924,6 @@ const Class = () => {
                         ))}
 
 
-                        {selectedImage && vaderImage && (
-                            <KonvaImage
-                                image={vaderImage}
-                                x={boardW - 200}
-                                y={20}
-                                width={200}
-                                height={200}
-                                draggable={isDraggable}
-                                onClick={onClick}
-                            />
-                        )}
-
-
                         <Transformer
                             ref={trRef}
                             rotateEnabled={false}
@@ -803,8 +947,7 @@ const Class = () => {
                     </Layer>
                 </Stage>
 
-                <div className="absolute bottom-5 w-full flex justify-center">
-                    <ClassBottom />
+                <MediaFrame />
                 </div>
             </div>
         </div>

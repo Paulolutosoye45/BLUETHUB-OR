@@ -63,10 +63,10 @@ function Pen() {
                 </PopoverTrigger>
                 <PopoverContent
                     side="right"
-                    className="absolute to-0% px-0 py-0 ml-3.5 w-72 border-0"
+                    className="absolute px-0 py-0 ml-3 w-44 border-0"
                 >
                     <div>
-                        <div className="flex items-center justify-between p-4">
+                        <div className="flex items-center justify-between px-3 py-2.5">
                             <h4 className="leading-none font-medium text-sm text-forestBlue-light  ">
                                 Pen tool
                             </h4>
@@ -79,7 +79,7 @@ function Pen() {
                         {toolList.map((tool) => (
                             <div
                                 key={tool.toolName}
-                                className=" cursor-pointer flex items-center  space-x-4 bg-[#4F61E814] mx-4 my-2 p-3"
+                                className="cursor-pointer flex items-center space-x-3 bg-[#4F61E814] mx-2 my-1.5 px-2.5 py-2"
                                 onClick={() => {
                                     dispatch(onSetAction(tool.toolName.toLowerCase()));
                                     setTimeout(() => setOpen(false), 100);
@@ -100,9 +100,6 @@ function Pen() {
                                 </>
                             </div>
                         ))}
-                        <div className=" cursor-pointer flex items-center space-x-4  m-3  p-3">
-
-                        </div>
                     </div>
                 </PopoverContent>
             </Popover>

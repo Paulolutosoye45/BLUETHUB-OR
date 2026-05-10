@@ -1,402 +1,418 @@
-import { useState } from "react";
-import { EllipsisVertical, Info, Pencil, Trash2 } from "lucide-react";
-import type { LessonData } from "./lesson-review-modal";
+import { useEffect, useState } from "react";
+import {
+  Clock,
+  CheckCircle2,
+  XCircle,
+  FileText,
+  User,
+  BookOpen,
+  GraduationCap,
+  Loader2,
+  RefreshCw,
+  ChevronRight,
+  Inbox,
+  AlertCircle,
+} from "lucide-react";
+import { lessonService, type ApprovalItemDto } from "@/services/lesson";
 import LessonReviewModal from "./lesson-review-modal";
+import toast from "react-hot-toast";
 
-
-type LessonStatus = "Awaiting" | "Approved" | "Rejected" | "Pending";
-type FilterTab = "All lessons" | "Processing" | "Completed" | "Rejected";
-
-
-interface MediaFile {
-    name: string;
-    url?: string;
-}
-
-export interface Lesson {
-    id: number;
-    title: string;
-    term: string;
-    teacher: string;
-    className: string;
-    subject: string;
-    status: LessonStatus;
-    submitted?: string;
-    objectives?: string;
-    notes?: string;
-    mediaFiles?: MediaFile[];
-    approvedBy?: string;
-    approvedDate?: string;
-    previousRejectionReason?: string;
-}
-
-
-const allLessons: Lesson[] = [
-    {
-        id: 1,
-        title: "Photosynthesis And Plant Nutrition",
-        term: "Second Term",
-        teacher: "Mrs. Adaeze Okafor",
-        className: "JSS 2A",
-        subject: "Basic Science",
-        submitted: "12 Apr 2026",
-        status: "Awaiting",
-        objectives: "Students will understand the process of photosynthesis and how plants make food using sunlight and water.",
-        notes: "Covers chlorophyll, sunlight, carbon dioxide and water. Includes a diagram-labelling activity and group discussion.",
-        mediaFiles: [
-            { name: "Linear Equation File PDF..." },
-            { name: "Linear Equation2 File PDF..." },
-        ],
-    },
-    {
-        id: 2,
-        title: "Solving Quadratic Equations",
-        term: "Second Term",
-        teacher: "Mr. Tunde Fashola",
-        className: "SSS 2B",
-        subject: "Mathematics",
-        submitted: "11 Apr 2026",
-        status: "Awaiting",
-        objectives: "Students will solve quadratic equations using factorization and the quadratic formula.",
-        notes: "Covers factorization, completing the square, and the quadratic formula.",
-        mediaFiles: [{ name: "Quadratic Equations PDF..." }],
-    },
-    {
-        id: 3,
-        title: "Supply And Demand Curves",
-        term: "Second Term",
-        teacher: "Mrs. Chioma Eze",
-        className: "SSS 2B",
-        subject: "Economics",
-        submitted: "10 Apr 2026",
-        status: "Awaiting",
-        objectives: "Students will understand how supply and demand determine market prices.",
-        notes: "Covers price elasticity, market equilibrium and shifts in curves.",
-        mediaFiles: [],
-    },
-    {
-        id: 4,
-        title: "Introduction To Computer Networks",
-        term: "Second Term",
-        teacher: "Mr. Emeka Nwachukwu",
-        className: "JSS 2B",
-        subject: "Computer Science",
-        submitted: "9 Apr 2026",
-        status: "Approved",
-        objectives: "Students will understand the basic concepts of computer networks and types of networks.",
-        notes: "Covers LAN, WAN, MAN, network topologies and protocols.",
-        mediaFiles: [
-            { name: "Linear Equation File PDF..." },
-            { name: "Linear Equation2 File PDF..." },
-        ],
-        approvedBy: "Mr. James Okafor",
-        approvedDate: "10 Apr 2026",
-    },
-    {
-        id: 5,
-        title: "Writing Formal Letters",
-        term: "Second Term",
-        teacher: "Mrs. Adaeze Okafor",
-        className: "JSS 2B",
-        subject: "English Language",
-        submitted: "12 Apr 2026",
-        status: "Rejected",
-        objectives: "Students will understand the process of photosynthesis and how plants make food using sunlight and water.",
-        notes: "Covers salutation, body, and closing.",
-        mediaFiles: [],
-        previousRejectionReason: "Activities section is incomplete. Please add at least two classroom exercises with estimated durations, and include a sample formal letter for student reference.",
-    },
-    {
-        id: 6,
-        title: "The Causes Of World War I",
-        term: "Second Term",
-        teacher: "Mr. Biodun Alabi",
-        className: "JSS 3B",
-        subject: "Social Studies",
-        submitted: "8 Apr 2026",
-        status: "Awaiting",
-        objectives: "Students will identify and analyze the main causes of World War I.",
-        notes: "Covers MAIN acronym — Militarism, Alliances, Imperialism, Nationalism.",
-        mediaFiles: [{ name: "WW1 Reference PDF..." }],
-    },
-    {
-        id: 7,
-        title: "Laws Of Indices And Logarithms",
-        term: "Second Term",
-        teacher: "Mr. Tunde Fashola",
-        className: "SSS 2B",
-        subject: "Mathematics",
-        submitted: "7 Apr 2026",
-        status: "Approved",
-        objectives: "Students will apply the laws of indices and logarithms to solve problems.",
-        notes: "Covers index laws, change of base, and logarithmic equations.",
-        mediaFiles: [{ name: "Indices and Logs PDF..." }],
-        approvedBy: "Mr. James Okafor",
-        approvedDate: "8 Apr 2026",
-    },
-];
-
-const statusConfig: Record<LessonStatus, { bg: string; text: string; dot: string; label: string }> = {
-    Awaiting: { bg: "#FEF3C7", text: "#B45309", dot: "#F59E0B", label: "Awaiting" },
-    Approved: { bg: "#D1FAE5", text: "#065F46", dot: "#10B981", label: "Approved" },
-    Rejected: { bg: "#FFE4E6", text: "#9F1239", dot: "#F43F5E", label: "Rejected" },
-    Pending: { bg: "#FEF3C7", text: "#92400E", dot: "#F59E0B", label: "Pending" },
-};
+type FilterTab = "all" | "pending" | "approved" | "rejected";
 
 const LessonApproval = () => {
-    const [filter, setFilter] = useState<FilterTab>("All lessons");
-    const [menuOpen, setMenuOpen] = useState(false);
-    const [reviewOpen, setReviewOpen] = useState(false);
-    const [reviewingLesson, setReviewingLesson] = useState<LessonData | null>(null);
+  const [approvals, setApprovals] = useState<ApprovalItemDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterTab>("pending");
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [selectedApproval, setSelectedApproval] = useState<ApprovalItemDto | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
-    const totalSubmissions = allLessons.length;
-    const awaiting = allLessons.filter(l => l.status === "Awaiting").length;
-    const approved = allLessons.filter(l => l.status === "Approved").length;
-    const rejected = allLessons.filter(l => l.status === "Rejected").length;
+  const fetchApprovals = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await lessonService.getPendingApprovals();
+      const data = (res.data as any)?.data;
+      setApprovals(data?.items ?? []);
+    } catch (err) {
+      setError("Failed to load approvals. Please try again.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const visible = allLessons.filter(l => {
-        if (filter === "All lessons") return true;
-        if (filter === "Processing") return l.status === "Awaiting" || l.status === "Pending";
-        if (filter === "Completed") return l.status === "Approved";
-        if (filter === "Rejected") return l.status === "Rejected";
-        return true;
-    });
+  useEffect(() => {
+    fetchApprovals();
+  }, []);
 
-    const filterTabs: FilterTab[] = ["All lessons", "Processing", "Completed", "Rejected"];
+  // Stats
+  const pending = approvals.filter((a) => a.status === "Pending").length;
+  const approved = approvals.filter((a) => a.status === "Approved").length;
+  const rejected = approvals.filter((a) => a.status === "Rejected").length;
 
-    const handleReview = (lesson: Lesson) => {
-    setReviewingLesson({
-        id: lesson.id,
-        title: lesson.title,
-        teacher: lesson.teacher,
-        subject: lesson.subject,
-        className: lesson.className,
-        term: lesson.term,
-        submitted: lesson.submitted ?? "",
-        status: lesson.status, // ✅ pass the actual status
-        objectives: lesson.objectives,
-        notes: lesson.notes,
-        mediaFiles: lesson.mediaFiles,
-        approvedBy: lesson.approvedBy,
-        approvedDate: lesson.approvedDate,
-        previousRejectionReason: lesson.previousRejectionReason,
-    });
+  // Filtered list
+  const visible = approvals.filter((a) => {
+    if (filter === "all") return true;
+    if (filter === "pending") return a.status === "Pending";
+    if (filter === "approved") return a.status === "Approved";
+    if (filter === "rejected") return a.status === "Rejected";
+    return true;
+  });
+
+  const handleReview = (approval: ApprovalItemDto) => {
+    setSelectedApproval(approval);
     setReviewOpen(true);
-};
+  };
 
+  const handleApprove = async (approvalId: string) => {
+    setActionLoading(true);
+    try {
+      await lessonService.respondToApproval(approvalId, { approved: true });
+      toast.success("Lesson approved successfully");
+      setReviewOpen(false);
+      fetchApprovals();
+    } catch (err) {
+      toast.error("Failed to approve lesson");
+      console.error(err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
-    return (
-        <>
-            <div className="p-6 font-poppins min-h-screen bg-white/40">
+  const handleReject = async (approvalId: string, reason: string) => {
+    if (!reason.trim()) {
+      toast.error("Please provide a rejection reason");
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await lessonService.respondToApproval(approvalId, {
+        approved: false,
+        rejectionReason: reason,
+      });
+      toast.success("Lesson rejected");
+      setReviewOpen(false);
+      fetchApprovals();
+    } catch (err) {
+      toast.error("Failed to reject lesson");
+      console.error(err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
-                {/* ── Top Nav ───────────────────────────────────────────────── */}
-                <div
-                    className="flex items-center justify-between px-5 py-3 rounded-xl mb-5 relative bg-chestnut"
-                >
-                    <div className="flex items-center gap-1.5 text-white text-xs font-medium">
-                        <span className="text-white/60">Academic</span>
-                        <span className="text-white/40">›</span>
-                        <span className="text-white font-bold">Lesson approvals</span>
-                    </div>
+  const formatDate = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
-                    {/* Three-dot + dropdown */}
-                    <div className="relative">
-                        <button
-                            onClick={() => setMenuOpen(p => !p)}
-                            className="text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
-                        >
-                            <EllipsisVertical size={18} />
-                        </button>
+  const getTimeAgo = (iso: string) => {
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+  };
 
-                        {menuOpen && (
-                            <>
-                                <div
-                                    className="fixed inset-0 z-10"
-                                    onClick={() => setMenuOpen(false)}
-                                />
-                                <div className="absolute right-0 top-8 z-20 bg-white rounded-xl shadow-xl border border-gray-100 w-48 py-1.5 overflow-hidden">
-                                    {[
-                                        { icon: <Info size={13} className="text-blue-500" />, label: "Admin approval", color: "text-gray-700" },
-                                        { icon: <Pencil size={13} className="text-gray-500" />, label: "Assigned Role", color: "text-gray-700" },
-                                        { icon: <Trash2 size={13} className="text-red-500" />, label: "Delete user", color: "text-red-500" },
-                                    ].map(item => (
-                                        <button
-                                            key={item.label}
-                                            className={`flex items-center gap-2.5 w-full px-4 py-2.5 text-xs font-semibold hover:bg-gray-50 transition-colors ${item.color}`}
-                                            onClick={() => setMenuOpen(false)}
-                                        >
-                                            {item.icon}
-                                            {item.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </>
-                        )}
-                    </div>
-                </div>
+  const filterTabs: { key: FilterTab; label: string; count: number }[] = [
+    { key: "pending", label: "Pending", count: pending },
+    { key: "approved", label: "Approved", count: approved },
+    { key: "rejected", label: "Rejected", count: rejected },
+    { key: "all", label: "All", count: approvals.length },
+  ];
 
-                {/* ── Page Header ───────────────────────────────────────────── */}
-                <div className="mb-5">
-                    <h1 className="text-xl font-bold text-[#12122A]">Lesson submissions</h1>
-                    <p className="text-sm text-[#A0A8C0] mt-0.5">
-                        Review and approve or reject teacher lesson submissions
-                    </p>
-                </div>
-
-                {/* ── Stats Row ─────────────────────────────────────────────── */}
-                <div className="grid grid-cols-4 gap-3 mb-5">
-                    {/* Total — dark card */}
-                    <div
-                        className="rounded-xl px-5 py-4 flex flex-col justify-between bg-chestnut"
-                    >
-                        <p className="text-4xl font-semibold text-white leading-none">{totalSubmissions}</p>
-                        <div className="mt-3">
-                            <p className="text-white/80 text-xs font-semibold">Total submissions</p>
-                            <p className="text-white/50 text-[10px] mt-0.5">+14 this month</p>
-                        </div>
-                    </div>
-
-                    {/* Awaiting */}
-                    <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 flex flex-col justify-between">
-                        <p className="text-4xl font-semibold text-[#12122A] leading-none">{awaiting}</p>
-                        <div className="mt-3">
-                            <p className="text-gray-600 text-xs font-semibold">Awaiting review</p>
-                            <p className="text-amber-500 text-[10px] font-semibold mt-0.5">Processing</p>
-                        </div>
-                    </div>
-
-                    {/* Approved */}
-                    <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 flex flex-col justify-between">
-                        <p className="text-4xl font-semibold text-[#12122A] leading-none">{approved}</p>
-                        <div className="mt-3">
-                            <p className="text-gray-600 text-xs font-semibold">Approved</p>
-                            <p className="text-gray-400 text-[10px] mt-0.5">+2 this month</p>
-                        </div>
-                    </div>
-
-                    {/* Rejected */}
-                    <div className="bg-white border border-gray-100 rounded-xl px-5 py-4 flex flex-col justify-between">
-                        <p className="text-4xl font-semibold text-[#12122A] leading-none">{rejected}</p>
-                        <div className="mt-3">
-                            <p className="text-gray-600 text-xs font-semibold">Rejected</p>
-                            <p className="text-gray-400 text-[10px] mt-0.5">No change</p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── Filter Tabs ───────────────────────────────────────────── */}
-                <div className="flex items-center gap-2 mb-4">
-                    {filterTabs.map(tab => (
-                        <button
-                            key={tab}
-                            onClick={() => setFilter(tab)}
-                            className="px-4 py-2 rounded-full text-xs font-semibold border transition-all"
-                            style={{
-                                backgroundColor: filter === tab ? "#292382" : "#fff",
-                                color: filter === tab ? "#fff" : "#6b7280",
-                                borderColor: filter === tab ? "#292382" : "#e5e7eb",
-                            }}
-                        >
-                            {tab}
-                        </button>
-                    ))}
-                </div>
-
-                {/* ── Table ─────────────────────────────────────────────────── */}
-                <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-
-                    {/* Table Header */}
-                    <div
-                        className="grid px-5 py-3 text-[10px] font-semibold uppercase tracking-widest text-chestnut/70 border-b border-gray-100 bg-[#f8f9ff]"
-                        style={{ gridTemplateColumns: "2fr 1.5fr 80px 1.2fr 130px 80px" }}
-                    >
-                        <span>Lesson Title</span>
-                        <span>Teacher</span>
-                        <span>Class</span>
-                        <span>Subject</span>
-                        <span>Status</span>
-                        <span></span>
-                    </div>
-
-                    {/* Rows */}
-                    <div className="divide-y divide-gray-50">
-                        {visible.map(lesson => {
-                            const cfg = statusConfig[lesson.status];
-                            const isRejected = lesson.status === "Rejected";
-                            return (
-                                <div
-                                    key={lesson.id}
-                                    className="grid items-center px-5 py-3 hover:bg-gray-50/60 transition-colors relative"
-                                    style={{ gridTemplateColumns: "2fr 1.5fr 80px 1.2fr 130px 80px" }}
-                                >
-                                    {/* Rejected left accent bar */}
-                                    {isRejected && (
-                                        <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-red-400 rounded-l" />
-                                    )}
-
-                                    {/* Lesson Title */}
-                                    <div>
-                                        <p className="text-xs font-semibold text-gray-800 leading-tight">
-                                            {lesson.title}
-                                        </p>
-                                        <p className="text-[10px] text-gray-400 mt-0.5">{lesson.term}</p>
-                                    </div>
-
-                                    {/* Teacher */}
-                                    <span className="text-xs text-gray-600 font-medium">{lesson.teacher}</span>
-
-                                    {/* Class */}
-                                    <span className="text-xs text-gray-600 font-medium">{lesson.className}</span>
-
-                                    {/* Subject */}
-                                    <span className="text-xs text-gray-600 font-medium">{lesson.subject}</span>
-
-                                    {/* Status badge */}
-                                    <div>
-                                        <span
-                                            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold"
-                                            style={{ backgroundColor: cfg.bg, color: cfg.text }}
-                                        >
-                                            <span
-                                                className="w-1.5 h-1.5 rounded-full shrink-0"
-                                                style={{ backgroundColor: cfg.dot }}
-                                            />
-                                            {cfg.label}
-                                        </span>
-                                    </div>
-
-                                    {/* Review button */}
-                                    <button
-                                        onClick={() => handleReview(lesson)}
-
-                                        className="px-3 py-1.5 rounded-lg text-[11px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
-                                    >
-                                        Review
-                                    </button>
-                                </div>
-                            );
-                        })}
-
-                        {visible.length === 0 && (
-                            <div className="py-12 text-center">
-                                <p className="text-xs text-gray-400">No lessons found</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
+  return (
+    <>
+      <div className="min-h-screen bg-gray-50/50 p-4 sm:p-6 font-poppins">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+                Lesson Approvals
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Review and approve teacher lesson submissions
+              </p>
             </div>
+            <button
+              onClick={fetchApprovals}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+              Refresh
+            </button>
+          </div>
+        </div>
 
-            {reviewingLesson && (
-                <LessonReviewModal
-                    open={reviewOpen}
-                    onOpenChange={setReviewOpen}
-                    lesson={reviewingLesson}
-                    onApprove={(id) => console.log("Approved", id)}
-                    onReject={(id, reason, feedback) => console.log("Rejected", id, reason, feedback)}
-                />
-            )}
-        </>
-    );
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+          <div className="bg-gradient-to-br from-chestnut to-chestnut/80 rounded-2xl p-4 sm:p-5 text-white">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                <FileText size={18} />
+              </div>
+              <span className="text-xs font-medium bg-white/20 px-2 py-1 rounded-full">
+                Total
+              </span>
+            </div>
+            <p className="text-3xl font-bold">{approvals.length}</p>
+            <p className="text-white/70 text-xs mt-1">Total submissions</p>
+          </div>
+
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                <Clock size={18} className="text-amber-500" />
+              </div>
+              <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
+                Pending
+              </span>
+            </div>
+            <p className="text-3xl font-bold text-gray-900">{pending}</p>
+            <p className="text-gray-400 text-xs mt-1">Awaiting review</p>
+          </div>
+
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                <CheckCircle2 size={18} className="text-emerald-500" />
+              </div>
+              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
+                Approved
+              </span>
+            </div>
+            <p className="text-3xl font-bold text-gray-900">{approved}</p>
+            <p className="text-gray-400 text-xs mt-1">Approved lessons</p>
+          </div>
+
+          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                <XCircle size={18} className="text-red-400" />
+              </div>
+              <span className="text-xs font-semibold text-red-500 bg-red-50 px-2 py-1 rounded-full">
+                Rejected
+              </span>
+            </div>
+            <p className="text-3xl font-bold text-gray-900">{rejected}</p>
+            <p className="text-gray-400 text-xs mt-1">Requires revision</p>
+          </div>
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
+          {filterTabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setFilter(tab.key)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${
+                filter === tab.key
+                  ? "bg-chestnut text-white shadow-lg shadow-chestnut/20"
+                  : "bg-white border border-gray-200 text-gray-600 hover:border-chestnut/30"
+              }`}
+            >
+              {tab.label}
+              <span
+                className={`text-xs px-1.5 py-0.5 rounded-md ${
+                  filter === tab.key
+                    ? "bg-white/20"
+                    : "bg-gray-100 text-gray-500"
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 size={32} className="animate-spin text-chestnut mb-3" />
+            <p className="text-sm text-gray-500">Loading approvals...</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-4">
+              <AlertCircle size={28} className="text-red-400" />
+            </div>
+            <p className="text-sm text-gray-600 mb-4">{error}</p>
+            <button
+              onClick={fetchApprovals}
+              className="px-4 py-2 rounded-xl bg-chestnut text-white text-sm font-medium hover:bg-chestnut/90 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        ) : visible.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+              <Inbox size={32} className="text-gray-400" />
+            </div>
+            <p className="text-lg font-semibold text-gray-700 mb-1">
+              No {filter !== "all" ? filter : ""} approvals
+            </p>
+            <p className="text-sm text-gray-400">
+              {filter === "pending"
+                ? "All caught up! No lessons waiting for your review."
+                : "No lessons found in this category."}
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-3">
+            {visible.map((approval) => {
+              const isPending = approval.status === "Pending";
+              const isApproved = approval.status === "Approved";
+              const isRejected = approval.status === "Rejected";
+
+              return (
+                <div
+                  key={approval.id}
+                  className={`bg-white rounded-2xl border overflow-hidden transition-all hover:shadow-md ${
+                    isPending
+                      ? "border-amber-200 hover:border-amber-300"
+                      : isApproved
+                      ? "border-emerald-200"
+                      : "border-red-200"
+                  }`}
+                >
+                  {/* Status accent bar */}
+                  <div
+                    className={`h-1 ${
+                      isPending
+                        ? "bg-gradient-to-r from-amber-400 to-amber-500"
+                        : isApproved
+                        ? "bg-gradient-to-r from-emerald-400 to-emerald-500"
+                        : "bg-gradient-to-r from-red-400 to-red-500"
+                    }`}
+                  />
+
+                  <div className="p-4 sm:p-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      {/* Left: Lesson info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-3">
+                          {/* Icon */}
+                          <div
+                            className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                              isPending
+                                ? "bg-amber-50"
+                                : isApproved
+                                ? "bg-emerald-50"
+                                : "bg-red-50"
+                            }`}
+                          >
+                            {isPending && (
+                              <Clock size={20} className="text-amber-500" />
+                            )}
+                            {isApproved && (
+                              <CheckCircle2
+                                size={20}
+                                className="text-emerald-500"
+                              />
+                            )}
+                            {isRejected && (
+                              <XCircle size={20} className="text-red-400" />
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            {/* Topic / Title */}
+                            <h3 className="font-bold text-gray-900 text-sm sm:text-base truncate">
+                              {approval.lesson?.topicName ?? "Lesson Submission"}
+                            </h3>
+
+                            {/* Meta row */}
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <User size={12} />
+                                {approval.requestedByName}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <BookOpen size={12} />
+                                {approval.lesson?.subjectName ?? "—"}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <GraduationCap size={12} />
+                                {approval.lesson?.className ?? "—"}
+                              </span>
+                            </div>
+
+                            {/* Aim preview */}
+                            {approval.lesson?.aim && (
+                              <p className="text-xs text-gray-400 mt-2 line-clamp-2">
+                                <span className="font-semibold text-gray-500">
+                                  Aim:
+                                </span>{" "}
+                                {approval.lesson.aim}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div className="flex items-center gap-3 sm:flex-col sm:items-end">
+                        {/* Date & Media count */}
+                        <div className="flex items-center gap-3 text-xs text-gray-400">
+                          <span>{getTimeAgo(approval.createdAt)}</span>
+                          {(approval.lesson?.mediaCount ?? 0) > 0 && (
+                            <span className="flex items-center gap-1 bg-gray-100 px-2 py-1 rounded-md">
+                              <FileText size={10} />
+                              {approval.lesson?.mediaCount} files
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Action button */}
+                        {isPending ? (
+                          <button
+                            onClick={() => handleReview(approval)}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-chestnut text-white text-sm font-semibold hover:bg-chestnut/90 transition-colors shadow-sm"
+                          >
+                            Review
+                            <ChevronRight size={14} />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleReview(approval)}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors"
+                          >
+                            View Details
+                            <ChevronRight size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Review Modal */}
+      {selectedApproval && (
+        <LessonReviewModal
+          open={reviewOpen}
+          onOpenChange={setReviewOpen}
+          approval={selectedApproval}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          isLoading={actionLoading}
+        />
+      )}
+    </>
+  );
 };
 
 export default LessonApproval;

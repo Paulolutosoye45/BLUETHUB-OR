@@ -14,14 +14,14 @@ const Charts = () => {
   return (
     <section>
       <div className="flex gap-2 mt-10  w-full border-0 border-Bpink">
-        <div className="flex-[60%] flex-grow-0 h-[410px] bg-white rounded-xl">
+        <div className="md:flex-[60%]  md:grow-0 h-[410px] bg-white rounded-xl">
           <img
             src={graphInfo}
             alt="Graph Info"
             className="w-full h-full object-fill"
           />
         </div>
-        <div className="flex-[40%] flex-grow-0 h-[410px] border-0 border-red-900 bg-white rounded-xl px-6 py-2">
+        <div className="hidden md:block md:flex-[40%] flex-grow-0 h-[410px] border-0 border-red-900 bg-white rounded-xl px-6 py-2">
           <h2 className="font-poppins font-medium text-base text-chestnut inline-block">
             Exam
           </h2>
@@ -237,12 +237,12 @@ const Charts = () => {
         </div>
       </div>
 
-      <section className="border-0  border-red-700 flex pt-6 relative">
+      <section className="hidden border-0  border-red-700 md:flex pt-6 relative">
 
       <DataColunm/> 
       <div>
-        <h2 className="text-xl text-[#292382] font-poppins font-medium  ledaing-[130%] mx-2 my-4">Teachers </h2>
-        <div className="border-2 border-[#292382] px-4 py-2 flex  justify-between gap-2 rounded-md items-center mb-2 ">
+        <h2 className="text-xl text-chestnut font-poppins font-medium  ledaing-[130%] mx-2 my-4">Teachers </h2>
+        <div className="border-2 border-chestnut px-4 py-2 flex  justify-between gap-2 rounded-md items-center mb-2 ">
           <div className="flex  gap-4 items-center">
              <div className="flex -space-x-3.5 ">
               {teachersData.map((item, index) => (

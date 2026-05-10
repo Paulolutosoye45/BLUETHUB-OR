@@ -49,7 +49,6 @@ import Login from '@/pages/auth/login';
 import NewPassword from '@/pages/auth/new-password';
 import AdminProtectedRoute from '@/component/protected-routes/admin-routes';
 import { PublicRoute } from '@/component/protected-routes/public-route';
-// import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
 import StudentProtectedRoute from '@/component/protected-routes/student-routes';
 import UploadScan from '@/pages/teacher/component/upload-scan';
 import ReviewQuestion from '@/pages/teacher/component/review-question';
@@ -64,6 +63,12 @@ import ClassviewAll from '@/pages/admin/registration/course/class/class-view-all
 import LessonApproval from '@/pages/admin/dashboard/lesson-approval';
 import MyLesson from '@/pages/teacher/component/my-lesson';
 import SubmitLesson from '@/pages/teacher/component/submit-lesson';
+import StartClass from '@/pages/teacher/component/start-class';
+import QuizIndex from '@/pages/teacher/quiz';
+import MySyllabus from '@/pages/teacher/Syllabus/my-syllabus';
+import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
+import IdbViewer from '@/pages/dev/idb-viewer';
+import DraftLessons from '@/pages/teacher/drafts';
 
 const router = createBrowserRouter([
     {
@@ -95,6 +100,24 @@ const router = createBrowserRouter([
     {
         path: "teacher/board",
         element: <ClassRoom />,
+    },
+
+    // ── Dev routes (no auth) ─────────────────────────────────────────────────
+    {
+        path: "/dev/lesson-approval",
+        element: <LessonApproval />,
+    },
+    {
+        path: "/dev/submit-lesson",
+        element: <SubmitLesson />,
+    },
+    {
+        path: "/dev/start-class",
+        element: <StartClass />,
+    },
+    {
+        path: "/dev/idb",
+        element: <IdbViewer />,
     },
 
     //  admin route
@@ -172,7 +195,7 @@ const router = createBrowserRouter([
 
             },
             {
-                path:'lesson-approval',
+                path: 'lesson-approval',
                 element: <LessonApproval />
             }
 
@@ -187,13 +210,14 @@ const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: <TeacherDashboard />
+                element: <TeacherProtectedRoute><TeacherDashboard /></TeacherProtectedRoute>
             },
             { path: "resume-class", element: <ResumeClass /> },
             { path: "class-info", element: <ClassInfo /> },
             { path: "assessment", element: <Assessment /> },
             { path: "my-lessons", element: <MyLesson /> },
             { path: "submit-lesson", element: <SubmitLesson /> },
+            { path: "start-class", element: <StartClass /> },
             { path: "assessment/createQuiz", element: <CreateQuizQuestion /> },
             { path: "assessment/questionlist", element: <TopicQuestionList /> },
             { path: "assessment/upload-scan", element: <UploadScan /> },
@@ -210,7 +234,10 @@ const router = createBrowserRouter([
                     { path: "classes/approval-status", element: <ApprovalStatus /> },
                     { path: "classes/approval-status/:id", element: <ApprovalStatusId /> },
                 ]
-            }
+            },
+            { path: "quiz", element: <QuizIndex /> },
+            { path: "syllabus", element: <MySyllabus /> },
+            { path: "drafts", element: <DraftLessons /> },
         ]
     },
 

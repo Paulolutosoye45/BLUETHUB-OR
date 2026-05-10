@@ -1,32 +1,593 @@
+import { useState } from "react";
+import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@bluethub/ui-kit";
 import PhoneIcon from "@/assets/svg/phone.svg?react";
+import { Upload, Trash2, X, AlertTriangle, Loader2, CheckCircle, Save } from "lucide-react";
 import toast from "react-hot-toast";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { setEndClass } from "@/store/class-action-slice";
 import { useGlobalTimer } from "@/hooks/useGlobalTimer";
-import { useAudioRecorder } from "@/hooks/useAudioRecorder";
+import { useSession } from "@/contexts/session-context";
+import { useSessionUpload, type UploadResults } from "@/hooks/useSessionUpload";
+import { boardSessionService, type SessionManifestPayload } from "@/services/board-session";
+import type { RootState } from "@/store";
+import {
+  getSession,
+  updateSession,
+  cleanupEntireSession,
+  saveSessionAsDraft,
+} from "@/utils/db";
+import type { LocalSession } from "@/utils/constant";
+
+type ModalState = "closed" | "confirm" | "discard-confirm" | "uploading" | "complete" | "error" | "draft-saved";
 
 const EndClass = () => {
   const dispatch = useDispatch();
-  const { stopRecording } = useAudioRecorder();
+  const navigate = useNavigate();
+  const { stopRecording } = useSession();
+  const sessionId = useSelector((state: RootState) => state.action.sessionIdRef);
+  const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
 
   const timer = useGlobalTimer({});
 
-  const endClassHandler = async () => {
-    await stopRecording(); // 🔥 ensure audio stops immediately
-    dispatch(setEndClass()); // update redux state
-    timer.stop();
+  const [modalState, setModalState] = useState<ModalState>("closed");
+  const [uploadProgress, setUploadProgress] = useState({ phase: "", current: 0, total: 0, percentage: 0 });
+  const [errorMessage, setErrorMessage] = useState("");
 
-    toast.success("Class has ended");
+  // Token-based upload hook
+  const { uploadSession, state: uploadState, abort: abortUpload } = useSessionUpload();
+
+  // Class hasn't started yet if no time has elapsed
+  const classNotStarted = timerElapsedSeconds === 0;
+
+  const handleEndClick = () => {
+    if (classNotStarted) {
+      toast.error("Class hasn't started yet");
+      return;
+    }
+    setModalState("confirm");
   };
 
+  const handleClose = () => {
+    if (modalState === "uploading") {
+      // Abort ongoing upload
+      abortUpload();
+    }
+    setModalState("closed");
+    setUploadProgress({ phase: "", current: 0, total: 0, percentage: 0 });
+    setErrorMessage("");
+  };
+
+  const handleDiscard = async () => {
+    setModalState("discard-confirm");
+  };
+
+  const handleConfirmDiscard = async () => {
+    try {
+      // Stop recording first
+      stopRecording();
+      dispatch(setEndClass());
+      timer.stop();
+
+      // Delete all local data
+      if (sessionId) {
+        await cleanupEntireSession(sessionId);
+      }
+
+      // Clear localStorage
+      localStorage.removeItem("currentBatches");
+      localStorage.removeItem("sessionStartWallMs");
+      localStorage.removeItem("recordingStartTimerMs");
+
+      toast.success("Recording discarded");
+      setModalState("closed");
+    } catch (err) {
+      console.error("Failed to discard:", err);
+      toast.error("Failed to discard recording");
+    }
+  };
+
+  const handleSaveAsDraft = async () => {
+    console.log("[SaveDraft] === STARTING SAVE AS DRAFT ===");
+    console.log("[SaveDraft] Current sessionId from Redux:", sessionId);
+    console.log("[SaveDraft] Timer elapsed seconds:", timerElapsedSeconds);
+
+    try {
+      // Stop recording first
+      console.log("[SaveDraft] Step 1: Stopping recording...");
+      stopRecording();
+      dispatch(setEndClass());
+      timer.stop();
+
+      // Wait for worker to finalize - give it time to complete IDB writes
+      console.log("[SaveDraft] Step 2: Waiting 2s for worker to finalize...");
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Get or generate a session ID
+      const effectiveSessionId = sessionId || crypto.randomUUID();
+      const sessionStartWallMs = parseInt(localStorage.getItem('sessionStartWallMs') || '0', 10);
+      const totalPausedMs = parseInt(localStorage.getItem('totalPausedMs') || '0', 10);
+      const durationMs = timerElapsedSeconds * 1000;
+
+      console.log("[SaveDraft] Step 3: Preparing session data");
+      console.log("[SaveDraft]   - effectiveSessionId:", effectiveSessionId);
+      console.log("[SaveDraft]   - sessionStartWallMs:", sessionStartWallMs);
+      console.log("[SaveDraft]   - totalPausedMs:", totalPausedMs);
+      console.log("[SaveDraft]   - durationMs:", durationMs);
+
+      // Create session data object
+      const sessionData: LocalSession = {
+        id: effectiveSessionId,
+        lessonId: `draft_${effectiveSessionId}`,
+        schoolId: "local",
+        status: "draft",
+        teacher: {
+          id: "local",
+          name: "Teacher",
+          email: "",
+        },
+        lesson: {
+          topic: `Draft Recording - ${new Date().toLocaleDateString()}`,
+          subTopic: "",
+          aim: "",
+          subjectId: "",
+          subjectName: "Unsaved Class",
+          classroomId: "",
+          className: "Local Recording",
+        },
+        recording: {
+          startedAt: new Date(sessionStartWallMs || Date.now()).toISOString(),
+          endedAt: new Date().toISOString(),
+          totalDurationMs: durationMs,
+          pausedDurationMs: totalPausedMs,
+          deviceType: "desktop",
+          screenWidth: window.innerWidth,
+          screenHeight: window.innerHeight,
+        },
+        totalAudioChunks: 0,
+        totalStrokeBatches: 0,
+        syncProgress: {
+          audioSent: 0,
+          audioFailed: 0,
+          strokesSent: 0,
+          strokesFailed: 0,
+          manifestSent: false,
+        },
+        adjustments: {
+          trimStartMs: 0,
+          trimEndMs: 0,
+          deletedSections: [],
+          chapters: [],
+        },
+        mediaEvents: [],
+        boardEvents: [],
+        createdAt: new Date().toISOString(),
+        modifiedAt: new Date().toISOString(),
+      };
+
+      // Use dedicated saveSessionAsDraft function with fresh DB connection
+      // This avoids transaction conflicts with the worker's connection
+      console.log("[SaveDraft] Step 4: Calling saveSessionAsDraft...");
+      await saveSessionAsDraft(effectiveSessionId, sessionData);
+      console.log("[SaveDraft] Step 5: Session saved successfully!");
+
+      toast.success("Recording saved as draft");
+
+      // Navigate directly to drafts page
+      navigate("/teacher/drafts");
+      setModalState("closed");
+    } catch (err) {
+      // Log FULL error details
+      console.error("[SaveDraft] ========== SAVE DRAFT FAILED ==========");
+      console.error("[SaveDraft] Error object:", err);
+      console.error("[SaveDraft] Error name:", err instanceof Error ? err.name : 'N/A');
+      console.error("[SaveDraft] Error message:", err instanceof Error ? err.message : String(err));
+      console.error("[SaveDraft] Error stack:", err instanceof Error ? err.stack : 'N/A');
+
+      // Also try to get IndexedDB state for debugging
+      try {
+        const dbNames = await indexedDB.databases();
+        console.error("[SaveDraft] Available databases:", dbNames);
+      } catch (dbErr) {
+        console.error("[SaveDraft] Could not list databases:", dbErr);
+      }
+
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      toast.error(`Failed to save draft: ${errorMsg}`);
+    }
+  };
+
+  const handleUpload = async () => {
+    setModalState("uploading");
+    setUploadProgress({ phase: "Preparing...", current: 0, total: 0, percentage: 0 });
+
+    try {
+      // Stop recording first
+      await stopRecording();
+      dispatch(setEndClass());
+      timer.stop();
+
+      // Wait for worker to finalize
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      if (!sessionId) {
+        throw new Error("No session ID");
+      }
+
+      // Use token-based upload service
+      setUploadProgress({ phase: "Starting upload...", current: 0, total: 0, percentage: 0 });
+
+      const results = await uploadSession(sessionId, {
+        concurrency: 2,
+        onProgress: (state) => {
+          const phaseLabel = state.phase === 'audio' ? 'Uploading audio...' :
+                            state.phase === 'strokes' ? 'Uploading board data...' :
+                            state.phase === 'complete' ? 'Complete!' : 'Preparing...';
+          setUploadProgress({
+            phase: phaseLabel,
+            current: state.currentChunk,
+            total: state.totalChunks,
+            percentage: state.overallProgress,
+          });
+        },
+      });
+
+      if (!results.success) {
+        throw new Error(results.errors.join('; ') || 'Upload failed');
+      }
+
+      // Submit manifest to backend
+      setUploadProgress({ phase: "Finalizing...", current: 0, total: 1, percentage: 95 });
+
+      const session = await getSession(sessionId);
+
+      if (session) {
+        const manifest = buildManifest(session, results);
+        await boardSessionService.submitManifest(sessionId, manifest);
+
+        // Update session status
+        session.status = "published";
+        session.syncProgress.manifestSent = true;
+        await updateSession(session);
+      }
+
+      setUploadProgress({ phase: "Complete!", current: 1, total: 1, percentage: 100 });
+      setModalState("complete");
+      toast.success("Lesson uploaded successfully!");
+
+    } catch (err) {
+      console.error("Upload failed:", err);
+      setErrorMessage(err instanceof Error ? err.message : "Upload failed");
+      setModalState("error");
+    }
+  };
+
+  // Build manifest from local session and upload results
+  const buildManifest = (
+    session: Awaited<ReturnType<typeof getSession>>,
+    uploadResults: UploadResults
+  ): SessionManifestPayload => {
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    const { audioUrls, strokeUrls } = uploadResults;
+
+    // Estimate sizes (we don't have exact sizes in upload results)
+    const estimatedAudioSizeBytes = audioUrls.length * 50000; // ~50KB per chunk
+    const estimatedStrokeSizeBytes = strokeUrls.length * 5000; // ~5KB per batch
+
+    return {
+      version: "2.0",
+      session: {
+        id: session.id,
+        lessonId: session.lessonId,
+        schoolId: session.schoolId,
+        recordedAt: session.recording.startedAt,
+        publishedAt: new Date().toISOString(),
+        teacher: { id: session.teacher.id, name: session.teacher.name },
+      },
+      lesson: {
+        topic: session.lesson.topic,
+        subTopic: session.lesson.subTopic,
+        aim: session.lesson.aim,
+        subject: { id: session.lesson.subjectId, name: session.lesson.subjectName },
+        classroom: { id: session.lesson.classroomId, name: session.lesson.className },
+      },
+      stats: {
+        totalDurationMs: session.recording.totalDurationMs,
+        totalDurationFormatted: formatDuration(session.recording.totalDurationMs),
+        chunkCount: audioUrls.length,
+        chunkDurationMs: 10000,
+        totalAudioSizeBytes: estimatedAudioSizeBytes,
+        totalStrokeCount: strokeUrls.length,
+        boardCount: 1,
+      },
+      chunks: audioUrls.map((audio, idx) => {
+        const matchingStrokes = strokeUrls.find((s) => s.batchIndex === idx);
+        const startMs = idx * 10000;
+        const endMs = startMs + 10000;
+
+        return {
+          index: audio.chunkIndex,
+          startMs,
+          endMs,
+          audio: {
+            url: audio.url,
+            mediaId: audio.mediaId,
+            sizeBytes: 50000,
+            durationMs: 10000,
+          },
+          strokes: matchingStrokes
+            ? {
+                url: matchingStrokes.url,
+                mediaId: matchingStrokes.mediaId,
+                count: 0,
+                sizeBytes: 5000,
+              }
+            : null,
+          events: [],
+        };
+      }),
+      mediaAssets: session.mediaEvents.map((m) => ({
+        id: m.id,
+        name: m.name,
+        type: m.type,
+        url: m.url,
+      })),
+      boards: [{
+        index: 1,
+        dimensions: {
+          width: session.recording.screenWidth,
+          height: session.recording.screenHeight,
+        },
+        strokeCount: strokeUrls.length,
+      }],
+      chapters: session.adjustments.chapters,
+    };
+  };
+
+  const formatDuration = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+    if (minutes > 0) return `${minutes}m ${seconds}s`;
+    return `${seconds}s`;
+  };
+
+  const progressPercent = uploadProgress.percentage > 0
+    ? uploadProgress.percentage
+    : (uploadProgress.total > 0 ? Math.round((uploadProgress.current / uploadProgress.total) * 100) : 0);
+
   return (
-    <Button
-      onClick={endClassHandler}
-      className="bg-[#D92D25] rounded-full size-14 flex items-center justify-center"
-    >
-      <PhoneIcon className="size-6 text-white" />
-    </Button>
+    <>
+      <Button
+        onClick={handleEndClick}
+        disabled={classNotStarted}
+        title={classNotStarted ? "Start the class first" : "End class"}
+        className="size-10 cursor-pointer rounded-full bg-[#D92D25] text-white shadow-md transition-all duration-200 hover:bg-[#B61F19] disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <PhoneIcon className="size-5 text-white" />
+      </Button>
+
+      {/* Modal rendered via portal to escape parent positioning */}
+      {modalState !== "closed" && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {modalState === "confirm" && "End Class"}
+                {modalState === "discard-confirm" && "Discard Recording?"}
+                {modalState === "uploading" && "Uploading Lesson"}
+                {modalState === "complete" && "Upload Complete"}
+                {modalState === "error" && "Upload Failed"}
+                {modalState === "draft-saved" && "Draft Saved"}
+              </h2>
+              <button
+                onClick={handleClose}
+                className="p-1 rounded-full hover:bg-gray-100 transition-colors"
+                title={modalState === "uploading" ? "Cancel upload" : "Close"}
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-6 py-5">
+              {/* Confirm State */}
+              {modalState === "confirm" && (
+                <div className="space-y-4">
+                  <p className="text-gray-600">
+                    What would you like to do with this recording?
+                  </p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button
+                      onClick={handleUpload}
+                      className="flex flex-col items-center gap-2 p-4 border-2 border-blue-200 bg-blue-50 rounded-xl hover:border-blue-400 hover:bg-blue-100 transition-colors"
+                    >
+                      <Upload className="w-8 h-8 text-blue-600" />
+                      <span className="font-medium text-blue-900">Upload</span>
+                      <span className="text-xs text-blue-600 text-center">
+                        Publish for students
+                      </span>
+                    </button>
+                    <button
+                      onClick={handleSaveAsDraft}
+                      className="flex flex-col items-center gap-2 p-4 border-2 border-amber-200 bg-amber-50 rounded-xl hover:border-amber-400 hover:bg-amber-100 transition-colors"
+                    >
+                      <Save className="w-8 h-8 text-amber-600" />
+                      <span className="font-medium text-amber-900">Save Draft</span>
+                      <span className="text-xs text-amber-600 text-center">
+                        Upload later
+                      </span>
+                    </button>
+                    <button
+                      onClick={handleDiscard}
+                      className="flex flex-col items-center gap-2 p-4 border-2 border-gray-200 bg-gray-50 rounded-xl hover:border-red-300 hover:bg-red-50 transition-colors group"
+                    >
+                      <Trash2 className="w-8 h-8 text-gray-400 group-hover:text-red-500" />
+                      <span className="font-medium text-gray-700 group-hover:text-red-700">Discard</span>
+                      <span className="text-xs text-gray-500 group-hover:text-red-500 text-center">
+                        Delete recording
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Discard Confirm State */}
+              {modalState === "discard-confirm" && (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-red-900">Are you sure?</p>
+                      <p className="text-sm text-red-700 mt-1">
+                        All audio and board recordings will be permanently deleted. This action cannot be undone.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setModalState("confirm")}
+                      className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                      Go Back
+                    </button>
+                    <button
+                      onClick={handleConfirmDiscard}
+                      className="flex-1 px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                    >
+                      Yes, Delete Everything
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Uploading State */}
+              {modalState === "uploading" && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                    <span className="font-medium text-gray-900">{uploadProgress.phase}</span>
+                  </div>
+                  {(uploadProgress.total > 0 || uploadProgress.percentage > 0) && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>
+                          {uploadProgress.current} / {uploadProgress.total} chunks
+                        </span>
+                        <span>{progressPercent}%</span>
+                      </div>
+                      <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-gray-500">
+                      Uploading via direct transfer...
+                    </p>
+                    <button
+                      onClick={handleClose}
+                      className="text-sm text-red-600 hover:text-red-700 font-medium"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Complete State */}
+              {modalState === "complete" && (
+                <div className="text-center space-y-4">
+                  <div className="flex justify-center">
+                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                      <CheckCircle className="w-10 h-10 text-green-600" />
+                    </div>
+                  </div>
+                  <p className="text-gray-600">
+                    Your lesson has been uploaded and is now available for students.
+                  </p>
+                  <button
+                    onClick={handleClose}
+                    className="w-full px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                  >
+                    Done
+                  </button>
+                </div>
+              )}
+
+              {/* Draft Saved State */}
+              {modalState === "draft-saved" && (
+                <div className="text-center space-y-4">
+                  <div className="flex justify-center">
+                    <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center">
+                      <Save className="w-10 h-10 text-amber-600" />
+                    </div>
+                  </div>
+                  <p className="text-gray-600">
+                    Your recording has been saved as a draft. You can continue or upload it later.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleClose}
+                      className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={() => navigate("/teacher/drafts")}
+                      className="flex-1 px-4 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 rounded-lg transition-colors"
+                    >
+                      View Drafts
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Error State */}
+              {modalState === "error" && (
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-red-900">Upload Failed</p>
+                      <p className="text-sm text-red-700 mt-1">{errorMessage}</p>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    Your recording is saved locally. You can try uploading again later from your lessons.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleClose}
+                      className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={handleUpload}
+                      className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 };
 

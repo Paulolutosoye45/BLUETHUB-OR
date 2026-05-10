@@ -11,10 +11,12 @@ import {
   Circle,
   Loader,
 } from 'lucide-react';
-import type { AudioBatch, CompressedStroke, Stroke } from '@/utils/constant';
+import type { AudioBatch, CompressedStroke, IActions, IActiveMedia, Stroke } from '@/utils/constant';
 import { clearAudio, clearClass, getAudio, getClass } from '@/utils/db';
+import { getImage } from '@/services/class-media';
 import { base64ToUint8 } from '@/utils';
 import { gzipDecompress } from '@/utils/gzip';
+import PdfScrollViewer from '@/component/pdf-scroll-viewer';
 
 // ─── local helper — converts "MM:SS" or "HH:MM:SS" → milliseconds ────────────
 // This lives here so we are 100% sure of the unit: always returns MS.
@@ -48,6 +50,143 @@ const formatReplayMs = (ms: number): string => {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 };
 
+const mediaClockMs = (value: string | null | undefined): number => {
+  if (!value || value === '—') return Number.POSITIVE_INFINITY;
+  return timeToMs(value);
+};
+
+const resolvePdfPage = (media: IActiveMedia, sessionMs: number): number | undefined => {
+  if (media.type.toLowerCase() !== 'pdf' || !media.pdfPages || media.pdfPages.length === 0) {
+    return undefined;
+  }
+
+  let page = 1;
+  for (const event of media.pdfPages) {
+    const eventMs = event.elapsedMs ?? mediaClockMs(event.timerDisplay);
+    if (sessionMs >= eventMs) {
+      page = event.page;
+    } else {
+      break;
+    }
+  }
+
+  return page;
+};
+
+const resolvePdfScrollRatio = (media: IActiveMedia, sessionMs: number): number | undefined => {
+  if (media.type.toLowerCase() !== 'pdf' || !media.pdfScrollEvents || media.pdfScrollEvents.length === 0) {
+    return undefined;
+  }
+
+  let ratio: number | undefined = undefined;
+  for (const event of media.pdfScrollEvents) {
+    const eventMs = event.elapsedMs ?? mediaClockMs(event.timerDisplay);
+    if (sessionMs >= eventMs) {
+      ratio = event.scrollRatio;
+    } else {
+      break;
+    }
+  }
+
+  return ratio;
+};
+
+const resolveVideoPlaybackState = (media: IActiveMedia, sessionMs: number): 'play' | 'pause' => {
+  if (media.type.toLowerCase() !== 'video' || !media.playbackEvents || media.playbackEvents.length === 0) {
+    return 'pause';
+  }
+
+  let state: 'play' | 'pause' = 'pause';
+  for (const event of media.playbackEvents) {
+    const eventMs = event.elapsedMs ?? mediaClockMs(event.timerDisplay);
+    if (sessionMs >= eventMs) {
+      state = event.state;
+    } else {
+      break;
+    }
+  }
+
+  return state;
+};
+
+
+
+const getReplayFrameClassByType = (type?: string): string => {
+  const mediaType = (type ?? '').toLowerCase();
+
+  if (mediaType.includes('pdf')) {
+    return 'h-[min(88vh,980px)] w-[min(94vw,1100px)]';
+  }
+
+  if (mediaType.includes('video')) {
+    return 'h-[64vh] w-[min(86vw,920px)]';
+  }
+
+  return 'h-[60vh] w-[min(82vw,840px)]';
+};
+
+const buildMediaTimelineFromManifest = (raw: string | null): Array<{ media: IActiveMedia; showMs: number; closeMs: number }> => {
+  if (!raw) return [];
+
+  const parsed = JSON.parse(raw) as IActions;
+  const timeline: Array<{ media: IActiveMedia; showMs: number; closeMs: number }> = [];
+  const fallbackCloseMs = Math.max(0, parsed.totalDuration || 0);
+
+  for (const batch of parsed.batches ?? []) {
+    for (const media of batch.mediaAction ?? []) {
+      const normalizedMedia: IActiveMedia = {
+        ...media,
+        pdfPages: media.pdfPages?.length
+          ? [...media.pdfPages].sort(
+            (a, b) => (a.elapsedMs ?? mediaClockMs(a.timerDisplay)) - (b.elapsedMs ?? mediaClockMs(b.timerDisplay))
+          )
+          : media.pdfPages,
+        playbackEvents: media.playbackEvents?.length
+          ? [...media.playbackEvents].sort(
+            (a, b) => (a.elapsedMs ?? mediaClockMs(a.timerDisplay)) - (b.elapsedMs ?? mediaClockMs(b.timerDisplay))
+          )
+          : media.playbackEvents,
+      };
+
+      const showMs = normalizedMedia.showMs ?? mediaClockMs(normalizedMedia.show);
+      const parsedClose = normalizedMedia.closedMs ?? mediaClockMs(normalizedMedia.closed);
+      const baseCloseMs = Number.isFinite(parsedClose)
+        ? parsedClose
+        : (fallbackCloseMs > 0 ? fallbackCloseMs : Number.POSITIVE_INFINITY);
+      const closeMs = Number.isFinite(baseCloseMs) ? baseCloseMs : baseCloseMs;
+
+      timeline.push({
+        media: normalizedMedia,
+        showMs,
+        closeMs,
+      });
+    }
+  }
+
+  return timeline.sort((a, b) => a.showMs - b.showMs);
+};
+
+const buildMediaEventsFromManifest = (raw: string | null): Array<{
+  atMs: number;
+  type: 'show' | 'hide';
+  media: IActiveMedia;
+}> => {
+  const timeline = buildMediaTimelineFromManifest(raw);
+  const events: Array<{ atMs: number; type: 'show' | 'hide'; media: IActiveMedia }> = [];
+
+  for (const item of timeline) {
+    events.push({ atMs: item.showMs, type: 'show', media: item.media });
+    if (Number.isFinite(item.closeMs)) {
+      events.push({ atMs: item.closeMs, type: 'hide', media: item.media });
+    }
+  }
+
+  return events.sort((a, b) => {
+    if (a.atMs !== b.atMs) return a.atMs - b.atMs;
+    return a.type === 'show' && b.type === 'hide' ? -1 : 1;
+  });
+};
+
 export default function Replay() {
 
   // ── UI state ──────────────────────────────────────────────────────────────
@@ -63,6 +202,18 @@ export default function Replay() {
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [_renderTick, setRenderTick] = useState(0);
   const [replayMs, setReplayMs] = useState(0);
+  const [activeFrame, setActiveFrame] = useState<IActiveMedia | null>(null);
+  const [activeFrameUrl, setActiveFrameUrl] = useState<string | null>(null);
+  const [activePdfPage, setActivePdfPage] = useState<number | undefined>(undefined);
+  const [activePdfScrollRatio, setActivePdfScrollRatio] = useState<number | undefined>(undefined);
+  const [isPdfAutoFollowEnabled, setIsPdfAutoFollowEnabled] = useState(true);
+  const [isReplayVideoPlaying, setIsReplayVideoPlaying] = useState(false);
+  const [targetVideoPlaybackState, setTargetVideoPlaybackState] = useState<'play' | 'pause'>('pause');
+  const [currentBoardInReplay, setCurrentBoardInReplay] = useState(1);
+  const totalBoards = Math.max(
+    1,
+    new Set(strokes.map((s) => s.currentBoard ?? 1)).size,
+  );
 
   // ── Refs ──────────────────────────────────────────────────────────────────
 
@@ -79,6 +230,24 @@ export default function Replay() {
 
   // RAF handle
   const rafRef = useRef<number | null>(null);
+  const mediaTimelineRef = useRef<Array<{
+    media: IActiveMedia;
+    showMs: number;
+    closeMs: number;
+  }>>([]);
+  const mediaEventsRef = useRef<Array<{
+    atMs: number;
+    type: 'show' | 'hide';
+    media: IActiveMedia;
+  }>>([]);
+  const mediaEventIndexRef = useRef(0);
+  const activeFrameSigRef = useRef('');
+  const activeFrameRef = useRef<IActiveMedia | null>(null);
+  const activePdfPageRef = useRef<number | undefined>(undefined);
+  const activePdfScrollRatioRef = useRef<number | undefined>(undefined);
+  const targetVideoPlaybackStateRef = useRef<'play' | 'pause'>('pause');
+  const replayVideoRef = useRef<HTMLVideoElement | null>(null);
+  const currentBoardInReplayRef = useRef<number>(1);
 
   // ─────────────────────────────────────────────────────────────────────────
   // THE SYNC ANCHOR
@@ -112,8 +281,40 @@ export default function Replay() {
   // const __trRef = useRef<Konva.Transformer | null>(null);
   // const _rectRef = useRef(null);
 
-  // Snapshot of drawnMapRef for Konva — re-evaluated each time renderTick ticks
-  const drawn = Array.from(drawnMapRef.current.values());
+  // Snapshot of drawnMapRef for Konva, limited to current replay board.
+  const drawn = Array.from(drawnMapRef.current.values()).filter(
+    (stroke) => (stroke.currentBoard ?? 1) === currentBoardInReplay,
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    const resolveActiveFrameUrl = async () => {
+      if (!activeFrame) {
+        if (mounted) setActiveFrameUrl(null);
+        return;
+      }
+
+      const mediaType = activeFrame.type.toLowerCase();
+      if (mediaType.includes('pdf')) {
+        if (mounted) setActiveFrameUrl(activeFrame.url);
+        return;
+      }
+
+      try {
+        const cached = await getImage(activeFrame.id);
+        if (mounted) setActiveFrameUrl(cached ?? activeFrame.url);
+      } catch {
+        if (mounted) setActiveFrameUrl(activeFrame.url);
+      }
+    };
+
+    resolveActiveFrameUrl();
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeFrame]);
 
   // Header clock is driven by the same session clock used by drawing.
   // This removes drift between visual timer and audio playback.
@@ -168,6 +369,25 @@ export default function Replay() {
     return () => { mounted = false; };
   }, []);
 
+  useEffect(() => {
+    const refreshTimeline = () => {
+      try {
+        const raw = localStorage.getItem('currentBatches');
+        mediaTimelineRef.current = buildMediaTimelineFromManifest(raw);
+        mediaEventsRef.current = buildMediaEventsFromManifest(raw);
+      } catch (err) {
+        console.error('Failed to parse replay manifest media actions:', err);
+        mediaTimelineRef.current = [];
+        mediaEventsRef.current = [];
+      }
+    };
+
+    // Initial parse + periodic refresh so replay can react to late manifest writes.
+    refreshTimeline();
+    const id = setInterval(refreshTimeline, 1000);
+    return () => clearInterval(id);
+  }, []);
+
   // ── Step 2: Parallel decompress + cache in ref ────────────────────────────
   //
   // OLD: sequential for-loop → 50 strokes × 20ms = ~1000ms before play() works
@@ -208,6 +428,7 @@ export default function Replay() {
               points,
               color: comp.color,
               width: comp.width,
+              currentBoard: comp.currentBoard,
               duration: comp.duration ?? 600,
               timestamp: comp.timestamp ?? Date.now(),
               startTime: comp.startTime,  // "MM:SS" string
@@ -297,7 +518,7 @@ export default function Replay() {
       // drawWindow: stroke.duration is 0 in current impl so we use 50ms min.
       // The stroke "pops" in fully at startMs which is accurate to the ms.
       const drawWindow = Math.max(
-        s.duration > 0 ? s.duration : 0,
+        s.duration ?? 0,
         50
       );
       return {
@@ -309,6 +530,21 @@ export default function Replay() {
     });
 
     strokeCursorsRef.current = new Map(timelines.map(t => [t.stroke.id, 0]));
+    mediaEventIndexRef.current = 0;
+    activeFrameSigRef.current = '';
+    activeFrameRef.current = null;
+    activePdfPageRef.current = undefined;
+    activePdfScrollRatioRef.current = undefined;
+    currentBoardInReplayRef.current = 1;
+    setActiveFrame(null);
+    setActiveFrameUrl(null);
+    setIsPdfAutoFollowEnabled(true);
+    setIsReplayVideoPlaying(false);
+    targetVideoPlaybackStateRef.current = 'pause';
+    setTargetVideoPlaybackState('pause');
+    setCurrentBoardInReplay(1);
+    setActivePdfPage(undefined);
+    setActivePdfScrollRatio(undefined);
 
     const frame = () => {
       if (stopRef.current) return;
@@ -316,6 +552,86 @@ export default function Replay() {
       // ✅ Session position derived from audio's own clock — never drifts
       const sessionMs = batchStartMsRef.current +
         (audioRef.current?.currentTime ?? 0) * 1000;
+
+      // Media frames: drive from exact manifest events, not broad time-window filtering.
+      while (
+        mediaEventIndexRef.current < mediaEventsRef.current.length &&
+        sessionMs >= mediaEventsRef.current[mediaEventIndexRef.current].atMs
+      ) {
+        const event = mediaEventsRef.current[mediaEventIndexRef.current];
+        if (event.type === 'show') {
+          const pdfPage = resolvePdfPage(event.media, sessionMs);
+          const pdfScrollRatio = resolvePdfScrollRatio(event.media, sessionMs);
+          const videoState = resolveVideoPlaybackState(event.media, sessionMs);
+          activeFrameSigRef.current = `${event.media.id}:${pdfPage ?? ''}`;
+          activeFrameRef.current = event.media;
+          activePdfPageRef.current = pdfPage;
+          activePdfScrollRatioRef.current = pdfScrollRatio;
+          targetVideoPlaybackStateRef.current = videoState;
+          setActiveFrame(event.media);
+          setActiveFrameUrl(null);
+          setIsPdfAutoFollowEnabled(true);
+          setIsReplayVideoPlaying(videoState === 'play');
+          setTargetVideoPlaybackState(videoState);
+          setActivePdfPage(pdfPage);
+          setActivePdfScrollRatio(pdfScrollRatio);
+        } else if (activeFrameSigRef.current.startsWith(`${event.media.id}:`) || activeFrameSigRef.current === event.media.id) {
+          activeFrameSigRef.current = '';
+          activeFrameRef.current = null;
+          activePdfPageRef.current = undefined;
+          activePdfScrollRatioRef.current = undefined;
+          targetVideoPlaybackStateRef.current = 'pause';
+          setActiveFrame(null);
+          setActiveFrameUrl(null);
+          setIsPdfAutoFollowEnabled(true);
+          setIsReplayVideoPlaying(false);
+          setTargetVideoPlaybackState('pause');
+          setActivePdfPage(undefined);
+          setActivePdfScrollRatio(undefined);
+        }
+        mediaEventIndexRef.current += 1;
+      }
+
+      // ── Board tracking — uses same timing logic as stroke drawing ──────────
+      // Track the LATEST board (chronologically), not the max. If you write on
+      // board 1, then 2, then 1 again, the board should be 1 at the end.
+      let activeBoard = 1;
+      for (const { stroke, startMs } of timelines) {
+        if (sessionMs >= startMs) {
+          activeBoard = stroke.currentBoard ?? 1;  // Latest board, not max
+        }
+      }
+      if (activeBoard !== currentBoardInReplayRef.current) {
+        currentBoardInReplayRef.current = activeBoard;
+        setCurrentBoardInReplay(activeBoard);
+      }
+
+      const activeMedia = activeFrameRef.current;
+      if (activeMedia && activeMedia.type.toLowerCase().includes('video')) {
+        const target = resolveVideoPlaybackState(activeMedia, sessionMs);
+        if (target !== targetVideoPlaybackStateRef.current) {
+          targetVideoPlaybackStateRef.current = target;
+          setTargetVideoPlaybackState(target);
+        }
+      }
+
+      if (activeMedia && activeMedia.type.toLowerCase().includes('pdf')) {
+        const pdfPage = resolvePdfPage(activeMedia, sessionMs);
+
+        if (pdfPage !== activePdfPageRef.current) {
+          activePdfPageRef.current = pdfPage;
+          setActivePdfPage(pdfPage);
+        }
+
+        const pdfScrollRatio = resolvePdfScrollRatio(activeMedia, sessionMs);
+        if (
+          pdfScrollRatio !== undefined &&
+          (activePdfScrollRatioRef.current === undefined || Math.abs(pdfScrollRatio - activePdfScrollRatioRef.current) > 0.005)
+        ) {
+          activePdfScrollRatioRef.current = pdfScrollRatio;
+          setActivePdfScrollRatio(pdfScrollRatio);
+        }
+      }
 
       let dirty = false;
 
@@ -351,7 +667,8 @@ export default function Replay() {
         ({ stroke, totalPoints }) =>
           (strokeCursorsRef.current.get(stroke.id) ?? 0) >= totalPoints
       );
-      if (!allDone) rafRef.current = requestAnimationFrame(frame);
+      const hasMediaTimeline = mediaTimelineRef.current.length > 0;
+      if (!allDone || hasMediaTimeline) rafRef.current = requestAnimationFrame(frame);
     };
 
     rafRef.current = requestAnimationFrame(frame);
@@ -373,18 +690,25 @@ export default function Replay() {
   const playAudioBatch = useCallback(async (
     batchIndex: number,
     sortedBatches: AudioBatch[],
+    sessionStartWallMs: number,
   ): Promise<void> => {
     if (batchIndex >= sortedBatches.length || stopRef.current) return;
 
     const batch = sortedBatches[batchIndex];
 
-    // Sum actual recorded durations of all previous batches (no hardcoded 10s)
-    const batchStartMs = sortedBatches
-      .slice(0, batchIndex)
-      .reduce((sum, b) => sum + (b.duration ?? 10) * 1000, 0);
+    // Use the actual recorded timestamp to calculate when this batch starts in the session timeline.
+    // batch.timestamp = when the batch data was received (end of batch) minus paused time
+    // So batch start position = timestamp - sessionStartWallMs - duration
+    // This ensures audio and strokes (which also use timestamp - sessionStartWallMs) stay in sync.
+    const batchStartMs = sessionStartWallMs > 0 && batch.timestamp
+      ? batch.timestamp - sessionStartWallMs - (batch.duration ?? 10) * 1000
+      : sortedBatches.slice(0, batchIndex).reduce((sum, b) => sum + (b.duration ?? 10) * 1000, 0);
+
+    // Ensure batchStartMs is never negative
+    const safeBatchStartMs = Math.max(0, batchStartMs);
 
     // ✅ Tell the RAF where in the session timeline we now are
-    batchStartMsRef.current = batchStartMs;
+    batchStartMsRef.current = safeBatchStartMs;
 
     if (currentBlobUrlRef.current) {
       URL.revokeObjectURL(currentBlobUrlRef.current);
@@ -423,35 +747,63 @@ export default function Replay() {
     const readyStrokes = preloadedStrokesRef.current;
     const hasStrokes = readyStrokes.length > 0;
     const hasAudio = audioList.length > 0;
-    if (!hasStrokes && !hasAudio) return;
+    const hasMedia = mediaTimelineRef.current.length > 0;
+    if (!hasStrokes && !hasAudio && !hasMedia) return;
 
     stopRef.current = false;
     batchStartMsRef.current = 0;
     drawnMapRef.current = new Map();
     strokeCursorsRef.current = new Map();
+    mediaEventIndexRef.current = 0;
+    activeFrameSigRef.current = '';
+    activeFrameRef.current = null;
+    activePdfPageRef.current = undefined;
+    activePdfScrollRatioRef.current = undefined;
+    setActiveFrame(null);
+    setActiveFrameUrl(null);
+    setIsPdfAutoFollowEnabled(true);
+    setIsReplayVideoPlaying(false);
+    targetVideoPlaybackStateRef.current = 'pause';
+    setTargetVideoPlaybackState('pause');
+    setActivePdfPage(undefined);
+    setActivePdfScrollRatio(undefined);
     setRenderTick(0);
     setCurrentBatch(0);
     setIsPlaying(true);
 
     const sortedAudio = [...audioList].sort((a, b) => a.batchId - b.batchId);
 
+    // Get sessionStartWallMs for audio batch positioning (same value used for stroke positioning)
+    const stored = parseInt(localStorage.getItem('sessionStartWallMs') ?? '0', 10);
+    const firstBatch = sortedAudio[0];
+    const reconstructed = firstBatch
+      ? firstBatch.timestamp - (firstBatch.duration ?? 10) * 1000
+      : 0;
+    const sessionStartWallMs = stored || reconstructed || 0;
+
     if (hasAudio && hasStrokes) {
       // Normal case: board slaved to audio clock
       startRaf(readyStrokes);
       for (let i = 0; i < sortedAudio.length; i++) {
         if (stopRef.current) break;
-        try { await playAudioBatch(i, sortedAudio); } catch (_) { }
+        try { await playAudioBatch(i, sortedAudio, sessionStartWallMs); } catch (_) { }
       }
       stopRaf();
 
     } else if (hasAudio && !hasStrokes) {
-      // Audio only — no RAF needed
+      // Audio only (or media + audio)
+      if (hasMedia) {
+        startRaf([]);
+      }
       for (let i = 0; i < sortedAudio.length; i++) {
         if (stopRef.current) break;
-        try { await playAudioBatch(i, sortedAudio); } catch (_) { }
+        try { await playAudioBatch(i, sortedAudio, sessionStartWallMs); } catch (_) { }
+      }
+      if (hasMedia) {
+        stopRaf();
       }
 
-    } else if (hasStrokes && !hasAudio) {
+    } else if ((hasStrokes || hasMedia) && !hasAudio) {
       // Board only — feed performance.now() into batchStartMsRef each frame
       // so the RAF formula still works: sessionMs = batchStartMs + 0 = elapsed
       const wallStart = performance.now();
@@ -462,7 +814,18 @@ export default function Replay() {
       };
       startRaf(readyStrokes);
       driveRef();
-      const totalDurationMs = Math.max(...readyStrokes.map(s => timeToMs(s.endTime)));
+      const strokeDurationMs = hasStrokes
+        ? Math.max(...readyStrokes.map(s => timeToMs(s.endTime)))
+        : 0;
+      const finiteMediaCloseMs = mediaTimelineRef.current
+        .filter((item) => Number.isFinite(item.closeMs))
+        .map((item) => item.closeMs);
+      const mediaDurationMs = finiteMediaCloseMs.length > 0
+        ? Math.max(...finiteMediaCloseMs)
+        : mediaTimelineRef.current.length > 0
+          ? Math.max(...mediaTimelineRef.current.map((item) => item.showMs)) + 5000
+          : 0;
+      const totalDurationMs = Math.max(strokeDurationMs, mediaDurationMs, 1000);
       await new Promise<void>(resolve => {
         const check = setInterval(() => {
           if (stopRef.current || (performance.now() - wallStart) >= totalDurationMs) {
@@ -482,6 +845,19 @@ export default function Replay() {
     stopRef.current = true;
     stopRaf();
     setIsPlaying(false);
+    activeFrameRef.current = null;
+    activePdfPageRef.current = undefined;
+    activePdfScrollRatioRef.current = undefined;
+    setActiveFrame(null);
+    setActiveFrameUrl(null);
+    setIsPdfAutoFollowEnabled(true);
+    setIsReplayVideoPlaying(false);
+    targetVideoPlaybackStateRef.current = 'pause';
+    setTargetVideoPlaybackState('pause');
+    setActivePdfPage(undefined);
+    setActivePdfScrollRatio(undefined);
+    mediaEventIndexRef.current = 0;
+    activeFrameSigRef.current = '';
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -492,6 +868,18 @@ export default function Replay() {
       currentBlobUrlRef.current = null;
     }
   };
+
+  useEffect(() => {
+    const video = replayVideoRef.current;
+    if (!video) return;
+
+    if (targetVideoPlaybackState === 'play') {
+      video.play().then(() => setIsReplayVideoPlaying(true)).catch(() => setIsReplayVideoPlaying(false));
+    } else {
+      video.pause();
+      setIsReplayVideoPlaying(false);
+    }
+  }, [targetVideoPlaybackState, activeFrameUrl, activeFrame?.id]);
 
   // ── Clear ─────────────────────────────────────────────────────────────────
   const Cleardata = async () => {
@@ -599,7 +987,12 @@ export default function Replay() {
           </div>
 
 
-          <div className='font-medium'>s</div>
+          <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-lg">
+            <Edit3 className="w-4 h-4 text-indigo-600" />
+            <div className="text-sm font-medium text-indigo-700">
+              Current Board: {Math.min(currentBoardInReplay, totalBoards)}/{totalBoards}
+            </div>
+          </div>
 
           {isPlaying && (
             <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
@@ -625,7 +1018,7 @@ export default function Replay() {
       <div className="flex-1 p-4 overflow-hidden">
         <div
           ref={parentRef}
-          className="h-full bg-white rounded-lg shadow-lg border-2 border-gray-300 overflow-hidden"
+          className="relative h-full bg-white rounded-lg shadow-lg border-2 border-gray-300 overflow-hidden"
         >
           <Stage
             width={dimensions.width}
@@ -656,6 +1049,61 @@ export default function Replay() {
               ))}
             </Layer>
           </Stage>
+
+          {activeFrame && (
+            <div className={`pointer-events-none absolute inset-0 flex justify-center p-2 sm:p-4 ${activeFrame.type.toLowerCase().includes('pdf') ? 'items-start' : 'items-center'}`}>
+              <div className={`pointer-events-auto relative overflow-hidden border border-slate-200 bg-white shadow-2xl rounded-xl ${getReplayFrameClassByType(activeFrame.type)}`}>
+                <div className="absolute left-2 top-2 z-10 rounded bg-black/60 px-2 py-1 text-xs text-white">
+                  Frame 1
+                </div>
+
+                {activeFrame.type.toLowerCase().includes('pdf') && (
+                  <button
+                    type="button"
+                    className="absolute right-2 top-2 z-10 rounded bg-black/70 px-2 py-1 text-xs text-white hover:bg-black/80"
+                    onClick={() => setIsPdfAutoFollowEnabled((prev) => !prev)}
+                  >
+                    {isPdfAutoFollowEnabled ? 'Manual scroll' : 'Follow replay'}
+                  </button>
+                )}
+
+                {activeFrame.type.toLowerCase().includes('video') ? (
+                  <>
+                    <div className="absolute left-2 top-10 z-10 rounded bg-black/60 px-2 py-1 text-xs text-white">
+                      Video: {isReplayVideoPlaying ? 'Playing' : 'Paused'}
+                    </div>
+                    <video
+                      ref={replayVideoRef}
+                      src={activeFrameUrl ?? activeFrame.url}
+                      controls
+                      muted={false}
+                      playsInline
+                      onPlay={() => setIsReplayVideoPlaying(true)}
+                      onPause={() => setIsReplayVideoPlaying(false)}
+                      onEnded={() => setIsReplayVideoPlaying(false)}
+                      className="h-full w-full object-contain bg-black"
+                    />
+                  </>
+                ) : activeFrame.type.toLowerCase().includes('pdf') ? (
+                  <PdfScrollViewer
+                    fileUrl={activeFrameUrl ?? activeFrame.url}
+                    mode="replay"
+                    preferIframe={false}
+                    controlledPage={isPdfAutoFollowEnabled ? activePdfPage : undefined}
+                    controlledScrollRatio={isPdfAutoFollowEnabled ? activePdfScrollRatio : undefined}
+                    onScrollRatioChange={() => {
+                      if (isPdfAutoFollowEnabled) {
+                        setIsPdfAutoFollowEnabled(false);
+                      }
+                    }}
+                    className="bg-white"
+                  />
+                ) : (
+                  <img src={activeFrameUrl ?? activeFrame.url} alt={activeFrame.name} className="h-full w-full object-contain bg-black" />
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
