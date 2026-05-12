@@ -187,6 +187,7 @@ export type Stroke = {
   color: string;
   width: number;
   type: string;
+  currentBoard?: number;
   timestamp?: number;
   duration?: number;
   startTime: string;
@@ -240,9 +241,33 @@ export type AudioBatch = {
   size: number;
 };
 
+export interface IPdfPageEvent {
+  page: number;
+  timerDisplay: string;
+  elapsedMs?: number;
+}
+
+export interface IPdfScrollEvent {
+  scrollRatio: number;
+  timerDisplay: string;
+  elapsedMs?: number;
+}
+
+export interface IMediaPlaybackEvent {
+  state: 'play' | 'pause';
+  timerDisplay: string;
+  elapsedMs?: number;
+}
+
 export interface IActiveMedia extends IMedia {
   show: string | null;
   closed: string | null;
+  showMs?: number;
+  closedMs?: number;
   pause?: string;
   play?: string;
+  frameIndex?: 0 | 1;
+  pdfPages?: IPdfPageEvent[];
+  pdfScrollEvents?: IPdfScrollEvent[];
+  playbackEvents?: IMediaPlaybackEvent[];
 }

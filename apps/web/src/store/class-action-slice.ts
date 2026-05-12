@@ -10,6 +10,7 @@ interface classActiveState {
   pauseTime: boolean;
   timeUp: boolean;
   currentBoard: number;
+  availableBoards: number[];
   sessionIdRef: string;
   isRecording: boolean;
   sendQueueRefList: CompressedStroke[];
@@ -26,9 +27,10 @@ const initialState: classActiveState = {
   fillColor: "#000000",
   classDuration: "23:45",
   currentTime: "",
-  pauseTime: false,
+  pauseTime: true,
   timeUp: false,
   currentBoard: 1,
+  availableBoards: [1],
   sessionIdRef: "",
   isRecording: false,
   sendQueueRefList: [],
@@ -68,11 +70,25 @@ const ClassActionSlice = createSlice({
       state.pauseTime = !state.pauseTime;
       state.isRecording = false;
     },
+    setPauseTime: (state, action: PayloadAction<boolean>) => {
+      state.pauseTime = action.payload;
+    },
     setTimeUp: (state) => {
       state.timeUp = true;
     },
     setCurrentBoard: (state, action: PayloadAction<number>) => {
       state.currentBoard = action.payload;
+    },
+    setAvailableBoards: (state, action: PayloadAction<number[]>) => {
+      state.availableBoards = action.payload;
+    },
+    addNewBoard: (state) => {
+      const nextBoardNumber = Math.max(...state.availableBoards, 0) + 1;
+      if (!state.availableBoards.includes(nextBoardNumber)) {
+        state.availableBoards.push(nextBoardNumber);
+        state.availableBoards.sort((a, b) => a - b);
+      }
+      state.currentBoard = nextBoardNumber;
     },
     setIsRecording: (state, action: PayloadAction<boolean>) => {
       state.isRecording = action.payload;
@@ -89,13 +105,17 @@ const ClassActionSlice = createSlice({
     setEndClass: (state) => {
       state.pauseTime = true;
       state.isRecording = false;
+      state.classEnded = true;
+      state.timeUp = true;
     },
 
     setSelectedImage: (state, action: PayloadAction<IActiveMedia>) => {
       state.selectedImage = action.payload;
     },
 
-    // setSelectedImageToNull
+    clearSelectedImage: (state) => {
+      state.selectedImage = null;
+    },
 
     setTimerDisplay: (state, action: PayloadAction<string>) => {
       state.timerDisplay = action.payload;
@@ -106,6 +126,15 @@ const ClassActionSlice = createSlice({
     setTimerElapsed: (state, action: PayloadAction<number>) => {
       state.timerElapsedSeconds = action.payload;
     },
+    resetClassRuntime: (state) => {
+      state.pauseTime = true;
+      state.timeUp = false;
+      state.classEnded = false;
+      state.isRecording = false;
+      state.timerDisplay = "00:00";
+      state.timerRunning = false;
+      state.timerElapsedSeconds = 0;
+    },
   },
 });
 
@@ -114,17 +143,22 @@ export const {
   onSetFillColor,
   holdCurrentTime,
   pauseCurrentTime,
+  setPauseTime,
   setCurrentTime,
   setTimeUp,
   setCurrentBoard,
+  setAvailableBoards,
+  addNewBoard,
   setSessionIdRef,
   setIsRecording,
   setSendQueueRefList,
   clearSendQueueRefList,
   setEndClass,
   setSelectedImage,
+  clearSelectedImage,
   setTimerDisplay,
   setTimerRunning,
   setTimerElapsed,
+  resetClassRuntime,
 } = ClassActionSlice.actions;
 export default ClassActionSlice.reducer;

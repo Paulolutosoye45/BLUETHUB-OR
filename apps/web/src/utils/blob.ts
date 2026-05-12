@@ -13,3 +13,18 @@ export const fetchImageAsBlob = async (
 
   await saveImage(id, blob, type, name);
 };
+
+// Load PDF from public folder
+export const loadPdfAsBlob = async (
+  fileName: string,
+  id: string,
+  name: string,
+): Promise<void> => {
+  const url = `/${fileName}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to load PDF: ${response.statusText}`);
+  }
+  const blob = await response.blob();
+  await saveImage(id, blob, "pdf", name, url);
+};

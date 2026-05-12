@@ -2,19 +2,26 @@ import type { MediaType } from "@/utils/constant";
 import { openDB } from "idb";
 
 const DB_NAME = "image-store";
+const DB_VERSION = 2; // bump to wipe stale blobs cached without sourceUrl
 const STORE = "images";
 
 const getDb = () =>
-    openDB(DB_NAME, 1, {
-        upgrade(db) {
-            db.createObjectStore(STORE, { keyPath: "id" });
+    openDB(DB_NAME, DB_VERSION, {
+        upgrade(db, oldVersion) {
+            // v1 → v2: drop and recreate the store so all old blobs are evicted.
+            if (oldVersion < 2 && db.objectStoreNames.contains(STORE)) {
+                db.deleteObjectStore(STORE);
+            }
+            if (!db.objectStoreNames.contains(STORE)) {
+                db.createObjectStore(STORE, { keyPath: "id" });
+            }
         },
     });
 
 // ✅ CREATE
-export const saveImage = async (id: string, blob: Blob, type: MediaType, name: string): Promise<void> => {
+export const saveImage = async (id: string, blob: Blob, type: MediaType, name: string, sourceUrl?: string): Promise<void> => {
     const db = await getDb();
-    await db.put(STORE, { id, blob, name, createdAt: Date.now(), type });
+    await db.put(STORE, { id, blob, name, createdAt: Date.now(), type, sourceUrl: sourceUrl ?? null });
 };
 
 // ✅ READ ONE
@@ -23,6 +30,13 @@ export const getImage = async (id: string): Promise<string | null> => {
     const record = await db.get(STORE, id);
     if (!record) return null;
     return URL.createObjectURL(record.blob);
+};
+
+// Returns the stored sourceUrl so callers can check if the file changed.
+export const getImageSourceUrl = async (id: string): Promise<string | null> => {
+    const db = await getDb();
+    const record = await db.get(STORE, id);
+    return record?.sourceUrl ?? null;
 };
 
 // ✅ READ ALL

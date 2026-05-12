@@ -2,6 +2,7 @@ import Participants from "@/pages/teacher/note-board/app-bar/participants";
 import Time from "@/pages/teacher/note-board/app-bar/time";
 import Topic from "@/pages/teacher/note-board/app-bar/topic";
 import { PlayCircle } from "lucide-react";
+import BoardSelector from "./board-selector";
 
 const AppBar = () => {
     return (
@@ -11,7 +12,7 @@ const AppBar = () => {
                 <Time />
             </div>
 
-            <div className="flex items-center gap-3 pr-3">
+            <div className="flex items-center gap-8 pr-3">
                 {/* Opens the replay viewer in a new tab so the board stays live */}
                 <button
                     onClick={() => window.open("/replay", "_blank", "noopener")}
@@ -23,6 +24,8 @@ const AppBar = () => {
                     <PlayCircle className="w-4 h-4" />
                     Replay
                 </button>
+
+                <BoardSelector />
 
                 <Participants />
             </div>
