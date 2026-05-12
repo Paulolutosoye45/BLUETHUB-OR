@@ -7,6 +7,8 @@ import {
 import { isMobile, isTablet, isDesktop } from "react-device-detect";
 import { v4 as uuidv4 } from "uuid";
 
+export { getTenantId, X_Tenant_ID } from "./tenant";
+
 export const token = {
   // ── Access token ───────────────────────────────────────────────
   getToken() {
@@ -182,12 +184,17 @@ export const nextTime = (() => {
   let current = 0;
   return () => {
     const result = current;
-    current += 10;
+    current += 10; // 10-second local batches for fine-grained seeking
     return result;
   };
 })();
 
-export const SEND_INTERVAL = 10000;
+// ── Batch Configuration ───────────────────────────────────────────────────────
+// LOCAL_BATCH_MS: Local recording/replay interval (10s for fine seeking)
+// UPLOAD_BATCH_MS: Upload interval (60s for efficiency, configurable)
+export const LOCAL_BATCH_MS = 10_000;   // 10s - seeking granularity
+export const UPLOAD_BATCH_MS = 60_000;  // 60s - upload efficiency
+export const SEND_INTERVAL = LOCAL_BATCH_MS; // Local timer uses 10s
 
 /* ================= HELPERS ================= */
 export const sleep = (ms: number) =>

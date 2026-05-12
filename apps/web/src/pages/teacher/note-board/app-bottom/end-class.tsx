@@ -264,6 +264,8 @@ const EndClass = () => {
   };
 
   // Build manifest from local session and upload results
+  // Note: Stroke batches are uploaded to MongoDB separately via submitBatch endpoint
+  // The manifest references them by index key (lessonId_batchIndex)
   const buildManifest = (
     session: Awaited<ReturnType<typeof getSession>>,
     uploadResults: UploadResults
@@ -272,11 +274,10 @@ const EndClass = () => {
       throw new Error('Session not found');
     }
 
-    const { audioUrls, strokeUrls } = uploadResults;
+    const { audioUrls, strokeBatches } = uploadResults;
 
     // Estimate sizes (we don't have exact sizes in upload results)
     const estimatedAudioSizeBytes = audioUrls.length * 50000; // ~50KB per chunk
-    const estimatedStrokeSizeBytes = strokeUrls.length * 5000; // ~5KB per batch
 
     return {
       version: "2.0",
@@ -299,15 +300,17 @@ const EndClass = () => {
         totalDurationMs: session.recording.totalDurationMs,
         totalDurationFormatted: formatDuration(session.recording.totalDurationMs),
         chunkCount: audioUrls.length,
-        chunkDurationMs: 10000,
+        chunkDurationMs: 60000,        // Upload batch size (60s)
+        seekGranularityMs: 10000,      // Seeking granularity (10s) - for player skip controls
         totalAudioSizeBytes: estimatedAudioSizeBytes,
-        totalStrokeCount: strokeUrls.length,
+        totalStrokeCount: strokeBatches.length,
         boardCount: 1,
+        strokeBatchCount: strokeBatches.length,
       },
+      // Audio chunks (Cloudinary URLs) - 60s (1-minute) each
       chunks: audioUrls.map((audio, idx) => {
-        const matchingStrokes = strokeUrls.find((s) => s.batchIndex === idx);
-        const startMs = idx * 10000;
-        const endMs = startMs + 10000;
+        const startMs = idx * 60000;
+        const endMs = startMs + 60000;
 
         return {
           index: audio.chunkIndex,
@@ -316,20 +319,21 @@ const EndClass = () => {
           audio: {
             url: audio.url,
             mediaId: audio.mediaId,
-            sizeBytes: 50000,
-            durationMs: 10000,
+            sizeBytes: 150000, // ~150KB per 1-minute chunk
+            durationMs: 60000,
           },
-          strokes: matchingStrokes
-            ? {
-                url: matchingStrokes.url,
-                mediaId: matchingStrokes.mediaId,
-                count: 0,
-                sizeBytes: 5000,
-              }
-            : null,
           events: [],
         };
       }),
+      // Stroke batches (stored in MongoDB, referenced by index key)
+      strokeBatches: strokeBatches.map((batch) => ({
+        batchIndex: batch.batchIndex,
+        indexKey: batch.indexKey, // lessonId_batchIndex
+        startMs: batch.batchIndex * 60000, // 1-minute batches
+        endMs: (batch.batchIndex + 1) * 60000,
+        strokeCount: 0, // Will be populated from local data if needed
+        sizeBytes: 5000, // Approximate
+      })),
       mediaAssets: session.mediaEvents.map((m) => ({
         id: m.id,
         name: m.name,
@@ -342,7 +346,7 @@ const EndClass = () => {
           width: session.recording.screenWidth,
           height: session.recording.screenHeight,
         },
-        strokeCount: strokeUrls.length,
+        strokeCount: strokeBatches.length,
       }],
       chapters: session.adjustments.chapters,
     };

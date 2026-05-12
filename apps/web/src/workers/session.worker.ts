@@ -22,7 +22,17 @@ import {
   type LocalSession, type LocalAudioChunk, type LocalStrokeBatch,
 } from '@/utils/constant';
 
-const BATCH_MS = 10_000;
+// ── Batch Configuration ───────────────────────────────────────────────────────
+// LOCAL_BATCH_MS: Granularity for local replay seeking (10s = fine-grained seek)
+// UPLOAD_BATCH_MS: Granularity for upload to reduce API calls (60s = efficient)
+//
+// During recording: strokes/audio saved locally in 10s chunks for smooth seeking
+// During upload: multiple 10s chunks merged into 60s batches for efficiency
+const LOCAL_BATCH_MS = 10_000;   // 10s - for local replay/seeking
+const UPLOAD_BATCH_MS = 60_000;  // 60s - for upload batching
+
+// BATCH_MS controls the local timer tick (used for replay granularity)
+const BATCH_MS = LOCAL_BATCH_MS;
 
 // ── Types for inbound messages ────────────────────────────────────────────────
 
@@ -88,12 +98,16 @@ let pausedDurationMs = 0;
 let isPaused = false;
 let pauseStartMs = 0;
 
-// Stroke accumulator for 1-minute upload batches (separate from 10s local batches)
-const UPLOAD_BATCH_MS = 60_000;
+// Stroke accumulator for upload batches (60s)
+// Local batches are 10s, upload batches are 60s (6 local batches = 1 upload batch)
 let uploadBatchIndex = 0;
 let currentUploadBatchStrokes: CompressedStroke[] = [];
 let uploadBatchStartMs = 0;
 let audioChunkIndex = 0;
+
+// Audio chunk accumulator for merging 10s local chunks into 60s upload chunks
+let currentUploadAudioChunks: Array<{ blob: Blob; batchIndex: number; duration: number }> = [];
+let uploadAudioBatchIndex = 0;
 
 // ── IndexedDB via idb ─────────────────────────────────────────────────────────
 // idb works in workers — it has no DOM dependencies.
@@ -359,50 +373,62 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
         // Warm the connection now so the first write has no cold-start latency
         await getDb();
 
-        // Create LocalSession record if metadata provided (new sync architecture)
+        // Create or update LocalSession record if metadata provided (new sync architecture)
         if (sessionMetadata) {
-          const localSession: LocalSession = {
-            id: sessionId,
-            lessonId: sessionMetadata.lessonId,
-            schoolId: sessionMetadata.schoolId,
-            status: 'recording',
-            teacher: sessionMetadata.teacher,
-            lesson: sessionMetadata.lesson,
-            recording: {
-              startedAt: new Date(sessionStartMs).toISOString(),
-              endedAt: null,
-              totalDurationMs: 0,
-              pausedDurationMs: 0,
-              deviceType: sessionMetadata.deviceType,
-              screenWidth: sessionMetadata.screenWidth,
-              screenHeight: sessionMetadata.screenHeight,
-            },
-            totalAudioChunks: 0,
-            totalStrokeBatches: 0,
-            syncProgress: {
-              audioSent: 0,
-              audioFailed: 0,
-              strokesSent: 0,
-              strokesFailed: 0,
-              manifestSent: false,
-            },
-            adjustments: {
-              trimStartMs: 0,
-              trimEndMs: 0,
-              deletedSections: [],
-              chapters: [],
-            },
-            mediaEvents: [],
-            boardEvents: [],
-            createdAt: new Date().toISOString(),
-            modifiedAt: new Date().toISOString(),
-          };
+          // Check if session already exists (continuation/recovery scenario)
+          const existingSession = await getLocalSession(sessionId);
 
-          try {
-            await createLocalSession(localSession);
-          } catch (err) {
-            // Session may already exist from a previous recording attempt
-            postError(`LocalSession create (may already exist): ${err}`);
+          if (existingSession) {
+            // Update existing session to recording status
+            console.log('[Worker] Continuing existing session, updating status to recording');
+            existingSession.status = 'recording';
+            existingSession.modifiedAt = new Date().toISOString();
+            await updateLocalSession(existingSession);
+          } else {
+            // Create new session record
+            const localSession: LocalSession = {
+              id: sessionId,
+              lessonId: sessionMetadata.lessonId,
+              schoolId: sessionMetadata.schoolId,
+              status: 'recording',
+              teacher: sessionMetadata.teacher,
+              lesson: sessionMetadata.lesson,
+              recording: {
+                startedAt: new Date(sessionStartMs).toISOString(),
+                endedAt: null,
+                totalDurationMs: 0,
+                pausedDurationMs: 0,
+                deviceType: sessionMetadata.deviceType,
+                screenWidth: sessionMetadata.screenWidth,
+                screenHeight: sessionMetadata.screenHeight,
+              },
+              totalAudioChunks: 0,
+              totalStrokeBatches: 0,
+              syncProgress: {
+                audioSent: 0,
+                audioFailed: 0,
+                strokesSent: 0,
+                strokesFailed: 0,
+                manifestSent: false,
+              },
+              adjustments: {
+                trimStartMs: 0,
+                trimEndMs: 0,
+                deletedSections: [],
+                chapters: [],
+              },
+              mediaEvents: [],
+              boardEvents: [],
+              createdAt: new Date().toISOString(),
+              modifiedAt: new Date().toISOString(),
+            };
+
+            try {
+              await createLocalSession(localSession);
+            } catch (err) {
+              // Session may already exist from a previous recording attempt
+              postError(`LocalSession create (may already exist): ${err}`);
+            }
           }
         }
 
@@ -501,11 +527,17 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
 
           console.log('[Worker] Audio chunk:', audioChunkIndex, 'elapsed:', elapsedMs, 'startMs:', startMs, 'endMs:', endMs, 'duration:', duration.toFixed(2) + 's');
 
+          // Calculate which 60s upload batch this 10s chunk belongs to
+          // Chunks 0-5 → uploadBatch 0, chunks 6-11 → uploadBatch 1, etc.
+          const chunksPerUploadBatch = UPLOAD_BATCH_MS / LOCAL_BATCH_MS; // 6
+          const currentUploadBatchIdx = Math.floor(audioChunkIndex / chunksPerUploadBatch);
+
           const audioChunk: LocalAudioChunk = {
             id: crypto.randomUUID(),
             sessionId,
             lessonId: sessionMetadata.lessonId,
-            chunkIndex: audioChunkIndex,
+            chunkIndex: audioChunkIndex,        // 10s local index
+            uploadBatchIndex: currentUploadBatchIdx, // 60s upload batch
             startMs,
             endMs,
             durationMs,

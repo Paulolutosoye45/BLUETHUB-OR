@@ -1,6 +1,7 @@
 import { Button, Input } from "@bluethub/ui-kit"
 import { EllipsisVertical, PlusIcon, Search, X } from "lucide-react"
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { SyllabusCard, type SyllabusCardProps } from "./syllabus-card";
 
 
@@ -75,6 +76,7 @@ const syllabusCards: SyllabusCardProps[] = [
 
 
 const MySyllabus = () => {
+    const navigate = useNavigate();
     const [activeFilter, setActiveFilter] = useState<FilterValue>("");
     const [search, setSearch] = useState("");
 
@@ -132,7 +134,7 @@ const MySyllabus = () => {
                                 </Button>
 
                                 <Button
-                                    // onClick={() => navigate('/admin/registration/class/new')}
+                                    onClick={() => navigate('/teacher/syllabus/create')}
                                     className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white text-xs font-semibold  bg-chestnut shrink-0 transition-opacity hover:opacity-90"
                                 >
                                     <PlusIcon />

@@ -1,7 +1,8 @@
 import { token } from "@/utils";
+import { X_Tenant_ID } from "@/utils/tenant";
 import { API, type TResponse } from ".";
 
-export const X_Tenant_ID = "pearl"
+export { X_Tenant_ID };
 
 export const endpoints = {
   createSchool: "/api/School/createSchool",

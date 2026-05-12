@@ -327,7 +327,8 @@ export interface LocalAudioChunk {
   sessionId: string;
   lessonId: string;
 
-  chunkIndex: number;
+  chunkIndex: number;        // Local 10s chunk index (0, 1, 2, 3, 4, 5, 6, ...)
+  uploadBatchIndex: number;  // 60s upload batch index (0, 0, 0, 0, 0, 0, 1, ...)
 
   startMs: number;
   endMs: number;
@@ -375,6 +376,9 @@ export interface LocalStrokeBatch {
 
   createdAt: string;
   sentAt: string | null;
+
+  // Index key for backend storage: lessonId_batchIndex
+  indexKey?: string;
 }
 
 // ── Session Manifest (for upload to backend) ──────────────────────────────────
