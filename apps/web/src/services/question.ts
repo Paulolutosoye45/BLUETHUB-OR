@@ -1,22 +1,28 @@
 import { API, type TResponse } from ".";
 import { X_Tenant_ID } from "./school";
 
-export enum QuestionTypeEnum {
-  MultipleChoice = 1,
-  ShortAnswer = 2,
-  Essay = 3,
-  TrueOrFalse = 4,
-  FillInTheBlank = 5,
-  ImageBased = 6,
-  BoardBased = 7,
-  Mixed = 8,
-}
+export const QuestionTypeEnum = {
+  MultipleChoice: 1,
+  ShortAnswer: 2,
+  Essay: 3,
+  TrueOrFalse: 4,
+  FillInTheBlank: 5,
+  ImageBased: 6,
+  BoardBased: 7,
+  Mixed: 8,
+} as const;
 
-export enum DifficultyLevelEnum {
-  Easy = 1,
-  Medium = 2,
-  Hard = 3,
-}
+export type QuestionTypeEnum =
+  (typeof QuestionTypeEnum)[keyof typeof QuestionTypeEnum];
+
+export const DifficultyLevelEnum  = {
+  Easy : 1,
+  Medium : 2,
+  Hard : 3,
+} as const 
+
+export type DifficultyLevelEnum =
+  (typeof DifficultyLevelEnum)[keyof typeof DifficultyLevelEnum];
 
 export interface CreateOptionPayload {
   optionLabel: string;
@@ -54,7 +60,11 @@ export interface CreateQuestionResponseData {
 
 export const questionService = {
   createQuestion: (payload: CreateQuestionPayload) =>
-    API.post<TResponse<CreateQuestionResponseData>>("api/Question/createquestions", payload, {
-      headers: { "X-Tenant-ID": X_Tenant_ID },
-    }),
+    API.post<TResponse<CreateQuestionResponseData>>(
+      "api/Question/createquestions",
+      payload,
+      {
+        headers: { "X-Tenant-ID": X_Tenant_ID },
+      },
+    ),
 };
