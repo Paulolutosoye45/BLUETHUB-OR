@@ -167,6 +167,26 @@ export async function getSessionsByStatus(status: string): Promise<LocalSession[
   return (await db()).getAllFromIndex(STORE_SESSIONS, 'status', status);
 }
 
+/**
+ * Get interrupted sessions (recording or paused) for recovery on page refresh.
+ * Returns sessions that were interrupted before being properly saved as draft.
+ */
+export async function getInterruptedSessions(): Promise<LocalSession[]> {
+  const allSessions = await (await db()).getAll(STORE_SESSIONS);
+  return allSessions.filter(s =>
+    s.status === 'recording' || s.status === 'paused'
+  );
+}
+
+/**
+ * Get interrupted session for a specific lesson (for recovery on page load).
+ */
+export async function getInterruptedSessionByLesson(lessonId: string): Promise<LocalSession | undefined> {
+  const store = await db();
+  const sessions = await store.getAllFromIndex(STORE_SESSIONS, 'lessonId', lessonId);
+  return sessions.find(s => s.status === 'recording' || s.status === 'paused');
+}
+
 export async function updateSession(session: LocalSession): Promise<void> {
   session.modifiedAt = new Date().toISOString();
   await (await db()).put(STORE_SESSIONS, session);

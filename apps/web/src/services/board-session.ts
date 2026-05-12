@@ -58,11 +58,14 @@ export interface SessionManifestPayload {
     totalDurationMs: number;
     totalDurationFormatted: string;
     chunkCount: number;
-    chunkDurationMs: number;
+    chunkDurationMs: number;          // Upload batch size (60s)
+    seekGranularityMs: number;        // Seeking granularity (10s) for player skip controls
     totalAudioSizeBytes: number;
     totalStrokeCount: number;
     boardCount: number;
+    strokeBatchCount: number;
   };
+  // Audio chunks (uploaded to Cloudinary)
   chunks: Array<{
     index: number;
     startMs: number;
@@ -73,13 +76,17 @@ export interface SessionManifestPayload {
       sizeBytes: number;
       durationMs: number;
     };
-    strokes: {
-      url: string;
-      mediaId: string;
-      count: number;
-      sizeBytes: number;
-    } | null;
     events: unknown[];
+  }>;
+  // Stroke batches are stored separately in MongoDB via submitBatch endpoint
+  // The manifest only references them by index key
+  strokeBatches: Array<{
+    batchIndex: number;
+    indexKey: string; // lessonId_batchIndex
+    startMs: number;
+    endMs: number;
+    strokeCount: number;
+    sizeBytes: number;
   }>;
   mediaAssets: Array<{
     id: string;
@@ -110,6 +117,16 @@ export interface BoardSessionResponse {
 }
 
 // ── Service ──────────────────────────────────────────────────────────────────
+
+// Response type for fetched stroke batches
+export interface FetchedStrokeBatch {
+  batchIndex: number;
+  startMs: number;
+  endMs: number;
+  strokes: CompressedStroke[];
+  strokeCount: number;
+  boardIndex: number;
+}
 
 export const boardSessionService = {
   /**
@@ -148,6 +165,46 @@ export const boardSessionService = {
       { headers: { 'X-Tenant-ID': X_Tenant_ID } }
     );
     return response.data;
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PLAYBACK ENDPOINTS - For fetching recorded session data
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Get all stroke batches for a session (for replay)
+   * Returns batches sorted by batchIndex
+   */
+  getBatches: async (sessionId: string): Promise<FetchedStrokeBatch[]> => {
+    const response = await API.get<{ data: FetchedStrokeBatch[] }>(
+      `api/board/session/${sessionId}/batches`,
+      { headers: { 'X-Tenant-ID': X_Tenant_ID } }
+    );
+    return response.data.data ?? [];
+  },
+
+  /**
+   * Get a single stroke batch by index key (lessonId_batchIndex)
+   * Used for on-demand loading during playback
+   */
+  getBatchByIndexKey: async (indexKey: string): Promise<FetchedStrokeBatch | null> => {
+    const response = await API.get<{ data: FetchedStrokeBatch }>(
+      `api/board/batch/${indexKey}`,
+      { headers: { 'X-Tenant-ID': X_Tenant_ID } }
+    );
+    return response.data.data ?? null;
+  },
+
+  /**
+   * Get session manifest for replay
+   * Contains audio URLs, stroke batch references, and metadata
+   */
+  getManifest: async (sessionId: string): Promise<SessionManifestPayload | null> => {
+    const response = await API.get<{ data: SessionManifestPayload }>(
+      `api/board/session/${sessionId}/manifest`,
+      { headers: { 'X-Tenant-ID': X_Tenant_ID } }
+    );
+    return response.data.data ?? null;
   },
 };
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { getClass, getAudio } from "@/utils/db";
-import type { CompressedStroke, AudioBatch, IActions } from "@/utils/constant";
-import { ChevronDown, ChevronRight, Database, FileAudio, Pencil, FileJson, RefreshCw } from "lucide-react";
+import { getClass, getAudio, getAllSessions, getAudioChunksBySession, getStrokeBatchesBySession } from "@/utils/db";
+import type { CompressedStroke, AudioBatch, IActions, LocalSession, LocalAudioChunk, LocalStrokeBatch } from "@/utils/constant";
+import { ChevronDown, ChevronRight, Database, FileAudio, Pencil, FileJson, RefreshCw, Upload, HardDrive } from "lucide-react";
 
 interface DecompressedStroke extends Omit<CompressedStroke, 'data'> {
   decompressedData?: number[] | Record<string, unknown>;
@@ -30,15 +30,26 @@ async function decompressStroke(stroke: CompressedStroke): Promise<DecompressedS
   }
 }
 
+// Stats for sync architecture stores
+interface SyncStats {
+  sessions: LocalSession[];
+  audioChunks: LocalAudioChunk[];
+  strokeBatches: LocalStrokeBatch[];
+  totalAudioSize: number;
+  totalStrokeSize: number;
+}
+
 const IdbViewer = () => {
   const [manifest, setManifest] = useState<IActions | null>(null);
   const [strokes, setStrokes] = useState<DecompressedStroke[]>([]);
   const [audio, setAudio] = useState<AudioBatch[]>([]);
+  const [syncStats, setSyncStats] = useState<SyncStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState({
     manifest: true,
     strokes: true,
     audio: true,
+    syncStores: true,
   });
   const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const [expandedStrokes, setExpandedStrokes] = useState<Set<string>>(new Set());
@@ -52,16 +63,39 @@ const IdbViewer = () => {
         setManifest(JSON.parse(raw));
       }
 
-      // Load strokes from IndexedDB
+      // Load strokes from IndexedDB (legacy)
       const allStrokes = await getClass();
       const decompressed = await Promise.all(
         allStrokes.slice(0, 50).map(decompressStroke) // Limit to 50 for performance
       );
       setStrokes(decompressed);
 
-      // Load audio from IndexedDB
+      // Load audio from IndexedDB (legacy)
       const allAudio = await getAudio();
       setAudio(allAudio.slice(0, 20)); // Limit to 20
+
+      // Load sync architecture stores
+      const sessions = await getAllSessions();
+      let allAudioChunks: LocalAudioChunk[] = [];
+      let allStrokeBatches: LocalStrokeBatch[] = [];
+
+      for (const session of sessions) {
+        const chunks = await getAudioChunksBySession(session.id);
+        const batches = await getStrokeBatchesBySession(session.id);
+        allAudioChunks = [...allAudioChunks, ...chunks];
+        allStrokeBatches = [...allStrokeBatches, ...batches];
+      }
+
+      const totalAudioSize = allAudioChunks.reduce((sum, c) => sum + c.sizeBytes, 0);
+      const totalStrokeSize = allStrokeBatches.reduce((sum, b) => sum + b.sizeBytes, 0);
+
+      setSyncStats({
+        sessions,
+        audioChunks: allAudioChunks,
+        strokeBatches: allStrokeBatches,
+        totalAudioSize,
+        totalStrokeSize,
+      });
     } catch (err) {
       console.error("Failed to load IDB data:", err);
     } finally {
@@ -130,21 +164,127 @@ const IdbViewer = () => {
           </button>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        {/* Stats - Legacy */}
+        <div className="grid grid-cols-3 gap-4 mb-4">
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
             <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Manifest Batches</p>
             <p className="text-2xl font-bold text-blue-400">{manifest?.totalBatches ?? 0}</p>
           </div>
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-            <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Strokes in IDB</p>
+            <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Strokes (Legacy)</p>
             <p className="text-2xl font-bold text-emerald-400">{strokes.length}</p>
           </div>
           <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-            <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Audio Batches</p>
+            <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Audio (Legacy)</p>
             <p className="text-2xl font-bold text-amber-400">{audio.length}</p>
           </div>
         </div>
+
+        {/* Stats - Sync Architecture */}
+        {syncStats && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-gradient-to-br from-purple-900/50 to-purple-800/30 rounded-lg p-4 border border-purple-700">
+              <p className="text-purple-300 text-xs uppercase tracking-wider mb-1">Sessions</p>
+              <p className="text-2xl font-bold text-purple-200">{syncStats.sessions.length}</p>
+            </div>
+            <div className="bg-gradient-to-br from-cyan-900/50 to-cyan-800/30 rounded-lg p-4 border border-cyan-700">
+              <p className="text-cyan-300 text-xs uppercase tracking-wider mb-1">Audio Chunks (10s)</p>
+              <p className="text-2xl font-bold text-cyan-200">{syncStats.audioChunks.length}</p>
+              <p className="text-cyan-400 text-xs mt-1">{formatBytes(syncStats.totalAudioSize)}</p>
+            </div>
+            <div className="bg-gradient-to-br from-green-900/50 to-green-800/30 rounded-lg p-4 border border-green-700">
+              <p className="text-green-300 text-xs uppercase tracking-wider mb-1">Stroke Batches (60s)</p>
+              <p className="text-2xl font-bold text-green-200">{syncStats.strokeBatches.length}</p>
+              <p className="text-green-400 text-xs mt-1">{formatBytes(syncStats.totalStrokeSize)}</p>
+            </div>
+            <div className="bg-gradient-to-br from-orange-900/50 to-orange-800/30 rounded-lg p-4 border border-orange-700">
+              <p className="text-orange-300 text-xs uppercase tracking-wider mb-1">Total Memory</p>
+              <p className="text-2xl font-bold text-orange-200">{formatBytes(syncStats.totalAudioSize + syncStats.totalStrokeSize)}</p>
+              <p className="text-orange-400 text-xs mt-1">Audio + Board</p>
+            </div>
+          </div>
+        )}
+
+        {/* Sync Architecture Details */}
+        {syncStats && syncStats.sessions.length > 0 && (
+          <div className="bg-gray-800 rounded-lg border border-gray-700 mb-4 overflow-hidden">
+            <button
+              onClick={() => toggleSection("syncStores")}
+              className="w-full flex items-center gap-2 px-4 py-3 bg-gray-750 hover:bg-gray-700 transition-colors"
+            >
+              {expandedSections.syncStores ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              <Upload className="w-4 h-4 text-purple-400" />
+              <span className="font-semibold">Sync Architecture Stores</span>
+              <span className="text-gray-500 text-xs ml-auto">
+                {syncStats.sessions.length} session(s) | {formatBytes(syncStats.totalAudioSize + syncStats.totalStrokeSize)} total
+              </span>
+            </button>
+
+            {expandedSections.syncStores && (
+              <div className="p-4 border-t border-gray-700 space-y-4">
+                {syncStats.sessions.map((session) => {
+                  const sessionAudio = syncStats.audioChunks.filter(c => c.sessionId === session.id);
+                  const sessionStrokes = syncStats.strokeBatches.filter(b => b.sessionId === session.id);
+                  const audioSize = sessionAudio.reduce((sum, c) => sum + c.sizeBytes, 0);
+                  const strokeSize = sessionStrokes.reduce((sum, b) => sum + b.sizeBytes, 0);
+
+                  return (
+                    <div key={session.id} className="bg-gray-900 rounded-lg border border-gray-700 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <span className="text-purple-300 font-semibold">{session.lesson.topic}</span>
+                          <span className="text-gray-500 text-xs ml-2">({session.status})</span>
+                        </div>
+                        <span className="text-xs text-gray-500">{session.id.slice(0, 8)}...</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                        <div className="bg-gray-800 rounded p-2">
+                          <p className="text-gray-400">Audio Chunks</p>
+                          <p className="text-cyan-300 font-bold">{sessionAudio.length} × 10s</p>
+                          <p className="text-cyan-500">{formatBytes(audioSize)}</p>
+                        </div>
+                        <div className="bg-gray-800 rounded p-2">
+                          <p className="text-gray-400">Stroke Batches</p>
+                          <p className="text-green-300 font-bold">{sessionStrokes.length} × 60s</p>
+                          <p className="text-green-500">{formatBytes(strokeSize)}</p>
+                        </div>
+                        <div className="bg-gray-800 rounded p-2">
+                          <p className="text-gray-400">Duration</p>
+                          <p className="text-white font-bold">{Math.round(session.recording.totalDurationMs / 1000)}s</p>
+                          <p className="text-gray-500">{(session.recording.totalDurationMs / 60000).toFixed(1)} min</p>
+                        </div>
+                        <div className="bg-gray-800 rounded p-2">
+                          <p className="text-gray-400">Total Size</p>
+                          <p className="text-orange-300 font-bold">{formatBytes(audioSize + strokeSize)}</p>
+                          <p className="text-gray-500">Audio + Board</p>
+                        </div>
+                      </div>
+
+                      {/* Sync Status */}
+                      <div className="mt-3 flex gap-2 text-xs">
+                        <span className={`px-2 py-1 rounded ${
+                          sessionAudio.filter(c => c.syncStatus === 'pending').length > 0
+                            ? 'bg-amber-900/50 text-amber-300'
+                            : 'bg-green-900/50 text-green-300'
+                        }`}>
+                          Audio: {sessionAudio.filter(c => c.syncStatus === 'sent').length}/{sessionAudio.length} sent
+                        </span>
+                        <span className={`px-2 py-1 rounded ${
+                          sessionStrokes.filter(b => b.syncStatus === 'pending').length > 0
+                            ? 'bg-amber-900/50 text-amber-300'
+                            : 'bg-green-900/50 text-green-300'
+                        }`}>
+                          Strokes: {sessionStrokes.filter(b => b.syncStatus === 'sent').length}/{sessionStrokes.length} sent
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Manifest Section */}
         <div className="bg-gray-800 rounded-lg border border-gray-700 mb-4 overflow-hidden">

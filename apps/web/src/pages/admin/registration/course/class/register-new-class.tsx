@@ -246,9 +246,14 @@ const filteredMinor = minorSubjects.filter(s =>
                             {/* Header: label + Major/Minor toggle */}
                             <div className="flex items-start justify-between gap-4">
                                 <div>
-                                    <p className="text-xs font-bold text-chestnut">Class — Subjects</p>
+                                    <p className="text-xs font-bold text-chestnut">
+                                        {activeClass ? `Subjects for ${activeClass.label}` : "Class — Subjects"}
+                                    </p>
                                     <p className="text-[10px] text-gray-400 mt-0.5">
-                                        Toggle major and minor classification per subject
+                                        {activeClass
+                                            ? "Select subjects to assign to this class"
+                                            : "Add a class and click on it to assign subjects"
+                                        }
                                     </p>
                                 </div>
                                 <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
@@ -281,7 +286,15 @@ const filteredMinor = minorSubjects.filter(s =>
                             </div>
 
                             {/* Two columns */}
-                            <div className="flex gap-6">
+                            <div className="flex gap-6 relative">
+                                {/* Overlay when no class is selected */}
+                                {!activeClass && selectedClasses.length > 0 && (
+                                    <div className="absolute inset-0 bg-white/80 backdrop-blur-[1px] z-10 flex items-center justify-center rounded-lg">
+                                        <p className="text-sm text-gray-500 font-medium">
+                                            Click on a class to assign subjects
+                                        </p>
+                                    </div>
+                                )}
 
                                 {/* Major column */}
                                 <div className="flex-1 min-w-0">
@@ -291,7 +304,11 @@ const filteredMinor = minorSubjects.filter(s =>
                                             <label
                                                 key={s.id}
                                                 onClick={() => toggleSubject(s.id)}
-                                                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
+                                                className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${
+                                                    activeClass
+                                                        ? "cursor-pointer hover:bg-chestnut/5"
+                                                        : "cursor-not-allowed opacity-60"
+                                                }`}
                                             >
                                                 <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.id) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
                                                     }`}>
@@ -321,7 +338,11 @@ const filteredMinor = minorSubjects.filter(s =>
                                             <label
                                                 key={s.id}
                                                 onClick={() => toggleSubject(s.id)}
-                                                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
+                                                className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors ${
+                                                    activeClass
+                                                        ? "cursor-pointer hover:bg-chestnut/5"
+                                                        : "cursor-not-allowed opacity-60"
+                                                }`}
                                             >
                                                 <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isChecked(s.id) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
                                                     }`}>

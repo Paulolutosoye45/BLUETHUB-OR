@@ -305,11 +305,71 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const preliminaryAnchor = Date.now();
       localStorage.setItem('recordingStartTimerMs', String(Math.round(timerElapsedSeconds * 1000)));
 
-      // Initialise worker with preliminary timestamp (close enough for batch timing)
+      // Build session metadata from activeLesson (for session recovery)
+      let metadata: {
+        lessonId: string;
+        schoolId: string;
+        teacher: { id: string; name: string; email: string };
+        lesson: {
+          topic: string;
+          subTopic: string;
+          aim: string;
+          subjectId: string;
+          subjectName: string;
+          classroomId: string;
+          className: string;
+        };
+        deviceType: string;
+        screenWidth: number;
+        screenHeight: number;
+      } | undefined;
+
+      try {
+        const activeLessonStr = sessionStorage.getItem('activeLesson');
+        const schoolInfoStr = localStorage.getItem('schoolInfo');
+
+        if (activeLessonStr) {
+          const activeLesson = JSON.parse(activeLessonStr);
+          const schoolInfo = schoolInfoStr ? JSON.parse(schoolInfoStr) : {};
+
+          // Get user from localStorage (set by AuthContext)
+          const userStr = localStorage.getItem('user');
+          const user = userStr ? JSON.parse(userStr) : { id: '', displayName: '', email: '' };
+
+          metadata = {
+            lessonId: activeLesson.lesson?.id || `lesson_${sid}`,
+            schoolId: schoolInfo.id || 'unknown',
+            teacher: {
+              id: user.id || '',
+              name: user.displayName || user.firstName || 'Unknown Teacher',
+              email: user.email || '',
+            },
+            lesson: {
+              topic: activeLesson.lesson?.topic || 'Untitled',
+              subTopic: activeLesson.lesson?.subTopic || '',
+              aim: activeLesson.lesson?.aim || '',
+              subjectId: activeLesson.lesson?.subject?.id || '',
+              subjectName: activeLesson.lesson?.subject?.name || 'Subject',
+              classroomId: activeLesson.lesson?.classroom?.id || '',
+              className: activeLesson.lesson?.classroom?.name || 'Class',
+            },
+            deviceType: /mobile/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+            screenWidth: window.innerWidth,
+            screenHeight: window.innerHeight,
+          };
+
+          console.log('[SessionContext] Built metadata for session:', metadata.lessonId);
+        }
+      } catch (err) {
+        console.warn('[SessionContext] Failed to build session metadata:', err);
+      }
+
+      // Initialise worker with preliminary timestamp and metadata
       workerRef.current?.postMessage({
         type:           'INIT',
         sessionId:      sid,
         sessionStartMs: preliminaryAnchor,
+        metadata,
       });
 
       dispatch(setSessionIdRef(sid));
@@ -337,9 +397,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       // Get the existing audio batch count to continue from the right index
       // Import dynamically to avoid circular dependencies
-      const { getAudioBySession } = await import('@/utils/db');
+      const { getAudioBySession, getSession } = await import('@/utils/db');
       const existingAudio = await getAudioBySession(sessionId);
       const existingBatchCount = existingAudio.length;
+      const existingSession = await getSession(sessionId);
 
       console.log('[SessionContext] Found', existingBatchCount, 'existing audio batches');
 
@@ -380,11 +441,43 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       console.log('[SessionContext] Restored sessionStartWallMs:', sessionStartMs, 'batchIndex:', existingBatchCount);
 
-      // Initialize worker with the existing session ID
+      // Build metadata from existing session for the worker
+      let metadata: {
+        lessonId: string;
+        schoolId: string;
+        teacher: { id: string; name: string; email: string };
+        lesson: {
+          topic: string;
+          subTopic: string;
+          aim: string;
+          subjectId: string;
+          subjectName: string;
+          classroomId: string;
+          className: string;
+        };
+        deviceType: string;
+        screenWidth: number;
+        screenHeight: number;
+      } | undefined;
+
+      if (existingSession) {
+        metadata = {
+          lessonId: existingSession.lessonId,
+          schoolId: existingSession.schoolId,
+          teacher: existingSession.teacher,
+          lesson: existingSession.lesson,
+          deviceType: existingSession.recording.deviceType,
+          screenWidth: existingSession.recording.screenWidth,
+          screenHeight: existingSession.recording.screenHeight,
+        };
+      }
+
+      // Initialize worker with the existing session ID and metadata
       workerRef.current?.postMessage({
         type:           'INIT',
         sessionId:      sessionId,
         sessionStartMs: sessionStartMs,
+        metadata,
       });
 
       dispatch(setSessionIdRef(sessionId));

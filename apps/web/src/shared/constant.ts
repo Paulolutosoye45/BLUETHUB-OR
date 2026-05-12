@@ -14,6 +14,7 @@ import MonitorPlayIcon from "@/assets/svg/monitor_play.svg";
 import UploadIcon from "@/assets/svg/upload.svg";
 import BookTextIcon from "@/assets/svg/jam_book.svg";
 import PlayIcon from "@/assets/svg/play.svg";
+import QuizzesIcon from "@/assets/svg/quizzes.svg";
 
 export const TACADEMICLINKS = [
   {
@@ -62,6 +63,11 @@ export const TACADEMICLINKS = [
     icons: AssignmentIcon,
     name: "Question/Assessment",
     path: "/teacher/assessment",
+  },
+  {
+    icons: QuizzesIcon,
+    name: "Question Bank",
+    path: "/teacher/question-bank",
   },
   {
     icons: BookTextIcon,

@@ -1,4 +1,6 @@
-import { Plus } from "lucide-react"
+import { useEffect, useState } from "react";
+import { format } from "date-fns";
+import { Plus, Loader2, Inbox } from "lucide-react";
 import {
     Table,
     TableBody,
@@ -7,16 +9,47 @@ import {
     TableHeader,
     TableRow,
 } from "@bluethub/ui-kit";
+import { teacherService, type AssessmentSubmissionItem } from "@/services/teacher";
 
 const AssessmentSubmissions = () => {
+    const [submissions, setSubmissions] = useState<AssessmentSubmissionItem[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const assessments = [
-        { title: "Mid-term test", type: "Test", subject: "Basic Science", class: "JSS 2A", dueDate: "18 Apr 2026", submitted: 24, total: 30, status: "Active" },
-        { title: "Comprehension quiz", type: "Test", subject: "Basic Science", class: "JSS 2A", dueDate: "18 Apr 2026", submitted: 24, total: 30, status: "Active" },
-        { title: "Ecology assignment", type: "Assignment", subject: "Biology", class: "SSS 1A", dueDate: "20 Apr 2026", submitted: 24, total: 30, status: "Active" },
-        { title: "Matter & states quiz", type: "Quiz", subject: "Basic Science", class: "JSS 2A", dueDate: "20 Apr 2026", submitted: 0, total: 30, status: "Active" },
-        { title: "Matter & states quiz", type: "Quiz", subject: "Basic Science", class: "JSS 2A", dueDate: "20 Apr 2026", submitted: 0, total: 30, status: "Active" },
-    ];
+    useEffect(() => {
+        const fetchSubmissions = async () => {
+            try {
+                const res = await teacherService.getRecentSubmissions({ limit: 10 });
+                if (res.data.isSuccess) {
+                    setSubmissions(res.data.data.submissions);
+                }
+            } catch (err) {
+                console.error("Failed to fetch submissions:", err);
+                setSubmissions([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSubmissions();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="border border-[#E8E8E3] rounded-2xl bg-white overflow-hidden">
+                <div className="border-b border-[#E8E8E3] flex justify-between items-center py-4 px-5">
+                    <div>
+                        <h2 className="text-[#0F0F0E] font-semibold text-sm">Assessment submissions</h2>
+                        <p className="text-[#A8A8A4] font-normal text-xs mt-0.5">
+                            Track student responses and submission status
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-chestnut" />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="border border-[#E8E8E3] rounded-2xl bg-white overflow-hidden">
@@ -34,72 +67,94 @@ const AssessmentSubmissions = () => {
                 </button>
             </div>
 
-            {/* Table */}
-            <Table>
-                <TableHeader>
-                    <TableRow className="hover:bg-transparent bg-[#F4F4F0]">
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wide text-[#A8A8A4] px-5">Assessment</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wide text-[#A8A8A4]">Class</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wide text-[#A8A8A4]">Due Date</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wide text-[#A8A8A4]">Submissions</TableHead>
-                        <TableHead className="text-[10px] font-bold uppercase tracking-wide text-[#A8A8A4]">Status</TableHead>
-                        <TableHead />
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {assessments.map((a, i) => {
-                        const progress = Math.round((a.submitted / a.total) * 100);
-                        const isComplete = progress === 100;
-                        const hasProgress = a.submitted > 0;
+            {/* Empty state */}
+            {submissions.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                        <Inbox className="w-6 h-6 text-gray-400" />
+                    </div>
+                    <p className="text-sm text-gray-500">No recent submissions</p>
+                </div>
+            ) : (
+                /* Table */
+                <Table>
+                    <TableHeader>
+                        <TableRow className="hover:bg-transparent bg-[#F4F4F0]">
+                            <TableHead className="text-[10px] font-bold uppercase tracking-wide text-[#A8A8A4] px-5">Student</TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase tracking-wide text-[#A8A8A4]">Assessment</TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase tracking-wide text-[#A8A8A4]">Submitted</TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase tracking-wide text-[#A8A8A4]">Score</TableHead>
+                            <TableHead className="text-[10px] font-bold uppercase tracking-wide text-[#A8A8A4]">Status</TableHead>
+                            <TableHead />
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {submissions.map((s) => {
+                            const isGraded = s.status === "graded";
 
-                        return (
-                            <TableRow key={i} className="hover:bg-gray-50/60 transition-colors">
-                                {/* Assessment */}
-                                <TableCell className="px-5 py-3">
-                                    <p className="text-[#0F0F0E] font-semibold text-sm leading-tight">{a.title}</p>
-                                    <p className="text-[#A8A8A4] text-[11px] mt-0.5">{a.type} · {a.subject}</p>
-                                </TableCell>
-
-                                {/* Class */}
-                                <TableCell className="text-[#0F0F0E] font-medium text-xs">{a.class}</TableCell>
-
-                                {/* Due date */}
-                                <TableCell className="text-[#0F0F0E] font-medium text-xs">{a.dueDate}</TableCell>
-
-                                {/* Submissions + progress bar */}
-                                <TableCell>
-                                    <div className="space-y-1.5 min-w-[120px]">
-                                        <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full transition-all duration-500 ${isComplete ? "bg-green-500" : hasProgress ? "bg-green-400" : "bg-gray-200"
-                                                    }`}
-                                                style={{ width: `${progress}%` }}
-                                            />
+                            return (
+                                <TableRow key={s.id} className="hover:bg-gray-50/60 transition-colors">
+                                    {/* Student */}
+                                    <TableCell className="px-5 py-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 rounded-full bg-[#EEF1FB] flex items-center justify-center shrink-0 overflow-hidden">
+                                                {s.studentAvatar ? (
+                                                    <img src={s.studentAvatar} alt="" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <span className="text-chestnut font-semibold text-xs">
+                                                        {s.studentName.charAt(0).toUpperCase()}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-[#0F0F0E] font-semibold text-sm leading-tight">{s.studentName}</p>
                                         </div>
-                                        <p className="text-[#A8A8A4] text-[11px]">
-                                            {String(a.submitted).padStart(2, "0")}/{a.total} submitted
-                                        </p>
-                                    </div>
-                                </TableCell>
+                                    </TableCell>
 
-                                {/* Status */}
-                                <TableCell>
-                                    <span className="bg-green-50 text-green-600 text-[11px] font-semibold px-2.5 py-1 rounded-full">
-                                        {a.status}
-                                    </span>
-                                </TableCell>
+                                    {/* Assessment */}
+                                    <TableCell>
+                                        <p className="text-[#0F0F0E] font-medium text-xs">{s.assessmentTitle}</p>
+                                        <p className="text-[#A8A8A4] text-[11px] mt-0.5">{s.subjectName}</p>
+                                    </TableCell>
 
-                                {/* Action */}
-                                <TableCell>
-                                    <button className="border border-[#E8E8E3] hover:border-chestnut/30 hover:text-chestnut text-[#0F0F0E] text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
-                                        Update
-                                    </button>
-                                </TableCell>
-                            </TableRow>
-                        );
-                    })}
-                </TableBody>
-            </Table>
+                                    {/* Submitted date */}
+                                    <TableCell className="text-[#0F0F0E] font-medium text-xs">
+                                        {format(new Date(s.submittedAt), "dd MMM yyyy")}
+                                    </TableCell>
+
+                                    {/* Score */}
+                                    <TableCell>
+                                        {isGraded && s.score !== undefined && s.maxScore !== undefined ? (
+                                            <span className="text-[#0F0F0E] font-semibold text-xs">
+                                                {s.score}/{s.maxScore}
+                                            </span>
+                                        ) : (
+                                            <span className="text-[#A8A8A4] text-xs">—</span>
+                                        )}
+                                    </TableCell>
+
+                                    {/* Status */}
+                                    <TableCell>
+                                        <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${
+                                            isGraded
+                                                ? "bg-green-50 text-green-600"
+                                                : "bg-[#FFF8ED] text-[#7A4D00]"
+                                        }`}>
+                                            {isGraded ? "Graded" : "Pending"}
+                                        </span>
+                                    </TableCell>
+
+                                    {/* Action */}
+                                    <TableCell>
+                                        <button className="border border-[#E8E8E3] hover:border-chestnut/30 hover:text-chestnut text-[#0F0F0E] text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
+                                            {isGraded ? "View" : "Grade"}
+                                        </button>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                </Table>
+            )}
         </div>
     )
 }

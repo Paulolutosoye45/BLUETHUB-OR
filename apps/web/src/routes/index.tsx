@@ -66,9 +66,12 @@ import SubmitLesson from '@/pages/teacher/component/submit-lesson';
 import StartClass from '@/pages/teacher/component/start-class';
 import QuizIndex from '@/pages/teacher/quiz';
 import MySyllabus from '@/pages/teacher/Syllabus/my-syllabus';
+import CreateSyllabus from '@/pages/teacher/Syllabus/create-syllabus';
 import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
 import IdbViewer from '@/pages/dev/idb-viewer';
 import DraftLessons from '@/pages/teacher/drafts';
+import PendingUploads from '@/pages/teacher/pending-uploads';
+import QuestionBankScan from '@/pages/teacher/question-bank';
 
 const router = createBrowserRouter([
     {
@@ -237,7 +240,10 @@ const router = createBrowserRouter([
             },
             { path: "quiz", element: <QuizIndex /> },
             { path: "syllabus", element: <MySyllabus /> },
+            { path: "syllabus/create", element: <CreateSyllabus /> },
             { path: "drafts", element: <DraftLessons /> },
+            { path: "pending-uploads", element: <PendingUploads /> },
+            { path: "question-bank", element: <QuestionBankScan /> },
         ]
     },
 
