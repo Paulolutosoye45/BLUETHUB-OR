@@ -54,15 +54,7 @@ export const TACADEMICLINKS = [
   },
 ];
 
-export const TnavLink = [
-  { name: "Dashboard", path: "/teacher", icons: element },
-  { name: "Calendar", path: "/teacher/calendar", icons: Calendar },
-  { name: "Message", path: "/teacher/message", icons: message },
-];
-export const Tother_menu_Link = [
-  { name: "Settings", path: "/teacher/settings", icons: settingsIcon },
-  { name: "Log Out", path: "#", icons: logoutIcon },
-];
+
 
 export const navLink = [
   { name: "Dashboard", path: "/admin", icons: element },

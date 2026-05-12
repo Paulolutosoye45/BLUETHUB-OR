@@ -10,8 +10,8 @@ import UpcomingDeadlines from "./upcoming-deadlines"
 
 const TeacherDashboard = () => {
   return (
-    <div className="min-h-screen px-6 pb-9">
-      <div className="rounded-2xl overflow-hidden shadow-lg">
+    <div className="">
+      <div className="rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-5 bg-chestnut">
           <h3 className="text-white font-semibold text-sm">Dashboard</h3>
           <button className="text-white">
@@ -19,19 +19,19 @@ const TeacherDashboard = () => {
           </button>
         </div>
 
-        <div className="bg-white p-4 space-y-4">
+        <div className="bg-white p-2 space-y-4 pb-4">
           <TeacherAppBar />
           <Activity />
 
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4">
+          <div className="flex gap-4">
             {/* Left column */}
-            <div className="space-y-4">
+            <div className="space-y-4 flex-1">
               <TodayClasses />
               <AssessmentSubmissions />
             </div>
 
             {/* Right column */}
-            <div className="space-y-4">
+            <div className="space-y-4 shrink-0">
               <PendingReviews />
               <Recordedclass />
               <UpcomingDeadlines />

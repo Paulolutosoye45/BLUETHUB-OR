@@ -21,7 +21,7 @@ const AdminAppbar = () => {
   const schoolProfile = localData.retrieve("schoolInfo") as SchoolInfo | null;
   return (
     <>
-      <div className=" hidden w-full mx-auto border-0 bg-white rounded-lg md:flex h-[89px]  justify-between items-center mt-5 mb-4 py-5  px-7">
+      <div className=" hidden w-full mx-auto border-0 bg-white rounded-lg md:flex h-[89px]  justify-between items-center  py-5  px-7">
         <section>
           <h2 className="font-poppins font-medium text-[15px] leading-tight text-chestnut ">
             Hello, <span className="font-semibold capitalize ">{user?.firstName},</span> Welcome Back!

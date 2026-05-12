@@ -179,7 +179,7 @@ const MyLesson = () => {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="min-h-screen">
+      <div className="p-3 min-h-screen">
         <div className="rounded-t-2xl overflow-hidden shadow-lg">
 
           {/* Header bar */}
