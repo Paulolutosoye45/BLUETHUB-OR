@@ -12,17 +12,12 @@ export const QuestionTypeEnum = {
   Mixed: 8,
 } as const;
 
-export type QuestionTypeEnum =
-  (typeof QuestionTypeEnum)[keyof typeof QuestionTypeEnum];
-
-export const DifficultyLevelEnum  = {
-  Easy : 1,
-  Medium : 2,
-  Hard : 3,
-} as const 
-
-export type DifficultyLevelEnum =
-  (typeof DifficultyLevelEnum)[keyof typeof DifficultyLevelEnum];
+export const DifficultyLevelEnum = {
+  Easy: 1,
+  Medium: 2,
+  Hard: 3,
+  Expert: 4,
+} as const;
 
 export interface CreateOptionPayload {
   optionLabel: string;
@@ -50,6 +45,8 @@ export interface CreateQuestionPayload {
   isScanned: boolean;
   extractedQuestionIndex?: number | null;
   aiConfidenceScore?: string | null;
+  classroomId?: string | null;
+  imageUrl?: string | null;
 }
 
 export interface CreateQuestionResponseData {
