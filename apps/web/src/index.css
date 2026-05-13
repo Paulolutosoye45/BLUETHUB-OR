@@ -2,6 +2,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Irish+Grover&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Winky+Rough:ital,wght@0,300..900;1,300..900&display=swap");
 @import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
 
 @import "tailwindcss";
 @import 'tailwindcss';
@@ -144,6 +145,7 @@
 
 @theme {
   --font-poppins: "Poppins";
+  --font-Instrument : "Instrument Serif", serif;
 }
 
 .font-poppins,
@@ -161,6 +163,8 @@ h6,
 span {
   font-family: "Poppins",
 }
+
+
 
 /* hide scrollbars cross-browser */
 .scrollbar-hide {

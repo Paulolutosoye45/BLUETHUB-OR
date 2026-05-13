@@ -57,7 +57,11 @@ export interface CreateQuestionResponseData {
 
 export const questionService = {
   createQuestion: (payload: CreateQuestionPayload) =>
-    API.post<TResponse<CreateQuestionResponseData>>("api/Question/createquestions", payload, {
-      headers: { "X-Tenant-ID": X_Tenant_ID },
-    }),
+    API.post<TResponse<CreateQuestionResponseData>>(
+      "api/Question/createquestions",
+      payload,
+      {
+        headers: { "X-Tenant-ID": X_Tenant_ID },
+      },
+    ),
 };
