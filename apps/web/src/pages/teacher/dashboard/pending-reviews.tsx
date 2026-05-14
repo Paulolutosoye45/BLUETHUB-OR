@@ -11,7 +11,7 @@ const PendingReviews = () => {
         const fetchReviews = async () => {
             try {
                 const res = await teacherService.getPendingReviews();
-                if (res.data.isSuccess) {
+                if (res.data.status === "successful") {
                     setReviews(res.data.data.items);
                 }
             } catch (err) {

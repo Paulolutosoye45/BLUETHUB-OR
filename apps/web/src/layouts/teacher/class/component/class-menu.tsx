@@ -4,7 +4,8 @@ import Pen from "@/pages/teacher/note-board/class-menu/pen";
 import Select from "@/pages/teacher/note-board/class-menu/select";
 import Shapes from "@/pages/teacher/note-board/class-menu/shapes";
 import { Button, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@bluethub/ui-kit";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft
+  } from "lucide-react";
 import { useState } from "react";
 
 const ClassMenu = () => {

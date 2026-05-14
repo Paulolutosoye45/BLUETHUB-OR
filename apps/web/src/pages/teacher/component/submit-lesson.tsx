@@ -40,6 +40,7 @@ import {
   type DraftLessonPayload,
 } from "@/services/lesson";
 import { schoolService } from "@/services/school";
+import { authService } from "@/services/auth";
 import { useAuthContext } from "@/contexts/auth-context";
 import { localData } from "@/utils";
 import toast from "react-hot-toast";
@@ -490,18 +491,20 @@ function SetQuestionsModal({
 const SubmitLesson = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
-  const isAdmin = user?.roleName === "SuperAdministrator" || user?.roleName === "Administrator";
+  const isAdminRole = user?.roleName === "Administrator" || user?.roleName === "SuperAdministrator" || user?.roleName === "HeadTeacher";
 
   // ── Data State ──
   const [classrooms, setClassrooms] = useState<SelectItem[]>([]);
   const [subjects, setSubjects] = useState<SelectItem[]>([]);
+  const [roleDataClassrooms, setRoleDataClassrooms] = useState<any[]>([]);
   const [topics, setTopics] = useState<SelectItem[]>([]);
   const [subTopics, setSubTopics] = useState<SelectItem[]>([]);
+  const [topicsData, setTopicsData] = useState<any[]>([]);
 
   const [loadingClassrooms, setLoadingClassrooms] = useState(true);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [loadingTopics, setLoadingTopics] = useState(false);
-  const [loadingSubTopics, setLoadingSubTopics] = useState(false);
+  const [loadingSubTopics] = useState(false);
 
   // ── Form State ──
   const [classroomId, setClassroomId] = useState("");
@@ -605,17 +608,6 @@ const SubmitLesson = () => {
     draftRestored.current = true;
   };
 
-  const clearDraftAndReset = () => {
-    if (user?.id) localData.remove(draftKey(user.id));
-    setDraftTimestamp(null);
-    setClassroomId(""); setClassroomLabel("");
-    setSubjectId(""); setSubjectLabel("");
-    setTopicId(""); setTopicLabel("");
-    setSubTopicValue(""); setAim(""); setDescription("");
-    setUploadFiles([]);
-    toast("Draft cleared");
-  };
-
   useEffect(() => {
     if (!user?.id) return;
     const saved = localData.retrieve<LessonDraft>(draftKey(user.id));
@@ -624,15 +616,49 @@ const SubmitLesson = () => {
 
   // ── Data Fetching ──
   useEffect(() => {
-    schoolService.getAllClassRooms()
-      .then((res) => {
-        const raw: Record<string, unknown>[] =
-          (res.data as any)?.data?.classrooms ?? (res.data as any)?.data ?? [];
-        setClassrooms(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
-      })
-      .catch(() => toast.error("Could not load classrooms"))
-      .finally(() => setLoadingClassrooms(false));
-  }, []);
+    if (!user?.id) return;
+
+    const fetchUserData = async () => {
+      try {
+        if (isAdminRole) {
+          const classroomsRes = await schoolService.getAllClassRooms();
+          const raw: Record<string, unknown>[] =
+            (classroomsRes.data as any)?.data?.classrooms ?? (classroomsRes.data as any)?.data ?? [];
+          setClassrooms(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
+          setLoadingClassrooms(false);
+          return;
+        }
+
+        const response = await authService.getUserById(user.id);
+        const userData = (response.data as any)?.data;
+
+        if (!userData) {
+          toast.error("Could not load user data");
+          setLoadingClassrooms(false);
+          return;
+        }
+
+        const classroomsData = userData?.roleData?.classrooms;
+        if (classroomsData && Array.isArray(classroomsData) && classroomsData.length > 0) {
+          setRoleDataClassrooms(classroomsData);
+          setClassrooms(
+            classroomsData.map((c: any, index: number) => ({
+              id: String(c.classroomId),
+              label: c.className || `Classroom ${index + 1}`,
+            }))
+          );
+        } else {
+          setClassrooms([]);
+        }
+        setLoadingClassrooms(false);
+      } catch {
+        toast.error("Could not load user data");
+        setLoadingClassrooms(false);
+      }
+    };
+
+    fetchUserData();
+  }, [user?.id, isAdminRole]);
 
   useEffect(() => {
     if (!classroomId) return;
@@ -640,47 +666,60 @@ const SubmitLesson = () => {
     setTopicId(""); setTopicLabel("");
     setSubTopicValue("");
     setSubjects([]); setTopics([]); setSubTopics([]);
-    setLoadingSubjects(true);
 
-    schoolService.getSubjectsByClassroomId(classroomId)
-      .then((res) => {
-        const raw: Record<string, unknown>[] = (res.data as any)?.data ?? [];
-        setSubjects(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
-      })
-      .catch(() => toast.error("Could not load subjects"))
-      .finally(() => setLoadingSubjects(false));
-  }, [classroomId]);
+    if (isAdminRole) {
+      setLoadingSubjects(true);
+      schoolService.getSubjectsByClassroomId(classroomId)
+        .then((res) => {
+          const raw: Record<string, unknown>[] = (res.data as any)?.data ?? [];
+          setSubjects(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
+        })
+        .catch(() => toast.error("Could not load subjects"))
+        .finally(() => setLoadingSubjects(false));
+      return;
+    }
+
+    if (roleDataClassrooms.length > 0) {
+      const selectedClass = roleDataClassrooms.find(
+        (c: any) => String(c.classroomId) === classroomId
+      );
+      const subjectsData = selectedClass?.subjects;
+      if (subjectsData && Array.isArray(subjectsData) && subjectsData.length > 0) {
+        setSubjects(subjectsData.map((s: any) => ({ id: String(s.subjectId), label: s.subjectName })));
+        return;
+      }
+    }
+
+    setSubjects([]);
+  }, [classroomId, roleDataClassrooms, isAdminRole]);
 
   useEffect(() => {
-    if (!subjectId) return;
+    if (!subjectId || !classroomId) return;
     setTopicId(""); setTopicLabel("");
     setSubTopicValue("");
-    setTopics([]); setSubTopics([]);
+    setTopics([]); setSubTopics([]); setTopicsData([]);
     setLoadingTopics(true);
 
-    lessonService.getTopicsBySubject(subjectId)
+    schoolService.getTopicsWithSubTopics(subjectId, classroomId)
       .then((res) => {
-        const raw: Record<string, unknown>[] = (res.data as any)?.data ?? [];
-        setTopics(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
+        const topics: any[] = (res.data as any)?.data?.topics ?? [];
+        setTopicsData(topics);
+        setTopics(topics.map((t: any) => ({ id: String(t.topicId), label: t.topicName })));
       })
       .catch(() => { setTopics([]); toast.error("Could not load topics"); })
       .finally(() => setLoadingTopics(false));
-  }, [subjectId]);
+  }, [subjectId, classroomId]);
 
   useEffect(() => {
-    if (!topicId) return;
+    if (!topicId) { setSubTopics([]); return; }
     setSubTopicValue("");
-    setSubTopics([]);
-    setLoadingSubTopics(true);
-
-    lessonService.getSubTopicsByTopic(topicId)
-      .then((res) => {
-        const raw: Record<string, unknown>[] = (res.data as any)?.data ?? [];
-        setSubTopics(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
-      })
-      .catch(() => setSubTopics([]))
-      .finally(() => setLoadingSubTopics(false));
-  }, [topicId]);
+    const matched = topicsData.find((t: any) => String(t.topicId) === topicId);
+    const subs: SelectItem[] = (matched?.subTopics ?? []).map((s: any) => ({
+      id: String(s.subTopicId),
+      label: s.name,
+    }));
+    setSubTopics(subs);
+  }, [topicId, topicsData]);
 
   // ── Upload Logic ──
   const runUpload = useCallback(async (uid: string, file: File, sig: CloudinarySignature) => {
@@ -895,7 +934,7 @@ const SubmitLesson = () => {
                     {serverDraftSaved ? "Saved" : "Auto-saved"} {relativeTime(draftTimestamp)}
                   </span>
                 )}
-                {isAdmin && (
+                {isAdminRole && (
                   <span className="hidden md:flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full">
                     <Info className="w-3 h-3" />
                     Admin View

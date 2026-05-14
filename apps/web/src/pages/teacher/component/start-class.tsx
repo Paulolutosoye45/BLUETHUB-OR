@@ -9,9 +9,6 @@ import {
   RefreshCw,
   Inbox,
   AlertCircle,
-  FileText,
-  Clock,
-  User,
 } from "lucide-react";
 import { lessonService, type LessonItem, type LessonForClassDto, type LessonMediaDto } from "@/services/lesson";
 import PreClassModal from "./pre-class-modal";
@@ -24,7 +21,7 @@ const StartClass = () => {
 
   // Pre-class modal state
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [, setSelectedLessonId] = useState<string | null>(null);
   const [lessonDetails, setLessonDetails] = useState<LessonForClassDto | null>(null);
   const [lessonMedia, setLessonMedia] = useState<LessonMediaDto[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);

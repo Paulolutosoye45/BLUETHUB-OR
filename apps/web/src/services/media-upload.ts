@@ -19,12 +19,13 @@ import { API } from './index';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export enum MediaType {
-  Video = 0,
-  Image = 1,
-  Document = 2,
-  Audio = 3,
-}
+export const MediaType = {
+  Video: 0,
+  Image: 1,
+  Document: 2,
+  Audio: 3,
+} as const;
+export type MediaType = typeof MediaType[keyof typeof MediaType];
 
 export interface RequestUploadTokenPayload {
   fileName: string;

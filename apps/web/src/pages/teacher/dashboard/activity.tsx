@@ -5,10 +5,7 @@ import {
   ClipboardList,
   Plus,
   Users,
-  UserRound,
   BookOpen,
-  TrendingUp,
-  Loader2,
   GraduationCap,
 } from "lucide-react";
 import { teacherService, type TeacherDashboardStats } from "@/services/teacher";
@@ -29,7 +26,7 @@ const Activity = () => {
     const fetchStats = async () => {
       try {
         const res = await teacherService.getDashboardStats();
-        if (res.data.isSuccess) {
+        if (res.data.status === "successful") {
           setStats(res.data.data);
         }
       } catch (err) {

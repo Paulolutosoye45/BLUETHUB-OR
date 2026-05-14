@@ -20,8 +20,6 @@ import {
   XCircle,
   ScanLine,
   Plus,
-  MoreVertical,
-  Inbox,
 } from "lucide-react";
 import { Button } from "@bluethub/ui-kit";
 import { cn } from "@/lib/utils";
@@ -122,7 +120,6 @@ interface JobCardProps {
 
 function JobCard({ job, onPreview, onRetry }: JobCardProps) {
   const config = getStatusConfig(job.status);
-  const StatusIcon = config.icon;
   const isPreviewable = job.status === JobStatusEnum.Completed || job.status === JobStatusEnum.PartiallyCompleted;
   const isRetryable = job.status === JobStatusEnum.Failed;
   const isProcessing = job.status === JobStatusEnum.Processing;
@@ -275,10 +272,10 @@ const QuestionBankScan = () => {
         questionScanService.getQuota(),
       ]);
 
-      if (jobsRes.data.isSuccess) {
+      if (jobsRes.data.status === "successful") {
         setJobs(jobsRes.data.data.jobs);
       }
-      if (quotaRes.data.isSuccess) {
+      if (quotaRes.data.status === "successful") {
         setQuota(quotaRes.data.data);
       }
     } catch (err) {
@@ -310,7 +307,7 @@ const QuestionBankScan = () => {
     setLoadingPreview(true);
     try {
       const res = await questionJobService.getJobPreview(jobId);
-      if (res.data.isSuccess) {
+      if (res.data.status === "successful") {
         setPreviewData(res.data.data);
       } else {
         toast.error("Failed to load preview");
@@ -329,7 +326,7 @@ const QuestionBankScan = () => {
   const handleRetry = async (jobId: string) => {
     try {
       const res = await questionJobService.retryJob({ jobId });
-      if (res.data.isSuccess) {
+      if (res.data.status === "successful") {
         toast.success("Job resubmitted");
         loadData();
       } else {

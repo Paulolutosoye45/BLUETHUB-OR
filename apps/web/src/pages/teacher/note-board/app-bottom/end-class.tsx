@@ -36,7 +36,7 @@ const EndClass = () => {
   const [errorMessage, setErrorMessage] = useState("");
 
   // Token-based upload hook
-  const { uploadSession, state: uploadState, abort: abortUpload } = useSessionUpload();
+  const { uploadSession, abort: abortUpload } = useSessionUpload();
 
   // Class hasn't started yet if no time has elapsed
   const classNotStarted = timerElapsedSeconds === 0;
@@ -348,7 +348,11 @@ const EndClass = () => {
         },
         strokeCount: strokeBatches.length,
       }],
-      chapters: session.adjustments.chapters,
+      chapters: session.adjustments.chapters.map((c) => ({
+        title: c.label,
+        startMs: c.timestampMs,
+        endMs: c.timestampMs,
+      })),
     };
   };
 
