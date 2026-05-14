@@ -73,10 +73,10 @@ const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 const ADMIN_ROLES = ["SuperAdministrator", "Administrator"];
 
 const DIFFICULTY_META = [
-  { label: "Easy",   color: "text-emerald-500", fill: "#10b981" },
-  { label: "Medium", color: "text-amber-400",   fill: "#fbbf24" },
-  { label: "Hard",   color: "text-orange-500",  fill: "#f97316" },
-  { label: "Expert", color: "text-red-500",      fill: "#ef4444" },
+  { label: "Easy", color: "text-emerald-500", fill: "#10b981" },
+  { label: "Medium", color: "text-amber-400", fill: "#fbbf24" },
+  { label: "Hard", color: "text-orange-500", fill: "#f97316" },
+  { label: "Expert", color: "text-red-500", fill: "#ef4444" },
 ];
 
 const createDraft = (): QuestionDraft => ({
@@ -117,15 +117,13 @@ const SelectDropdown = ({
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
-          className={`w-full justify-between font-Poppins text-sm font-medium py-5 px-4 rounded-lg border border-black/20 hover:border-chestnut transition-all duration-200 ${
-            value ? "text-chestnut" : "text-[#9A9A9A]"
-          } ${className}`}
+          className={`w-full justify-between font-Poppins text-sm font-medium py-5 px-4 rounded-lg border border-black/20 hover:border-chestnut transition-all duration-200 ${value ? "text-chestnut" : "text-[#9A9A9A]"
+            } ${className}`}
         >
           <span className="truncate">{value || placeholder}</span>
           <ChevronDown
-            className={`w-4 h-4 text-slate-400 shrink-0 ml-2 transition-transform duration-300 ${
-              open ? "rotate-180" : ""
-            }`}
+            className={`w-4 h-4 text-slate-400 shrink-0 ml-2 transition-transform duration-300 ${open ? "rotate-180" : ""
+              }`}
           />
         </Button>
       </DropdownMenuTrigger>
@@ -138,11 +136,10 @@ const SelectDropdown = ({
           {options.map((opt) => (
             <DropdownMenuItem
               key={opt}
-              className={`font-Poppins text-sm font-medium py-2.5 px-3.5 rounded-md cursor-pointer transition-all duration-150 ${
-                value === opt
+              className={`font-Poppins text-sm font-medium py-2.5 px-3.5 rounded-md cursor-pointer transition-all duration-150 ${value === opt
                   ? "bg-indigo-50 text-indigo-500"
                   : "text-slate-600 hover:bg-slate-50"
-              }`}
+                }`}
               onClick={() => onSelect(opt)}
             >
               <div className="flex items-center justify-between w-full">
@@ -185,9 +182,8 @@ const ApiDropdown = ({
       <DropdownMenuTrigger asChild disabled={disabled || loading}>
         <Button
           variant="outline"
-          className={`w-full justify-between font-Poppins text-sm font-medium py-5 px-4 rounded-lg border border-black/20 hover:border-chestnut transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
-            selected ? "text-chestnut" : "text-[#9A9A9A]"
-          } ${className}`}
+          className={`w-full justify-between font-Poppins text-sm font-medium py-5 px-4 rounded-lg border border-black/20 hover:border-chestnut transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${selected ? "text-chestnut" : "text-[#9A9A9A]"
+            } ${className}`}
         >
           {loading ? (
             <span className="flex items-center gap-2 text-slate-400">
@@ -198,9 +194,8 @@ const ApiDropdown = ({
             <span className="truncate">{selected?.name || placeholder}</span>
           )}
           <ChevronDown
-            className={`w-4 h-4 text-slate-400 shrink-0 ml-2 transition-transform duration-300 ${
-              open ? "rotate-180" : ""
-            }`}
+            className={`w-4 h-4 text-slate-400 shrink-0 ml-2 transition-transform duration-300 ${open ? "rotate-180" : ""
+              }`}
           />
         </Button>
       </DropdownMenuTrigger>
@@ -218,11 +213,10 @@ const ApiDropdown = ({
             items.map((item) => (
               <DropdownMenuItem
                 key={item.id}
-                className={`font-Poppins text-sm font-medium py-2.5 px-3.5 rounded-md cursor-pointer transition-all duration-150 ${
-                  value === item.id
+                className={`font-Poppins text-sm font-medium py-2.5 px-3.5 rounded-md cursor-pointer transition-all duration-150 ${value === item.id
                     ? "bg-indigo-50 text-indigo-500"
                     : "text-slate-600 hover:bg-slate-50"
-                }`}
+                  }`}
                 onClick={() => onSelect(item)}
               >
                 <div className="flex items-center justify-between w-full">
@@ -285,11 +279,10 @@ const StarPicker = ({
 
         {/* Label pill */}
         <span
-          className={`text-sm font-semibold px-3 py-1 rounded-full transition-all duration-200 ${
-            meta
+          className={`text-sm font-semibold px-3 py-1 rounded-full transition-all duration-200 ${meta
               ? `${meta.color} bg-current/10`
               : "text-slate-300"
-          }`}
+            }`}
           style={meta ? { backgroundColor: `${meta.fill}18` } : {}}
         >
           {meta ? meta.label : "Select difficulty"}
@@ -357,21 +350,19 @@ const QuestionCard = ({
 
   return (
     <div
-      className={`border rounded-2xl overflow-hidden transition-all duration-300 ${
-        draft.isPublished
+      className={`border rounded-2xl overflow-hidden transition-all duration-300 ${draft.isPublished
           ? "border-emerald-300 bg-emerald-50/30"
           : "border-[#29238280]"
-      }`}
+        }`}
     >
       {/* Card Header */}
       <div className="flex items-center justify-between px-4 sm:px-6 pt-4 pb-3 border-b border-[#D9D9D9] bg-white/60">
         <div className="flex items-center gap-3">
           <span
-            className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0 ${
-              draft.isPublished
+            className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0 ${draft.isPublished
                 ? "bg-emerald-500 text-white"
                 : "bg-chestnut/10 text-chestnut"
-            }`}
+              }`}
           >
             {draft.isPublished ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : index + 1}
           </span>
@@ -507,19 +498,17 @@ const QuestionCard = ({
                 return (
                   <div
                     key={opt.key}
-                    className={`flex items-center gap-3 rounded-xl border px-3 py-1 transition-all duration-200 ${
-                      isCorrect ? "border-emerald-400 bg-emerald-50" : "border-black/10 bg-white"
-                    }`}
+                    className={`flex items-center gap-3 rounded-xl border px-3 py-1 transition-all duration-200 ${isCorrect ? "border-emerald-400 bg-emerald-50" : "border-black/10 bg-white"
+                      }`}
                   >
                     {/* Checkbox */}
                     <button
                       type="button"
                       onClick={() => toggleCorrectAnswer(opt.key)}
-                      className={`shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-150 cursor-pointer ${
-                        isCorrect
+                      className={`shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all duration-150 cursor-pointer ${isCorrect
                           ? "bg-emerald-500 border-emerald-500"
                           : "border-slate-300 bg-white hover:border-emerald-400"
-                      }`}
+                        }`}
                       title="Mark as correct"
                     >
                       {isCorrect && (
@@ -529,9 +518,8 @@ const QuestionCard = ({
 
                     {/* Key badge */}
                     <span
-                      className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                        isCorrect ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-500"
-                      }`}
+                      className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${isCorrect ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-500"
+                        }`}
                     >
                       {opt.key}
                     </span>
@@ -582,11 +570,10 @@ const QuestionCard = ({
                     <button
                       key={opt}
                       onClick={() => onUpdate({ correctAnswers: [opt] })}
-                      className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 transition-all duration-200 cursor-pointer ${
-                        isCorrect
+                      className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 transition-all duration-200 cursor-pointer ${isCorrect
                           ? "border-emerald-500 bg-emerald-50 text-emerald-700"
                           : "border-slate-100 bg-slate-50 text-slate-500 hover:border-slate-200"
-                      }`}
+                        }`}
                     >
                       {isCorrect && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
                       {opt}
@@ -688,7 +675,7 @@ const CreateQuizQuestion = () => {
   // ── Board question saved → publish it immediately then add to list ───────
   const handleBoardSaved = async (result: BoardQuestionResult) => {
     if (isAdmin) {
-      if (!selectedClassId)   { toast.error("Please select a class.");   return; }
+      if (!selectedClassId) { toast.error("Please select a class."); return; }
       if (!selectedSubjectId) { toast.error("Please select a subject."); return; }
     } else if (!effectiveSubjectId) {
       toast.error("Subject is missing.");
@@ -732,6 +719,8 @@ const CreateQuizQuestion = () => {
         difficultyLevel: result.difficultyLevel,
         isSubmitting: false,
         isPublished: true,
+        imagePreview: null,  // ← add this
+        imageFile: null,
       };
       setDrafts((prev) => [...prev, boardDraft]);
       setQuizType("questions");
@@ -747,17 +736,17 @@ const CreateQuizQuestion = () => {
   const toQuestionTypeEnum = (qt: QuestionType): number => {
     switch (qt) {
       case "Multiple Choice": return QuestionTypeEnum.MultipleChoice;
-      case "True/False":      return QuestionTypeEnum.TrueOrFalse;
-      case "Short Answer":    return QuestionTypeEnum.ShortAnswer;
-      case "Essay":           return QuestionTypeEnum.Essay;
-      default:                return QuestionTypeEnum.ShortAnswer;
+      case "True/False": return QuestionTypeEnum.TrueOrFalse;
+      case "Short Answer": return QuestionTypeEnum.ShortAnswer;
+      case "Essay": return QuestionTypeEnum.Essay;
+      default: return QuestionTypeEnum.ShortAnswer;
     }
   };
 
   const buildOptionsPayload = (draft: QuestionDraft): CreateOptionPayload[] => {
     if (draft.questionType === "True/False") {
       return [
-        { optionLabel: "A", optionText: "True",  isCorrect: draft.correctAnswers.includes("True"),  orderIndex: 1 },
+        { optionLabel: "A", optionText: "True", isCorrect: draft.correctAnswers.includes("True"), orderIndex: 1 },
         { optionLabel: "B", optionText: "False", isCorrect: draft.correctAnswers.includes("False"), orderIndex: 2 },
       ];
     }
@@ -806,8 +795,8 @@ const CreateQuizQuestion = () => {
   const handlePublishAll = async () => {
     // Validate context
     if (isAdmin) {
-      if (!selectedClassId)    { toast.error("Please select a class.");   return; }
-      if (!selectedSubjectId)  { toast.error("Please select a subject."); return; }
+      if (!selectedClassId) { toast.error("Please select a class."); return; }
+      if (!selectedSubjectId) { toast.error("Please select a subject."); return; }
     } else if (!effectiveSubjectId) {
       toast.error("Subject is missing. Please start from Assessment subject selection.");
       return;

@@ -10,7 +10,7 @@ import { questionJobService, type JobQuestionType } from "@/services/question-jo
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface Subject { id: string; name: string; }
-interface Classroom { id: string; name: string; }
+// interface Classroom { id: string; name: string; }
 
 // ── Small helpers ──────────────────────────────────────────────────────────
 const Field = ({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) => (
