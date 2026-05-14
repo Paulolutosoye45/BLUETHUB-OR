@@ -6,6 +6,7 @@ import TodayClasses from "./today-classes"
 import AssessmentSubmissions from "./assessment-submissions"
 import PendingReviews from "./pending-reviews"
 import UpcomingDeadlines from "./upcoming-deadlines"
+import PendingUploadsCard from "./pending-uploads-card"
 
 
 const TeacherDashboard = () => {
@@ -21,6 +22,7 @@ const TeacherDashboard = () => {
 
         <div className="bg-white p-2 space-y-4 pb-4">
           <TeacherAppBar />
+          <PendingUploadsCard />
           <Activity />
 
           <div className="flex gap-4">

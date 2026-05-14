@@ -51,11 +51,7 @@ const Media = () => {
     },
   });
 
-  useEffect(() => {
-    timer.start()
-  })
-
-  // console.log(timer.displayTime)
+  // Timer is controlled by ClassBottom Start/Pause button - not auto-started here
   const dispatch = useDispatch();
   const { sendMediaShow, sendMediaHide } = useSession();
   // ✅ Load media AND auto-cache to IndexedDB on mount

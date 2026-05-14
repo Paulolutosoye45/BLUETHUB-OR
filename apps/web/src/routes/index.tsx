@@ -63,8 +63,10 @@ import ClassviewAll from '@/pages/admin/registration/course/class/class-view-all
 import LessonApproval from '@/pages/admin/dashboard/lesson-approval';
 import MyLesson from '@/pages/teacher/component/my-lesson';
 import SubmitLesson from '@/pages/teacher/component/submit-lesson';
+import StartClass from '@/pages/teacher/component/start-class';
 import QuizIndex from '@/pages/teacher/quiz';
 import MySyllabus from '@/pages/teacher/Syllabus/my-syllabus';
+import CreateSyllabus from '@/pages/teacher/Syllabus/create-syllabus';
 import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
 import CreateSyllabus from '@/pages/teacher/Syllabus/create-syllabus';
 
@@ -98,6 +100,24 @@ const router = createBrowserRouter([
     {
         path: "teacher/board",
         element: <ClassRoom />,
+    },
+
+    // ── Dev routes (no auth) ─────────────────────────────────────────────────
+    {
+        path: "/dev/lesson-approval",
+        element: <LessonApproval />,
+    },
+    {
+        path: "/dev/submit-lesson",
+        element: <SubmitLesson />,
+    },
+    {
+        path: "/dev/start-class",
+        element: <StartClass />,
+    },
+    {
+        path: "/dev/idb",
+        element: <IdbViewer />,
     },
 
     //  admin route
@@ -197,6 +217,7 @@ const router = createBrowserRouter([
             { path: "assessment", element: <Assessment /> },
             { path: "my-lessons", element: <MyLesson /> },
             { path: "submit-lesson", element: <SubmitLesson /> },
+            { path: "start-class", element: <StartClass /> },
             { path: "assessment/createQuiz", element: <CreateQuizQuestion /> },
             { path: "assessment/questionlist", element: <TopicQuestionList /> },
             { path: "assessment/upload-scan", element: <UploadScan /> },

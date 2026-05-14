@@ -2,8 +2,7 @@ import type { RootState } from "@/store";
 import { setPauseTime } from "@/store/class-action-slice";
 import { Button } from "@bluethub/ui-kit";
 import { useDispatch, useSelector } from "react-redux";
-import PlayIcon from "@/assets/svg/play.svg?react";
-import PauseIcon from "@/assets/svg/pause.svg?react";
+import { Play, Pause, Square } from "lucide-react";
 import EndClass from "@/pages/teacher/note-board/app-bottom/end-class";
 import Audio from "./audio";
 import toast from 'react-hot-toast';
@@ -14,8 +13,10 @@ const ClassBottom = () => {
     const dispatch = useDispatch();
     const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
     const pauseTime = useSelector((state: RootState) => state.action.pauseTime);
+    const sessionIdRef = useSelector((state: RootState) => state.action.sessionIdRef);
+    const isRecording = useSelector((state: RootState) => state.action.isRecording);
     const timer = useGlobalTimer({});
-    const { stopRecording } = useSession();
+    const { startRecording, continueSession, pauseRecording, resumeRecording } = useSession();
 
     const controlState: "start" | "pause" | "resume" = !pauseTime
         ? "pause"
@@ -26,46 +27,103 @@ const ClassBottom = () => {
 
     const timeHanlder = async () => {
         if (!pauseTime) {
-            // Pausing class should also mute mic for replay consistency.
-            stopRecording();
+            console.log('[ClassBottom] Pausing class');
             timer.pause();
+            pauseRecording();
             dispatch(setPauseTime(true));
-            toast.success('time has paused');
+            toast.success('Class paused');
             return;
         }
 
-        timer.start();
-        dispatch(setPauseTime(false));
-        if (timerElapsedSeconds > 0) {
-            toast.success('time has resumed');
+        const isFirstStart = timerElapsedSeconds === 0;
+        const isContinuingFromDraft = !isRecording && timerElapsedSeconds > 0 && sessionIdRef;
+
+        if (isFirstStart) {
+            console.log('[ClassBottom] Starting class for first time');
+            await startRecording();
+            timer.start();
+            dispatch(setPauseTime(false));
+            toast.success('Class started — click mic to unmute');
+        } else if (isContinuingFromDraft) {
+            console.log('[ClassBottom] Continuing from saved draft, sessionId:', sessionIdRef);
+            const elapsedMs = Math.round(timerElapsedSeconds * 1000);
+            const pausedMs = parseInt(localStorage.getItem('totalPausedMs') || '0', 10);
+            await continueSession(sessionIdRef, elapsedMs, pausedMs);
+            timer.start();
+            dispatch(setPauseTime(false));
+            toast.success('Recording continued — click mic to unmute');
         } else {
-            toast.success('class has started');
+            console.log('[ClassBottom] Resuming class');
+            resumeRecording();
+            timer.start();
+            dispatch(setPauseTime(false));
+            toast.success('Class resumed');
         }
     }
 
+    // Button colors based on state
+    const buttonStyles = {
+        start: "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 shadow-emerald-200",
+        pause: "bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 shadow-amber-200",
+        resume: "bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 shadow-blue-200",
+    };
+
     return (
-        <div className="relative z-50 pointer-events-auto flex flex-col items-center gap-2.5 rounded-full border border-slate-200/80 bg-white/90 p-2.5 shadow-xl backdrop-blur-sm">
+        <div className="
+            relative z-50 pointer-events-auto
+            flex flex-col items-center gap-2
+            p-2.5
+            rounded-xl
+            bg-white/95 backdrop-blur-md
+            border border-gray-200
+            shadow-lg
+        ">
+            {/* Main Control Button */}
             <Button
                 onClick={timeHanlder}
                 title={controlLabel}
                 aria-label={controlLabel}
-                className="size-10 cursor-pointer rounded-full bg-[#B1432E] text-white shadow-md transition-all duration-200 hover:bg-[#9B3A28]"
+                className={`
+                    w-10 h-10
+                    rounded-full
+                    text-white
+                    shadow-md
+                    transition-all duration-200
+                    hover:scale-105 active:scale-95
+                    ${buttonStyles[controlState]}
+                `}
             >
                 <span className="flex items-center justify-center">
                     {controlState === "pause" ? (
-                        <PauseIcon className="size-5 text-white" />
+                        <Pause className="w-4 h-4" fill="currentColor" />
                     ) : (
-                        <PlayIcon className="size-5 text-white" />
+                        <Play className="w-4 h-4" fill="currentColor" />
                     )}
                 </span>
             </Button>
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+
+            {/* Control Label */}
+            <span className={`
+                text-[10px] font-semibold uppercase tracking-wide
+                ${controlState === "start" ? "text-emerald-600" :
+                  controlState === "pause" ? "text-amber-600" : "text-blue-600"}
+            `}>
                 {controlLabel}
             </span>
+
+            {/* Divider */}
+            <div className="w-8 h-px bg-gray-200" />
+
+            {/* End Class Button */}
             <EndClass />
+
+            {/* Divider */}
+            <div className="w-8 h-px bg-gray-200" />
+
+            {/* Audio Control */}
             <Audio />
         </div>
     );
 }
 
-export default ClassBottom
+export default ClassBottom;

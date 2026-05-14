@@ -12,6 +12,17 @@ let globalStartTimeMs: number | null = null;
 let globalElapsedSeconds = 0;
 let globalTargetSeconds: number | null = null;
 
+// Force reset all global timer state - call this on page mount
+export function forceResetGlobalTimer() {
+  if (globalIntervalRef) {
+    clearInterval(globalIntervalRef);
+    globalIntervalRef = null;
+  }
+  globalStartTimeMs = null;
+  globalElapsedSeconds = 0;
+  globalTargetSeconds = null;
+}
+
 export const useGlobalTimer = ({ onTargetReached }: UseGlobalTimerProps = {}) => {
   const dispatch = useDispatch();
 
@@ -98,12 +109,27 @@ export const useGlobalTimer = ({ onTargetReached }: UseGlobalTimerProps = {}) =>
   }, []);
 
   const reset = useCallback(() => {
-    stop();
+    // Stop any running interval
+    if (globalIntervalRef) {
+      clearInterval(globalIntervalRef);
+      globalIntervalRef = null;
+    }
+    // Reset all global state
+    globalStartTimeMs = null;
     globalElapsedSeconds = 0;
     globalTargetSeconds = null;
+    // Reset Redux state
     dispatch(setTimerDisplay("00:00"));
     dispatch(setTimerElapsed(0));
-  }, [stop]);
+    dispatch(setTimerRunning(false));
+  }, [dispatch]);
+
+  // Set initial elapsed time (for continuing from a saved draft)
+  const setInitialTime = useCallback((seconds: number) => {
+    globalElapsedSeconds = seconds;
+    dispatch(setTimerDisplay(formatTime(seconds)));
+    dispatch(setTimerElapsed(seconds));
+  }, [dispatch]);
 
   // Called from EndClass — stops timer globally, every subscriber sees it
   const endClass = useCallback(() => {
@@ -111,5 +137,5 @@ export const useGlobalTimer = ({ onTargetReached }: UseGlobalTimerProps = {}) =>
     dispatch(setTimeUp());
   }, [stop]);
 
-  return { start, pause, stop, reset, endClass, isRunning, timerDisplay };
+  return { start, pause, stop, reset, endClass, setInitialTime, isRunning, timerDisplay };
 };

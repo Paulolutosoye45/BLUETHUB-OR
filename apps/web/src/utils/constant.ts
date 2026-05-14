@@ -211,10 +211,19 @@ export interface IActions {
 
 export const MEDIA_STORAGE_KEY = "MEDIA_INSTANCES";
 
-export const DB_NAME = "MyDB";
-export const DB_VERSION = 4; // Incremented to create both stores
+export const DB_NAME = "BluethubClassroom";
+export const DB_VERSION = 7;
 export const STORE_CLASS = "CLASS";
 export const STORE_AUDIO = "Audio";
+export const STORE_SESSIONS = "Sessions";
+export const STORE_AUDIO_CHUNKS = "AudioChunks";
+export const STORE_STROKE_BATCHES = "StrokeBatches";
+
+// ── Sync Status Types ─────────────────────────────────────────────────────────
+
+export type SyncStatus = "pending" | "uploading" | "sent" | "failed";
+
+export type SessionStatus = "recording" | "paused" | "completed" | "draft" | "publishing" | "published" | "failed";
 
 export type CompressedStroke = {
   id: string;
@@ -240,6 +249,218 @@ export type AudioBatch = {
   duration: number;
   size: number;
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// NEW SYNC ARCHITECTURE TYPES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Local Session Record ──────────────────────────────────────────────────────
+
+export interface LocalSession {
+  id: string;
+  lessonId: string;
+  schoolId: string;
+
+  status: SessionStatus;
+
+  teacher: {
+    id: string;
+    name: string;
+    email: string;
+  };
+
+  lesson: {
+    topic: string;
+    subTopic: string;
+    aim: string;
+    subjectId: string;
+    subjectName: string;
+    classroomId: string;
+    className: string;
+  };
+
+  recording: {
+    startedAt: string;
+    endedAt: string | null;
+    totalDurationMs: number;
+    pausedDurationMs: number;
+    deviceType: string;
+    screenWidth: number;
+    screenHeight: number;
+  };
+
+  totalAudioChunks: number;
+  totalStrokeBatches: number;
+
+  syncProgress: {
+    audioSent: number;
+    audioFailed: number;
+    strokesSent: number;
+    strokesFailed: number;
+    manifestSent: boolean;
+  };
+
+  adjustments: {
+    trimStartMs: number;
+    trimEndMs: number;
+    deletedSections: Array<{ startMs: number; endMs: number }>;
+    chapters: Array<{ timestampMs: number; label: string }>;
+  };
+
+  mediaEvents: IActiveMedia[];
+  boardEvents: Array<{
+    id: string;
+    type: "switch";
+    timestampMs: number;
+    fromBoard: number;
+    toBoard: number;
+  }>;
+
+  createdAt: string;
+  modifiedAt: string;
+}
+
+// ── Audio Chunk with Sync Status ──────────────────────────────────────────────
+
+export interface LocalAudioChunk {
+  id: string;
+  sessionId: string;
+  lessonId: string;
+
+  chunkIndex: number;        // Local 10s chunk index (0, 1, 2, 3, 4, 5, 6, ...)
+  uploadBatchIndex: number;  // 60s upload batch index (0, 0, 0, 0, 0, 0, 1, ...)
+
+  startMs: number;
+  endMs: number;
+  durationMs: number;
+
+  blob: Blob;
+  mimeType: string;
+  sizeBytes: number;
+
+  syncStatus: SyncStatus;
+  cloudinaryUrl: string | null;
+  cloudinaryPublicId: string | null;
+
+  uploadAttempts: number;
+  lastAttemptAt: string | null;
+  lastError: string | null;
+
+  isDeleted: boolean;
+
+  createdAt: string;
+  sentAt: string | null;
+}
+
+// ── Stroke Batch with Sync Status ─────────────────────────────────────────────
+
+export interface LocalStrokeBatch {
+  id: string;
+  sessionId: string;
+  lessonId: string;
+
+  batchIndex: number;
+
+  startMs: number;
+  endMs: number;
+
+  strokes: CompressedStroke[];
+  strokeCount: number;
+  sizeBytes: number;
+
+  syncStatus: SyncStatus;
+
+  uploadAttempts: number;
+  lastAttemptAt: string | null;
+  lastError: string | null;
+
+  createdAt: string;
+  sentAt: string | null;
+
+  // Index key for backend storage: lessonId_batchIndex
+  indexKey?: string;
+}
+
+// ── Session Manifest (for upload to backend) ──────────────────────────────────
+
+export interface SessionManifest {
+  version: string;
+
+  session: {
+    id: string;
+    lessonId: string;
+    schoolId: string;
+    recordedAt: string;
+    publishedAt: string;
+    teacher: { id: string; name: string };
+  };
+
+  lesson: {
+    topic: string;
+    subTopic: string;
+    aim: string;
+    subject: { id: string; name: string };
+    classroom: { id: string; name: string };
+  };
+
+  stats: {
+    totalDurationMs: number;
+    totalDurationFormatted: string;
+    chunkCount: number;
+    chunkDurationMs: number;
+    totalAudioSizeBytes: number;
+    totalStrokeCount: number;
+    boardCount: number;
+  };
+
+  chunks: Array<{
+    index: number;
+    startMs: number;
+    endMs: number;
+    audio: {
+      url: string;
+      sizeBytes: number;
+      durationMs: number;
+    };
+    strokes: {
+      count: number;
+      sizeBytes: number;
+    } | null;
+    events: Array<{
+      type: string;
+      timestampMs: number;
+      [key: string]: unknown;
+    }>;
+  }>;
+
+  mediaAssets: Array<{
+    id: string;
+    name: string;
+    type: string;
+    url: string;
+  }>;
+
+  boards: Array<{
+    index: number;
+    dimensions: { width: number; height: number };
+    strokeCount: number;
+  }>;
+
+  chapters: Array<{
+    timestampMs: number;
+    label: string;
+  }>;
+}
+
+// ── Cloudinary Config ─────────────────────────────────────────────────────────
+
+export interface CloudinaryUploadConfig {
+  cloudName: string;
+  apiKey: string;
+  signature: string;
+  timestamp: number;
+  folder: string;
+}
 
 export interface IPdfPageEvent {
   page: number;
