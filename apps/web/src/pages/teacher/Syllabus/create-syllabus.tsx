@@ -1,455 +1,330 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import {
-  ChevronLeft,
-  Plus,
-  Trash2,
-  Loader2,
-  Save,
-  Send,
-  GripVertical,
-} from "lucide-react";
-import { Button } from "@bluethub/ui-kit";
-import { schoolService } from "@/services/school";
-import { authService } from "@/services/auth";
-import { useAuthContext } from "@/contexts/auth-context";
-import toast from "react-hot-toast";
+    Button, Input, Label,
+    // Dialog,
+    // DialogContent,
+    // DialogTitle,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuGroup,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@bluethub/ui-kit"
+import { BookTextIcon, CalendarRange, Check, ChevronDown, Clock3, EllipsisVertical, Plus} from "lucide-react"
+import { useNavigate } from "react-router-dom"
+// import { extractLabel, FieldSelect } from "../component/submit-lesson"
+import { useEffect, useState } from "react"
+import { schoolService } from "@/services/school"
+// import toast from "react-hot-toast"
+import { WeekRow, type Week } from "@/shared/week-row"
+import Completion from "./completion"
+import SubmissionGuide from "./submission-guide"
+import type { Classroom } from "@/pages/admin/registration/course/class/class-registration"
+import { AxiosError } from "axios"
 
-interface Subtopic {
-  id: string;
-  title: string;
-  description: string;
-}
 
-interface SelectItem {
-  id: string;
-  label: string;
-}
 
-const generateId = () => Math.random().toString(36).substring(2, 9);
-
-const extractLabel = (item: Record<string, unknown>): string =>
-  String(
-    item.name ?? item.subjectName ?? item.subject ?? item.className ?? item.title ?? ""
-  );
+// interface SelectItem {
+//     id: string;
+//     label: string;
+// }
 
 const CreateSyllabus = () => {
-  const navigate = useNavigate();
-  const { user } = useAuthContext();
-  const [submitting, setSubmitting] = useState(false);
+    const navigate = useNavigate();
+    const [selectedClass, setSelectedClass] = useState<Classroom | null>(null);
+    const [aim, setAim] = useState("");
+    const [isClassOpen, setIsClassOpen] = useState(false);
+    const [weeks, setWeeks] = useState<Week[]>([]);
+    const [expandAll, setExpandAll] = useState(false);
+    const [classes, setClasses] = useState<Classroom[]>([]);
+    const [, setLoading] = useState(false);
+    const [, setErrorMsg] = useState("");
 
-  // Data state
-  const [classrooms, setClassrooms] = useState<SelectItem[]>([]);
-  const [subjects, setSubjects] = useState<SelectItem[]>([]);
-  const [loadingClassrooms, setLoadingClassrooms] = useState(true);
-  const [loadingSubjects, setLoadingSubjects] = useState(false);
-
-  // Form state
-  const [selectedClassroom, setSelectedClassroom] = useState("");
-  const [selectedClassroomLabel, setSelectedClassroomLabel] = useState("");
-  const [selectedSubject, setSelectedSubject] = useState("");
-  const [selectedSubjectLabel, setSelectedSubjectLabel] = useState("");
-  const [subtopics, setSubtopics] = useState<Subtopic[]>([
-    { id: generateId(), title: "", description: "" },
-  ]);
-
-  // Store the full roleData classrooms for subject lookup
-  const [roleDataClassrooms, setRoleDataClassrooms] = useState<any[]>([]);
-  const [isAdminRole, setIsAdminRole] = useState(false);
-
-  // Fetch user data from getUserById to get roleData
-  useEffect(() => {
-    if (!user?.id) {
-      return;
-    }
-
-    const fetchUserData = async () => {
-      try {
-        const response = await authService.getUserById(user.id);
-        const userData = (response.data as any)?.data;
-
-        if (!userData) {
-          toast.error("Could not load user data");
-          setLoadingClassrooms(false);
-          return;
+    const fetchClassrooms = async () => {
+        setErrorMsg("")
+        try {
+            setLoading(true);
+            const { data } = await schoolService.getAllClassRooms();
+            setClasses(data.data.classrooms); // ← data.data.classrooms not data.classrooms
+        } catch (error) {
+            const msg =
+                error instanceof AxiosError
+                    ? error.response?.data?.responseMessage ??
+                    error.response?.data?.message ??
+                    error.message
+                    : (error as Error).message;
+            setErrorMsg(msg);
+        } finally {
+            setLoading(false);
         }
-
-        const roleName = userData?.roleName || "";
-        const isAdmin = roleName === "Administrator" || roleName === "SuperAdministrator";
-        setIsAdminRole(isAdmin);
-
-        // Admin/SuperAdmin: fetch ALL classrooms from API
-        if (isAdmin) {
-          const classroomsRes = await schoolService.getAllClassRooms();
-          const raw: Record<string, unknown>[] =
-            (classroomsRes.data as any)?.data?.classrooms ?? (classroomsRes.data as any)?.data ?? [];
-          setClassrooms(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
-          setLoadingClassrooms(false);
-          return;
-        }
-
-        // ClassTeacher / SubjectTeacher: use roleData from user object
-        const roleData = userData?.roleData;
-        const classroomsData = roleData?.classrooms;
-
-        if (classroomsData && Array.isArray(classroomsData) && classroomsData.length > 0) {
-          setRoleDataClassrooms(classroomsData);
-          setClassrooms(
-            classroomsData.map((c: any, index: number) => ({
-              id: String(c.classroomId),
-              // Handle null className - show fallback
-              label: c.className || `Classroom ${index + 1}`,
-            }))
-          );
-        } else {
-          // No classrooms assigned
-          setClassrooms([]);
-        }
-        setLoadingClassrooms(false);
-      } catch (err) {
-        console.error("Failed to fetch user data:", err);
-        toast.error("Could not load user data");
-        setLoadingClassrooms(false);
-      }
     };
 
-    fetchUserData();
-  }, [user?.id]);
+    useEffect(() => {
+        const init = async () => {
+            await fetchClassrooms();
+        };
 
-  // Get subjects when classroom changes - based on user role
-  useEffect(() => {
-    if (!selectedClassroom) {
-      setSubjects([]);
-      return;
-    }
+        init();
+    }, []);
 
-    setSelectedSubject("");
-    setSelectedSubjectLabel("");
+    const handleAddWeek = () => {
+        const newWeek: Week = {
+            id: crypto.randomUUID(),
+            title: `Week ${weeks.length + 1}`,
+            topics: [],
+        };
+        setWeeks(prev => [...prev, newWeek]);
+    };
 
-    // Admin/SuperAdmin: fetch ALL subjects for this classroom from API
-    if (isAdminRole) {
-      setSubjects([]);
-      setLoadingSubjects(true);
+    return (
+        <div className="p-3 font-poppins">
+            <div className="backdrop-blur-sm rounded-2xl border border-white/20  overflow-hidden">
 
-      schoolService.getSubjectsByClassroomId(selectedClassroom)
-        .then((res) => {
-          const raw: Record<string, unknown>[] = (res.data as any)?.data ?? [];
-          setSubjects(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
-        })
-        .catch(() => toast.error("Could not load subjects"))
-        .finally(() => setLoadingSubjects(false));
-      return;
-    }
-
-    // ClassTeacher / SubjectTeacher: use subjects from roleData
-    if (roleDataClassrooms.length > 0) {
-      const selectedClass = roleDataClassrooms.find(
-        (c: any) => String(c.classroomId) === selectedClassroom
-      );
-
-      const subjectsData = selectedClass?.subjects;
-
-      if (subjectsData && Array.isArray(subjectsData) && subjectsData.length > 0) {
-        setSubjects(
-          subjectsData.map((s: any) => ({
-            id: String(s.subjectId),
-            label: s.subjectName,
-          }))
-        );
-        setLoadingSubjects(false);
-        return;
-      }
-    }
-
-    // No subjects found
-    setSubjects([]);
-    setLoadingSubjects(false);
-  }, [selectedClassroom, roleDataClassrooms, isAdminRole]);
-
-  // Subtopic management
-  const addSubtopic = () => {
-    setSubtopics([...subtopics, { id: generateId(), title: "", description: "" }]);
-  };
-
-  const removeSubtopic = (id: string) => {
-    if (subtopics.length === 1) return;
-    setSubtopics(subtopics.filter((s) => s.id !== id));
-  };
-
-  const updateSubtopic = (id: string, field: keyof Subtopic, value: string) => {
-    setSubtopics(
-      subtopics.map((s) => (s.id === id ? { ...s, [field]: value } : s))
-    );
-  };
-
-  // Form validation
-  const isValid =
-    selectedClassroom &&
-    selectedSubject &&
-    subtopics.length > 0 &&
-    subtopics.every((s) => s.title.trim());
-
-  // Submit handlers
-  const handleSaveDraft = async () => {
-    setSubmitting(true);
-    try {
-      // TODO: Call API to save as draft
-      console.log("Saving draft:", {
-        classroomId: selectedClassroom,
-        subjectId: selectedSubject,
-        subtopics: subtopics.map((s) => ({ title: s.title, description: s.description })),
-        status: "draft",
-      });
-      toast.success("Draft saved");
-      navigate("/teacher/syllabus");
-    } catch (err) {
-      console.error("Failed to save draft:", err);
-      toast.error("Failed to save draft");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleSubmitForReview = async () => {
-    if (!isValid) return;
-    setSubmitting(true);
-    try {
-      // TODO: Call API to submit for review
-      console.log("Submitting for review:", {
-        classroomId: selectedClassroom,
-        subjectId: selectedSubject,
-        subtopics: subtopics.map((s) => ({ title: s.title, description: s.description })),
-        status: "pending",
-      });
-      toast.success("Syllabus submitted for review");
-      navigate("/teacher/syllabus");
-    } catch (err) {
-      console.error("Failed to submit:", err);
-      toast.error("Failed to submit");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="p-6 font-poppins">
-      <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-4 sticky top-0 z-30 bg-chestnut">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate("/teacher/syllabus")}
-              className="text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <p className="text-white font-semibold text-sm">Create New Syllabus</p>
-              <p className="text-white/60 text-[10px]">Define subtopics for your class subject</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handleSaveDraft}
-              disabled={submitting}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-chestnut text-xs font-medium bg-white hover:bg-gray-100"
-            >
-              <Save className="w-3.5 h-3.5" />
-              Save Draft
-            </Button>
-            <Button
-              onClick={handleSubmitForReview}
-              disabled={submitting || !isValid}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold bg-green-600 hover:bg-green-700 disabled:opacity-50"
-            >
-              {submitting ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Send className="w-3.5 h-3.5" />
-              )}
-              Submit for Review
-            </Button>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="bg-white/70 backdrop-blur-sm p-6">
-          <div className="max-w-3xl mx-auto space-y-6">
-            {/* Basic Info Section */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="text-sm font-semibold text-gray-900 mb-4">Select Class & Subject</h2>
-              <div className="grid grid-cols-2 gap-4">
-                {/* Classroom Select */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-700">Class</label>
-                  <select
-                    value={selectedClassroom}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      const item = classrooms.find((c) => c.id === id);
-                      setSelectedClassroom(id);
-                      setSelectedClassroomLabel(item?.label || "");
-                    }}
-                    disabled={loadingClassrooms}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:ring-2 focus:ring-chestnut/20 focus:border-chestnut outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    <option value="">
-                      {loadingClassrooms ? "Loading..." : "Select a class"}
-                    </option>
-                    {classrooms.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Subject Select */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-700">Subject</label>
-                  <select
-                    value={selectedSubject}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      const item = subjects.find((s) => s.id === id);
-                      setSelectedSubject(id);
-                      setSelectedSubjectLabel(item?.label || "");
-                    }}
-                    disabled={!selectedClassroom || loadingSubjects}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:ring-2 focus:ring-chestnut/20 focus:border-chestnut outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    <option value="">
-                      {loadingSubjects
-                        ? "Loading..."
-                        : !selectedClassroom
-                        ? "Select a class first"
-                        : "Select a subject"}
-                    </option>
-                    {subjects.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Preview */}
-              {selectedSubject && selectedClassroom && (
-                <div className="mt-4 p-3 bg-chestnut/5 rounded-lg border border-chestnut/10">
-                  <p className="text-sm font-semibold text-chestnut">
-                    {selectedSubjectLabel} — {selectedClassroomLabel}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Subtopics Section */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-sm font-semibold text-gray-900">Subtopics</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Add the topics to be covered in this syllabus
-                  </p>
-                </div>
-                <span className="text-xs font-medium text-chestnut bg-chestnut/10 px-2.5 py-1 rounded-full">
-                  {subtopics.length} topic{subtopics.length !== 1 ? "s" : ""}
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                {subtopics.map((subtopic, index) => (
-                  <div
-                    key={subtopic.id}
-                    className="flex gap-3 p-3 bg-gray-50 rounded-lg border border-gray-100"
-                  >
-                    <div className="flex items-start gap-2 pt-2">
-                      <GripVertical className="w-4 h-4 text-gray-300" />
-                      <div className="flex items-center justify-center w-6 h-6 bg-chestnut/10 rounded-full shrink-0">
-                        <span className="text-xs font-semibold text-chestnut">
-                          {index + 1}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <input
-                        type="text"
-                        value={subtopic.title}
-                        onChange={(e) => updateSubtopic(subtopic.id, "title", e.target.value)}
-                        placeholder="Subtopic title"
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-chestnut/20 focus:border-chestnut outline-none"
-                      />
-                      <textarea
-                        value={subtopic.description}
-                        onChange={(e) => updateSubtopic(subtopic.id, "description", e.target.value)}
-                        placeholder="Brief description or learning objectives (optional)"
-                        rows={2}
-                        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-chestnut/20 focus:border-chestnut outline-none resize-none"
-                      />
-                    </div>
-                    <button
-                      onClick={() => removeSubtopic(subtopic.id)}
-                      disabled={subtopics.length === 1}
-                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors h-fit mt-2 disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-
-                <button
-                  onClick={addSubtopic}
-                  className="flex items-center gap-2 w-full py-3 text-sm font-medium text-chestnut hover:bg-chestnut/5 rounded-lg transition-colors justify-center border border-dashed border-chestnut/30"
+                {/* ── Top Nav ──────────────────────────────────────────────────── */}
+                <div
+                    className="flex items-center justify-between px-4 py-5 sticky top-0 z-30 bg-chestnut"
                 >
-                  <Plus className="w-4 h-4" />
-                  Add Subtopic
-                </button>
-              </div>
-            </div>
+                    <div className="flex items-center gap-2.5">
+                        {/* <LayoutGrid className="w-6 h-6 text-white" /> */}
+                        <span className="text-white font-semibold text-sm">Syllabus</span>
+                    </div>
+                    <button className="text-white">
+                        <EllipsisVertical size={18} />
+                    </button>
+                </div>
 
-            {/* Validation Message */}
-            {!isValid && (
-              <p className="text-xs text-amber-600 text-center">
-                Please select a class, subject, and add at least one subtopic with a title.
-              </p>
-            )}
+                {/* ── White card ───────────────────────────────────────────────── */}
+                <div className="flex-1 p-3 bg-white/70 backdrop-blur-sm">
+                    <div className="space-7-20">
 
-            {/* Bottom Action Buttons */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-              <Button
-                onClick={() => navigate("/teacher/syllabus")}
-                disabled={submitting}
-                className="px-4 py-2 rounded-lg text-gray-600 text-sm font-medium bg-gray-100 hover:bg-gray-200"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSaveDraft}
-                disabled={submitting}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-chestnut text-sm font-medium bg-white border border-chestnut hover:bg-chestnut/5"
-              >
-                <Save className="w-4 h-4" />
-                Save Draft
-              </Button>
-              <Button
-                onClick={handleSubmitForReview}
-                disabled={submitting || !isValid}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-semibold bg-chestnut hover:opacity-90 disabled:opacity-50"
-              >
-                {submitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-                Submit for Review
-              </Button>
+                        {/* Page header row */}
+                        <div className="flex items-start justify-between mb-4">
+                            <div>
+                                <h1 className="text-xl font-bold font-Instrument text-blck-b2 leading-tight">
+                                    Syllabus builder
+                                </h1>
+                                <p className="text-sm text-[#A0A8C0]  mt-0.5">
+                                    Build a complete term syllabus week by week and submit for admin approval
+                                </p>
+                            </div>
+                            <Button
+                                onClick={() => navigate('/teacher/syllabus')}
+                                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[#0F0F0E] text-xs font-medium  bg-white shrink-0 transition-opacity border border-[#E8E8E3] hover:bg-white"
+                            >
+                                <BookTextIcon className="text-[#0F0F0E]" />
+                                My Syllabus
+                            </Button>
+                        </div>
+
+                        <div className="rounded-[16px] pl-[34px] py-[22px] bg-chestnut">
+                            <div className="space-y-1">
+                                <h1 className="text-white font-normal font-Instrument text-[22px] ">Syllabus builder</h1>
+                                <p className="text-[#FFFFFF8C]">Define your subject plan, add weekly topics and submit for approval</p>
+                                <div className="pt-[2.5px] flex items-center gap-2">
+                                    <div className="flex items-center gap-[6px] bg-[#FFFFFF1A] rounded-[20px] py-[6px] px-3">
+                                        <CalendarRange className="size-[13px] text-[#FFFFFFCC]" />
+                                        <span className="text-[#FFFFFFCC] text-xs ">Second term 2025/2026</span>
+                                    </div>
+                                    <div className="flex items-center gap-[6px] bg-[#FFFFFF1A] rounded-[20px] py-[6px] px-3">
+                                        <Clock3 className="size-[13px] text-[#FFFFFFCC]" />
+                                        <span className="text-[#FFFFFFCC] text-xs ">3 Syllabus  pending admin review</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-5 mt-10">
+
+                            <div className="space-y-4 flex-1 grow">
+                                {/* form */}
+                                <div className="border border-[#D9D9D9] bg-white rounded-[10px] pb-5 pt-2.5  px-4">
+                                    <div className="p-[2px] border-b-2 border-[#D9D9D9] pb-[6px]  mb-[20px]">
+                                        <h2 className="text-[#3A3A3A] font-medium font-poppins text-sm">Syllabus details</h2>
+                                        <span className="font-medium text-xs text-[#3A3A3A80]">Define the subject, class and term for this syllabus</span>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-1 items-center sm:grid-cols-2 gap-3">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-sm font-medium text-[#3A3A3A]">
+                                                    Subject <span className="text-red-500">*</span>
+                                                </Label>
+
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Enter quiz ID"
+                                                    className="flex-1 border border-gray-200 rounded-md px-4 py-3 text-sm focus:ring-2 focus:ring-chestnut/40 focus:border-chestnut/40 outline-none transition"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">Class</Label>
+                                                <DropdownMenu onOpenChange={setIsClassOpen}>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            className={`w-full justify-between font-medium border-0 ring-2 py-2.5 px-4 text-sm rounded-xl transition-all ${selectedClass
+                                                                ? "ring-chestnut/30 text-chestnut bg-chestnut/5"
+                                                                : "ring-gray-200 text-gray-400 bg-white"
+                                                                } hover:ring-chestnut/40`}
+                                                        >
+                                                            <span className={selectedClass ? "font-semibold text-chestnut" : ""}>
+                                                                {selectedClass ? selectedClass.name : "Select class"}
+                                                            </span>
+                                                            <ChevronDown className={`w-4 h-4 text-chestnut/50 transition-transform duration-200 ${isClassOpen ? "rotate-180" : ""}`} />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) h-50 rounded-xl border border-gray-100 shadow-lg bg-white p-1.5" align="start" sideOffset={6}>
+                                                        <DropdownMenuGroup className="space-y-0.5">
+                                                            {classes.map((classroom) => (
+                                                                <DropdownMenuItem
+                                                                    key={classroom.id}
+                                                                    onClick={() => setSelectedClass(classroom)}
+                                                                    className={`text-sm py-2.5 px-3 rounded-lg cursor-pointer ${selectedClass?.id === classroom.id ? "bg-chestnut text-white" : "text-gray-700 hover:bg-chestnut/5 hover:text-chestnut"
+                                                                        }`}
+                                                                >
+                                                                    <span className="flex-1">{classroom.name}</span>
+                                                                    {selectedClass?.id === classroom.id && <Check className="w-3.5 h-3.5" />}
+                                                                </DropdownMenuItem>
+                                                            ))}
+                                                        </DropdownMenuGroup>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 items-center sm:grid-cols-2 gap-3">
+
+                                            <div className="space-y-1.5">
+                                                <Label className="text-sm font-medium text-[#3A3A3A]">
+                                                    Syllabus title<span className="text-red-500">*</span>
+                                                </Label>
+
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Enter quiz ID"
+                                                    className="flex-1 border border-gray-200 rounded-md px-4 py-3 text-sm focus:ring-2 focus:ring-chestnut/40 focus:border-chestnut/40 outline-none transition"
+                                                />
+                                            </div>
+                                            <div className="space-y-1.5">
+                                                <Label className="text-sm font-medium text-[#3A3A3A]">
+                                                    Recommended textbook <span className="text-red-500">*</span>
+                                                </Label>
+
+                                                <Input
+                                                    type="text"
+                                                    placeholder="Enter quiz ID"
+                                                    className="flex-1 border border-gray-200 rounded-md px-4 py-3 text-sm focus:ring-2 focus:ring-chestnut/40 focus:border-chestnut/40 outline-none transition"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1.5">
+                                            <Label className="text-sm font-medium text-[#3A3A3A]">
+                                                Objectives / overview <span className="text-red-500">*</span>
+                                            </Label>
+                                            <textarea rows={3} value={aim} onChange={(e) => setAim(e.target.value)}
+                                                placeholder=" e.g Students will explore living things, matter, and energy. By end of term they will classify organisms, explain states of matter, and describe energy transfer."
+                                                className="w-full rounded-xl border border-gray-200 ring-2 ring-chestnut/20 px-4 py-3 text-sm text-[#0F0F0E] placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-chestnut/50 transition-all" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="border border-[#E8E8E3] rounded-2xl bg-white overflow-hidden">
+                                    {/* Header */}
+                                    <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8E8E3]">
+                                        <div>
+                                            <h3 className="text-[#0F0F0E] font-semibold text-sm">Weekly Plan</h3>
+                                            <p className="text-[#A8A8A4] text-xs mt-0.5">Add topics for each week</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-[#A8A8A4] text-xs font-medium">
+                                                {weeks.length}/12 weeks planned
+                                            </span>
+                                            <button
+                                                onClick={() => setExpandAll(p => !p)}
+                                                className="border border-[#E8E8E3] text-xs font-semibold text-[#0F0F0E] px-4 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                                            >
+                                                {expandAll ? "Collapse all" : "Expand all"}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Week list */}
+                                    <div className="p-4 space-y-3">
+                                        {weeks.map((week, i) => (
+                                            <WeekRow
+                                                key={week.id}
+                                                week={week}
+                                                index={i}
+                                                expanded={expandAll}
+                                                onChange={(updated) =>
+                                                    setWeeks(prev => prev.map(w => w.id === updated.id ? updated : w))
+                                                }
+                                                onDelete={() =>
+                                                    setWeeks(prev => prev.filter(w => w.id !== week.id))
+                                                }
+                                            />
+                                        ))}
+
+                                        {/* Add Week */}
+                                        <button
+                                            onClick={handleAddWeek}
+                                            disabled={weeks.length >= 12}
+                                            className="w-full border-2 bg-[#F9FBFF] border-dashed border-[#E8E8E3] rounded-xl py-5 flex items-center justify-center gap-2 text-sm font-semibold text-[#3A3A3A] hover:border-[#292382]/30 hover:text-[#292382] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                        >
+                                            <Plus className="w-4 h-4 text-[#3A3A3A]" />
+                                            Add Week
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-[10px] border border-[#E8E8E3] bg-white p-6">
+
+                                    <div className="relative flex items-center justify-between gap-6">
+                                        {/* Left */}
+                                        <div className="flex items-center gap-4">
+
+                                            {/* Text */}
+                                            <div>
+                                                <h3 className="text-[#0F0F0E] font-semibold text-base">Ready to submit?</h3>
+                                                <p className="text-[#A0A09C] text-xs mt-0.5">
+                                                    Fill in details and add at least 4 weeks with topics
+                                                </p>
+
+                                            </div>
+                                        </div>
+
+                                        {/* Right — CTA */}
+                                        <button className="shrink-0 flex items-center gap-2 bg-[#292382] hover:bg-[#1e1a6e] transition-colors text-white text-sm font-semibold px-5 py-3 rounded-[10px]">
+                                            <svg width="20" height="20" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M2.5 7.25C2.5 7.25 3.25 7.25 4.25 9C4.25 9 7.0295 4.4165 9.5 3.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                            Submit For Approval
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3 shrink-0">
+                                <Completion
+                                    weeksPlanned={3}
+                                    totalWeeks={12}
+                                    totalTopics={8}
+                                    weeksDone={2}
+                                    checks={{
+                                        subjectSelected: true,
+                                        titleAdded: true,
+                                        atLeast4Weeks: false,
+                                        eachWeekHasTopics: false,
+                                    }}
+                                />
+                                <SubmissionGuide />
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
-      </div>
-    </div>
-  );
-};
+    )
+}
 
-export default CreateSyllabus;
+export default CreateSyllabus

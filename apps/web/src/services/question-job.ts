@@ -1,169 +1,87 @@
 import { API, type TResponse } from ".";
 import { X_Tenant_ID } from "./school";
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ENUMS
-// ═══════════════════════════════════════════════════════════════════════════════
+// ── Request types ───────────────────────────────────────────────────────────
+export type JobQuestionType = "Objective" | "Theory" | "TrueFalse";
 
-export enum JobStatusEnum {
-  Pending = 1,
-  Processing = 2,
-  Completed = 3,
-  Failed = 4,
-  PartiallyCompleted = 5,
-}
-
-export enum JobTypeEnum {
-  QuestionScan = 1,
-  BulkImport = 2,
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// PAYLOADS (Request DTOs)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-export interface SubmitScanJobPayload {
-  subjectId: string;
-  fileUrl: string;
-  filePublicId: string;
-  fileName: string;
-  fileType: "image" | "pdf";
-  pageCount?: number;
-}
-
-export interface RetryJobPayload {
+// ── Response types ──────────────────────────────────────────────────────────
+export interface SubmitJobResponse {
   jobId: string;
-  reason?: string;
+  responseMessage: string;
+  responseCode: string;
+  status: string;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// RESPONSE DTOs
-// ═══════════════════════════════════════════════════════════════════════════════
-
-export interface SubmitJobResponseData {
+export interface JobSummaryDto {
   jobId: string;
-  status: JobStatusEnum;
-  estimatedCompletionTime?: string;
-  queuePosition?: number;
-}
-
-export interface JobStatusResponseData {
-  jobId: string;
-  status: JobStatusEnum;
-  statusText: string;
-  progress?: number;
-  questionsExtracted?: number;
-  errorMessage?: string;
-  completedAt?: string;
+  questionType: JobQuestionType;
+  status: "Pending" | "Processing" | "Completed" | "Failed";
+  questionId: string | null;
+  failureReason: string;
   createdAt: string;
+  completedAt: string;
 }
 
-export interface JobListItem {
-  jobId: string;
-  fileName: string;
-  fileType: string;
-  status: JobStatusEnum;
-  statusText: string;
-  questionsExtracted?: number;
-  createdAt: string;
-  completedAt?: string;
-  subjectId: string;
-  subjectName?: string;
-}
-
-export interface MyJobsResponseData {
-  jobs: JobListItem[];
+export interface JobListResponse {
+  jobs: JobSummaryDto[];
   totalCount: number;
-  page: number;
-  pageSize: number;
+  pendingCount: number;
+  completedCount: number;
+  failedCount: number;
+  responseMessage: string;
+  responseCode: string;
+  status: string;
 }
 
-export interface ExtractedQuestionPreview {
-  index: number;
-  title: string;
-  textContent?: string;
-  questionType: number;
-  difficultyLevel: number;
-  marksAllocation: number;
-  topic?: string;
-  subTopic?: string;
-  options: Array<{
-    optionLabel: string;
-    optionText: string;
-    isCorrect: boolean;
-    orderIndex: number;
-  }>;
-  aiConfidenceScore: number;
-  imageRegion?: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    pageNumber?: number;
-  };
+export interface OptionPreviewDto {
+  id: string;
+  optionLabel: string;
+  optionText: string;
+  optionHtml: string;
+  contentParts: unknown;
+  isCorrect: boolean;
+  hasLatex: boolean;
+  hasImages: boolean;
+  orderIndex: number;
 }
 
-export interface JobPreviewResponseData {
+export interface QuestionPreviewResponse {
+  questionId: string;
   jobId: string;
-  scanSessionId: string;
-  fileName: string;
-  fileUrl: string;
-  questions: ExtractedQuestionPreview[];
-  totalExtracted: number;
-  processingTime: number;
+  questionType: JobQuestionType;
+  questionHtml: string;
+  contentParts: unknown;
+  options: OptionPreviewDto[];
+  hasLatex: boolean;
+  hasImages: boolean;
+  difficultyLevel: string;
+  marksAllocation: number;
+  status: string;
+  responseMessage: string;
+  responseCode: string;
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// SERVICE
-// ═══════════════════════════════════════════════════════════════════════════════
 
 const headers = { "X-Tenant-ID": X_Tenant_ID };
 
 export const questionJobService = {
-  // ── SUBMIT SCAN JOB ────────────────────────────────────────────────────────
-  submitScanJob: (payload: SubmitScanJobPayload) =>
-    API.post<TResponse<SubmitJobResponseData>>(
-      "api/question-jobs/submit",
-      payload,
-      { headers }
-    ),
+  // POST api/questionjob/submit — multipart/form-data
+  submitJob: (formData: FormData) =>
+    API.post<TResponse<SubmitJobResponse>>("api/questionjob/submit", formData, {
+      headers: { ...headers, "Content-Type": "multipart/form-data" },
+    }),
 
-  // ── GET JOB STATUS ─────────────────────────────────────────────────────────
-  getJobStatus: (jobId: string) =>
-    API.get<TResponse<JobStatusResponseData>>(
-      `api/question-jobs/${jobId}/status`,
-      { headers }
-    ),
+  // GET api/questionjob/my-jobs
+  getMyJobs: () =>
+    API.get<JobListResponse>("api/questionjob/my-jobs", { headers }),
 
-  // ── GET MY JOBS (Paginated) ────────────────────────────────────────────────
-  getMyJobs: (params?: { page?: number; pageSize?: number; status?: JobStatusEnum }) =>
-    API.get<TResponse<MyJobsResponseData>>(
-      "api/question-jobs/my-jobs",
-      { headers, params }
-    ),
-
-  // ── RETRY FAILED JOB ───────────────────────────────────────────────────────
-  retryJob: (payload: RetryJobPayload) =>
-    API.post<TResponse<SubmitJobResponseData>>(
-      `api/question-jobs/${payload.jobId}/retry`,
-      { reason: payload.reason },
-      { headers }
-    ),
-
-  // ── PREVIEW EXTRACTED QUESTIONS ────────────────────────────────────────────
+  // GET api/questionjob/{jobId}/preview
   getJobPreview: (jobId: string) =>
-    API.get<TResponse<JobPreviewResponseData>>(
-      `api/question-jobs/${jobId}/preview`,
+    API.get<TResponse<QuestionPreviewResponse>>(
+      `api/questionjob/${jobId}/preview`,
       { headers }
     ),
 
-  // ── CANCEL JOB ─────────────────────────────────────────────────────────────
-  cancelJob: (jobId: string) =>
-    API.post<TResponse<null>>(
-      `api/question-jobs/${jobId}/cancel`,
-      {},
-      { headers }
-    ),
+  // POST api/questionjob/{jobId}/retry
+  retryJob: (jobId: string) =>
+    API.post<TResponse<unknown>>(`api/questionjob/${jobId}/retry`, {}, { headers }),
 };
-
-export default questionJobService;

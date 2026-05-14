@@ -58,6 +58,8 @@ function Login() {
   const navigate = useNavigate();
   const { login: loginAuth } = useAuthContext();
 
+  const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -90,7 +92,7 @@ function Login() {
     const payload = {
       username: data.userName,
       hashPassword: hashedPassword,
-      inst: "pearl01",
+      inst: X_Tenant_ID,
       deviceType,
       deviceIp: "",
     };
