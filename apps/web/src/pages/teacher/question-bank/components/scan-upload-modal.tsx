@@ -15,7 +15,6 @@ import {
 } from "@bluethub/ui-kit";
 import { Button } from "@bluethub/ui-kit";
 import {
-  Upload,
   FileImage,
   FileText,
   X,
@@ -25,12 +24,12 @@ import {
   Camera,
   FolderOpen,
   Sparkles,
-  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mediaUploadService, MediaType } from "@/services/media-upload";
 import { questionJobService } from "@/services/question-job";
 import { useAuthContext } from "@/contexts/auth-context";
+import { authService } from "@/services/auth";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,19 +67,26 @@ export default function ScanUploadModal({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
 
-  // Load subjects from user's assigned subjects
+  // Load subjects from user's role data
   useEffect(() => {
-    if (user?.subjects) {
-      const subjectList = user.subjects.map((s: { id: string; name: string }) => ({
-        id: s.id,
-        name: s.name,
-      }));
-      setSubjects(subjectList);
-      if (subjectList.length === 1) {
-        setSelectedSubject(subjectList[0].id);
+    if (!user?.id) return;
+    authService.getUserById(user.id).then((res) => {
+      const roleData = (res.data as any)?.data?.roleData;
+      const classrooms: any[] = roleData?.classrooms ?? [];
+      const seen = new Set<string>();
+      const subjectList: SubjectOption[] = [];
+      for (const c of classrooms) {
+        for (const s of (c.subjects ?? [])) {
+          if (!seen.has(s.subjectId)) {
+            seen.add(s.subjectId);
+            subjectList.push({ id: s.subjectId, name: s.subjectName });
+          }
+        }
       }
-    }
-  }, [user]);
+      setSubjects(subjectList);
+      if (subjectList.length === 1) setSelectedSubject(subjectList[0].id);
+    }).catch(() => {});
+  }, [user?.id]);
 
   // Reset state when modal opens/closes
   const resetState = useCallback(() => {
@@ -198,7 +204,7 @@ export default function ScanUploadModal({
         fileType: isImage ? "image" : "pdf",
       });
 
-      if (!jobResult.data.isSuccess) {
+      if (jobResult.data.status !== "successful") {
         throw new Error("Failed to submit scan job");
       }
 

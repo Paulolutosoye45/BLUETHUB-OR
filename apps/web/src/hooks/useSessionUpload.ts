@@ -25,8 +25,9 @@ import {
 import type { LocalAudioChunk, LocalStrokeBatch } from '@/utils/constant';
 import { LOCAL_BATCH_MS, UPLOAD_BATCH_MS } from '@/utils';
 
-// Number of 10s chunks per 60s upload batch
-const CHUNKS_PER_UPLOAD_BATCH = UPLOAD_BATCH_MS / LOCAL_BATCH_MS; // 6
+// Number of 10s chunks per 60s upload batch (kept for reference)
+const _CHUNKS_PER_UPLOAD_BATCH = UPLOAD_BATCH_MS / LOCAL_BATCH_MS; // 6
+void _CHUNKS_PER_UPLOAD_BATCH;
 
 /**
  * Merge multiple audio blobs into a single blob
@@ -322,7 +323,7 @@ export function useSessionUpload() {
             updateState({
               currentChunk: audioOffset + i + idx + 1,
               currentProgress: 100,
-              overallProgress: Math.round(((audioOffset + i + idx + 1) / totalChunks) * 100),
+              overallProgress: Math.round(((audioOffset + i + idx + 1) / totalItems) * 100),
             });
           })
         );

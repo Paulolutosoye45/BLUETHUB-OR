@@ -106,8 +106,8 @@ let uploadBatchStartMs = 0;
 let audioChunkIndex = 0;
 
 // Audio chunk accumulator for merging 10s local chunks into 60s upload chunks
-let currentUploadAudioChunks: Array<{ blob: Blob; batchIndex: number; duration: number }> = [];
-let uploadAudioBatchIndex = 0;
+void ([] as Array<{ blob: Blob; batchIndex: number; duration: number }>); // reserved for future merge batching
+void 0; // uploadAudioBatchIndex reserved
 
 // ── IndexedDB via idb ─────────────────────────────────────────────────────────
 // idb works in workers — it has no DOM dependencies.

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getClass, getAudio, getAllSessions, getAudioChunksBySession, getStrokeBatchesBySession } from "@/utils/db";
 import type { CompressedStroke, AudioBatch, IActions, LocalSession, LocalAudioChunk, LocalStrokeBatch } from "@/utils/constant";
-import { ChevronDown, ChevronRight, Database, FileAudio, Pencil, FileJson, RefreshCw, Upload, HardDrive } from "lucide-react";
+import { ChevronDown, ChevronRight, Database, FileAudio, Pencil, FileJson, RefreshCw, Upload} from "lucide-react";
 
 interface DecompressedStroke extends Omit<CompressedStroke, 'data'> {
   decompressedData?: number[] | Record<string, unknown>;

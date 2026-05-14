@@ -25,6 +25,7 @@ export const endpoints = {
   getSubjectsByClassCategory: "/api/School/GetSubjectsByClassCategory",
   getSubjectsBySubjectCategory: "/api/School/GetSubjectsBySubjectCategory",
   updateClassroomTeachers: "/api/School/UpdateClassroomTeachers",
+  createTopic: "/api/School/topics",
 };
 
 interface Ischool {
@@ -107,6 +108,28 @@ export const schoolService = {
     return API.get(endpoints.getSubjectsByClassroom, {
       params: { classroomId },
       headers: { "X-Tenant-ID": tenantId || X_Tenant_ID },
+    });
+  },
+
+  createTopic: (payload: {
+    subjectId: string;
+    classroomId: string;
+    topics: { name: string; subTopics: string[] }[];
+  }) => {
+    return API.post<TResponse<unknown>>(endpoints.createTopic, payload, {
+      headers: {
+        "X-Tenant-ID": X_Tenant_ID,
+        Authorization: `Bearer ${token.getToken()}`,
+      },
+    });
+  },
+
+  getTopicsWithSubTopics: (subjectId: string, classroomId: string) => {
+    return API.get(`/api/School/subject/${subjectId}/classroom/${classroomId}`, {
+      headers: {
+        "X-Tenant-ID": X_Tenant_ID,
+        Authorization: `Bearer ${token.getToken()}`,
+      },
     });
   },
 };

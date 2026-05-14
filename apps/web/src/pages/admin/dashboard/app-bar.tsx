@@ -1,24 +1,33 @@
-import schoolProfileImg from '@/assets/png/School.png'
-import { useAuthContext } from '@/contexts/auth-context';
-import type { SchoolInfo } from '@/services';
-import { localData } from '@/utils';
-import { Menu } from 'lucide-react';
+import { useAuthContext } from "@/contexts/auth-context";
+import type { SchoolInfo } from "@/services";
+import { localData } from "@/utils";
+import { Bell, Settings } from "lucide-react";
 
 const AdminAppbar = () => {
   const { user } = useAuthContext();
   const today = new Date();
 
-  const dayName = today.toLocaleDateString("en-US", {
-    weekday: "long",
-  });
+  const greeting = () => {
+    const hour = today.getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
 
   const formattedDate = today.toLocaleDateString("en-US", {
+    weekday: "long",
     month: "long",
     day: "numeric",
     year: "numeric",
   });
 
   const schoolProfile = localData.retrieve("schoolInfo") as SchoolInfo | null;
+
+  const initials = [user?.firstName, user?.lastName]
+    .filter(Boolean)
+    .map((n) => n![0].toUpperCase())
+    .join("") || "AD";
+
   return (
     <>
       <div className=" hidden w-full mx-auto border-0 bg-white rounded-lg md:flex h-[89px]  justify-between items-center  py-5  px-7">
@@ -37,25 +46,55 @@ const AdminAppbar = () => {
           <div className="w-[45.79px] h-[45.79px]  rounded-full">
             <img src={schoolProfile?.logoUrl} alt="" className=" bg-white border-2 border-chestnut  rounded-full  w-full h-full cursor-pointer" />
           </div>
-        </section>
-      </div>
-
-      <div className='py-2.5 px-4 my-4 rounded-[10px]  bg-white md:hidden'>
-        <div className='flex items-center justify-between'>
-          <Menu  className="size-6 text-chestnut" />
-
-          <div className='flex items-center justify-between gap-2'>
-            <div className='w-10 h-10 rounded-full '>
-              <img src={schoolProfileImg} className='w-full h-full object-cover' alt="school logo" />
-            </div>
-              <div>
-                 <h2 className='text-chestnut font-semibold text-sm'>Greenfieldcollege</h2>
-                <p className='text-[#29238280] font-semibold text-xs'>Admin </p>
-              </div>
+          <div className="min-w-0">
+            <p className="text-xs text-gray-400 leading-none mb-0.5">{greeting()}</p>
+            <h2 className="text-sm font-semibold text-gray-900 truncate">
+              {user?.firstName} {user?.lastName}
+            </h2>
+            <p className="text-[11px] text-chestnut font-medium hidden sm:block">{formattedDate}</p>
           </div>
         </div>
+
+        {/* Right: school info + actions */}
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Date (mobile) */}
+          <p className="text-[10px] text-gray-400 sm:hidden leading-tight text-right">
+            {today.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+          </p>
+
+          {/* School name */}
+          {schoolProfile?.schoolName && (
+            <div className="hidden md:flex flex-col items-end">
+              <span className="text-xs font-semibold text-gray-800 leading-tight">{schoolProfile.schoolName}</span>
+              <span className="text-[10px] text-gray-400">Administrator</span>
+            </div>
+          )}
+
+          {/* School logo */}
+          {schoolProfile?.logoUrl ? (
+            <img
+              src={schoolProfile.logoUrl}
+              alt="School logo"
+              className="w-9 h-9 rounded-full object-cover border-2 border-chestnut/20 shrink-0"
+            />
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-chestnut/10 flex items-center justify-center shrink-0">
+              <span className="text-chestnut text-xs font-bold">
+                {schoolProfile?.schoolName?.[0] ?? "S"}
+              </span>
+            </div>
+          )}
+
+          {/* Action icons */}
+          <button className="w-8 h-8 rounded-full bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500 transition-colors">
+            <Bell className="w-4 h-4" />
+          </button>
+          <button className="w-8 h-8 rounded-full bg-gray-50 hover:bg-gray-100 hidden sm:flex items-center justify-center text-gray-500 transition-colors">
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
       </div>
-    </>
+    </div>
   );
 };
 

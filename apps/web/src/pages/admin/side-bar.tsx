@@ -254,6 +254,27 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
                                 </div>
                             );
                         }
+                      }}
+                      title={isCollapsed ? link.name : undefined}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group
+                        ${isOpen ? "bg-chestnut/10 text-chestnut" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}
+                        ${isCollapsed ? "justify-center" : "justify-between"}`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <img
+                          src={link.icons}
+                          alt={link.name}
+                          className={`shrink-0 object-contain ${isOpen ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
+                          style={{ width: 18, height: 18 }}
+                        />
+                        {!isCollapsed && <span className="truncate">{link.name}</span>}
+                      </div>
+                      {!isCollapsed && (
+                        <ChevronDown
+                          className={`w-3.5 h-3.5 shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                        />
+                      )}
+                    </button>
 
                         // Regular link
                         return (
@@ -286,10 +307,43 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
                                     </>
                                 )}
                             </NavLink>
-                        );
-                    })}
-                </div>
-            </section>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              }
+
+              return (
+                <li key={link.name + idx}>
+                  <NavLink
+                    to={link.path ?? "/"}
+                    title={isCollapsed ? link.name : undefined}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all group
+                      ${isActive ? "bg-chestnut text-white shadow-sm" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"}
+                      ${isCollapsed ? "justify-center" : ""}`
+                    }
+                  >
+                    {({ isActive }) => (
+                      <>
+                        <img
+                          src={link.icons}
+                          alt={link.name}
+                          className={`shrink-0 object-contain ${isActive ? "brightness-0 invert" : "opacity-70 group-hover:opacity-100"}`}
+                          style={{ width: 18, height: 18 }}
+                        />
+                        {!isCollapsed && <span className="truncate">{link.name}</span>}
+                      </>
+                    )}
+                  </NavLink>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </div>
 
             {/* ── OTHER MENU ── */}
             <section className="px-3">

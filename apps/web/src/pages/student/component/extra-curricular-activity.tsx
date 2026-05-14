@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import Cube from "@/assets/svg/cube.svg?react";
-import My_course from "@/assets/svg/scourses.svg?react";
-import Assignments from "@/assets/svg/assignment.svg?react";
 import Play from "@/assets/svg/play.svg?react";
 import { studentService, type StudentDashboardStats } from "@/services/student";
-import { Loader2, BookOpen, ClipboardCheck, GraduationCap, Tv } from "lucide-react";
+import { BookOpen, ClipboardCheck, GraduationCap, Tv } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ExtracurricularActivity = () => {
@@ -17,7 +14,7 @@ const ExtracurricularActivity = () => {
     const fetchStats = async () => {
       try {
         const res = await studentService.getDashboardStats();
-        if (res.data.isSuccess) {
+        if (res.data.status === "successful") {
           setStats(res.data.data);
         }
       } catch (err) {

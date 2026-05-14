@@ -5,7 +5,6 @@ import {
   Volume2,
   PauseCircle,
   Clock,
-  Wifi,
   WifiOff,
   HardDrive,
   Upload,

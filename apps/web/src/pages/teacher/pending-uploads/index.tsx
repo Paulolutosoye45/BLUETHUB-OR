@@ -127,10 +127,6 @@ function SessionCard({
   const statusColor = getStatusColor(data);
   const statusLabel = getStatusLabel(data);
 
-  const progressPercent = stats.totalAudio + stats.totalStrokes > 0
-    ? Math.round(((stats.audioSent + stats.strokesSent) / (stats.totalAudio + stats.totalStrokes)) * 100)
-    : 0;
-
   const hasFailed = stats.audioFailed > 0 || stats.strokesFailed > 0;
   const isComplete = stats.audioPending === 0 && stats.strokesPending === 0 && !hasFailed;
 
@@ -555,7 +551,11 @@ const PendingUploads = () => {
         dimensions: { width: session.recording.screenWidth, height: session.recording.screenHeight },
         strokeCount: strokeBatches.length,
       }],
-      chapters: session.adjustments.chapters,
+      chapters: session.adjustments.chapters.map((c) => ({
+        title: c.label,
+        startMs: c.timestampMs,
+        endMs: c.timestampMs,
+      })),
     };
   };
 

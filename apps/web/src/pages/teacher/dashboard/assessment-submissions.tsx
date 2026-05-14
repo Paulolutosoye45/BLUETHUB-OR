@@ -19,7 +19,7 @@ const AssessmentSubmissions = () => {
         const fetchSubmissions = async () => {
             try {
                 const res = await teacherService.getRecentSubmissions({ limit: 10 });
-                if (res.data.isSuccess) {
+                if (res.data.status === "successful") {
                     setSubmissions(res.data.data.submissions);
                 }
             } catch (err) {

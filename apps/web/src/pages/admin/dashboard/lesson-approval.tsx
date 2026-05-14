@@ -103,15 +103,6 @@ const LessonApproval = () => {
     }
   };
 
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
   const getTimeAgo = (iso: string) => {
     const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
     if (diff < 60) return "just now";

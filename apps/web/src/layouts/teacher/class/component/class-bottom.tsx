@@ -2,7 +2,7 @@ import type { RootState } from "@/store";
 import { setPauseTime } from "@/store/class-action-slice";
 import { Button } from "@bluethub/ui-kit";
 import { useDispatch, useSelector } from "react-redux";
-import { Play, Pause, Square } from "lucide-react";
+import { Play, Pause } from "lucide-react";
 import EndClass from "@/pages/teacher/note-board/app-bottom/end-class";
 import Audio from "./audio";
 import toast from 'react-hot-toast';

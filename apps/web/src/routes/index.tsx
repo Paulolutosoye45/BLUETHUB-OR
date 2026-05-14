@@ -67,6 +67,7 @@ import StartClass from '@/pages/teacher/component/start-class';
 import QuizIndex from '@/pages/teacher/quiz';
 import MySyllabus from '@/pages/teacher/Syllabus/my-syllabus';
 import CreateSyllabus from '@/pages/teacher/Syllabus/create-syllabus';
+import ApprovalsPage from '@/pages/admin/approvals';
 import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
 import CreateSyllabus from '@/pages/teacher/Syllabus/create-syllabus';
 
@@ -197,8 +198,11 @@ const router = createBrowserRouter([
             {
                 path: 'lesson-approval',
                 element: <LessonApproval />
+            },
+            {
+                path: 'approvals',
+                element: <ApprovalsPage />
             }
-
         ]
     },
 
