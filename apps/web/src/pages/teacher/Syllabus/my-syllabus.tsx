@@ -3,6 +3,7 @@ import { EllipsisVertical, PlusIcon, Search, X } from "lucide-react"
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SyllabusCard, type SyllabusCardProps } from "./syllabus-card";
+import { useNavigate } from "react-router-dom";
 
 
 const STATUS_FILTERS = [
@@ -76,7 +77,7 @@ const syllabusCards: SyllabusCardProps[] = [
 
 
 const MySyllabus = () => {
-    const navigate = useNavigate();
+    const navigate = useNavigate()
     const [activeFilter, setActiveFilter] = useState<FilterValue>("");
     const [search, setSearch] = useState("");
 
@@ -94,7 +95,7 @@ const MySyllabus = () => {
     });
 
     return (
-        <div className="p-6 font-poppins">
+        <div className="p-3 font-poppins">
             <div className="backdrop-blur-sm rounded-2xl border border-white/20  overflow-hidden">
 
                 {/* ── Top Nav ──────────────────────────────────────────────────── */}
@@ -111,7 +112,7 @@ const MySyllabus = () => {
                 </div>
 
                 {/* ── White card ───────────────────────────────────────────────── */}
-                <div className="flex-1 p-8 bg-white/70 backdrop-blur-sm">
+                <div className="flex-1 p-3 bg-white/70 backdrop-blur-sm">
                     <div className="space-7-20">
 
                         {/* Page header row */}
@@ -134,7 +135,7 @@ const MySyllabus = () => {
                                 </Button>
 
                                 <Button
-                                    onClick={() => navigate('/teacher/syllabus/create')}
+                                    onClick={() => navigate('/teacher/create-syllabus')}
                                     className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white text-xs font-semibold  bg-chestnut shrink-0 transition-opacity hover:opacity-90"
                                 >
                                     <PlusIcon />

@@ -73,6 +73,7 @@ const BluehubLeftPanel = () => (
 );
 
 export const BluehubLogin = () => {
+
   return (
     <div className="flex h-screen font-poppins overflow-hidden md:justify-between w-full bg-gray-50">
       {/* Left — Sidebar panel, hidden on mobile */}

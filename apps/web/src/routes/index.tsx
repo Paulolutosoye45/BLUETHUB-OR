@@ -47,7 +47,7 @@ import CreateQuizQuestion from '@/pages/teacher/component/create-quiz';
 import TopicQuestionList from '@/pages/teacher/component/topic-question-list';
 import Login from '@/pages/auth/login';
 import NewPassword from '@/pages/auth/new-password';
-import AdminProtectedRoute from '@/component/protected-routes/admin-routes';
+// import AdminProtectedRoute from '@/component/protected-routes/admin-routes';
 import { PublicRoute } from '@/component/protected-routes/public-route';
 import StudentProtectedRoute from '@/component/protected-routes/student-routes';
 import UploadScan from '@/pages/teacher/component/upload-scan';
@@ -69,10 +69,7 @@ import MySyllabus from '@/pages/teacher/Syllabus/my-syllabus';
 import CreateSyllabus from '@/pages/teacher/Syllabus/create-syllabus';
 import ApprovalsPage from '@/pages/admin/approvals';
 import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
-import IdbViewer from '@/pages/dev/idb-viewer';
-import DraftLessons from '@/pages/teacher/drafts';
-import PendingUploads from '@/pages/teacher/pending-uploads';
-import QuestionBankScan from '@/pages/teacher/question-bank';
+import CreateSyllabus from '@/pages/teacher/Syllabus/create-syllabus';
 
 const router = createBrowserRouter([
     {
@@ -128,7 +125,7 @@ const router = createBrowserRouter([
     {
         path: '/admin',
         element:
-            <AdminProtectedRoute><AdminLayout /></AdminProtectedRoute>,
+            <AdminLayout />,
         children: [
             {
                 index: true,
@@ -244,10 +241,7 @@ const router = createBrowserRouter([
             },
             { path: "quiz", element: <QuizIndex /> },
             { path: "syllabus", element: <MySyllabus /> },
-            { path: "syllabus/create", element: <CreateSyllabus /> },
-            { path: "drafts", element: <DraftLessons /> },
-            { path: "pending-uploads", element: <PendingUploads /> },
-            { path: "question-bank", element: <QuestionBankScan /> },
+            { path: "create-syllabus", element: <CreateSyllabus /> },
         ]
     },
 

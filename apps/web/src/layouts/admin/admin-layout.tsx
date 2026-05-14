@@ -1,5 +1,5 @@
 import SchoolRef from "@/component/school-ref"
-import SideBar from "@/pages/admin/side-bar"
+import SideBar, { MobileNav } from "@/pages/admin/side-bar"
 // import AdminTabMenu from "@/pages/admin/tab-menu"
 // import schoolImage from "@/assets/png/School.png"
 import { Outlet } from "react-router-dom"
@@ -7,36 +7,38 @@ import { Outlet } from "react-router-dom"
 const AdminLayout = () => {
     return (
         <div className="flex h-screen overflow-hidden">
-            {/* Sidebar — desktop only (≥1024px) */}
-            <div className="hidden lg:block">
+            {/* ── Desktop sidebar ─────────────────────── */}
+            <div className="hidden lg:flex h-full">
                 <SideBar />
             </div>
+            <div>
+                <MobileNav />
+            </div>
 
-            {/* Main content column */}
-            <div className="flex flex-col flex-1 min-h-screen overflow-hidden bg-[#9C94AB40]
-                [&::-webkit-scrollbar]:w-2
-                [&::-webkit-scrollbar-thumb]:rounded-full
-                [&::-webkit-scrollbar-thumb]:bg-gray-400">
-
-                {/* Tab menu — tablet only (768px – 1023px) */}
-                {/* <div className="block lg:hidden">
-                    <AdminTabMenu schoolLogoUrl={schoolImage} />
-                </div> */}
-
-                <div className="flex-1 overflow-y-auto">
+            {/* ── Main content ────────────────────────── */}
+            <div
+                className="flex flex-col flex-1 m bg-[#9C94AB40]
+          [&::-webkit-scrollbar]:w-2
+          [&::-webkit-scrollbar-thumb]:rounded-full
+          [&::-webkit-scrollbar-thumb]:bg-gray-400"
+            >
+                <div className=" overflow-y-auto">
                     <SchoolRef
                         className="min-h-full"
                         contentClassName=""
                         mode="wallpaper"
                     >
-                        <div className="max-w-7xl mx-auto">
+                        <div className="max-w-7xl mx-auto h-screen transition-all p-2 duration-300 border-none  overflow-y-auto ">
                             <Outlet />
                         </div>
                     </SchoolRef>
                 </div>
             </div>
-        </div>
-    )
-}
 
-export default AdminLayout
+            {/* ── Mobile drawer + FAB (rendered outside flex row so it overlays) ── */}
+
+        </div>
+    );
+};
+
+export default AdminLayout;
