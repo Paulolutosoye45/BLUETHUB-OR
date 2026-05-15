@@ -110,7 +110,7 @@ function relativeTime(iso: string): string {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const extractLabel = (item: Record<string, unknown>): string =>
+export const extractLabel = (item: Record<string, unknown>): string =>
   String(
     item.name ?? item.subjectName ?? item.subject ?? item.className ??
     item.topicName ?? item.subTopicName ?? item.title ?? ""
@@ -211,7 +211,7 @@ interface FieldSelectProps {
   onChange: (id: string, label: string) => void;
 }
 
-function FieldSelect({
+export function FieldSelect({
   label, placeholder, value, items, loading, disabled, required,
   emptyMessage = "No options available", icon, onChange,
 }: FieldSelectProps) {

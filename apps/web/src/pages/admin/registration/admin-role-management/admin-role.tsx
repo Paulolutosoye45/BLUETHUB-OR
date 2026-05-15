@@ -199,7 +199,7 @@ const AdminRole= () => {
             Assign Role
           </button>
           {/* Three-dot */}
-          <EllipsisVertical/>
+          <EllipsisVertical className="text-white"/>
         </div>
       </div>
 

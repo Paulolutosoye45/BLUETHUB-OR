@@ -29,14 +29,22 @@ const AdminAppbar = () => {
     .join("") || "AD";
 
   return (
-    <div className="w-full font-poppins mt-4 mb-6 px-1">
-      {/* Desktop & Tablet */}
-      <div className="bg-white rounded-2xl px-6 py-4 flex items-center justify-between gap-4 shadow-sm">
-        {/* Left: greeting */}
-        <div className="flex items-center gap-3 min-w-0">
-          {/* Avatar */}
-          <div className="w-10 h-10 rounded-full bg-chestnut flex items-center justify-center shrink-0 text-white font-semibold text-sm">
-            {initials}
+    <>
+      <div className=" hidden w-full mx-auto border-0 bg-white rounded-lg md:flex h-[89px]  justify-between items-center  py-5  px-7">
+        <section>
+          <h2 className="font-poppins font-medium text-[15px] leading-tight text-chestnut ">
+            Hello, <span className="font-semibold capitalize ">{user?.firstName},</span> Welcome Back!
+          </h2>
+        </section>
+        <section className="flex justify-between gap-4 items-center">
+          <h2 className="font-semibold text-base leading-tight text-chestnut">
+            {dayName},
+            <span className="font-medium text-sm">
+              {formattedDate}
+            </span>
+          </h2>
+          <div className="w-[45.79px] h-[45.79px]  rounded-full">
+            <img src={schoolProfile?.logoUrl} alt="" className=" bg-white border-2 border-chestnut  rounded-full  w-full h-full cursor-pointer" />
           </div>
           <div className="min-w-0">
             <p className="text-xs text-gray-400 leading-none mb-0.5">{greeting()}</p>
