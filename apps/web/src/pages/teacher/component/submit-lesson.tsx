@@ -22,6 +22,8 @@ import {
   BookOpen,
   Layers,
   FolderOpen,
+  Clock,
+  Timer,
 } from "lucide-react";
 import {
   Button,
@@ -86,9 +88,13 @@ interface LessonDraft {
   subjectLabel: string;
   topicId: string;
   topicLabel: string;
+  subTopicId: string;
   subTopicValue: string;
   aim: string;
   description: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  durationMinutes: string;
   uploadedFiles: DraftFile[];
 }
 
@@ -514,8 +520,12 @@ const SubmitLesson = () => {
   const [topicId, setTopicId] = useState("");
   const [topicLabel, setTopicLabel] = useState("");
   const [subTopicValue, setSubTopicValue] = useState("");
+  const [subTopicId, setSubTopicId] = useState("");
   const [aim, setAim] = useState("");
   const [description, setDescription] = useState("");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState("");
 
   // ── Upload State ──
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
@@ -555,7 +565,8 @@ const SubmitLesson = () => {
       classroomId, classroomLabel,
       subjectId, subjectLabel,
       topicId, topicLabel,
-      subTopicValue, aim, description,
+      subTopicId, subTopicValue, aim, description,
+      scheduledDate, scheduledTime, durationMinutes,
       uploadedFiles: uploadFiles
         .filter((f) => f.status === "done" && f.result)
         .map((f) => ({
@@ -569,7 +580,7 @@ const SubmitLesson = () => {
 
     localData.save(draftKey(user.id), draft);
     setDraftTimestamp(draft.savedAt);
-  }, [classroomId, subjectId, topicId, subTopicValue, aim, description, completedCount]);
+  }, [classroomId, subjectId, topicId, subTopicId, subTopicValue, aim, description, scheduledDate, scheduledTime, durationMinutes, completedCount]);
 
   const restoreDraft = (draft: LessonDraft) => {
     setClassroomId(draft.classroomId);
@@ -578,9 +589,13 @@ const SubmitLesson = () => {
     setSubjectLabel(draft.subjectLabel);
     setTopicId(draft.topicId);
     setTopicLabel(draft.topicLabel);
+    setSubTopicId(draft.subTopicId ?? "");
     setSubTopicValue(draft.subTopicValue);
     setAim(draft.aim);
     setDescription(draft.description);
+    setScheduledDate(draft.scheduledDate ?? "");
+    setScheduledTime(draft.scheduledTime ?? "");
+    setDurationMinutes(draft.durationMinutes ?? "");
 
     if (draft.uploadedFiles.length > 0) {
       const restored: UploadFile[] = draft.uploadedFiles.map((f) => ({
@@ -664,15 +679,21 @@ const SubmitLesson = () => {
     if (!classroomId) return;
     setSubjectId(""); setSubjectLabel("");
     setTopicId(""); setTopicLabel("");
-    setSubTopicValue("");
+    setSubTopicId(""); setSubTopicValue("");
     setSubjects([]); setTopics([]); setSubTopics([]);
 
     if (isAdminRole) {
       setLoadingSubjects(true);
       schoolService.getSubjectsByClassroomId(classroomId)
         .then((res) => {
-          const raw: Record<string, unknown>[] = (res.data as any)?.data ?? [];
-          setSubjects(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
+          const data = (res.data as any)?.data;
+          const major: any[] = data?.majorSubjects ?? [];
+          const minor: any[] = data?.minorSubjects ?? [];
+          const all = [...major, ...minor];
+          setSubjects(all.map((r: any) => ({
+            id: String(r.subjectId ?? r.id),
+            label: String(r.subjectName ?? r.name ?? r.subject ?? ""),
+          })));
         })
         .catch(() => toast.error("Could not load subjects"))
         .finally(() => setLoadingSubjects(false));
@@ -712,6 +733,7 @@ const SubmitLesson = () => {
 
   useEffect(() => {
     if (!topicId) { setSubTopics([]); return; }
+    setSubTopicId("");
     setSubTopicValue("");
     const matched = topicsData.find((t: any) => String(t.topicId) === topicId);
     const subs: SelectItem[] = (matched?.subTopics ?? []).map((s: any) => ({
@@ -841,6 +863,12 @@ const SubmitLesson = () => {
   const step2Done = aim.trim().length > 0 && description.trim().length > 0;
   const step3Done = allUploaded;
 
+  const buildAccessDate = (): string | null =>
+    scheduledDate ? `${scheduledDate}T00:00:00` : null;
+
+  const buildAccessTime = (): string | null =>
+    scheduledTime ? `${scheduledTime}:00` : null;
+
   const buildMediaPayload = (): MediaFilePayload[] =>
     uploadFiles
       .filter((f) => f.status === "done" && f.result)
@@ -855,9 +883,13 @@ const SubmitLesson = () => {
     const mediaFiles = buildMediaPayload();
     const payload: DraftLessonPayload = {
       classroomId, subjectId, topicId,
+      subTopicId,
       subTopic: subTopicValue.trim(),
       aim: aim.trim(),
       description: description.trim(),
+      accessDate: buildAccessDate(),
+      accessTime: buildAccessTime(),
+      durationMinutes: durationMinutes ? Number(durationMinutes) : null,
       ...(mediaFiles.length > 0 ? { mediaFiles } : {}),
     };
 
@@ -885,10 +917,14 @@ const SubmitLesson = () => {
     try {
       await lessonService.submitLesson({
         classroomId, subjectId, topicId,
+        subTopicId,
         subTopic: subTopicValue.trim(),
         aim: aim.trim(),
         description: description.trim(),
         mediaFiles: buildMediaPayload(),
+        accessDate: buildAccessDate(),
+        accessTime: buildAccessTime(),
+        durationMinutes: durationMinutes ? Number(durationMinutes) : null,
         ...(quizId ? { quizId } : { quizId: null }),
       });
       if (user?.id) localData.remove(draftKey(user.id));
@@ -1042,11 +1078,11 @@ const SubmitLesson = () => {
                         <FieldSelect
                           label=""
                           placeholder="Select sub-topic"
-                          value={subTopics.find((s) => s.label === subTopicValue)?.id ?? ""}
+                          value={subTopicId}
                           items={subTopics}
                           loading={loadingSubTopics}
                           disabled={!topicId}
-                          onChange={(_id, label) => setSubTopicValue(label)}
+                          onChange={(id, label) => { setSubTopicId(id); setSubTopicValue(label); }}
                         />
                       ) : (
                         <div className="relative">
@@ -1075,6 +1111,90 @@ const SubmitLesson = () => {
                     <p className="text-xs text-gray-500 flex items-center gap-2 pt-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
                       {[classroomLabel, subjectLabel, topicLabel].filter(Boolean).join(" → ")}
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              {/* Schedule & Duration */}
+              <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-sky-500 text-white">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h2 className="font-semibold text-gray-900">Schedule & Duration</h2>
+                      <p className="text-xs text-gray-500">Optional — set when and how long the class runs</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Date */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        Class Date
+                      </Label>
+                      <input
+                        type="date"
+                        value={scheduledDate}
+                        onChange={(e) => setScheduledDate(e.target.value)}
+                        min={new Date().toISOString().split("T")[0]}
+                        className="w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all bg-white"
+                      />
+                    </div>
+
+                    {/* Time */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        Start Time
+                      </Label>
+                      <input
+                        type="time"
+                        value={scheduledTime}
+                        onChange={(e) => setScheduledTime(e.target.value)}
+                        disabled={!scheduledDate}
+                        className={cn(
+                          "w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all bg-white",
+                          !scheduledDate && "opacity-50 cursor-not-allowed bg-gray-50"
+                        )}
+                      />
+                    </div>
+
+                    {/* Duration */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                        <Timer className="w-3.5 h-3.5 text-gray-400" />
+                        Duration (minutes)
+                      </Label>
+                      <input
+                        type="number"
+                        value={durationMinutes}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "" || (Number(v) > 0 && Number(v) <= 480)) setDurationMinutes(v);
+                        }}
+                        placeholder="e.g. 60"
+                        min={1}
+                        max={480}
+                        className="w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {scheduledDate && scheduledTime && (
+                    <p className="mt-3 text-xs text-sky-600 flex items-center gap-1.5">
+                      <Clock className="w-3 h-3" />
+                      Scheduled for{" "}
+                      {new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString("en-US", {
+                        weekday: "short", month: "short", day: "numeric",
+                        year: "numeric", hour: "2-digit", minute: "2-digit",
+                      })}
+                      {durationMinutes && ` · ${durationMinutes} min`}
                     </p>
                   )}
                 </div>

@@ -248,6 +248,7 @@ const router = createBrowserRouter([
             { path: "drafts", element: <DraftLessons /> },
             { path: "pending-uploads", element: <PendingUploads /> },
             { path: "question-bank", element: <QuestionBankScan /> },
+            { path: "approvals", element: <ApprovalsPage /> },
         ]
     },
 

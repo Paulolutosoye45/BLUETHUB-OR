@@ -9,6 +9,8 @@ import {
   Loader2,
   BookOpen,
   AlertCircle,
+  User,
+  GraduationCap,
 } from "lucide-react";
 import { Button } from "@bluethub/ui-kit";
 import toast from "react-hot-toast";
@@ -16,14 +18,12 @@ import { approvalService, type Approval, type ApprovalPayload } from "@/services
 
 type Tab = "pending" | "responded";
 
-const parsePayload = (raw: ApprovalPayload | string): ApprovalPayload | null => {
-  if (!raw) return null;
-  if (typeof raw === "object") return raw;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
+const getPayload = (raw: ApprovalPayload | string | null): Record<string, any> => {
+  if (!raw) return {};
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw); } catch { return {}; }
   }
+  return raw as Record<string, any>;
 };
 
 const formatDate = (iso: string) => {
@@ -70,7 +70,7 @@ const ApprovalCard = ({
   const [expanded, setExpanded] = useState(false);
   const [showReject, setShowReject] = useState(false);
   const [reason, setReason] = useState("");
-  const payload = parsePayload(approval.payload);
+  const payload = getPayload(approval.payload);
   const isPending = approval.status?.toLowerCase() === "pending";
   const isResponding = responding === approval.id;
 
@@ -95,15 +95,25 @@ const ApprovalCard = ({
           </div>
           <div className="min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate">
-              {payload?.title || approval.entityType}
+              {payload.Title || approval.entityType}
             </p>
-            {payload && (
-              <p className="text-xs text-gray-500 mt-0.5">
-                {payload.subjectName} · {payload.className}
-              </p>
-            )}
-            <p className="text-[11px] text-gray-400 mt-0.5">
-              {approval.operationType} · {formatDate(approval.createdAt)}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+              {payload.SubjectName && (
+                <span className="flex items-center gap-1 text-xs text-gray-500">
+                  <BookOpen className="w-3 h-3" />
+                  {payload.SubjectName}
+                </span>
+              )}
+              {payload.ClassName && (
+                <span className="flex items-center gap-1 text-xs text-gray-500">
+                  <GraduationCap className="w-3 h-3" />
+                  {payload.ClassName}
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1">
+              <User className="w-3 h-3" />
+              {approval.requestedByName} · {approval.operationType} · {formatDate(approval.createdAt)}
             </p>
           </div>
         </div>
@@ -122,8 +132,26 @@ const ApprovalCard = ({
       {/* Expanded details */}
       {expanded && (
         <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-2">
-          {payload?.description && (
-            <p className="text-xs text-gray-600 bg-gray-50 rounded-lg p-3">{payload.description}</p>
+          {payload.Description && (
+            <p className="text-xs text-gray-600 bg-gray-50 rounded-lg p-3">
+              <span className="font-medium text-gray-700">Description: </span>
+              {payload.Description}
+            </p>
+          )}
+          {payload.Term && (
+            <p className="text-[11px] text-gray-400">Term: {payload.Term}</p>
+          )}
+          {payload.ExamDate && (
+            <p className="text-[11px] text-gray-400">Exam date: {formatDate(payload.ExamDate)}</p>
+          )}
+          {payload.TotalMarks != null && (
+            <p className="text-[11px] text-gray-400">Total marks: {payload.TotalMarks}</p>
+          )}
+          {approval.requestedByEmail && (
+            <p className="text-[11px] text-gray-400 flex items-center gap-1">
+              <User className="w-3 h-3" />
+              {approval.requestedByName} ({approval.requestedByEmail})
+            </p>
           )}
           {approval.rejectionReason && (
             <div className="flex items-start gap-2 text-xs text-red-600 bg-red-50 rounded-lg p-3">
@@ -141,6 +169,13 @@ const ApprovalCard = ({
               Responded: {formatDate(approval.respondedAt)}
             </p>
           )}
+
+          <div className="mt-2">
+            <p className="text-[11px] font-medium text-gray-500 mb-1">Payload (JSON)</p>
+            <pre className="text-[10px] text-gray-700 bg-gray-50 border border-gray-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all">
+              {(() => { try { return JSON.stringify(typeof approval.payload === "string" ? JSON.parse(approval.payload) : approval.payload, null, 2); } catch { return String(approval.payload); } })()}
+            </pre>
+          </div>
         </div>
       )}
 
@@ -210,8 +245,8 @@ const ApprovalsPage = () => {
     setLoading(true);
     try {
       const res = await approvalService.getPendingApprovals();
-      const data = (res.data as any)?.data ?? (res.data as any) ?? [];
-      setApprovals(Array.isArray(data) ? data : []);
+      const items = (res.data as any)?.data?.items;
+      setApprovals(Array.isArray(items) ? items : []);
     } catch {
       toast.error("Could not load approvals");
     } finally {
@@ -225,25 +260,18 @@ const ApprovalsPage = () => {
     setResponding(id);
     try {
       const res = await approvalService.respondToApproval(id, { approved, rejectionReason });
-      const data = (res.data as any);
-      const ok = data?.status === "successful" || res.status === 200;
+      const ok = (res.data as any)?.status === "successful" || res.status === 200;
       if (ok) {
         toast.success(approved ? "Approval granted" : "Approval rejected");
-        // Update local state instead of refetching
         setApprovals((prev) =>
           prev.map((a) =>
             a.id === id
-              ? {
-                  ...a,
-                  status: approved ? "Approved" : "Rejected",
-                  rejectionReason: rejectionReason,
-                  respondedAt: new Date().toISOString(),
-                }
+              ? { ...a, status: approved ? "Approved" : "Rejected", respondedAt: new Date().toISOString() }
               : a
           )
         );
       } else {
-        toast.error(data?.responseMessage || "Response failed");
+        toast.error((res.data as any)?.responseMessage || "Response failed");
       }
     } catch (err: any) {
       toast.error(err?.response?.data?.responseMessage || "Failed to respond");

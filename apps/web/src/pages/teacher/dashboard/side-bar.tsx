@@ -7,11 +7,15 @@ import arrowMenuOpen from "@/assets/svg/arrow_menu_open.svg";
 import { localData } from "@/utils";
 import { token } from "@/utils";
 import { TACADEMICLINKS, TnavLink, Tother_menu_Link } from "@/shared/constant";
+import { useAuthContext } from "@/contexts/auth-context";
+import AssignmentIcon from "@/assets/svg/assignment.svg";
 
 
 const TeacherSidebar = () => {
 
     const navigate = useNavigate();
+    const { user } = useAuthContext();
+    const isHeadTeacher = user?.roleName === "HeadTeacher";
     const [isCollapsed, setIsCollapsed] = useState<boolean | null>();
 
     const toggleSidebar = () => {
@@ -152,6 +156,32 @@ const TeacherSidebar = () => {
                             )}
                         </NavLink>
                     ))}
+                    {isHeadTeacher && (
+                        <NavLink
+                            to="/teacher/approvals"
+                            className={({ isActive }) =>
+                                `flex items-center gap-4 px-4 py-3 rounded-lg transition-colors cursor-pointer ${isActive
+                                    ? "bg-chestnut text-white"
+                                    : ""
+                                }${isCollapsed ? " justify-center" : ""}`
+                            }
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <img
+                                        src={AssignmentIcon}
+                                        alt="Approvals"
+                                        className={`w-5 h-5 object-contain ${isActive ? "filter brightness-0 invert" : ""}`}
+                                    />
+                                    {!isCollapsed && (
+                                        <h2 className={`text-sm font-medium ${isActive ? "text-white" : "text-chestnut/50"}`}>
+                                            Approvals
+                                        </h2>
+                                    )}
+                                </>
+                            )}
+                        </NavLink>
+                    )}
                 </div>
             </section>
 
