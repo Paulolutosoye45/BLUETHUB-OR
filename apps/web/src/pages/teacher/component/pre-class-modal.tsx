@@ -172,13 +172,39 @@ const PreClassModal = ({
                         </span>
                         <span className="flex items-center gap-1">
                           <GraduationCap size={12} />
-                          {lesson.className}
+                          {lesson.className || lesson.name}
                         </span>
                         <span className="flex items-center gap-1">
                           <User size={12} />
                           {lesson.teacherName}
                         </span>
                       </div>
+
+                      {/* Schedule info */}
+                      {(lesson.accessDate || lesson.durationMinutes) && (
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          {lesson.accessDate && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-700 bg-sky-50 border border-sky-200 rounded-full px-2.5 py-1">
+                              <Clock size={11} />
+                              {new Date(lesson.accessDate).toLocaleDateString("en-GB", {
+                                day: "2-digit", month: "short", year: "numeric",
+                              })}
+                              {lesson.accessTime && ` · ${lesson.accessTime.slice(0, 5)}`}
+                            </span>
+                          )}
+                          {lesson.durationMinutes && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-full px-2.5 py-1">
+                              <Clock size={11} />
+                              {lesson.durationMinutes} min
+                            </span>
+                          )}
+                          {lesson.accessEndsAt && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 bg-gray-50 border border-gray-200 rounded-full px-2.5 py-1">
+                              Ends {new Date(lesson.accessEndsAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                     {media.length > 0 && (
                       <div className="text-center shrink-0">

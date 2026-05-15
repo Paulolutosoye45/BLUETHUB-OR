@@ -5,6 +5,9 @@ import bluethub from "@/assets/png/bluethub.png";
 import arrowMenu from "@/assets/svg/arrow_menu_close.svg";
 import arrowMenuOpen from "@/assets/svg/arrow_menu_open.svg";
 import { localData } from "@/utils";
+import { token } from "@/utils";
+import { TACADEMICLINKS, TnavLink, Tother_menu_Link } from "@/shared/constant";
+import { useAuthContext } from "@/contexts/auth-context";
 import {  ChevronIcon, type NavItem } from "@/pages/admin/side-bar";
 import dashboardIcon from "@/assets/svg/element-4.svg";
 import messageIcon from "@/assets/svg/message.svg";
@@ -25,6 +28,10 @@ const navLink: NavItem[] = [
     { name: "Message", icons: messageIcon, path: "/admin/message" },
 ];
 
+    const navigate = useNavigate();
+    const { user } = useAuthContext();
+    const isHeadTeacher = user?.roleName === "HeadTeacher";
+    const [isCollapsed, setIsCollapsed] = useState<boolean | null>();
 
 const other_menu_Link: NavItem[] = [
     { name: "Settings", icons: settingsIcon, path: "/admin/settings" },
@@ -149,6 +156,65 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
                     {ACADEMICLINKS.map((link, idx) => {
                         const isOpen = openDropdownIndex === idx;
 
+                <div className="mb-7 space-y-2">
+                    {TACADEMICLINKS.map((link, idx) => (
+                        <NavLink
+                            key={link.name + idx}
+                            to={link.path}
+                            end={link.path === "/teacher"}
+                            className={({ isActive }) =>
+                                `flex items-center gap-4 px-4 py-3 rounded-lg transition-colors cursor-pointer ${isActive
+                                    ? "bg-chestnut text-white"
+                                    : ""
+                                }${isCollapsed ? " justify-center" : ""}`
+                            }
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <img
+                                        src={link.icons}
+                                        alt={link.name}
+                                        className={`w-5 h-5 object-contain ${isActive ? "filter brightness-0 invert" : ""
+                                            }`}
+                                    />
+                                    {!isCollapsed && (
+                                        <h2
+                                            className={`text-sm font-medium ${isActive ? "text-white" : "text-chestnut/50"
+                                                }`}
+                                        >
+                                            {link.name}
+                                        </h2>
+                                    )}
+                                </>
+                            )}
+                        </NavLink>
+                    ))}
+                    {isHeadTeacher && (
+                        <NavLink
+                            to="/teacher/approvals"
+                            className={({ isActive }) =>
+                                `flex items-center gap-4 px-4 py-3 rounded-lg transition-colors cursor-pointer ${isActive
+                                    ? "bg-chestnut text-white"
+                                    : ""
+                                }${isCollapsed ? " justify-center" : ""}`
+                            }
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <img
+                                        src={AssignmentIcon}
+                                        alt="Approvals"
+                                        className={`w-5 h-5 object-contain ${isActive ? "filter brightness-0 invert" : ""}`}
+                                    />
+                                    {!isCollapsed && (
+                                        <h2 className={`text-sm font-medium ${isActive ? "text-white" : "text-chestnut/50"}`}>
+                                            Approvals
+                                        </h2>
+                                    )}
+                                </>
+                            )}
+                        </NavLink>
+                    )}
                         if (link.children) {
                             return (
                                 <div key={link.name + idx}>

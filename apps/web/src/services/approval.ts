@@ -3,26 +3,36 @@ import { X_Tenant_ID } from "@/utils/tenant";
 import { API, type TResponse } from ".";
 
 export interface ApprovalPayload {
-  title: string;
-  subjectName: string;
-  className: string;
-  description: string;
+  Title?: string;
+  SubjectName?: string;
+  ClassName?: string;
+  Description?: string;
+  Term?: string | null;
+  ExamDate?: string | null;
+  TotalMarks?: number | null;
+  UserRole?: string | null;
+  UserName?: string | null;
+  EntityIds?: string[];
 }
 
 export interface Approval {
   id: string;
-  requestedBy: string;
-  requestedByName?: string;
-  approverId: string;
   operationType: string;
   entityType: string;
-  entityId: string;
-  payload: ApprovalPayload | string;
+  entityId: string | null;
   status: string;
-  rejectionReason?: string;
   createdAt: string;
-  respondedAt?: string;
   expiresAt: string;
+  requestedByName: string;
+  requestedByEmail: string;
+  payload: ApprovalPayload | string | null;
+  rejectionReason?: string;
+  respondedAt?: string;
+}
+
+export interface ApprovalsData {
+  count: number;
+  items: Approval[];
 }
 
 const headers = () => ({
@@ -32,7 +42,7 @@ const headers = () => ({
 
 export const approvalService = {
   getPendingApprovals: () =>
-    API.get<TResponse<Approval[]>>("/api/User/approvals", { headers: headers() }),
+    API.get<TResponse<ApprovalsData>>("/api/User/approvals", { headers: headers() }),
 
   respondToApproval: (id: string, payload: { approved: boolean; rejectionReason?: string }) =>
     API.post<TResponse<unknown>>(`/api/User/approvals/${id}/respond`, payload, {
