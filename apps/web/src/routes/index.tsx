@@ -69,7 +69,10 @@ import MySyllabus from '@/pages/teacher/Syllabus/my-syllabus';
 import CreateSyllabus from '@/pages/teacher/Syllabus/create-syllabus';
 import ApprovalsPage from '@/pages/admin/approvals';
 import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
-import CreateSyllabus from '@/pages/teacher/Syllabus/create-syllabus';
+import IdbViewer from '@/pages/dev/idb-viewer';
+import DraftLessons from '@/pages/teacher/drafts';
+import PendingUploads from '@/pages/teacher/pending-uploads';
+import QuestionBankScan from '@/pages/teacher/question-bank';
 
 const router = createBrowserRouter([
     {
@@ -206,7 +209,7 @@ const router = createBrowserRouter([
         ]
     },
 
-    //  admin route
+    //  teacher route
     {
         path: '/teacher',
         element:
@@ -214,7 +217,10 @@ const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: <TeacherProtectedRoute><TeacherDashboard /></TeacherProtectedRoute>
+                element: 
+                <TeacherProtectedRoute>
+                    <TeacherDashboard />
+                </TeacherProtectedRoute>
             },
             { path: "resume-class", element: <ResumeClass /> },
             { path: "class-info", element: <ClassInfo /> },
@@ -249,6 +255,8 @@ const router = createBrowserRouter([
             { path: "create-syllabus", element: <CreateSyllabus /> },
         ]
     },
+
+    // student route
 
     {
         path: "/student",

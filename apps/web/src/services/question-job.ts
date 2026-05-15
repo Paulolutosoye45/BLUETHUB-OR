@@ -1,8 +1,73 @@
 import { API, type TResponse } from ".";
-import { X_Tenant_ID } from "./school";
+import { X_Tenant_ID } from "@/utils/tenant";
 
 // ── Request types ───────────────────────────────────────────────────────────
 export type JobQuestionType = "Objective" | "Theory" | "TrueFalse";
+
+export const JobStatusEnum = {
+  Pending: 1,
+  Processing: 2,
+  Completed: 3,
+  Failed: 4,
+  PartiallyCompleted: 5,
+} as const;
+export type JobStatusEnum = typeof JobStatusEnum[keyof typeof JobStatusEnum];
+
+export interface JobListItem {
+  jobId: string;
+  fileName: string;
+  fileType: string;
+  status: JobStatusEnum;
+  statusText: string;
+  questionsExtracted?: number;
+  createdAt: string;
+  completedAt?: string;
+  subjectId: string;
+  subjectName?: string;
+}
+
+export interface MyJobsResponseData {
+  jobs: JobListItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface ExtractedQuestionPreview {
+  index: number;
+  title: string;
+  textContent?: string;
+  questionType: number;
+  difficultyLevel: number;
+  marksAllocation: number;
+  topic?: string;
+  subTopic?: string;
+  options: Array<{
+    optionLabel: string;
+    optionText: string;
+    isCorrect: boolean;
+    orderIndex: number;
+  }>;
+  aiConfidenceScore: number;
+  imageRegion?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    pageNumber?: number;
+  };
+}
+
+
+export interface JobPreviewResponseData {
+  jobId: string;
+  scanSessionId: string;
+  fileName: string;
+  fileUrl: string;
+  questions: ExtractedQuestionPreview[];
+  totalExtracted: number;
+  processingTime: number;
+}
 
 // ── Response types ──────────────────────────────────────────────────────────
 export interface SubmitJobResponse {

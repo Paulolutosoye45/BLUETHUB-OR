@@ -1,5 +1,5 @@
 import { API, type TResponse } from ".";
-import { X_Tenant_ID } from "./school";
+import { X_Tenant_ID } from "@/utils/tenant";
 
 export const QuestionTypeEnum = {
   MultipleChoice: 1,
@@ -19,19 +19,19 @@ export const DifficultyLevelEnum = {
   Expert: 4,
 } as const;
 
-export enum QuestionStatusEnum {
-  Draft = 1,
-  Published = 2,
-  PendingReview = 3,
-  Archived = 4,
-}
+export const QuestionStatusEnum =  {
+  Draft : 1,
+  Published : 2,
+  PendingReview : 3,
+  Archived : 4,
+} as const
 
-export enum ConflictResolutionEnum {
-  KeepLocal = 1,
-  KeepServer = 2,
-  KeepMerged = 3,
-  DiscardLocal = 4,
-}
+export type ConflictResolutionEnum =  {
+  KeepLocal : 1,
+  KeepServer : 2,
+  KeepMerged : 3,
+  DiscardLocal : 4,
+} 
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PAYLOADS (Request DTOs)
@@ -270,7 +270,7 @@ export interface ConflictCheckResponseData {
 // SERVICE
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const headers = { "X-Tenant-ID": X_Tenant_ID };
+// const headers = { "X-Tenant-ID": X_Tenant_ID };dd
 
 export const questionService = {
   // ── CREATE ─────────────────────────────────────────────────────────────────

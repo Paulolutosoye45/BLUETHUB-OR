@@ -1,5 +1,5 @@
 import SchoolRef from "@/component/school-ref"
-import { MobileNav } from "@/pages/admin/side-bar"
+// import { MobileNav } from "@/pages/admin/side-bar"
 import TeacherSidebar from "@/pages/teacher/dashboard/side-bar"
 import { Outlet } from "react-router-dom"
 
@@ -9,9 +9,9 @@ const TeacherLayout = () => {
             <div className="hidden lg:flex h-full">
                 <TeacherSidebar />
             </div>
-            <div>
+            {/* <div>
                 <MobileNav />
-            </div>
+            </div> */}
             <div className="flex-1 min-h-screen overflow-y-auto bg-[#9C94AB40]
                 [&::-webkit-scrollbar]:w-2
                 [&::-webkit-scrollbar-thumb]:rounded-full

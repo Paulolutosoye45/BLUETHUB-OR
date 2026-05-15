@@ -3,7 +3,6 @@ import { EllipsisVertical, PlusIcon, Search, X } from "lucide-react"
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SyllabusCard, type SyllabusCardProps } from "./syllabus-card";
-import { useNavigate } from "react-router-dom";
 
 
 const STATUS_FILTERS = [

@@ -2,8 +2,6 @@ import { token } from "@/utils";
 import { X_Tenant_ID } from "@/utils/tenant";
 import { API, type TResponse } from ".";
 import { getSubdomain } from "@/utils/subdomain";
-
-export const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
 export const tenantId = getSubdomain();
 
 export const endpoints = {
