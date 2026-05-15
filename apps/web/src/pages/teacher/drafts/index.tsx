@@ -6,7 +6,7 @@ import {
   Clock,
   Calendar,
   BookOpen,
-  Users,
+
   Play,
   Trash2,
   Upload,
@@ -91,21 +91,6 @@ function formatDuration(ms: number): string {
     return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function formatDurationLong(ms: number): string {
-  if (!ms || ms <= 0) return "0 seconds";
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  const parts: string[] = [];
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0) parts.push(`${minutes}m`);
-  if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
-
-  return parts.join(' ');
 }
 
 function formatDate(dateStr: string): string {

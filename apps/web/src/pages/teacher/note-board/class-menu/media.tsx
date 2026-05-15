@@ -44,7 +44,7 @@ const Media = () => {
   const timerDisplay = useSelector((state: RootState) => state.action.timerDisplay);
   const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
 
-  const timer = useGlobalTimer({
+  useGlobalTimer({
     onTargetReached: () => {
       MediaTimesRef.current.show = ""
       MediaTimesRef.current.close = ""

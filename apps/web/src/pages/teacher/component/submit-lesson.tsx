@@ -22,6 +22,8 @@ import {
   BookOpen,
   Layers,
   FolderOpen,
+  Clock,
+  Timer,
 } from "lucide-react";
 import {
   Button,
@@ -40,6 +42,7 @@ import {
   type DraftLessonPayload,
 } from "@/services/lesson";
 import { schoolService } from "@/services/school";
+import { authService } from "@/services/auth";
 import { useAuthContext } from "@/contexts/auth-context";
 import { localData } from "@/utils";
 import toast from "react-hot-toast";
@@ -85,9 +88,13 @@ interface LessonDraft {
   subjectLabel: string;
   topicId: string;
   topicLabel: string;
+  subTopicId: string;
   subTopicValue: string;
   aim: string;
   description: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  durationMinutes: string;
   uploadedFiles: DraftFile[];
 }
 
@@ -490,18 +497,20 @@ function SetQuestionsModal({
 const SubmitLesson = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
-  const isAdmin = user?.roleName === "SuperAdministrator" || user?.roleName === "Administrator";
+  const isAdminRole = user?.roleName === "Administrator" || user?.roleName === "SuperAdministrator" || user?.roleName === "HeadTeacher";
 
   // ── Data State ──
   const [classrooms, setClassrooms] = useState<SelectItem[]>([]);
   const [subjects, setSubjects] = useState<SelectItem[]>([]);
+  const [roleDataClassrooms, setRoleDataClassrooms] = useState<any[]>([]);
   const [topics, setTopics] = useState<SelectItem[]>([]);
   const [subTopics, setSubTopics] = useState<SelectItem[]>([]);
+  const [topicsData, setTopicsData] = useState<any[]>([]);
 
   const [loadingClassrooms, setLoadingClassrooms] = useState(true);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [loadingTopics, setLoadingTopics] = useState(false);
-  const [loadingSubTopics, setLoadingSubTopics] = useState(false);
+  const [loadingSubTopics] = useState(false);
 
   // ── Form State ──
   const [classroomId, setClassroomId] = useState("");
@@ -511,8 +520,12 @@ const SubmitLesson = () => {
   const [topicId, setTopicId] = useState("");
   const [topicLabel, setTopicLabel] = useState("");
   const [subTopicValue, setSubTopicValue] = useState("");
+  const [subTopicId, setSubTopicId] = useState("");
   const [aim, setAim] = useState("");
   const [description, setDescription] = useState("");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState("");
 
   // ── Upload State ──
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
@@ -552,7 +565,8 @@ const SubmitLesson = () => {
       classroomId, classroomLabel,
       subjectId, subjectLabel,
       topicId, topicLabel,
-      subTopicValue, aim, description,
+      subTopicId, subTopicValue, aim, description,
+      scheduledDate, scheduledTime, durationMinutes,
       uploadedFiles: uploadFiles
         .filter((f) => f.status === "done" && f.result)
         .map((f) => ({
@@ -566,7 +580,7 @@ const SubmitLesson = () => {
 
     localData.save(draftKey(user.id), draft);
     setDraftTimestamp(draft.savedAt);
-  }, [classroomId, subjectId, topicId, subTopicValue, aim, description, completedCount]);
+  }, [classroomId, subjectId, topicId, subTopicId, subTopicValue, aim, description, scheduledDate, scheduledTime, durationMinutes, completedCount]);
 
   const restoreDraft = (draft: LessonDraft) => {
     setClassroomId(draft.classroomId);
@@ -575,9 +589,13 @@ const SubmitLesson = () => {
     setSubjectLabel(draft.subjectLabel);
     setTopicId(draft.topicId);
     setTopicLabel(draft.topicLabel);
+    setSubTopicId(draft.subTopicId ?? "");
     setSubTopicValue(draft.subTopicValue);
     setAim(draft.aim);
     setDescription(draft.description);
+    setScheduledDate(draft.scheduledDate ?? "");
+    setScheduledTime(draft.scheduledTime ?? "");
+    setDurationMinutes(draft.durationMinutes ?? "");
 
     if (draft.uploadedFiles.length > 0) {
       const restored: UploadFile[] = draft.uploadedFiles.map((f) => ({
@@ -605,17 +623,6 @@ const SubmitLesson = () => {
     draftRestored.current = true;
   };
 
-  const clearDraftAndReset = () => {
-    if (user?.id) localData.remove(draftKey(user.id));
-    setDraftTimestamp(null);
-    setClassroomId(""); setClassroomLabel("");
-    setSubjectId(""); setSubjectLabel("");
-    setTopicId(""); setTopicLabel("");
-    setSubTopicValue(""); setAim(""); setDescription("");
-    setUploadFiles([]);
-    toast("Draft cleared");
-  };
-
   useEffect(() => {
     if (!user?.id) return;
     const saved = localData.retrieve<LessonDraft>(draftKey(user.id));
@@ -624,63 +631,117 @@ const SubmitLesson = () => {
 
   // ── Data Fetching ──
   useEffect(() => {
-    schoolService.getAllClassRooms()
-      .then((res) => {
-        const raw: Record<string, unknown>[] =
-          (res.data as any)?.data?.classrooms ?? (res.data as any)?.data ?? [];
-        setClassrooms(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
-      })
-      .catch(() => toast.error("Could not load classrooms"))
-      .finally(() => setLoadingClassrooms(false));
-  }, []);
+    if (!user?.id) return;
+
+    const fetchUserData = async () => {
+      try {
+        if (isAdminRole) {
+          const classroomsRes = await schoolService.getAllClassRooms();
+          const raw: Record<string, unknown>[] =
+            (classroomsRes.data as any)?.data?.classrooms ?? (classroomsRes.data as any)?.data ?? [];
+          setClassrooms(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
+          setLoadingClassrooms(false);
+          return;
+        }
+
+        const response = await authService.getUserById(user.id);
+        const userData = (response.data as any)?.data;
+
+        if (!userData) {
+          toast.error("Could not load user data");
+          setLoadingClassrooms(false);
+          return;
+        }
+
+        const classroomsData = userData?.roleData?.classrooms;
+        if (classroomsData && Array.isArray(classroomsData) && classroomsData.length > 0) {
+          setRoleDataClassrooms(classroomsData);
+          setClassrooms(
+            classroomsData.map((c: any, index: number) => ({
+              id: String(c.classroomId),
+              label: c.className || `Classroom ${index + 1}`,
+            }))
+          );
+        } else {
+          setClassrooms([]);
+        }
+        setLoadingClassrooms(false);
+      } catch {
+        toast.error("Could not load user data");
+        setLoadingClassrooms(false);
+      }
+    };
+
+    fetchUserData();
+  }, [user?.id, isAdminRole]);
 
   useEffect(() => {
     if (!classroomId) return;
     setSubjectId(""); setSubjectLabel("");
     setTopicId(""); setTopicLabel("");
-    setSubTopicValue("");
+    setSubTopicId(""); setSubTopicValue("");
     setSubjects([]); setTopics([]); setSubTopics([]);
-    setLoadingSubjects(true);
 
-    schoolService.getSubjectsByClassroomId(classroomId)
-      .then((res) => {
-        const raw: Record<string, unknown>[] = (res.data as any)?.data ?? [];
-        setSubjects(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
-      })
-      .catch(() => toast.error("Could not load subjects"))
-      .finally(() => setLoadingSubjects(false));
-  }, [classroomId]);
+    if (isAdminRole) {
+      setLoadingSubjects(true);
+      schoolService.getSubjectsByClassroomId(classroomId)
+        .then((res) => {
+          const data = (res.data as any)?.data;
+          const major: any[] = data?.majorSubjects ?? [];
+          const minor: any[] = data?.minorSubjects ?? [];
+          const all = [...major, ...minor];
+          setSubjects(all.map((r: any) => ({
+            id: String(r.subjectId ?? r.id),
+            label: String(r.subjectName ?? r.name ?? r.subject ?? ""),
+          })));
+        })
+        .catch(() => toast.error("Could not load subjects"))
+        .finally(() => setLoadingSubjects(false));
+      return;
+    }
+
+    if (roleDataClassrooms.length > 0) {
+      const selectedClass = roleDataClassrooms.find(
+        (c: any) => String(c.classroomId) === classroomId
+      );
+      const subjectsData = selectedClass?.subjects;
+      if (subjectsData && Array.isArray(subjectsData) && subjectsData.length > 0) {
+        setSubjects(subjectsData.map((s: any) => ({ id: String(s.subjectId), label: s.subjectName })));
+        return;
+      }
+    }
+
+    setSubjects([]);
+  }, [classroomId, roleDataClassrooms, isAdminRole]);
 
   useEffect(() => {
-    if (!subjectId) return;
+    if (!subjectId || !classroomId) return;
     setTopicId(""); setTopicLabel("");
     setSubTopicValue("");
-    setTopics([]); setSubTopics([]);
+    setTopics([]); setSubTopics([]); setTopicsData([]);
     setLoadingTopics(true);
 
-    lessonService.getTopicsBySubject(subjectId)
+    schoolService.getTopicsWithSubTopics(subjectId, classroomId)
       .then((res) => {
-        const raw: Record<string, unknown>[] = (res.data as any)?.data ?? [];
-        setTopics(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
+        const topics: any[] = (res.data as any)?.data?.topics ?? [];
+        setTopicsData(topics);
+        setTopics(topics.map((t: any) => ({ id: String(t.topicId), label: t.topicName })));
       })
       .catch(() => { setTopics([]); toast.error("Could not load topics"); })
       .finally(() => setLoadingTopics(false));
-  }, [subjectId]);
+  }, [subjectId, classroomId]);
 
   useEffect(() => {
-    if (!topicId) return;
+    if (!topicId) { setSubTopics([]); return; }
+    setSubTopicId("");
     setSubTopicValue("");
-    setSubTopics([]);
-    setLoadingSubTopics(true);
-
-    lessonService.getSubTopicsByTopic(topicId)
-      .then((res) => {
-        const raw: Record<string, unknown>[] = (res.data as any)?.data ?? [];
-        setSubTopics(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
-      })
-      .catch(() => setSubTopics([]))
-      .finally(() => setLoadingSubTopics(false));
-  }, [topicId]);
+    const matched = topicsData.find((t: any) => String(t.topicId) === topicId);
+    const subs: SelectItem[] = (matched?.subTopics ?? []).map((s: any) => ({
+      id: String(s.subTopicId),
+      label: s.name,
+    }));
+    setSubTopics(subs);
+  }, [topicId, topicsData]);
 
   // ── Upload Logic ──
   const runUpload = useCallback(async (uid: string, file: File, sig: CloudinarySignature) => {
@@ -802,6 +863,12 @@ const SubmitLesson = () => {
   const step2Done = aim.trim().length > 0 && description.trim().length > 0;
   const step3Done = allUploaded;
 
+  const buildAccessDate = (): string | null =>
+    scheduledDate ? `${scheduledDate}T00:00:00` : null;
+
+  const buildAccessTime = (): string | null =>
+    scheduledTime ? `${scheduledTime}:00` : null;
+
   const buildMediaPayload = (): MediaFilePayload[] =>
     uploadFiles
       .filter((f) => f.status === "done" && f.result)
@@ -816,9 +883,13 @@ const SubmitLesson = () => {
     const mediaFiles = buildMediaPayload();
     const payload: DraftLessonPayload = {
       classroomId, subjectId, topicId,
+      subTopicId,
       subTopic: subTopicValue.trim(),
       aim: aim.trim(),
       description: description.trim(),
+      accessDate: buildAccessDate(),
+      accessTime: buildAccessTime(),
+      durationMinutes: durationMinutes ? Number(durationMinutes) : null,
       ...(mediaFiles.length > 0 ? { mediaFiles } : {}),
     };
 
@@ -846,10 +917,14 @@ const SubmitLesson = () => {
     try {
       await lessonService.submitLesson({
         classroomId, subjectId, topicId,
+        subTopicId,
         subTopic: subTopicValue.trim(),
         aim: aim.trim(),
         description: description.trim(),
         mediaFiles: buildMediaPayload(),
+        accessDate: buildAccessDate(),
+        accessTime: buildAccessTime(),
+        durationMinutes: durationMinutes ? Number(durationMinutes) : null,
         ...(quizId ? { quizId } : { quizId: null }),
       });
       if (user?.id) localData.remove(draftKey(user.id));
@@ -895,7 +970,7 @@ const SubmitLesson = () => {
                     {serverDraftSaved ? "Saved" : "Auto-saved"} {relativeTime(draftTimestamp)}
                   </span>
                 )}
-                {isAdmin && (
+                {isAdminRole && (
                   <span className="hidden md:flex items-center gap-1.5 text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full">
                     <Info className="w-3 h-3" />
                     Admin View
@@ -1003,11 +1078,11 @@ const SubmitLesson = () => {
                         <FieldSelect
                           label=""
                           placeholder="Select sub-topic"
-                          value={subTopics.find((s) => s.label === subTopicValue)?.id ?? ""}
+                          value={subTopicId}
                           items={subTopics}
                           loading={loadingSubTopics}
                           disabled={!topicId}
-                          onChange={(_id, label) => setSubTopicValue(label)}
+                          onChange={(id, label) => { setSubTopicId(id); setSubTopicValue(label); }}
                         />
                       ) : (
                         <div className="relative">
@@ -1036,6 +1111,90 @@ const SubmitLesson = () => {
                     <p className="text-xs text-gray-500 flex items-center gap-2 pt-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
                       {[classroomLabel, subjectLabel, topicLabel].filter(Boolean).join(" → ")}
+                    </p>
+                  )}
+                </div>
+              </section>
+
+              {/* Schedule & Duration */}
+              <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-sky-500 text-white">
+                      <Clock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h2 className="font-semibold text-gray-900">Schedule & Duration</h2>
+                      <p className="text-xs text-gray-500">Optional — set when and how long the class runs</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-5">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Date */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        Class Date
+                      </Label>
+                      <input
+                        type="date"
+                        value={scheduledDate}
+                        onChange={(e) => setScheduledDate(e.target.value)}
+                        min={new Date().toISOString().split("T")[0]}
+                        className="w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all bg-white"
+                      />
+                    </div>
+
+                    {/* Time */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        Start Time
+                      </Label>
+                      <input
+                        type="time"
+                        value={scheduledTime}
+                        onChange={(e) => setScheduledTime(e.target.value)}
+                        disabled={!scheduledDate}
+                        className={cn(
+                          "w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all bg-white",
+                          !scheduledDate && "opacity-50 cursor-not-allowed bg-gray-50"
+                        )}
+                      />
+                    </div>
+
+                    {/* Duration */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                        <Timer className="w-3.5 h-3.5 text-gray-400" />
+                        Duration (minutes)
+                      </Label>
+                      <input
+                        type="number"
+                        value={durationMinutes}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "" || (Number(v) > 0 && Number(v) <= 480)) setDurationMinutes(v);
+                        }}
+                        placeholder="e.g. 60"
+                        min={1}
+                        max={480}
+                        className="w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {scheduledDate && scheduledTime && (
+                    <p className="mt-3 text-xs text-sky-600 flex items-center gap-1.5">
+                      <Clock className="w-3 h-3" />
+                      Scheduled for{" "}
+                      {new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString("en-US", {
+                        weekday: "short", month: "short", day: "numeric",
+                        year: "numeric", hour: "2-digit", minute: "2-digit",
+                      })}
+                      {durationMinutes && ` · ${durationMinutes} min`}
                     </p>
                   )}
                 </div>

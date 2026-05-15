@@ -88,6 +88,7 @@ export const Tother_menu_Link = [
 
 export const navLink = [
   { name: "Dashboard", path: "/admin", icons: element },
+  { name: "Approvals", path: "/admin/approvals", icons: AssignmentIcon },
   { name: "Calendar", path: "/admin/calendar", icons: Calendar },
   { name: "Message", path: "/admin/message", icons: message },
 ];

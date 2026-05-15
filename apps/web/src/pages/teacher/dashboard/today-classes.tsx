@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Loader2, Calendar, Inbox } from "lucide-react";
+import { Loader2, Calendar } from "lucide-react";
 import { teacherService, type TodayClassItem } from "@/services/teacher";
 
 const TodayClasses = () => {
@@ -11,7 +11,7 @@ const TodayClasses = () => {
     const fetchClasses = async () => {
       try {
         const res = await teacherService.getTodayClasses();
-        if (res.data.isSuccess) {
+        if (res.data.status === "successful") {
           setClasses(res.data.data.classes);
         }
       } catch (err) {

@@ -29,9 +29,7 @@ import {
   Sparkles,
   CheckCircle2,
   XCircle,
-  Image as ImageIcon,
   ExternalLink,
-  RotateCcw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -450,7 +448,7 @@ function QuestionCard({
 export default function QuestionPreviewModal({
   open,
   onClose,
-  jobId,
+  jobId: _jobId,
   data,
   loading,
 }: QuestionPreviewModalProps) {
@@ -502,7 +500,7 @@ export default function QuestionPreviewModal({
           : undefined,
       });
 
-      if (result.data.isSuccess) {
+      if (result.data.status === "successful") {
         updateQuestionState(index, { status: "approved" });
         toast.success("Question approved!");
 
@@ -538,7 +536,7 @@ export default function QuestionPreviewModal({
         reason,
       });
 
-      if (result.data.isSuccess) {
+      if (result.data.status === "successful") {
         updateQuestionState(index, { status: "rejected", rejectReason: reason });
         toast.success("Question rejected");
 

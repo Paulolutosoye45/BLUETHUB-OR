@@ -5,36 +5,40 @@ import { X_Tenant_ID } from "./school";
 // ENUMS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export enum QuestionTypeEnum {
-  MultipleChoice = 1,
-  ShortAnswer = 2,
-  Essay = 3,
-  TrueOrFalse = 4,
-  FillInTheBlank = 5,
-  ImageBased = 6,
-  BoardBased = 7,
-  Mixed = 8,
-}
+export const QuestionTypeEnum = {
+  MultipleChoice: 1,
+  ShortAnswer: 2,
+  Essay: 3,
+  TrueOrFalse: 4,
+  FillInTheBlank: 5,
+  ImageBased: 6,
+  BoardBased: 7,
+  Mixed: 8,
+} as const;
+export type QuestionTypeEnum = typeof QuestionTypeEnum[keyof typeof QuestionTypeEnum];
 
-export enum DifficultyLevelEnum {
-  Easy = 1,
-  Medium = 2,
-  Hard = 3,
-}
+export const DifficultyLevelEnum = {
+  Easy: 1,
+  Medium: 2,
+  Hard: 3,
+} as const;
+export type DifficultyLevelEnum = typeof DifficultyLevelEnum[keyof typeof DifficultyLevelEnum];
 
-export enum QuestionStatusEnum {
-  Draft = 1,
-  Published = 2,
-  PendingReview = 3,
-  Archived = 4,
-}
+export const QuestionStatusEnum = {
+  Draft: 1,
+  Published: 2,
+  PendingReview: 3,
+  Archived: 4,
+} as const;
+export type QuestionStatusEnum = typeof QuestionStatusEnum[keyof typeof QuestionStatusEnum];
 
-export enum ConflictResolutionEnum {
-  KeepLocal = 1,
-  KeepServer = 2,
-  KeepMerged = 3,
-  DiscardLocal = 4,
-}
+export const ConflictResolutionEnum = {
+  KeepLocal: 1,
+  KeepServer: 2,
+  KeepMerged: 3,
+  DiscardLocal: 4,
+} as const;
+export type ConflictResolutionEnum = typeof ConflictResolutionEnum[keyof typeof ConflictResolutionEnum];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PAYLOADS (Request DTOs)

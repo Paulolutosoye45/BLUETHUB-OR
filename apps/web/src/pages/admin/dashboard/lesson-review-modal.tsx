@@ -1,7 +1,6 @@
 import { useState } from "react";
 import {
   X,
-  Check,
   Clock,
   User,
   BookOpen,

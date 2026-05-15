@@ -195,12 +195,15 @@ const MyLesson = () => {
     try {
       const res = await lessonService.getLessonForClass(lessonId);
       const data = (res.data as any)?.data;
-      setSelectedLessonForClass(data?.lesson ?? null);
-      setLessonMedia(data?.media ?? []);
-    } catch (err) {
-      toast.error("Failed to load lesson details");
+      setSelectedLessonForClass(data?.lesson ?? data?.Lesson ?? null);
+      setLessonMedia(data?.media ?? data?.Media ?? []);
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.responseMessage ??
+        err?.response?.data?.ResponseMessage ??
+        "Failed to load lesson details";
+      toast.error(msg);
       setPreClassModalOpen(false);
-      console.error(err);
     } finally {
       setLoadingLessonDetails(false);
     }

@@ -11,7 +11,7 @@ const UpcomingDeadlines = () => {
         const fetchDeadlines = async () => {
             try {
                 const res = await teacherService.getUpcomingDeadlines({ limit: 5 });
-                if (res.data.isSuccess) {
+                if (res.data.status === "successful") {
                     setDeadlines(res.data.data.deadlines);
                 }
             } catch (err) {

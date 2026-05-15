@@ -11,7 +11,7 @@ const Recordedclass = () => {
         const fetchRecordings = async () => {
             try {
                 const res = await teacherService.getRecordedClasses({ limit: 5 });
-                if (res.data.isSuccess) {
+                if (res.data.status === "successful") {
                     setRecordings(res.data.data.classes);
                 }
             } catch (err) {

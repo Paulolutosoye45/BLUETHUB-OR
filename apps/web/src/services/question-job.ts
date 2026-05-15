@@ -5,18 +5,20 @@ import { X_Tenant_ID } from "./school";
 // ENUMS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export enum JobStatusEnum {
-  Pending = 1,
-  Processing = 2,
-  Completed = 3,
-  Failed = 4,
-  PartiallyCompleted = 5,
-}
+export const JobStatusEnum = {
+  Pending: 1,
+  Processing: 2,
+  Completed: 3,
+  Failed: 4,
+  PartiallyCompleted: 5,
+} as const;
+export type JobStatusEnum = typeof JobStatusEnum[keyof typeof JobStatusEnum];
 
-export enum JobTypeEnum {
-  QuestionScan = 1,
-  BulkImport = 2,
-}
+export const JobTypeEnum = {
+  QuestionScan: 1,
+  BulkImport: 2,
+} as const;
+export type JobTypeEnum = typeof JobTypeEnum[keyof typeof JobTypeEnum];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PAYLOADS (Request DTOs)

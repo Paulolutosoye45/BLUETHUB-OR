@@ -10,7 +10,7 @@
  * - GET /api/board/session/{sessionId} - Get session (for debugging)
  */
 
-import { API, type TResponse } from './index';
+import { API } from './index';
 import { X_Tenant_ID } from './school';
 import type { CompressedStroke } from '@/utils/constant';
 
