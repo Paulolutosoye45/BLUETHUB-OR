@@ -21,7 +21,7 @@ import classIconIcon from "@/assets/svg/class.svg";
 import AssignmentIcon from "@/assets/svg/assignment.svg";
 import UploadIcon from "@/assets/svg/upload.svg";
 import PlayIcon from "@/assets/svg/play.svg";
-import QuizzesIcon from "@/assets/svg/quizzes.svg";
+// import QuizzesIcon from "@/assets/svg/quizzes.svg";
 import libraryIcon from "@/assets/svg/library.svg";
 // import { useTeacherProfile } from "@/hooks/use-teacher-profile"; // adjust to your actual hook
 
@@ -37,7 +37,7 @@ const ACADEMIC_LINKS: NavItem[] = [
   { icons: classIconIcon, name: "Class", path: "/teacher/class" },
   { icons: MonitorPlayIcon, name: "Recorded Class", path: "/teacher/recorded-class" },
   { icons: AssignmentIcon, name: "Question/Assessment", path: "/teacher/assessment" },
-  { icons: BookTextIcon, name: "My Lesson", path: "/teacher/syllabus" },
+  { icons: BookTextIcon, name: "My Lesson", path: "/teacher/my-lessons" },
   {
     icons: UploadIcon,
     name: "Submit Lesson",
@@ -62,11 +62,6 @@ const ACADEMIC_LINKS: NavItem[] = [
     icons: AssignmentIcon,
     name: "Question/Assessment",
     path: "/teacher/assessment",
-  },
-  {
-    icons: QuizzesIcon,
-    name: "Question Bank",
-    path: "/teacher/question-bank",
   },
   {
     icons: BookTextIcon,

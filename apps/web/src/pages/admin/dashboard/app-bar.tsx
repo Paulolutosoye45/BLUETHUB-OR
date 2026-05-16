@@ -35,7 +35,7 @@ const AdminAppbar = () => {
             {greeting()}, {name}
           </h1>
           <p className="text-xs  font-normal text-[#666666] mt-0.5">
-            Second term 2025/2026  ·  5 lessons pending  ·  2 new registrations today
+            5 lessons pending  ·  2 new registrations today
           </p>
         </div>
         <div className="flex items-center gap-3 justify-between">
