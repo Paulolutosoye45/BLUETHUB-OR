@@ -1,6 +1,8 @@
 import { API, type TResponse } from ".";
-import { X_Tenant_ID } from "@/utils/tenant";
+// import { X_Tenant_ID } from "@/utils/tenant";
 import type { IActions, CompressedStroke, SessionManifest } from "@/utils/constant";
+
+const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
 
 export interface CloudinarySignature {
   signature: string;
