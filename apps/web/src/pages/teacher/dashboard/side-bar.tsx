@@ -133,4 +133,97 @@ const TeacherSidebar = () => {
     );
 };
 
+type MobileTeacherNavProps = {
+    isOpen: boolean;
+    setIsOpen: (next: boolean) => void;
+};
+
+export const MobileTeacherNav = ({ isOpen, setIsOpen }: MobileTeacherNavProps) => {
+    const navigate = useNavigate();
+    const { logout } = useAuthContext();
+
+    const handleLogout = () => {
+        logout();
+        setIsOpen(false);
+        navigate("/");
+    };
+
+    return (
+        <>
+            <button
+                type="button"
+                onClick={() => setIsOpen(true)}
+                className="lg:hidden fixed left-5 top-3 z-40 w-12 h-12 rounded-2xl bg-[#292382] text-white flex items-center justify-center"
+                aria-label="Open teacher navigation"
+            >
+                Menu
+            </button>
+
+            <div
+                className={[
+                    "lg:hidden fixed inset-0 z-40 bg-black/40 transition-opacity duration-200",
+                    isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+                ].join(" ")}
+                onClick={() => setIsOpen(false)}
+                aria-hidden="true"
+            />
+
+            <aside
+                className={[
+                    "lg:hidden fixed top-0 left-0 z-50 h-full w-[280px] bg-white border-r border-[#29238210] flex flex-col transition-transform duration-300",
+                    isOpen ? "translate-x-0" : "-translate-x-full",
+                ].join(" ")}
+            >
+                <div className="flex items-center justify-between px-4 py-4 border-b border-[#29238210]">
+                    <img src={bluethub} alt="Bluethub" className="h-7" />
+                    <button
+                        type="button"
+                        onClick={() => setIsOpen(false)}
+                        className="text-[#292382] text-sm font-semibold"
+                    >
+                        Close
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+                    {TACADEMICLINKS.map((link, idx) => (
+                        <NavLink
+                            key={link.name + idx}
+                            to={link.path}
+                            onClick={() => setIsOpen(false)}
+                            className={({ isActive }) =>
+                                [
+                                    "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200",
+                                    isActive ? "bg-[#292382] text-white" : "text-[#292382] hover:bg-[#29238210]",
+                                ].join(" ")
+                            }
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <img
+                                        src={link.icons}
+                                        alt={link.name}
+                                        className={`w-[18px] h-[18px] shrink-0 object-contain ${isActive ? "brightness-0 invert" : "opacity-70"}`}
+                                    />
+                                    <span className="text-sm font-medium truncate">{link.name}</span>
+                                </>
+                            )}
+                        </NavLink>
+                    ))}
+                </div>
+
+                <div className="px-3 py-4 border-t border-[#29238210]">
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-red-500 hover:bg-red-50"
+                    >
+                        <span className="text-sm font-medium">Log Out</span>
+                    </button>
+                </div>
+            </aside>
+        </>
+    );
+};
+
 export default TeacherSidebar;
