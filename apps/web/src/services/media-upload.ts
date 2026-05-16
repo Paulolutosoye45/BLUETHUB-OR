@@ -19,11 +19,12 @@ import { API } from './index';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+// Matches C# enum: Audio=1, Video=2, Document=3, Image=4
 export const MediaType = {
-  Video: 0,
-  Image: 1,
-  Document: 2,
-  Audio: 3,
+  Audio: 1,
+  Video: 2,
+  Document: 3,
+  Image: 4,
 } as const;
 export type MediaType = typeof MediaType[keyof typeof MediaType];
 
