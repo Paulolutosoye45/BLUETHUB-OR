@@ -214,22 +214,18 @@ export const mediaUploadService = {
       // Step 2: Upload to Cloudinary
       const cloudinaryResponse = await this.uploadToCloudinary(file, tokenResponse, onProgress);
 
-      // Step 3: Confirm upload with backend
-      const confirmResult = await this.confirmUpload({
-        mediaId: tokenResponse.mediaId,
-        secureUrl: cloudinaryResponse.secure_url,
-        publicId: cloudinaryResponse.public_id,
-        fileSize: cloudinaryResponse.bytes,
-        duration: cloudinaryResponse.duration,
-        thumbnailUrl: cloudinaryResponse.thumbnail_url,
-      });
-
-      if (!confirmResult.success) {
-        return {
-          success: false,
-          error: confirmResult.message,
-        };
-      }
+      // Step 3: Confirm upload with backend (disabled — backend tracks via event)
+      // const confirmResult = await this.confirmUpload({
+      //   mediaId: tokenResponse.mediaId,
+      //   secureUrl: cloudinaryResponse.secure_url,
+      //   publicId: cloudinaryResponse.public_id,
+      //   fileSize: cloudinaryResponse.bytes,
+      //   duration: cloudinaryResponse.duration,
+      //   thumbnailUrl: cloudinaryResponse.thumbnail_url,
+      // });
+      // if (!confirmResult.success) {
+      //   return { success: false, error: confirmResult.message };
+      // }
 
       return {
         success: true,

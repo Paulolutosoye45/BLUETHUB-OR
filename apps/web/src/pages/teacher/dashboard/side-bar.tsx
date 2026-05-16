@@ -7,7 +7,6 @@ import arrowMenuOpen from "@/assets/svg/arrow_menu_open.svg";
 import { useAuthContext } from "@/contexts/auth-context";
 import { TACADEMICLINKS } from "@/shared/constant";
 import { localData } from "@/utils";
-
 const TeacherSidebar = () => {
     const navigate = useNavigate();
     const { user, logout } = useAuthContext();
