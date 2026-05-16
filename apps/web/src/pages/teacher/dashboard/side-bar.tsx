@@ -32,42 +32,17 @@ const MAIN_LINKS: NavItem[] = [
 ];
 
 const ACADEMIC_LINKS: NavItem[] = [
-  { icons: studentIcon, name: "Student", path: "/teacher/student" },
-  { icons: coursesIcon, name: "Courses", path: "/teacher/courses" },
-  { icons: classIconIcon, name: "Class", path: "/teacher/class" },
-  { icons: MonitorPlayIcon, name: "Recorded Class", path: "/teacher/recorded-class" },
-  { icons: AssignmentIcon, name: "Question/Assessment", path: "/teacher/assessment" },
-  { icons: BookTextIcon, name: "My Lesson", path: "/teacher/my-lessons" },
-  {
-    icons: UploadIcon,
-    name: "Submit Lesson",
-    path: "/teacher/submit-lesson",
-  },
-  {
-    icons: libraryIcon,
-    name: "My Lessons",
-    path: "/teacher/my-lessons",
-  },
-  {
-    icons: PlayIcon,
-    name: "Start Class",
-    path: "/teacher/start-class",
-  },
-  {
-    icons: UploadIcon,
-    name: "My Drafts",
-    path: "/teacher/drafts",
-  },
-  {
-    icons: AssignmentIcon,
-    name: "Question/Assessment",
-    path: "/teacher/assessment",
-  },
-  {
-    icons: BookTextIcon,
-    name: "My Syllabus",
-    path: "/teacher/syllabus",
-  },
+  { icons: studentIcon,    name: "Student",              path: "/teacher/student" },
+  { icons: coursesIcon,    name: "Courses",              path: "/teacher/courses" },
+  { icons: classIconIcon,  name: "Class",                path: "/teacher/class" },
+  { icons: MonitorPlayIcon,name: "Recorded Class",       path: "/teacher/recorded-class" },
+  { icons: AssignmentIcon, name: "Question/Assessment",  path: "/teacher/assessment" },
+  { icons: libraryIcon,    name: "My Lessons",           path: "/teacher/my-lessons" },
+  { icons: UploadIcon,     name: "Submit Lesson",        path: "/teacher/submit-lesson" },
+  { icons: PlayIcon,       name: "Start Class",          path: "/teacher/start-class" },
+  { icons: UploadIcon,     name: "My Drafts",            path: "/teacher/drafts" },
+  { icons: BookTextIcon,   name: "My Syllabus",          path: "/teacher/syllabus" },
+  { icons: BookTextIcon,   name: "Create Syllabus",      path: "/teacher/create-syllabus" },
 ];
 
 const OTHER_LINKS: NavItem[] = [
@@ -232,6 +207,13 @@ const subject = classroom?.subjects.map((s) => s.subjectName).join(" · ") ?? ""
           {ACADEMIC_LINKS.map((link) => (
             <NavItem key={link.name} link={link} isCollapsed={isCollapsed} onNavigate={onNavigate} />
           ))}
+          {user?.roleName === "HeadTeacher" && (
+            <NavItem
+              link={{ name: "Approvals", icons: AssignmentIcon, path: "/teacher/approvals" }}
+              isCollapsed={isCollapsed}
+              onNavigate={onNavigate}
+            />
+          )}
         </div>
       </section>
 

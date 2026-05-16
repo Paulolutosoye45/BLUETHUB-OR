@@ -58,17 +58,39 @@ const Media = () => {
   useEffect(() => {
     const MediaLoader = async () => {
       try {
-        const boardPdfUrl = await resolveBoardPdfUrl();
+        // Load lesson media from sessionStorage (set by pre-class modal)
+        const resolveMediaType = (mediaType: string, fileExtension: string): "video" | "pdf" | "image" => {
+          const mt = mediaType?.toLowerCase();
+          const ext = fileExtension?.toLowerCase();
+          if (mt === "video") return "video";
+          if (mt === "document" || ext === "pdf") return "pdf";
+          return "image";
+        };
 
-        // Derive the cache ID from the filename so switching the PDF file
-        // automatically busts the old cached blob.
+        let lessonMedia: IMedia[] = [];
+        try {
+          const raw = sessionStorage.getItem("activeLesson");
+          if (raw) {
+            const active = JSON.parse(raw);
+            const dtos: any[] = active?.media ?? [];
+            lessonMedia = dtos
+              .filter((m) => m.cloudinaryUrl)
+              .map((m) => ({
+                id: m.id,
+                name: m.originalFileName ?? m.fileName ?? m.id,
+                type: resolveMediaType(m.mediaType, m.fileExtension),
+                url: m.cloudinaryUrl,
+              }));
+          }
+        } catch { /* ignore parse errors */ }
+
+        const boardPdfUrl = await resolveBoardPdfUrl();
         const pdfFileName = boardPdfUrl.split('/').pop()?.replace(/\.pdf$/i, '') ?? 'pdf';
         const pdfCacheId = `pdf-${pdfFileName}`;
-
-        // Evict any legacy fixed-id entry so it doesn't shadow the new file.
         await deleteImage('pdf-1').catch(() => undefined);
 
-        const loadedImages: IMedia[] = [
+        // Use lesson media if available, otherwise fall back to demo assets
+        const loadedImages: IMedia[] = lessonMedia.length > 0 ? lessonMedia : [
           {
             id: "image01",
             name: "image01",
