@@ -209,7 +209,7 @@ const router = createBrowserRouter([
         ]
     },
 
-    //  admin route
+    //  teacher route
     {
         path: '/teacher',
         element:
@@ -217,7 +217,10 @@ const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: <TeacherProtectedRoute><TeacherDashboard /></TeacherProtectedRoute>
+                element: 
+                <TeacherProtectedRoute>
+                    <TeacherDashboard />
+                </TeacherProtectedRoute>
             },
             { path: "resume-class", element: <ResumeClass /> },
             { path: "class-info", element: <ClassInfo /> },
@@ -249,8 +252,11 @@ const router = createBrowserRouter([
             { path: "pending-uploads", element: <PendingUploads /> },
             { path: "question-bank", element: <QuestionBankScan /> },
             { path: "approvals", element: <ApprovalsPage /> },
+            { path: "create-syllabus", element: <CreateSyllabus /> },
         ]
     },
+
+    // student route
 
     {
         path: "/student",

@@ -1,5 +1,5 @@
 import { API, type TResponse } from ".";
-import { X_Tenant_ID } from "./school";
+import { X_Tenant_ID } from "@/utils/tenant";
 import type { IActions, CompressedStroke, SessionManifest } from "@/utils/constant";
 
 export interface CloudinarySignature {
@@ -10,10 +10,26 @@ export interface CloudinarySignature {
   folder: string;
 }
 
+// Matches C# enum: Audio=1, Video=2, Document=3, Image=4
+export const LessonMediaType = {
+  Audio: 1,
+  Video: 2,
+  Document: 3,
+  Image: 4,
+} as const;
+
+export function resolveMediaType(mimeType: string): number {
+  if (mimeType.startsWith("audio/")) return LessonMediaType.Audio;
+  if (mimeType.startsWith("video/")) return LessonMediaType.Video;
+  if (mimeType.startsWith("image/")) return LessonMediaType.Image;
+  return LessonMediaType.Document;
+}
+
 export interface MediaFilePayload {
   fileName: string;
   originalFileName: string;
   fileExtension: string;
+  mediaType: number;
   cloudinaryUrl: string;
   publicId: string;
   fileSizeBytes: number;

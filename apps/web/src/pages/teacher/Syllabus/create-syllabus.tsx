@@ -1,448 +1,437 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import {
-  ChevronLeft,
-  Plus,
-  Trash2,
-  Loader2,
-  Send,
-  GripVertical,
-} from "lucide-react";
-import { Button } from "@bluethub/ui-kit";
-import { schoolService } from "@/services/school";
-import { authService } from "@/services/auth";
-import { useAuthContext } from "@/contexts/auth-context";
-import toast from "react-hot-toast";
+    Button, Input, Label,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuGroup,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@bluethub/ui-kit"
+import { BookTextIcon, CalendarRange, Check, ChevronDown, Clock3, EllipsisVertical, Loader2, Plus } from "lucide-react"
+import { useNavigate } from "react-router-dom"
+import { useEffect, useMemo, useState } from "react"
+import { schoolService } from "@/services/school"
+import { WeekRow, type Week } from "@/shared/week-row"
+import Completion from "./completion"
+import SubmissionGuide from "./submission-guide"
+import { AxiosError } from "axios"
+import toast from "react-hot-toast"
+import { API } from "@/services"
+import { X_Tenant_ID } from "@/utils/tenant"
+import { useAuthContext } from "@/contexts/auth-context"
 
-interface Subtopic {
-  id: string;
-  title: string;
-}
+interface SubjectItem { id: string; name: string; }
+interface ClassItem { id: string; name: string; subjects: SubjectItem[]; }
 
-interface Topic {
-  id: string;
-  name: string;
-  subtopics: Subtopic[];
-}
-
-interface SelectItem {
-  id: string;
-  label: string;
-}
-
-
-const generateId = () => Math.random().toString(36).substring(2, 9);
-
-const extractLabel = (item: Record<string, unknown>): string =>
-  String(item.name ?? item.subjectName ?? item.subject ?? item.className ?? item.title ?? "");
-
-const emptyTopic = (): Topic => ({
-  id: generateId(),
-  name: "",
-  subtopics: [{ id: generateId(), title: "" }],
-});
+const isTeacherRole = (roleName?: string) =>
+    !!roleName?.toLowerCase().includes("teacher");
 
 const CreateSyllabus = () => {
-  const navigate = useNavigate();
-  const { user } = useAuthContext();
-  const [submitting, setSubmitting] = useState(false);
+    const navigate = useNavigate();
+    const { user } = useAuthContext();
+    const isTeacher = isTeacherRole(user?.roleName);
 
-  // Data state
-  const [classrooms, setClassrooms] = useState<SelectItem[]>([]);
-  const [subjects, setSubjects] = useState<SelectItem[]>([]);
-  const [loadingClassrooms, setLoadingClassrooms] = useState(true);
-  const [loadingSubjects, setLoadingSubjects] = useState(false);
+    const [selectedClass, setSelectedClass] = useState<ClassItem | null>(null);
+    const [selectedSubject, setSelectedSubject] = useState<SubjectItem | null>(null);
+    const [subjects, setSubjects] = useState<SubjectItem[]>([]);
+    const [isSubjectOpen, setIsSubjectOpen] = useState(false);
+    const [isClassOpen, setIsClassOpen] = useState(false);
+    const [classes, setClasses] = useState<ClassItem[]>([]);
 
-  // Form state
-  const [selectedClassroom, setSelectedClassroom] = useState("");
-  const [selectedClassroomLabel, setSelectedClassroomLabel] = useState("");
-  const [selectedSubject, setSelectedSubject] = useState("");
-  const [selectedSubjectLabel, setSelectedSubjectLabel] = useState("");
-  const [topics, setTopics] = useState<Topic[]>([emptyTopic()]);
+    const [title, setTitle] = useState("");
+    const [textbook, setTextbook] = useState("");
+    const [aim, setAim] = useState("");
+    const [weeks, setWeeks] = useState<Week[]>([]);
+    const [expandAll, setExpandAll] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
 
-  const [roleDataClassrooms, setRoleDataClassrooms] = useState<any[]>([]);
-  const [isAdminRole, setIsAdminRole] = useState(false);
-
-  // Fetch user data / classrooms
-  useEffect(() => {
-    if (!user?.id) return;
-
-    const fetchUserData = async () => {
-      try {
-        const response = await authService.getUserById(user.id);
-        const userData = (response.data as any)?.data;
-
-        if (!userData) {
-          toast.error("Could not load user data");
-          setLoadingClassrooms(false);
-          return;
-        }
-
-        const roleName = userData?.roleName || "";
-        const isAdmin = roleName === "Administrator" || roleName === "SuperAdministrator";
-        setIsAdminRole(isAdmin);
-
-        if (isAdmin) {
-          const classroomsRes = await schoolService.getAllClassRooms();
-          const raw: Record<string, unknown>[] =
-            (classroomsRes.data as any)?.data?.classrooms ?? (classroomsRes.data as any)?.data ?? [];
-          setClassrooms(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
-          setLoadingClassrooms(false);
-          return;
-        }
-
-        const classroomsData = userData?.roleData?.classrooms;
-        if (classroomsData && Array.isArray(classroomsData) && classroomsData.length > 0) {
-          setRoleDataClassrooms(classroomsData);
-          setClassrooms(
-            classroomsData.map((c: any, index: number) => ({
-              id: String(c.classroomId),
-              label: c.className || `Classroom ${index + 1}`,
-            }))
-          );
+    // ── Populate classrooms ────────────────────────────────────────────────────
+    useEffect(() => {
+        if (isTeacher) {
+            // Teacher: classrooms + their subjects come directly from roleData
+            const roleClassrooms = user?.roleData?.classrooms ?? [];
+            setClasses(roleClassrooms.map((c: any) => ({
+                id: String(c.classroomId),
+                name: String(c.className),
+                subjects: (c.subjects ?? []).map((s: any) => ({
+                    id: String(s.subjectId),
+                    name: String(s.subjectName),
+                })),
+            })));
         } else {
-          setClassrooms([]);
+            // Admin/HeadTeacher: fetch all classrooms from API
+            schoolService.getAllClassRooms()
+                .then(({ data }) => {
+                    const raw: any[] = (data as any).data?.classrooms ?? [];
+                    setClasses(raw.map((c: any) => ({
+                        id: String(c.id ?? c.classroomId),
+                        name: String(c.name ?? c.className),
+                        subjects: [],
+                    })));
+                })
+                .catch(() => {});
         }
-        setLoadingClassrooms(false);
-      } catch (err) {
-        toast.error("Could not load user data");
-        setLoadingClassrooms(false);
-      }
+    }, [isTeacher, user]);
+
+    // ── Populate subjects when class changes ───────────────────────────────────
+    useEffect(() => {
+        setSelectedSubject(null);
+        if (!selectedClass) { setSubjects([]); return; }
+
+        if (isTeacher) {
+            // Subjects already embedded in the class item from roleData
+            setSubjects(selectedClass.subjects);
+        } else {
+            // Admin: fetch subjects for the selected classroom
+            schoolService.getSubjectsByClassroomId(selectedClass.id).then((res) => {
+                const data = (res.data as any)?.data;
+                const major: any[] = data?.majorSubjects ?? [];
+                const minor: any[] = data?.minorSubjects ?? [];
+                setSubjects([...major, ...minor].map((s: any) => ({
+                    id: String(s.subjectId ?? s.id),
+                    name: String(s.subjectName ?? s.name ?? ""),
+                })));
+            }).catch(() => setSubjects([]));
+        }
+    }, [selectedClass, isTeacher]);
+
+    // ── Completion checks ──────────────────────────────────────────────────────
+    const totalTopics = useMemo(() => weeks.reduce((acc, w) => acc + w.topics.length, 0), [weeks]);
+    const weeksDone = useMemo(() => weeks.filter(w => w.topics.length > 0).length, [weeks]);
+    const checks = useMemo(() => ({
+        subjectSelected: !!(selectedClass && selectedSubject),
+        titleAdded: title.trim().length > 0,
+        atLeast4Weeks: weeks.length >= 4,
+        eachWeekHasTopics: weeks.length > 0 && weeks.every(w => w.topics.length > 0),
+    }), [selectedClass, selectedSubject, title, weeks]);
+
+    const canSubmit = checks.subjectSelected && checks.titleAdded && checks.atLeast4Weeks && checks.eachWeekHasTopics;
+
+    const handleAddWeek = () => {
+        if (weeks.length >= 12) return;
+        setWeeks(prev => [...prev, {
+            id: crypto.randomUUID(),
+            title: `Week ${prev.length + 1}`,
+            topics: [],
+        }]);
     };
 
-    fetchUserData();
-  }, [user?.id]);
+    // ── Submit ─────────────────────────────────────────────────────────────────
+    const handleSubmit = async () => {
+        if (!canSubmit || !selectedClass || !selectedSubject) return;
+        if (!aim.trim()) { toast.error("Please add an objective / overview"); return; }
 
-  // Fetch subjects when classroom changes
-  useEffect(() => {
-    if (!selectedClassroom) {
-      setSubjects([]);
-      return;
-    }
+        setSubmitting(true);
+        try {
+            const payload = {
+                classroomId: selectedClass.id,
+                subjectId: selectedSubject.id,
+                title: title.trim(),
+                recommendedTextbook: textbook.trim(),
+                objectives: aim.trim(),
+                weeks: weeks.map((w, i) => ({
+                    weekNumber: i + 1,
+                    title: w.title,
+                    topics: w.topics,
+                })),
+            };
+            await API.post("/api/Syllabus/create", payload, {
+                headers: { "X-Tenant-ID": X_Tenant_ID },
+            });
+            toast.success("Syllabus submitted for approval");
+            navigate("/teacher/syllabus");
+        } catch (err) {
+            const msg = err instanceof AxiosError
+                ? err.response?.data?.responseMessage ?? err.response?.data?.message ?? err.message
+                : (err as Error).message;
+            toast.error(msg || "Failed to submit syllabus");
+        } finally {
+            setSubmitting(false);
+        }
+    };
 
-    setSelectedSubject("");
-    setSelectedSubjectLabel("");
+    return (
+        <div className="p-3 font-poppins">
+            <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
 
-    if (isAdminRole) {
-      setSubjects([]);
-      setLoadingSubjects(true);
-      schoolService
-        .getSubjectsByClassroomId(selectedClassroom)
-        .then((res) => {
-          const raw: Record<string, unknown>[] = (res.data as any)?.data ?? [];
-          setSubjects(raw.map((r) => ({ id: String(r.id), label: extractLabel(r) })));
-        })
-        .catch(() => toast.error("Could not load subjects"))
-        .finally(() => setLoadingSubjects(false));
-      return;
-    }
-
-    if (roleDataClassrooms.length > 0) {
-      const selectedClass = roleDataClassrooms.find(
-        (c: any) => String(c.classroomId) === selectedClassroom
-      );
-      const subjectsData = selectedClass?.subjects;
-      if (subjectsData && Array.isArray(subjectsData) && subjectsData.length > 0) {
-        setSubjects(subjectsData.map((s: any) => ({ id: String(s.subjectId), label: s.subjectName })));
-        setLoadingSubjects(false);
-        return;
-      }
-    }
-
-    setSubjects([]);
-    setLoadingSubjects(false);
-  }, [selectedClassroom, roleDataClassrooms, isAdminRole]);
-
-  // ── Topic management ─────────────────────────────────────────────────────────
-
-  const addTopic = () => setTopics((prev) => [...prev, emptyTopic()]);
-
-  const removeTopic = (topicId: string) => {
-    if (topics.length === 1) return;
-    setTopics((prev) => prev.filter((t) => t.id !== topicId));
-  };
-
-  const updateTopicName = (topicId: string, name: string) =>
-    setTopics((prev) => prev.map((t) => (t.id === topicId ? { ...t, name } : t)));
-
-  const addSubtopic = (topicId: string) =>
-    setTopics((prev) =>
-      prev.map((t) =>
-        t.id === topicId
-          ? { ...t, subtopics: [...t.subtopics, { id: generateId(), title: "" }] }
-          : t
-      )
-    );
-
-  const removeSubtopic = (topicId: string, subtopicId: string) =>
-    setTopics((prev) =>
-      prev.map((t) =>
-        t.id === topicId && t.subtopics.length > 1
-          ? { ...t, subtopics: t.subtopics.filter((s) => s.id !== subtopicId) }
-          : t
-      )
-    );
-
-  const updateSubtopic = (topicId: string, subtopicId: string, title: string) =>
-    setTopics((prev) =>
-      prev.map((t) =>
-        t.id === topicId
-          ? {
-              ...t,
-              subtopics: t.subtopics.map((s) => (s.id === subtopicId ? { ...s, title } : s)),
-            }
-          : t
-      )
-    );
-
-  // ── Validation ───────────────────────────────────────────────────────────────
-
-  const isValid =
-    !!selectedClassroom &&
-    !!selectedSubject &&
-    topics.length > 0 &&
-    topics.every(
-      (t) => t.name.trim() && t.subtopics.length > 0 && t.subtopics.every((s) => s.title.trim())
-    );
-
-  // ── Submit ───────────────────────────────────────────────────────────────────
-
-  const handleSubmitForReview = async () => {
-    if (!isValid) return;
-    setSubmitting(true);
-    try {
-      const res = await schoolService.createTopic({
-        subjectId: selectedSubject,
-        classroomId: selectedClassroom,
-        topics: topics.map((t) => ({
-          name: t.name.trim(),
-          subTopics: t.subtopics.map((s) => s.title.trim()),
-        })),
-      });
-
-      const data = (res.data as any);
-      const ok =
-        data?.responseCode === "00" ||
-        data?.status === "successful" ||
-        res.status === 200 ||
-        res.status === 201;
-
-      if (ok) {
-        toast.success(
-          topics.length === 1
-            ? "Topic submitted for review"
-            : `${topics.length} topics submitted for review`
-        );
-        navigate("/teacher/syllabus");
-      } else {
-        toast.error(data?.responseMessage || "Submission failed");
-      }
-    } catch (err: any) {
-      const msg =
-        err?.response?.data?.responseMessage ||
-        err?.response?.data?.message ||
-        "Failed to submit";
-      toast.error(msg);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const totalSubtopics = topics.reduce((sum, t) => sum + t.subtopics.length, 0);
-
-  return (
-    <div className="p-6 font-poppins">
-      <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-4 sticky top-0 z-30 bg-chestnut">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate("/teacher/syllabus")}
-              className="text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <p className="text-white font-semibold text-sm">Create New Syllabus</p>
-              <p className="text-white/60 text-[10px]">
-                {topics.length} topic{topics.length !== 1 ? "s" : ""} · {totalSubtopics} subtopic
-                {totalSubtopics !== 1 ? "s" : ""}
-              </p>
-            </div>
-          </div>
-          <Button
-            onClick={handleSubmitForReview}
-            disabled={submitting || !isValid}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold bg-green-600 hover:bg-green-700 disabled:opacity-50"
-          >
-            {submitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            Submit for Review
-          </Button>
-        </div>
-
-        {/* Body */}
-        <div className="bg-white/70 backdrop-blur-sm p-6">
-          <div className="max-w-3xl mx-auto space-y-6">
-
-            {/* Class & Subject */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5">
-              <h2 className="text-sm font-semibold text-gray-900 mb-4">Class & Subject</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-700">Class</label>
-                  <select
-                    value={selectedClassroom}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      setSelectedClassroom(id);
-                      setSelectedClassroomLabel(classrooms.find((c) => c.id === id)?.label || "");
-                    }}
-                    disabled={loadingClassrooms}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:ring-2 focus:ring-chestnut/20 focus:border-chestnut outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    <option value="">{loadingClassrooms ? "Loading..." : "Select a class"}</option>
-                    {classrooms.map((c) => (
-                      <option key={c.id} value={c.id}>{c.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-gray-700">Subject</label>
-                  <select
-                    value={selectedSubject}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      setSelectedSubject(id);
-                      setSelectedSubjectLabel(subjects.find((s) => s.id === id)?.label || "");
-                    }}
-                    disabled={!selectedClassroom || loadingSubjects}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:ring-2 focus:ring-chestnut/20 focus:border-chestnut outline-none disabled:bg-gray-50 disabled:text-gray-400"
-                  >
-                    <option value="">
-                      {loadingSubjects ? "Loading..." : !selectedClassroom ? "Select a class first" : "Select a subject"}
-                    </option>
-                    {subjects.map((s) => (
-                      <option key={s.id} value={s.id}>{s.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {selectedSubject && selectedClassroom && (
-                <div className="mt-4 p-3 bg-chestnut/5 rounded-lg border border-chestnut/10">
-                  <p className="text-sm font-semibold text-chestnut">
-                    {selectedSubjectLabel} — {selectedClassroomLabel}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Topics */}
-            <div className="space-y-4">
-              {topics.map((topic, topicIndex) => (
-                <div key={topic.id} className="bg-white rounded-xl border border-gray-200 p-5">
-                  {/* Topic header */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex items-center justify-center w-7 h-7 bg-chestnut rounded-full shrink-0">
-                      <span className="text-xs font-bold text-white">{topicIndex + 1}</span>
-                    </div>
-                    <input
-                      type="text"
-                      value={topic.name}
-                      onChange={(e) => updateTopicName(topic.id, e.target.value)}
-                      placeholder={`Topic ${topicIndex + 1} name`}
-                      maxLength={200}
-                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm font-semibold text-gray-900 focus:ring-2 focus:ring-chestnut/20 focus:border-chestnut outline-none"
-                    />
-                    <button
-                      onClick={() => removeTopic(topic.id)}
-                      disabled={topics.length === 1}
-                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
-                    >
-                      <Trash2 className="w-4 h-4" />
+                {/* ── Top Nav ──────────────────────────────────────────────────── */}
+                <div className="flex items-center justify-between px-4 py-5 sticky top-0 z-30 bg-chestnut">
+                    <span className="text-white font-semibold text-sm">Syllabus</span>
+                    <button className="text-white">
+                        <EllipsisVertical size={18} />
                     </button>
-                  </div>
+                </div>
 
-                  {/* Subtopics */}
-                  <div className="space-y-2 ml-10">
-                    {topic.subtopics.map((subtopic, subIndex) => (
-                      <div key={subtopic.id} className="flex items-center gap-2">
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <GripVertical className="w-3.5 h-3.5 text-gray-300" />
-                          <span className="text-xs text-gray-400 w-4 text-right">{subIndex + 1}.</span>
+                {/* ── White card ───────────────────────────────────────────────── */}
+                <div className="flex-1 p-3 bg-white/70 backdrop-blur-sm">
+
+                    {/* Page header row */}
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <h1 className="text-xl font-bold font-Instrument text-blck-b2 leading-tight">
+                                Syllabus builder
+                            </h1>
+                            <p className="text-sm text-[#A0A8C0] mt-0.5">
+                                Build a complete term syllabus week by week and submit for admin approval
+                            </p>
                         </div>
-                        <input
-                          type="text"
-                          value={subtopic.title}
-                          onChange={(e) => updateSubtopic(topic.id, subtopic.id, e.target.value)}
-                          placeholder="Subtopic title"
-                          className="flex-1 border border-gray-100 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-900 focus:ring-2 focus:ring-chestnut/20 focus:border-chestnut outline-none"
-                        />
-                        <button
-                          onClick={() => removeSubtopic(topic.id, subtopic.id)}
-                          disabled={topic.subtopics.length === 1}
-                          className="p-1 text-gray-300 hover:text-red-500 transition-colors disabled:opacity-20 disabled:cursor-not-allowed shrink-0"
+                        <Button
+                            onClick={() => navigate('/teacher/syllabus')}
+                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[#0F0F0E] text-xs font-medium bg-white shrink-0 transition-opacity border border-[#E8E8E3] hover:bg-white"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
+                            <BookTextIcon className="text-[#0F0F0E]" />
+                            My Syllabus
+                        </Button>
+                    </div>
 
-                    <button
-                      onClick={() => addSubtopic(topic.id)}
-                      className="flex items-center gap-1.5 text-xs font-medium text-chestnut hover:bg-chestnut/5 px-3 py-2 rounded-lg transition-colors border border-dashed border-chestnut/20 w-full justify-center mt-1"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add Subtopic
-                    </button>
-                  </div>
+                    {/* Banner */}
+                    <div className="rounded-[16px] pl-[34px] py-[22px] bg-chestnut">
+                        <div className="space-y-1">
+                            <h1 className="text-white font-normal font-Instrument text-[22px]">Syllabus builder</h1>
+                            <p className="text-[#FFFFFF8C]">Define your subject plan, add weekly topics and submit for approval</p>
+                            <div className="pt-[2.5px] flex items-center gap-2">
+                                <div className="flex items-center gap-[6px] bg-[#FFFFFF1A] rounded-[20px] py-[6px] px-3">
+                                    <CalendarRange className="size-[13px] text-[#FFFFFFCC]" />
+                                    <span className="text-[#FFFFFFCC] text-xs">Second term 2025/2026</span>
+                                </div>
+                                <div className="flex items-center gap-[6px] bg-[#FFFFFF1A] rounded-[20px] py-[6px] px-3">
+                                    <Clock3 className="size-[13px] text-[#FFFFFFCC]" />
+                                    <span className="text-[#FFFFFFCC] text-xs">{weeks.length} week{weeks.length !== 1 ? "s" : ""} planned</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
+                    <div className="flex gap-5 mt-10">
+
+                        {/* ── Left column ───────────────────────────────────────── */}
+                        <div className="space-y-4 flex-1 grow">
+
+                            {/* Syllabus details form */}
+                            <div className="border border-[#D9D9D9] bg-white rounded-[10px] pb-5 pt-2.5 px-4">
+                                <div className="p-[2px] border-b-2 border-[#D9D9D9] pb-[6px] mb-[20px]">
+                                    <h2 className="text-[#3A3A3A] font-medium font-poppins text-sm">Syllabus details</h2>
+                                    <span className="font-medium text-xs text-[#3A3A3A80]">Define the subject, class and term for this syllabus</span>
+                                </div>
+                                <div className="space-y-3">
+                                    {/* Row 1: Class → Subject */}
+                                    <div className="grid grid-cols-1 items-center sm:grid-cols-2 gap-3">
+                                        {/* Class (first — Subject depends on it) */}
+                                        <div className="space-y-2">
+                                            <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">
+                                                Class <span className="text-red-500">*</span>
+                                            </Label>
+                                            <DropdownMenu onOpenChange={setIsClassOpen}>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        className={`w-full justify-between font-medium border-0 ring-2 py-2.5 px-4 text-sm rounded-xl transition-all ${selectedClass
+                                                            ? "ring-chestnut/30 text-chestnut bg-chestnut/5"
+                                                            : "ring-gray-200 text-gray-400 bg-white"
+                                                            } hover:ring-chestnut/40`}
+                                                    >
+                                                        <span className={selectedClass ? "font-semibold text-chestnut" : ""}>
+                                                            {selectedClass ? selectedClass.name : "Select class"}
+                                                        </span>
+                                                        <ChevronDown className={`w-4 h-4 text-chestnut/50 transition-transform duration-200 ${isClassOpen ? "rotate-180" : ""}`} />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-52 overflow-y-auto rounded-xl border border-gray-100 shadow-lg bg-white p-1.5" align="start" sideOffset={6}>
+                                                    <DropdownMenuGroup className="space-y-0.5">
+                                                        {classes.map((classroom) => (
+                                                            <DropdownMenuItem
+                                                                key={classroom.id}
+                                                                onClick={() => setSelectedClass(classroom)}
+                                                                className={`text-sm py-2.5 px-3 rounded-lg cursor-pointer ${selectedClass?.id === classroom.id ? "bg-chestnut text-white" : "text-gray-700 hover:bg-chestnut/5 hover:text-chestnut"}`}
+                                                            >
+                                                                <span className="flex-1">{classroom.name}</span>
+                                                                {selectedClass?.id === classroom.id && <Check className="w-3.5 h-3.5" />}
+                                                            </DropdownMenuItem>
+                                                        ))}
+                                                    </DropdownMenuGroup>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+
+                                        {/* Subject (loads after class is selected) */}
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">
+                                                Subject <span className="text-red-500">*</span>
+                                            </Label>
+                                            <DropdownMenu onOpenChange={setIsSubjectOpen}>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button
+                                                        variant="outline"
+                                                        disabled={!selectedClass}
+                                                        className={`w-full justify-between font-medium border-0 ring-2 py-2.5 px-4 text-sm rounded-xl transition-all ${selectedSubject
+                                                            ? "ring-chestnut/30 text-chestnut bg-chestnut/5"
+                                                            : "ring-gray-200 text-gray-400 bg-white"
+                                                            } hover:ring-chestnut/40`}
+                                                    >
+                                                        <span className={selectedSubject ? "font-semibold text-chestnut" : ""}>
+                                                            {selectedSubject ? selectedSubject.name : selectedClass ? "Select subject" : "Select class first"}
+                                                        </span>
+                                                        <ChevronDown className={`w-4 h-4 text-chestnut/50 transition-transform duration-200 ${isSubjectOpen ? "rotate-180" : ""}`} />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-52 overflow-y-auto rounded-xl border border-gray-100 shadow-lg bg-white p-1.5" align="start" sideOffset={6}>
+                                                    <DropdownMenuGroup className="space-y-0.5">
+                                                        {subjects.length === 0 ? (
+                                                            <DropdownMenuItem disabled className="text-xs text-gray-400 py-2 px-3">No subjects found</DropdownMenuItem>
+                                                        ) : subjects.map((s) => (
+                                                            <DropdownMenuItem
+                                                                key={s.id}
+                                                                onClick={() => setSelectedSubject(s)}
+                                                                className={`text-sm py-2.5 px-3 rounded-lg cursor-pointer ${selectedSubject?.id === s.id ? "bg-chestnut text-white" : "text-gray-700 hover:bg-chestnut/5 hover:text-chestnut"}`}
+                                                            >
+                                                                <span className="flex-1">{s.name}</span>
+                                                                {selectedSubject?.id === s.id && <Check className="w-3.5 h-3.5" />}
+                                                            </DropdownMenuItem>
+                                                        ))}
+                                                    </DropdownMenuGroup>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
+                                    </div>
+
+                                    {/* Row 2: Title + Textbook */}
+                                    <div className="grid grid-cols-1 items-center sm:grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-sm font-medium text-[#3A3A3A]">
+                                                Syllabus title <span className="text-red-500">*</span>
+                                            </Label>
+                                            <Input
+                                                type="text"
+                                                value={title}
+                                                onChange={(e) => setTitle(e.target.value)}
+                                                placeholder="e.g. Basic Science — Second Term"
+                                                className="flex-1 border border-gray-200 rounded-md px-4 py-3 text-sm focus:ring-2 focus:ring-chestnut/40 focus:border-chestnut/40 outline-none transition"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-sm font-medium text-[#3A3A3A]">
+                                                Recommended textbook
+                                            </Label>
+                                            <Input
+                                                type="text"
+                                                value={textbook}
+                                                onChange={(e) => setTextbook(e.target.value)}
+                                                placeholder="e.g. New School Science for JSS 2"
+                                                className="flex-1 border border-gray-200 rounded-md px-4 py-3 text-sm focus:ring-2 focus:ring-chestnut/40 focus:border-chestnut/40 outline-none transition"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Objectives */}
+                                    <div className="space-y-1.5">
+                                        <Label className="text-sm font-medium text-[#3A3A3A]">
+                                            Objectives / overview <span className="text-red-500">*</span>
+                                        </Label>
+                                        <textarea
+                                            rows={3}
+                                            value={aim}
+                                            onChange={(e) => setAim(e.target.value)}
+                                            placeholder="e.g. Students will explore living things, matter, and energy. By end of term they will classify organisms, explain states of matter, and describe energy transfer."
+                                            className="w-full rounded-xl border border-gray-200 ring-2 ring-chestnut/20 px-4 py-3 text-sm text-[#0F0F0E] placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-chestnut/50 transition-all"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Weekly Plan */}
+                            <div className="border border-[#E8E8E3] rounded-2xl bg-white overflow-hidden">
+                                <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8E8E3]">
+                                    <div>
+                                        <h3 className="text-[#0F0F0E] font-semibold text-sm">Weekly Plan</h3>
+                                        <p className="text-[#A8A8A4] text-xs mt-0.5">Add topics for each week</p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-[#A8A8A4] text-xs font-medium">
+                                            {weeks.length}/12 weeks planned
+                                        </span>
+                                        <button
+                                            onClick={() => setExpandAll(p => !p)}
+                                            className="border border-[#E8E8E3] text-xs font-semibold text-[#0F0F0E] px-4 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                                        >
+                                            {expandAll ? "Collapse all" : "Expand all"}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="p-4 space-y-3">
+                                    {weeks.map((week, i) => (
+                                        <WeekRow
+                                            key={week.id}
+                                            week={week}
+                                            index={i}
+                                            expanded={expandAll}
+                                            onChange={(updated) =>
+                                                setWeeks(prev => prev.map(w => w.id === updated.id ? updated : w))
+                                            }
+                                            onDelete={() =>
+                                                setWeeks(prev => prev.filter(w => w.id !== week.id))
+                                            }
+                                        />
+                                    ))}
+
+                                    <button
+                                        onClick={handleAddWeek}
+                                        disabled={weeks.length >= 12}
+                                        className="w-full border-2 bg-[#F9FBFF] border-dashed border-[#E8E8E3] rounded-xl py-5 flex items-center justify-center gap-2 text-sm font-semibold text-[#3A3A3A] hover:border-[#292382]/30 hover:text-[#292382] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                    >
+                                        <Plus className="w-4 h-4 text-[#3A3A3A]" />
+                                        Add Week
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Submit CTA */}
+                            <div className="rounded-[10px] border border-[#E8E8E3] bg-white p-6">
+                                <div className="relative flex items-center justify-between gap-6">
+                                    <div>
+                                        <h3 className="text-[#0F0F0E] font-semibold text-base">Ready to submit?</h3>
+                                        <p className="text-[#A0A09C] text-xs mt-0.5">
+                                            {canSubmit
+                                                ? "All requirements met — your syllabus is ready for approval"
+                                                : "Fill in details and add at least 4 weeks with topics"}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={handleSubmit}
+                                        disabled={!canSubmit || submitting}
+                                        className={`shrink-0 flex items-center gap-2 transition-colors text-white text-sm font-semibold px-5 py-3 rounded-[10px] ${canSubmit && !submitting
+                                            ? "bg-[#292382] hover:bg-[#1e1a6e]"
+                                            : "bg-gray-300 cursor-not-allowed"
+                                            }`}
+                                    >
+                                        {submitting ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                            <svg width="20" height="20" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M2.5 7.25C2.5 7.25 3.25 7.25 4.25 9C4.25 9 7.0295 4.4165 9.5 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                        )}
+                                        {submitting ? "Submitting…" : "Submit For Approval"}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* ── Right column ──────────────────────────────────────── */}
+                        <div className="space-y-3 shrink-0">
+                            <Completion
+                                weeksPlanned={weeks.length}
+                                totalWeeks={12}
+                                totalTopics={totalTopics}
+                                weeksDone={weeksDone}
+                                checks={checks}
+                            />
+                            <SubmissionGuide />
+                        </div>
+                    </div>
                 </div>
-              ))}
-
-              {/* Add Topic button */}
-              <button
-                onClick={addTopic}
-                className="flex items-center gap-2 w-full py-3.5 text-sm font-medium text-chestnut hover:bg-chestnut/5 rounded-xl transition-colors justify-center border-2 border-dashed border-chestnut/20"
-              >
-                <Plus className="w-4 h-4" />
-                Add Another Topic
-              </button>
             </div>
-
-            {/* Validation hint */}
-            {!isValid && (selectedClassroom || selectedSubject || topics.some((t) => t.name)) && (
-              <p className="text-xs text-amber-600 text-center">
-                Select a class and subject, then give each topic a name with at least one subtopic title.
-              </p>
-            )}
-
-            {/* Bottom actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200">
-              <Button
-                onClick={() => navigate("/teacher/syllabus")}
-                disabled={submitting}
-                className="px-4 py-2 rounded-lg text-gray-600 text-sm font-medium bg-gray-100 hover:bg-gray-200"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSubmitForReview}
-                disabled={submitting || !isValid}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-white text-sm font-semibold bg-chestnut hover:opacity-90 disabled:opacity-50"
-              >
-                {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                Submit {topics.length > 1 ? `${topics.length} Topics` : "for Review"}
-              </Button>
-            </div>
-
-          </div>
         </div>
-      </div>
-    </div>
-  );
-};
+    )
+}
 
-export default CreateSyllabus;
+export default CreateSyllabus

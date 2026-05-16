@@ -6,6 +6,23 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { Navigate } from "react-router-dom";
 
 
+
+interface Subject {
+  subjectId: string;
+  subjectName: string;
+  subjectCategory: string;
+}
+
+interface Classroom {
+  classroomId: string;
+  className: string;
+  subjects: Subject[];
+}
+
+interface RoleData {
+  classrooms: Classroom[];
+}
+
 interface IUser {
   createdDate: string;
   emailAddress: string;
@@ -14,13 +31,14 @@ interface IUser {
   hasAccess: boolean;
   id: string
   isActive: boolean;
-  lastName:string;
+  lastName: string;
   modifiedDate: string;
   profileImage: string | null;
   roleId: number;
   roleName: string;
   userName: string;
   refreshToken?: string
+  roleData?: RoleData;
 }
 interface AuthContextType {
   user: IUser | null;
@@ -79,17 +97,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
   };
 
-  const logout =  () => {
+  const logout = () => {
     setIsLoggingOut(true);
-      // Try to call logout API, but don't fail if it errors (offline support)
-      try {
-        token.clearAll();
-        <Navigate to="/auth" />;
-      } catch (error) {
-        // Network error or token already invalid - still proceed with local logout
-        console.warn('Logout API call failed, proceeding with local logout:', error);
-      }
-       finally {
+    // Try to call logout API, but don't fail if it errors (offline support)
+    try {
+      token.clearAll();
+      <Navigate to="/auth" />;
+    } catch (error) {
+      // Network error or token already invalid - still proceed with local logout
+      console.warn('Logout API call failed, proceeding with local logout:', error);
+    }
+    finally {
       token.clearAll();
       setUser(null);
       setIsLoggingOut(false);
@@ -116,7 +134,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(response.data);
     } catch (error) {
       console.error('Error refreshing user:', error);
-       logout();
+      logout();
     }
   };
 
