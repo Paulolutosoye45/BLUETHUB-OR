@@ -37,7 +37,7 @@ const ACADEMIC_LINKS: NavItem[] = [
   { icons: classIconIcon, name: "Class", path: "/teacher/class" },
   { icons: MonitorPlayIcon, name: "Recorded Class", path: "/teacher/recorded-class" },
   { icons: AssignmentIcon, name: "Question/Assessment", path: "/teacher/assessment" },
-  { icons: BookTextIcon, name: "My Lesson", path: "/teacher/syllabus" },
+  { icons: BookTextIcon, name: "My Lesson", path: "/teacher/my-lessons" },
   {
     icons: UploadIcon,
     name: "Submit Lesson",
@@ -62,11 +62,6 @@ const ACADEMIC_LINKS: NavItem[] = [
     icons: AssignmentIcon,
     name: "Question/Assessment",
     path: "/teacher/assessment",
-  },
-  {
-    icons: QuizzesIcon,
-    name: "Question Bank",
-    path: "/teacher/question-bank",
   },
   {
     icons: BookTextIcon,
