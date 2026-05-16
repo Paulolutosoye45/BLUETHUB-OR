@@ -1,9 +1,12 @@
 import { useAuthContext } from "@/contexts/auth-context";
-import type { SchoolInfo } from "@/services";
-import { localData } from "@/utils";
-import { Bell, Settings } from "lucide-react";
+// import type { SchoolInfo } from "@/services";
+// import { localData } from "@/utils";
+import { Button } from "@bluethub/ui-kit";
+import { Plus, Triangle, } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const AdminAppbar = () => {
+  const navigate = useNavigate()
   const { user } = useAuthContext();
   const today = new Date();
 
@@ -14,76 +17,43 @@ const AdminAppbar = () => {
     return "Good evening";
   };
 
-  const formattedDate = today.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
+  // const formattedDate = today.toLocaleDateString("en-US", {
+  //   weekday: "long",
+  //   month: "long",
+  //   day: "numeric",
+  //   year: "numeric",
+  // });
 
-  const schoolProfile = localData.retrieve("schoolInfo") as SchoolInfo | null;
-
-  const initials = [user?.firstName, user?.lastName]
-    .filter(Boolean)
-    .map((n) => n![0].toUpperCase())
-    .join("") || "AD";
+  // const schoolProfile = localData.retrieve("schoolInfo") as SchoolInfo | null;
+  const name = `${user?.firstName} ${user?.lastName}`
 
   return (
-    <div className="w-full font-poppins mt-4 mb-6 px-1">
-      {/* Desktop & Tablet */}
-      <div className="bg-white rounded-2xl px-6 py-4 flex items-center justify-between gap-4 shadow-sm">
-        {/* Left: greeting */}
-        <div className="flex items-center gap-3 min-w-0">
-          {/* Avatar */}
-          <div className="w-10 h-10 rounded-full bg-chestnut flex items-center justify-center shrink-0 text-white font-semibold text-sm">
-            {initials}
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-gray-400 leading-none mb-0.5">{greeting()}</p>
-            <h2 className="text-sm font-semibold text-gray-900 truncate">
-              {user?.firstName} {user?.lastName}
-            </h2>
-            <p className="text-[11px] text-chestnut font-medium hidden sm:block">{formattedDate}</p>
-          </div>
-        </div>
-
-        {/* Right: school info + actions */}
-        <div className="flex items-center gap-3 shrink-0">
-          {/* Date (mobile) */}
-          <p className="text-[10px] text-gray-400 sm:hidden leading-tight text-right">
-            {today.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+    <div>
+      <div className="flex flex-col gap-5 md:gap-0 md:flex-row items-start justify-between mb-4">
+        <div>
+          <h1 className="text-lg leading-[28.8px] font-medium text-[#0F0F0E]">
+            {greeting()}, {name}
+          </h1>
+          <p className="text-xs  font-normal text-[#666666] mt-0.5">
+            Second term 2025/2026  ·  5 lessons pending  ·  2 new registrations today
           </p>
+        </div>
+        <div className="flex items-center gap-3 justify-between">
+          <Button
+            // onClick={() => navigate('/admin/registration/class/new')}
+            className="flex items-center  gap-1.5 px-3.5 py-2 rounded-lg text-[#0F0F0E] text-xs font-medium  bg-white shrink-0 transition-opacity border border-[#E8E8E3] hover:bg-white"
+          >
+            <Plus className="text-[#0F0F0E]" />
+            Add user
+          </Button>
 
-          {/* School name */}
-          {schoolProfile?.schoolName && (
-            <div className="hidden md:flex flex-col items-end">
-              <span className="text-xs font-semibold text-gray-800 leading-tight">{schoolProfile.schoolName}</span>
-              <span className="text-[10px] text-gray-400">Administrator</span>
-            </div>
-          )}
-
-          {/* School logo */}
-          {schoolProfile?.logoUrl ? (
-            <img
-              src={schoolProfile.logoUrl}
-              alt="School logo"
-              className="w-9 h-9 rounded-full object-cover border-2 border-chestnut/20 shrink-0"
-            />
-          ) : (
-            <div className="w-9 h-9 rounded-full bg-chestnut/10 flex items-center justify-center shrink-0">
-              <span className="text-chestnut text-xs font-bold">
-                {schoolProfile?.schoolName?.[0] ?? "S"}
-              </span>
-            </div>
-          )}
-
-          {/* Action icons */}
-          <button className="w-8 h-8 rounded-full bg-gray-50 hover:bg-gray-100 flex items-center justify-center text-gray-500 transition-colors">
-            <Bell className="w-4 h-4" />
-          </button>
-          <button className="w-8 h-8 rounded-full bg-gray-50 hover:bg-gray-100 hidden sm:flex items-center justify-center text-gray-500 transition-colors">
-            <Settings className="w-4 h-4" />
-          </button>
+          <Button
+            onClick={() => navigate('/teacher/create-syllabus')}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white text-xs font-semibold  bg-chestnut shrink-0 transition-opacity hover:opacity-90"
+          >
+            <Triangle />
+            Review lessons
+          </Button>
         </div>
       </div>
     </div>

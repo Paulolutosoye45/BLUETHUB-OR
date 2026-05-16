@@ -1,42 +1,33 @@
-import SchoolRef from "@/component/school-ref"
-import SideBar from "@/pages/admin/side-bar"
-// import AdminTabMenu from "@/pages/admin/tab-menu"
-// import schoolImage from "@/assets/png/School.png"
-import { Outlet } from "react-router-dom"
+// AdminLayout.tsx
+import SchoolRef from "@/component/school-ref";
+import SideBar from "@/pages/admin/side-bar";
+import { Outlet } from "react-router-dom";
 
 const AdminLayout = () => {
-    return (
-        <div className="flex h-screen overflow-hidden">
-            {/* Sidebar — desktop only (≥1024px) */}
-            <div className="hidden lg:block">
-                <SideBar />
-            </div>
+  return (
+    <div className="flex h-screen overflow-hidden">
 
-            {/* Main content column */}
-            <div className="flex flex-col flex-1 min-h-screen overflow-hidden bg-[#9C94AB40]
-                [&::-webkit-scrollbar]:w-2
-                [&::-webkit-scrollbar-thumb]:rounded-full
-                [&::-webkit-scrollbar-thumb]:bg-gray-400">
+      {/* ── Desktop sidebar ── */}
+      <aside className="hidden lg:flex h-full shrink-0">
+        <SideBar />
+      </aside>
 
-                {/* Tab menu — tablet only (768px – 1023px) */}
-                {/* <div className="block lg:hidden">
-                    <AdminTabMenu schoolLogoUrl={schoolImage} />
-                </div> */}
+      {/* ── Main scrollable content ── */}
+      <main
+        className="flex-1 overflow-y-auto bg-[#9C94AB40]
+          [&::-webkit-scrollbar]:w-2
+          [&::-webkit-scrollbar-thumb]:rounded-full
+          [&::-webkit-scrollbar-thumb]:bg-gray-400"
+      >
+        <SchoolRef mode="wallpaper" className="min-h-full">
+          <div className="max-w-7xl mx-auto  md:p-4 lg:p-6 transition-all duration-300">
+            <Outlet />
+          </div>
+        </SchoolRef>
+      </main>
 
-                <div className="flex-1 overflow-y-auto">
-                    <SchoolRef
-                        className="min-h-full"
-                        contentClassName=""
-                        mode="wallpaper"
-                    >
-                        <div className="max-w-7xl mx-auto">
-                            <Outlet />
-                        </div>
-                    </SchoolRef>
-                </div>
-            </div>
-        </div>
-    )
-}
+    </div>
+  );
+};
 
-export default AdminLayout
+export default AdminLayout;

@@ -24,7 +24,7 @@ import {
 import { Button } from "@bluethub/ui-kit";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
-import { questionJobService, JobStatusEnum, type JobListItem, type JobPreviewResponseData } from "@/services/question-job";
+import { questionJobService, JobStatusEnum, type JobListItem, type JobPreviewResponseData, type JobSummaryDto } from "@/services/question-job";
 import { questionScanService, type ScanQuotaResponseData } from "@/services/question-scan";
 import ScanUploadModal from "./components/scan-upload-modal";
 import QuestionPreviewModal from "./components/question-preview-modal";
@@ -268,12 +268,25 @@ const QuestionBankScan = () => {
   const loadData = useCallback(async () => {
     try {
       const [jobsRes, quotaRes] = await Promise.all([
-        questionJobService.getMyJobs({ pageSize: 50 }),
+        questionJobService.getMyJobs(),
         questionScanService.getQuota(),
       ]);
 
       if (jobsRes.data.status === "successful") {
-        setJobs(jobsRes.data.data.jobs);
+        setJobs(
+          jobsRes.data.jobs.map((job: JobSummaryDto): JobListItem => ({
+            jobId: job.jobId,
+            fileName: "",
+            fileType: "",
+            status: job.status as unknown as JobStatusEnum,
+            statusText: job.status,
+            questionsExtracted: undefined,
+            createdAt: job.createdAt,
+            completedAt: job.completedAt || undefined,
+            subjectId: "",
+            subjectName: undefined,
+          }))
+        );
       }
       if (quotaRes.data.status === "successful") {
         setQuota(quotaRes.data.data);
@@ -325,7 +338,7 @@ const QuestionBankScan = () => {
   // Handle retry
   const handleRetry = async (jobId: string) => {
     try {
-      const res = await questionJobService.retryJob({ jobId });
+      const res = await questionJobService.retryJob(jobId);
       if (res.data.status === "successful") {
         toast.success("Job resubmitted");
         loadData();

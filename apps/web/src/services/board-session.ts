@@ -11,7 +11,7 @@
  */
 
 import { API } from './index';
-import { X_Tenant_ID } from './school';
+import { X_Tenant_ID } from "@/utils/tenant";
 import type { CompressedStroke } from '@/utils/constant';
 
 // ── Types matching backend ViewModels ────────────────────────────────────────

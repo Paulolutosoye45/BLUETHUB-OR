@@ -58,6 +58,8 @@ function Login() {
   const navigate = useNavigate();
   const { login: loginAuth } = useAuthContext();
 
+  const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -90,7 +92,7 @@ function Login() {
     const payload = {
       username: data.userName,
       hashPassword: hashedPassword,
-      inst: "pearl01",
+      inst: X_Tenant_ID,
       deviceType,
       deviceIp: "",
     };
@@ -147,6 +149,7 @@ function Login() {
       // Legacy keys — keep for auth context + existing code
       localData.save("schoolInfo", result.schoolInfo);
 
+      loginAuth(result.token, { ...user, roleName: user.role }, result.refreshToken);
       // Update school branding immediately
       if (result.schoolInfo?.logoUrl) {
         setSchoolLogoUrl(result.schoolInfo.logoUrl);
@@ -154,7 +157,6 @@ function Login() {
       }
 
       // Hydrate auth context (sets "token" key in localStorage + user state)
-      loginAuth(result.token, { ...user, roleName: user.role }, result.refreshToken);
 
       // ── Role-based redirect via roleId ───────────────────────────────────
       // roleId 3 = SuperAdmin, 2 = Admin, 1 = Teacher, else = Student

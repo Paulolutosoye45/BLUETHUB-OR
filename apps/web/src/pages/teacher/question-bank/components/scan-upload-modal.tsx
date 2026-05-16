@@ -196,13 +196,14 @@ export default function ScanUploadModal({
       setStep("submitting");
 
       // Submit scan job
-      const jobResult = await questionJobService.submitScanJob({
-        subjectId: selectedSubject,
-        fileUrl: uploadResult.cdnUrl,
-        filePublicId: uploadResult.publicId || "",
-        fileName: selectedFile.name,
-        fileType: isImage ? "image" : "pdf",
-      });
+   const formData = new FormData();
+formData.append("subjectId", selectedSubject);
+formData.append("fileUrl", uploadResult.cdnUrl);
+formData.append("filePublicId", uploadResult.publicId || "");
+formData.append("fileName", selectedFile.name);
+formData.append("fileType", isImage ? "image" : "pdf");
+
+const jobResult = await questionJobService.submitJob(formData);
 
       if (jobResult.data.status !== "successful") {
         throw new Error("Failed to submit scan job");

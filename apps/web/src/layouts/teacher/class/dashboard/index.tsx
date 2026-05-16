@@ -1,12 +1,18 @@
 import SchoolRef from "@/component/school-ref"
-import TeacherSidebar from "@/pages/teacher/dashboard/side-bar"
+// import { MobileNav } from "@/pages/admin/side-bar"
+import TeacherSidebar, { MobileTeacherNav } from "@/pages/teacher/dashboard/side-bar"
+import { useState } from "react";
 import { Outlet } from "react-router-dom"
 
 const TeacherLayout = () => {
+    const [mobileNavOpen, setMobileNavOpen] = useState(false);
     return (
         <div className="flex h-screen overflow-hidden">
-            <div>
+            <div className="hidden lg:flex h-full">
                 <TeacherSidebar />
+            </div>
+            <div>
+                <MobileTeacherNav isOpen={mobileNavOpen} setIsOpen={setMobileNavOpen} />
             </div>
             <div className="flex-1 min-h-screen overflow-y-auto bg-[#9C94AB40]
                 [&::-webkit-scrollbar]:w-2
@@ -18,9 +24,9 @@ const TeacherLayout = () => {
                     contentClassName=""
                     mode="wallpaper"
                 >
-                    <div className="max-w-7xl mx-auto">
-                            <Outlet />
-                        </div>
+                    <div className="max-w-7xl mx-auto h-screen transition-all p-2 duration-300 border-none  overflow-y-auto">
+                        <Outlet context={{ openMobileNav: () => setMobileNavOpen(true) }} />
+                    </div>
                 </SchoolRef>
             </div>
         </div>

@@ -60,7 +60,7 @@ const RegisterTeacherRole = () => {
     const [selectedSubjects, setSelectedSubjects] = useState<Subject[]>([]);
     const [lineManagers, setLineManagers] = useState<LineManager[]>([]);
     const [isLineManagerOpen, setIsLineManagerOpen] = useState(false);
-const [selectedLineManager, setSelectedLineManager] = useState<LineManager | null>(null);
+    const [selectedLineManager, setSelectedLineManager] = useState<LineManager | null>(null);
 
     const navigate = useNavigate();
 

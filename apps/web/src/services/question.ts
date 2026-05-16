@@ -1,9 +1,5 @@
 import { API, type TResponse } from ".";
-import { X_Tenant_ID } from "./school";
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ENUMS
-// ═══════════════════════════════════════════════════════════════════════════════
+import { X_Tenant_ID } from "@/utils/tenant";
 
 export const QuestionTypeEnum = {
   MultipleChoice: 1,
@@ -15,30 +11,27 @@ export const QuestionTypeEnum = {
   BoardBased: 7,
   Mixed: 8,
 } as const;
-export type QuestionTypeEnum = typeof QuestionTypeEnum[keyof typeof QuestionTypeEnum];
 
 export const DifficultyLevelEnum = {
   Easy: 1,
   Medium: 2,
   Hard: 3,
+  Expert: 4,
 } as const;
-export type DifficultyLevelEnum = typeof DifficultyLevelEnum[keyof typeof DifficultyLevelEnum];
 
-export const QuestionStatusEnum = {
-  Draft: 1,
-  Published: 2,
-  PendingReview: 3,
-  Archived: 4,
-} as const;
-export type QuestionStatusEnum = typeof QuestionStatusEnum[keyof typeof QuestionStatusEnum];
+export const QuestionStatusEnum =  {
+  Draft : 1,
+  Published : 2,
+  PendingReview : 3,
+  Archived : 4,
+} as const
 
-export const ConflictResolutionEnum = {
-  KeepLocal: 1,
-  KeepServer: 2,
-  KeepMerged: 3,
-  DiscardLocal: 4,
-} as const;
-export type ConflictResolutionEnum = typeof ConflictResolutionEnum[keyof typeof ConflictResolutionEnum];
+export type ConflictResolutionEnum =  {
+  KeepLocal : 1,
+  KeepServer : 2,
+  KeepMerged : 3,
+  DiscardLocal : 4,
+} 
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PAYLOADS (Request DTOs)
@@ -70,8 +63,8 @@ export interface CreateQuestionPayload {
   isScanned: boolean;
   extractedQuestionIndex?: number | null;
   aiConfidenceScore?: string | null;
+  classroomId?: string | null;
   imageUrl?: string | null;
-  imagePublicId?: string | null;
 }
 
 export interface UpdateQuestionPayload {
@@ -277,99 +270,17 @@ export interface ConflictCheckResponseData {
 // SERVICE
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const headers = { "X-Tenant-ID": X_Tenant_ID };
+// const headers = { "X-Tenant-ID": X_Tenant_ID };dd
 
 export const questionService = {
   // ── CREATE ─────────────────────────────────────────────────────────────────
   createQuestion: (payload: CreateQuestionPayload) =>
     API.post<TResponse<CreateQuestionResponseData>>(
-      "api/questions/createquestions",
+      "api/Question/createquestions",
       payload,
-      { headers }
-    ),
-
-  // ── UPDATE ─────────────────────────────────────────────────────────────────
-  updateQuestion: (payload: UpdateQuestionPayload) =>
-    API.put<TResponse<UpdateQuestionResponseData>>(
-      "api/questions",
-      payload,
-      { headers }
-    ),
-
-  // ── GET SINGLE ─────────────────────────────────────────────────────────────
-  getQuestion: (questionId: string) =>
-    API.get<TResponse<QuestionDetailResponseData>>(
-      `api/questions/${questionId}`,
-      { headers }
-    ),
-
-  // ── GET BY SUBJECT (Paginated) ─────────────────────────────────────────────
-  getSubjectQuestions: (subjectId: string, filter?: QuestionFilterPayload) =>
-    API.get<TResponse<QuestionListResponseData>>(
-      `api/questions/subjects/${subjectId}`,
-      { headers, params: filter }
-    ),
-
-  // ── DELETE ─────────────────────────────────────────────────────────────────
-  deleteQuestion: (questionId: string) =>
-    API.delete<TResponse<null>>(
-      `api/questions/${questionId}`,
-      { headers }
-    ),
-
-  // ── PUBLISH ────────────────────────────────────────────────────────────────
-  publishQuestion: (questionId: string) =>
-    API.post<TResponse<null>>(
-      `api/questions/${questionId}/publish`,
-      {},
-      { headers }
-    ),
-
-  // ── CONFIRM (Scan Review) ──────────────────────────────────────────────────
-  confirmQuestion: (questionId: string) =>
-    API.post<TResponse<null>>(
-      `api/questions/${questionId}/confirm`,
-      {},
-      { headers }
-    ),
-
-  // ── REJECT (Scan Review) ───────────────────────────────────────────────────
-  rejectQuestion: (questionId: string) =>
-    API.post<TResponse<null>>(
-      `api/questions/${questionId}/reject`,
-      {},
-      { headers }
-    ),
-
-  // ── GET PENDING REVIEW ─────────────────────────────────────────────────────
-  getPendingReviewQuestions: (scanSessionId: string) =>
-    API.get<TResponse<PendingReviewResponseData>>(
-      `api/questions/scan-sessions/${scanSessionId}/review`,
-      { headers }
-    ),
-
-  // ── SYNC (Batch) ───────────────────────────────────────────────────────────
-  syncQuestions: (payload: SyncQuestionsPayload) =>
-    API.post<TResponse<SyncResponseData>>(
-      "api/questions/sync",
-      payload,
-      { headers }
-    ),
-
-  // ── CHECK CONFLICTS ────────────────────────────────────────────────────────
-  checkConflicts: (payload: ConflictCheckPayload) =>
-    API.post<TResponse<ConflictCheckResponseData>>(
-      "api/questions/sync/conflicts/check",
-      payload,
-      { headers }
-    ),
-
-  // ── RESOLVE CONFLICT ───────────────────────────────────────────────────────
-  resolveConflict: (payload: ResolveConflictPayload) =>
-    API.post<TResponse<null>>(
-      "api/questions/sync/conflicts/resolve",
-      payload,
-      { headers }
+      {
+        headers: { "X-Tenant-ID": X_Tenant_ID },
+      },
     ),
 };
 
