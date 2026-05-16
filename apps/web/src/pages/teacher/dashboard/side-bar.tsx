@@ -21,7 +21,7 @@ import classIconIcon from "@/assets/svg/class.svg";
 import AssignmentIcon from "@/assets/svg/assignment.svg";
 import UploadIcon from "@/assets/svg/upload.svg";
 import PlayIcon from "@/assets/svg/play.svg";
-import QuizzesIcon from "@/assets/svg/quizzes.svg";
+// import QuizzesIcon from "@/assets/svg/quizzes.svg";
 import libraryIcon from "@/assets/svg/library.svg";
 // import { useTeacherProfile } from "@/hooks/use-teacher-profile"; // adjust to your actual hook
 
