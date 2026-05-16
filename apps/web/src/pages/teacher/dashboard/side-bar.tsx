@@ -5,82 +5,33 @@ import bluethub from "@/assets/png/bluethub.png";
 import arrowMenu from "@/assets/svg/arrow_menu_close.svg";
 import arrowMenuOpen from "@/assets/svg/arrow_menu_open.svg";
 import { localData } from "@/utils";
-import {  ChevronIcon, type NavItem } from "@/pages/admin/side-bar";
-import dashboardIcon from "@/assets/svg/element-4.svg";
-import messageIcon from "@/assets/svg/message.svg";
-import settingsIcon from "@/assets/svg/settings.svg";
-import logoutIcon from "@/assets/svg/logout.svg";
+import { token } from "@/utils";
+import { TACADEMICLINKS, TnavLink, Tother_menu_Link } from "@/shared/constant";
 import { useAuthContext } from "@/contexts/auth-context";
-import MonitorPlayIcon from "@/assets/svg/monitor_play.svg";
-import UploadIcon from "@/assets/svg/upload.svg";
-import BookTextIcon from "@/assets/svg/jam_book.svg"
-import studentIcon from "@/assets/svg/student.svg";
-import coursesIcon from "@/assets/svg/courses.svg";
-import classIconIcon from "@/assets/svg/class.svg";
 import AssignmentIcon from "@/assets/svg/assignment.svg";
 
 
-const navLink: NavItem[] = [
-    { name: "Dashboard", icons: dashboardIcon, path: "/admin" },
-    { name: "Message", icons: messageIcon, path: "/admin/message" },
-];
+const TeacherSidebar = () => {
 
+    const navigate = useNavigate();
+    const { user } = useAuthContext();
+    const isHeadTeacher = user?.roleName === "HeadTeacher";
+    const [isCollapsed, setIsCollapsed] = useState<boolean | null>();
 
-const other_menu_Link: NavItem[] = [
-    { name: "Settings", icons: settingsIcon, path: "/admin/settings" },
-    { name: "Log Out", icons: logoutIcon, path: "/" },
-];
+    const toggleSidebar = () => {
+        setIsCollapsed((prev) => {
+            const newState = !prev;
+            localData.save("navVNextT", newState);
+            return newState;
+        });
+    };
 
-const ACADEMICLINKS: NavItem[] = [
-    {
-        icons: studentIcon,
-        name: "Student",
-        path: "/teacher/student",
-    },
-
-    {
-        icons: coursesIcon,
-        name: "Courses",
-        path: "/teacher/courses",
-    },
-    {
-        icons: classIconIcon,
-        name: "Class",
-        path: "/teacher/class",
-    },
-    {
-        icons: MonitorPlayIcon,
-        name: "Recorded Class ",
-        path: "/teacher/recorded-class",
-    },
-
-    {
-        icons: UploadIcon,
-        name: "Submit Lesson",
-        path: "/teacher/submit-lesson",
-    },
-    {
-        icons: AssignmentIcon,
-        name: "Question/Assessment",
-        path: "/teacher/assessment",
-    },
-    {
-        icons: BookTextIcon,
-        name: "My Syllabus",
-        path: "/teacher/syllabus",
-    },
-];
-
-
-export interface NavContentProps {
-    isCollapsed: boolean;
-    setIsCollapsed: (v: boolean) => void;
-    onNavigate?: () => void; // called after any navigation (closes mobile drawer)
-    onLogout: () => void;
-}
-
-export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }: NavContentProps) => {
-    const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
+    useEffect(() => {
+        const openSide = localData.retrieve<boolean>("navVNextT");
+        if (openSide !== null) {
+            setIsCollapsed(openSide);
+        }
+    }, []);
 
     const handleDropdownClick = (idx: number) => {
         if (isCollapsed) {
@@ -143,108 +94,51 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
                 </div>
             </section>
 
-            {/* ── ACADEMIC MANAGEMENT ── */}
-            <section className="px-3">
-                <div className="space-y-1">
-                    {ACADEMICLINKS.map((link, idx) => {
-                        const isOpen = openDropdownIndex === idx;
+            {/* Academic Management */}
+            <section className="mt-7 px-4">
+                {!isCollapsed ? (
+                    <h1 className="text-[#29238280] text-[14px] font-semibold mb-3">
+                        ACADEMIC MANAGEMENT
+                    </h1>
+                ) : (
+                    <h1 className=" text-center text-[#29238280] text-[14px] font-semibold mb-2">
+                        {/* AM */}
+                    </h1>
+                )}
 
-                        if (link.children) {
-                            return (
-                                <div key={link.name + idx}>
-                                    {/* Dropdown trigger */}
-                                    <button
-                                        type="button"
-                                        onClick={() => handleDropdownClick(idx)}
-                                        className={[
-                                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 cursor-pointer group",
-                                            isOpen
-                                                ? "bg-[#292382] text-white"
-                                                : "text-[#292382] hover:bg-[#29238210]",
-                                            isCollapsed ? "justify-center" : "justify-between",
-                                        ].join(" ")}
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <img
-                                                src={link.icons}
-                                                alt={link.name}
-                                                className={`w-[18px] h-[18px] shrink-0 object-contain ${isOpen ? "brightness-0 invert" : "opacity-70 group-hover:opacity-100"}`}
-                                            />
-                                            {!isCollapsed && (
-                                                <span className={`text-sm font-medium ${isOpen ? "text-white" : "text-[#292382]"}`}>
-                                                    {link.name}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {!isCollapsed && (
-                                            <span className={isOpen ? "text-white" : "text-[#292382] opacity-60"}>
-                                                <ChevronIcon open={isOpen} />
-                                            </span>
-                                        )}
-                                    </button>
-
-                                    {/* Dropdown children — animated */}
-                                    <div
-                                        style={{
-                                            display: !isCollapsed && isOpen ? "block" : "none",
-                                        }}
-                                        className="mt-1 ml-9 border-l-2 border-[#29238225] pl-3 space-y-0.5"
-                                    >
-                                        {link.children.map((child, cIdx) => (
-                                            <NavLink
-                                                key={child.name + cIdx}
-                                                to={child.path}
-                                                onClick={onNavigate}
-                                                className={({ isActive }) =>
-                                                    [
-                                                        "block text-[13px] py-2 px-3 rounded-lg font-medium transition-all duration-150",
-                                                        isActive
-                                                            ? "bg-[#292382] text-white"
-                                                            : "text-[#292382] opacity-80 hover:opacity-100 hover:bg-[#29238212]",
-                                                    ].join(" ")
-                                                }
-                                            >
-                                                {child.name}
-                                            </NavLink>
-                                        ))}
-                                    </div>
-                                </div>
-                            );
-                        }
-
-                        // Regular link
-                        return (
-                            <NavLink
-                                key={link.name + idx}
-                                to={link.path!}
-                                onClick={onNavigate}
-                                className={({ isActive }) =>
-                                    [
-                                        "flex items-center gap-3 px-3 py-2.5 rounded-[4px] transition-all duration-200 cursor-pointer group",
-                                        isActive
-                                            ? "bg-[#292382] text-white"
-                                            : "text-[#292382] hover:bg-[#29238210]",
-                                        isCollapsed ? "justify-center" : "",
-                                    ].join(" ")
-                                }
-                            >
-                                {({ isActive }) => (
-                                    <>
-                                        <img
-                                            src={link.icons}
-                                            alt={link.name}
-                                            className={`w-[18px] h-[18px] shrink-0 object-contain ${isActive ? "brightness-0 invert" : "opacity-70 group-hover:opacity-100"}`}
-                                        />
-                                        {!isCollapsed && (
-                                            <span className={`text-sm font-medium truncate ${isActive ? "text-white" : "text-[#292382]"}`}>
-                                                {link.name}
-                                            </span>
-                                        )}
-                                    </>
-                                )}
-                            </NavLink>
-                        );
-                    })}
+                <div className="mb-7 space-y-2">
+                    {TACADEMICLINKS.map((link, idx) => (
+                        <NavLink
+                            key={link.name + idx}
+                            to={link.path}
+                            end={link.path === "/teacher"}
+                            className={({ isActive }) =>
+                                `flex items-center gap-4 px-4 py-3 rounded-lg transition-colors cursor-pointer ${isActive
+                                    ? "bg-chestnut text-white"
+                                    : ""
+                                }${isCollapsed ? " justify-center" : ""}`
+                            }
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <img
+                                        src={link.icons}
+                                        alt={link.name}
+                                        className={`w-5 h-5 object-contain ${isActive ? "filter brightness-0 invert" : ""
+                                            }`}
+                                    />
+                                    {!isCollapsed && (
+                                        <h2
+                                            className={`text-sm font-medium ${isActive ? "text-white" : "text-chestnut/50"
+                                                }`}
+                                        >
+                                            {link.name}
+                                        </h2>
+                                    )}
+                                </>
+                            )}
+                        </NavLink>
+                    ))}
                 </div>
             </section>
 

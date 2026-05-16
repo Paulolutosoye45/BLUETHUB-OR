@@ -242,6 +242,7 @@ const router = createBrowserRouter([
             { path: "quiz", element: <QuizIndex /> },
             { path: "syllabus", element: <MySyllabus /> },
             { path: "create-syllabus", element: <CreateSyllabus /> },
+            { path: "approvals", element: <ApprovalsPage /> },
         ]
     },
 

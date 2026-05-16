@@ -25,11 +25,15 @@ export interface SubmitLessonPayload {
   classroomId: string;
   subjectId: string;
   topicId: string;
+  subTopicId: string;
   subTopic: string;
   aim: string;
   description: string;
   mediaFiles: MediaFilePayload[];
   quizId?: string | null;
+  accessDate?: string | null;
+  accessTime?: string | null;
+  durationMinutes?: number | null;
 }
 
 // Draft: all metadata fields required, media optional (backend has [Required] commented out)
@@ -177,10 +181,11 @@ export interface LessonForClassDto {
   description: string;
   status: string;
   createdAt: string;
-  approvedAt: string;
+  approvedAt: string | null;
   subTopic: string;
-  subTopicId: string | null;
+  subTopicId: string;
   classroomId: string;
+  name: string;
   className: string;
   subjectId: string;
   subjectName: string;
@@ -190,6 +195,11 @@ export interface LessonForClassDto {
   teacherName: string;
   teacherEmail: string;
   approvedByName: string | null;
+  accessDate: string | null;
+  accessTime: string | null;
+  durationMinutes: number | null;
+  accessEndsAt: string | null;
+  isAccessOpen: boolean;
 }
 
 export interface LessonMediaDto {
