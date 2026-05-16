@@ -30,6 +30,7 @@ import settingsIcon from "@/assets/svg/settings.svg";
 import logoutIcon from "@/assets/svg/logout.svg";
 import { useAuthContext } from "@/contexts/auth-context";
 import { localData } from "@/utils";
+import type { schoolInfo } from "@/services";
 
 // ─── Nav data ─────────────────────────────────────────────────────────────────
 
@@ -344,8 +345,9 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
 
 const SideBar = () => {
     const navigate = useNavigate();
-    const { logout } = useAuthContext();
+    const { logout, user } = useAuthContext();
     const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+     const school = localData.retrieve("schoolInfo") as schoolInfo
 
     useEffect(() => {
         const saved = localData.retrieve<boolean>("navVNextT");
@@ -387,9 +389,9 @@ const SideBar = () => {
                         <img src={bluethub} alt="Bluethub" className="h-7 shrink-0" />
                         <div className="min-w-0">
                             <p className="text-[10px] font-semibold text-[#292382] opacity-60 truncate">
-                                Greenfieldcollege
+                                {school.schoolName ? school.schoolName:  "BB"}
                             </p>
-                            <p className="text-[13px] font-bold text-[#292382] truncate">Administrator</p>
+                            <p className="text-[13px] font-bold text-[#292382] truncate">{ user?.roleName ? user.roleName : "Administrator"}</p>
                         </div>
                     </div>
                 )}
@@ -433,8 +435,9 @@ interface IMobileNav  {
 
 export const MobileNav = ({isOpen, setIsOpen}:IMobileNav ) => {
     const navigate = useNavigate();
-    const { logout } = useAuthContext();
+    const { logout, user } = useAuthContext();
     const drawerRef = useRef<HTMLDivElement>(null);
+    const school = localData.retrieve("schoolInfo") as schoolInfo
 
     const handleLogout = () => {
         logout();
@@ -485,9 +488,9 @@ export const MobileNav = ({isOpen, setIsOpen}:IMobileNav ) => {
                         <img src={bluethub} alt="Bluethub" className="h-7" />
                         <div>
                             <p className="text-[10px] font-semibold text-[#292382] opacity-60">
-                                Greenfieldcollege
+                                {school.schoolName ? school.schoolName:  "BB"}
                             </p>
-                            <p className="text-[13px] font-bold text-[#292382]">Administrator</p>
+                            <p className="text-[13px] font-bold text-[#292382]">{ user?.roleName ? user.roleName : "Administrator"}</p>
                         </div>
                     </div>
                     <button

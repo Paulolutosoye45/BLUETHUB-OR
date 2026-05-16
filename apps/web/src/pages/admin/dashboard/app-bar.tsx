@@ -1,4 +1,4 @@
-// import { useAuthContext } from "@/contexts/auth-context";
+import { useAuthContext } from "@/contexts/auth-context";
 // import type { SchoolInfo } from "@/services";
 // import { localData } from "@/utils";
 import { Button } from "@bluethub/ui-kit";
@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 const AdminAppbar = () => {
   const navigate = useNavigate()
-  // const { user } = useAuthContext();
+  const { user } = useAuthContext();
   const today = new Date();
 
   const greeting = () => {
@@ -25,18 +25,14 @@ const AdminAppbar = () => {
   // });
 
   // const schoolProfile = localData.retrieve("schoolInfo") as SchoolInfo | null;
-
-  // const initials = [user?.firstName, user?.lastName]
-  //   .filter(Boolean)
-  //   .map((n) => n![0].toUpperCase())
-  //   .join("") || "AD";
+  const name = `${user?.firstName} ${user?.lastName}`
 
   return (
     <div>
       <div className="flex flex-col gap-5 md:gap-0 md:flex-row items-start justify-between mb-4">
         <div>
           <h1 className="text-lg leading-[28.8px] font-medium text-[#0F0F0E]">
-            {greeting()}, Mr. Okafor
+            {greeting()}, {name}
           </h1>
           <p className="text-xs  font-normal text-[#666666] mt-0.5">
             Second term 2025/2026  ·  5 lessons pending  ·  2 new registrations today

@@ -23,7 +23,7 @@ const AdminDashboard = () => {
             <span className="text-white font-semibold text-base">Dashboard</span>
           </div>
           <EllipsisVertical className="text-white hidden md:block" />
-          <div className="flex gap-[3px] lg:hidden items-center justify-between ">
+          <div className="flex gap-[3px] md:hidden items-center justify-between ">
              <div className="w-full h-full px-2.5 py-2 rounded-full flex items-center justify-center bg-[#FFFFFF80]">
               <span className="text-white font-medium text-xs leading-5">Co</span>
              </div>

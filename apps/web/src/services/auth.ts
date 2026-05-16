@@ -1,7 +1,7 @@
 import { token } from "@/utils";
 import axios, { type AxiosInstance } from "axios";
-import { tenantId } from "./school";
-import { X_Tenant_ID } from "@/utils/tenant";
+// import { X_Tenant_ID } from "@/utils/tenant";
+const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
 
 export const API: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -232,7 +232,7 @@ export const authService = {
   login: (data: ILoginRequest) => {
     return API.post<ILoginResponse>(endpoints.login, data, {
       headers: {
-        "X-Tenant-ID": tenantId || X_Tenant_ID,
+        "X-Tenant-ID":  X_Tenant_ID,
       },
     });
   },
@@ -243,7 +243,7 @@ export const authService = {
   createUser: (data: IcreateUserRequest) => {
     return API.post<TResponse<unknown>>(endpoints.createUser, data, {
       headers: {
-        "X-Tenant-ID": tenantId || X_Tenant_ID,
+        "X-Tenant-ID":  X_Tenant_ID,
       },
     });
   },
@@ -257,7 +257,7 @@ export const authService = {
   ) => {
     return API.get<TResponse<unknown>>(endpoints.getStudents, {
       headers: {
-        "X-Tenant-ID": tenantId || X_Tenant_ID,
+        "X-Tenant-ID":  X_Tenant_ID,
       },
       params: {
         pageNumber: params.pageNumber ?? 1,
@@ -269,7 +269,7 @@ export const authService = {
   updatePassword: (data: IupdatePasswordRequest) => {
     return API.post<TResponse<unknown>>(endpoints.updatePassword, data, {
       headers: {
-        "X-Tenant-ID": tenantId || X_Tenant_ID,
+        "X-Tenant-ID":  X_Tenant_ID,
       },
     });
   },
@@ -278,7 +278,7 @@ export const authService = {
     return API.post<ILoginResponse>(endpoints.updatePasswordNewUser, data, {
       headers: {
         Authorization: `Bearer ${token.getToken()}`,
-        "X-Tenant-ID": tenantId || X_Tenant_ID,
+        "X-Tenant-ID":  X_Tenant_ID,
       },
     });
   },
@@ -288,7 +288,7 @@ export const authService = {
     return API.get(endpoints.getUserById, {
       params: { userId },
       headers: {
-        "X-Tenant-ID": tenantId || X_Tenant_ID,
+        "X-Tenant-ID":  X_Tenant_ID,
       },
     });
   },
@@ -316,7 +316,7 @@ export const authService = {
   getTeacher: () => {
     return API.get(endpoints.getTeacher, {
       headers: {
-        "X-Tenant-ID": tenantId || X_Tenant_ID,
+        "X-Tenant-ID":  X_Tenant_ID,
       },
     });
   },
@@ -325,7 +325,7 @@ export const authService = {
     return API.get(endpoints.getUserByRole, {
       params: { roleId },
       headers: {
-        "X-Tenant-ID": tenantId || X_Tenant_ID,
+        "X-Tenant-ID":  X_Tenant_ID,
       },
     });
   },

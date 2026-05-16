@@ -6,7 +6,7 @@ import bluethub from "@/assets/png/bluethub.png";
 import arrowMenu from "@/assets/svg/arrow_menu_close.svg";
 import arrowMenuOpen from "@/assets/svg/arrow_menu_open.svg";
 import { localData } from "@/utils";
-import {type NavItem } from "@/pages/admin/side-bar";
+import { type NavItem } from "@/pages/admin/side-bar";
 import dashboardIcon from "@/assets/svg/element-4.svg";
 import messageIcon from "@/assets/svg/message.svg";
 import calendarIcon from "@/assets/svg/calendar.svg";
@@ -81,13 +81,23 @@ const OTHER_LINKS: NavItem[] = [
 ];
 
 // ── Profile Card ──────────────────────────────────────────────────────────────
-function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
-  // Replace with real teacher data from context/hook
-  const initials = "JS"; // e.g. from teacher profile
-  const name = "Mrs. Adaeze Funmi";
-  const role = "Class Teacher";
-  const classLabel = "JSS 2A";
-  const subject = "Basic Science · Biology";
+interface ProfileCardProps {
+  isCollapsed: boolean;
+  initials: string;
+  name: string;
+  role: string;
+  classLabel: string;
+  subject: string;
+}
+
+function ProfileCard({
+  isCollapsed,
+  initials,
+  name,
+  role,
+  classLabel,
+  subject,
+}: ProfileCardProps) {
 
   if (isCollapsed) {
     return (
@@ -158,15 +168,13 @@ function NavItem({
           <img
             src={link.icons}
             alt={link.name}
-            className={`w-[18px] h-[18px] shrink-0 object-contain transition-all ${
-              isActive ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
-            }`}
+            className={`w-[18px] h-[18px] shrink-0 object-contain transition-all ${isActive ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
+              }`}
           />
           {!isCollapsed && (
             <span
-              className={`text-sm font-medium truncate ${
-                isActive ? "text-white" : "text-[#292382]"
-              }`}
+              className={`text-sm font-medium truncate ${isActive ? "text-white" : "text-[#292382]"
+                }`}
             >
               {link.name}
             </span>
@@ -190,10 +198,25 @@ export const NavContent = ({
   onNavigate,
   onLogout,
 }: NavContentProps) => {
+  const { user } = useAuthContext()
+
+  const name = `${user?.firstName} ${user?.lastName}`
+  const role = user?.roleName ? user?.roleName : "Teacher"
+  // First classroom
+  const classroom = user?.roleData?.classrooms[0];
+
+ const classLabel = classroom?.className ?? "";
+const subject = classroom?.subjects.map((s) => s.subjectName).join(" · ") ?? "";
+
+  const initials = [user?.firstName, user?.lastName]
+    .filter(Boolean)
+    .map((n) => n![0].toUpperCase())
+    .join("") || "AD";
+
   return (
     <div className="flex flex-col gap-5 pb-6">
       {/* Profile card */}
-      <ProfileCard isCollapsed={isCollapsed} />
+      <ProfileCard initials={initials} classLabel={classLabel} subject={subject} name={name} role={role} isCollapsed={isCollapsed} />
 
       {/* MAIN MENU */}
       <section className="px-0">
@@ -235,8 +258,8 @@ export const NavContent = ({
                   isLogout
                     ? "hover:bg-red-50"
                     : isActive
-                    ? "bg-[#292382] text-white"
-                    : "text-[#292382] hover:bg-[#29238210]",
+                      ? "bg-[#292382] text-white"
+                      : "text-[#292382] hover:bg-[#29238210]",
                   isCollapsed ? "justify-center" : "",
                 ].join(" ")
               }
@@ -246,19 +269,17 @@ export const NavContent = ({
                   <img
                     src={link.icons}
                     alt={link.name}
-                    className={`w-[18px] h-[18px] shrink-0 object-contain ${
-                      isLogout
+                    className={`w-[18px] h-[18px] shrink-0 object-contain ${isLogout
                         ? "opacity-80"
                         : isActive
-                        ? "brightness-0 invert"
-                        : "opacity-60 group-hover:opacity-100"
-                    }`}
+                          ? "brightness-0 invert"
+                          : "opacity-60 group-hover:opacity-100"
+                      }`}
                   />
                   {!isCollapsed && (
                     <span
-                      className={`text-sm font-medium ${
-                        isLogout ? "text-red-500" : isActive ? "text-white" : "text-[#292382]"
-                      }`}
+                      className={`text-sm font-medium ${isLogout ? "text-red-500" : isActive ? "text-white" : "text-[#292382]"
+                        }`}
                     >
                       {link.name}
                     </span>
@@ -278,6 +299,7 @@ const TeacherSidebar = () => {
   const navigate = useNavigate();
   const { logout } = useAuthContext();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const school = localData.retrieve("schoolInfo") as schoolInfo
 
   useEffect(() => {
     const saved = localData.retrieve<boolean>("navVNextT");
@@ -311,12 +333,19 @@ const TeacherSidebar = () => {
     >
       {/* Header: logo + collapse toggle */}
       <div
-        className={`flex items-center px-4 py-4 border-b border-[#29238210] shrink-0 ${
-          isCollapsed ? "justify-center" : "justify-between"
-        }`}
+        className={`flex items-center px-4 py-4 border-b border-[#29238210] shrink-0 ${isCollapsed ? "justify-center" : "justify-between"
+          }`}
       >
         {!isCollapsed && (
-          <img src={bluethub} alt="Bluethub" className="h-6 shrink-0" />
+ <div className="flex items-center gap-2 min-w-0">
+                        <img src={bluethub} alt="Bluethub" className="h-6 shrink-0" />
+                        <div className="min-w-0">
+                            <p className="text-[10px] font-semibold text-[#292382] opacity-60 truncate">
+                                
+                            </p>
+                            <p className="text-[13px] font-bold text-[#292382] truncate">{school.schoolName ? school.schoolName:  "BB"}</p>
+                        </div>
+                    </div>
         )}
         <button
           type="button"
@@ -353,6 +382,7 @@ const TeacherSidebar = () => {
 
 // Add these imports to TeacherSidebar.tsx
 import { X } from "lucide-react";
+import type { schoolInfo } from "@/services";
 
 interface IMobileTeacherNav {
   isOpen: boolean;
@@ -429,7 +459,7 @@ export const MobileTeacherNav = ({ isOpen, setIsOpen }: IMobileTeacherNav) => {
         >
           <NavContent
             isCollapsed={false}
-            setIsCollapsed={() => {}}
+            setIsCollapsed={() => { }}
             onNavigate={() => setIsOpen(false)}
             onLogout={handleLogout}
           />
