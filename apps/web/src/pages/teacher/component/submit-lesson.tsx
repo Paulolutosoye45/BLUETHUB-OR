@@ -37,6 +37,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   lessonService,
+  resolveMediaType,
   type CloudinarySignature,
   type MediaFilePayload,
   type DraftLessonPayload,
@@ -755,6 +756,7 @@ const SubmitLesson = () => {
         fileName: `${res.original_filename}.${ext}`,
         originalFileName: file.name,
         fileExtension: ext,
+        mediaType: resolveMediaType(file.type),
         cloudinaryUrl: res.secure_url,
         publicId: res.public_id,
         fileSizeBytes: res.bytes,

@@ -1,5 +1,5 @@
 import { API, type TResponse } from ".";
-import { X_Tenant_ID } from "./school";
+import { X_Tenant_ID } from "@/utils/tenant";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // RESPONSE DTOs

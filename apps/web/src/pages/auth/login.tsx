@@ -7,6 +7,7 @@ import { Eye, EyeOff, Loader2, User, Lock, } from "lucide-react";
 
 import { authService } from "@/services/auth";
 import { Hashing, localData, token } from "@/utils";
+import { X_Tenant_ID } from "@/utils/tenant";
 import { getParsedToken } from "@/utils/decode";
 import { useAuthContext } from "@/contexts/auth-context";
 import { loginSchema } from "@/utils/validate";
@@ -58,7 +59,6 @@ function Login() {
   const navigate = useNavigate();
   const { login: loginAuth } = useAuthContext();
 
-  const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -149,6 +149,7 @@ function Login() {
       // Legacy keys — keep for auth context + existing code
       localData.save("schoolInfo", result.schoolInfo);
 
+      loginAuth(result.token, { ...user, roleName: user.role }, result.refreshToken);
       // Update school branding immediately
       if (result.schoolInfo?.logoUrl) {
         setSchoolLogoUrl(result.schoolInfo.logoUrl);
@@ -156,7 +157,6 @@ function Login() {
       }
 
       // Hydrate auth context (sets "token" key in localStorage + user state)
-      loginAuth(result.token, { ...user, roleName: user.role }, result.refreshToken);
 
       // ── Role-based redirect via roleId ───────────────────────────────────
       // roleId 3 = SuperAdmin, 2 = Admin, 1 = Teacher, else = Student
