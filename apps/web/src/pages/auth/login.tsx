@@ -7,6 +7,7 @@ import { Eye, EyeOff, Loader2, User, Lock, } from "lucide-react";
 
 import { authService } from "@/services/auth";
 import { Hashing, localData, token } from "@/utils";
+import { X_Tenant_ID } from "@/utils/tenant";
 import { getParsedToken } from "@/utils/decode";
 import { useAuthContext } from "@/contexts/auth-context";
 import { loginSchema } from "@/utils/validate";
@@ -58,7 +59,6 @@ function Login() {
   const navigate = useNavigate();
   const { login: loginAuth } = useAuthContext();
 
-  const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
 
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);

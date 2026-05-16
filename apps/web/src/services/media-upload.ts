@@ -16,6 +16,7 @@
  */
 
 import { API } from './index';
+import { X_Tenant_ID } from '@/utils/tenant';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -92,7 +93,9 @@ export const mediaUploadService = {
    * This token allows direct upload to Cloudinary
    */
   async requestUploadToken(payload: RequestUploadTokenPayload): Promise<UploadTokenResponse> {
-    const response = await API.post<UploadTokenResponse>('/api/Media/request-upload-token', payload);
+    const response = await API.post<UploadTokenResponse>('/api/Media/request-upload-token', payload, {
+      headers: { 'X-Tenant-ID': X_Tenant_ID },
+    });
     return response.data;
   },
 
@@ -163,7 +166,9 @@ export const mediaUploadService = {
    */
   async confirmUpload(payload: ConfirmUploadPayload): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await API.post('/api/Media/confirm-upload', payload);
+      const response = await API.post('/api/Media/confirm-upload', payload, {
+        headers: { 'X-Tenant-ID': X_Tenant_ID },
+      });
       return {
         success: response.data.responseCode === 'successful' || response.data.responseCode === '00',
         message: response.data.responseMessage,
@@ -300,7 +305,9 @@ export const mediaUploadService = {
     error?: string;
   }> {
     try {
-      const response = await API.get(`/api/Media/status/${mediaId}`);
+      const response = await API.get(`/api/Media/status/${mediaId}`, {
+        headers: { 'X-Tenant-ID': X_Tenant_ID },
+      });
       return {
         status: response.data.uploadStatus,
         statusName: response.data.uploadStatusName,

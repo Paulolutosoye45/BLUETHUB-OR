@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   X,
@@ -80,23 +80,55 @@ const PreClassModal = ({
 }: PreClassModalProps) => {
   const navigate = useNavigate();
   const [understood, setUnderstood] = useState(false);
+  const [caching, setCaching] = useState(false);
+  const [cacheProgress, setCacheProgress] = useState(0);
+
+  // Pre-fetch media into browser cache when modal opens
+  useEffect(() => {
+    if (!open || media.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const cache = await caches.open("bluethub-lesson-media");
+        for (let i = 0; i < media.length; i++) {
+          if (cancelled) break;
+          const url = media[i].cloudinaryUrl;
+          if (url) {
+            const cached = await cache.match(url);
+            if (!cached) await cache.add(url).catch(() => {});
+          }
+          setCacheProgress(Math.round(((i + 1) / media.length) * 100));
+        }
+      } catch {
+        // Cache API unavailable — proceed without caching
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, media]);
 
   const handleClose = () => {
     setUnderstood(false);
     onOpenChange(false);
   };
 
-  const handleStartClass = () => {
-    if (!understood || !lesson) return;
+  const handleStartClass = async () => {
+    if (!understood || !lesson || caching) return;
+    setCaching(true);
 
-    // Store lesson data for the board to use
+    // Ensure any remaining media is cached before navigating
+    try {
+      const cache = await caches.open("bluethub-lesson-media");
+      await Promise.allSettled(
+        media.map((m) => m.cloudinaryUrl ? cache.add(m.cloudinaryUrl).catch(() => {}) : Promise.resolve())
+      );
+    } catch { /* proceed if cache unavailable */ }
+
     sessionStorage.setItem("activeLesson", JSON.stringify({
       lesson,
       media,
       startedAt: new Date().toISOString(),
     }));
 
-    // Navigate to the whiteboard
     navigate("/teacher/board", {
       state: { lessonId: lesson.id, lesson, media },
     });
@@ -291,15 +323,24 @@ const PreClassModal = ({
           </button>
           <button
             onClick={handleStartClass}
-            disabled={!understood || isLoading || !lesson}
+            disabled={!understood || isLoading || !lesson || caching}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-white transition-all ${
-              understood && !isLoading && lesson
+              understood && !isLoading && lesson && !caching
                 ? "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/25"
                 : "bg-gray-300 cursor-not-allowed"
             }`}
           >
-            <Play size={16} />
-            Start Class
+            {caching ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                {cacheProgress < 100 ? `Preparing media ${cacheProgress}%…` : "Starting…"}
+              </>
+            ) : (
+              <>
+                <Play size={16} />
+                Start Class
+              </>
+            )}
           </button>
         </div>
       </div>
