@@ -24,7 +24,7 @@ import {
 import { Button } from "@bluethub/ui-kit";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
-import { questionJobService, JobStatusEnum, type JobListItem, type JobPreviewResponseData, type QuestionPreviewResponse, type JobSummaryDto } from "@/services/question-job";
+import { questionJobService, JobStatusEnum, type JobListItem, type JobPreviewResponseData, type JobSummaryDto } from "@/services/question-job";
 import { questionScanService, type ScanQuotaResponseData } from "@/services/question-scan";
 import ScanUploadModal from "./components/scan-upload-modal";
 import QuestionPreviewModal from "./components/question-preview-modal";
@@ -261,7 +261,7 @@ const QuestionBankScan = () => {
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [previewJobId, setPreviewJobId] = useState<string | null>(null);
-  const [previewData, setPreviewData] = useState<QuestionPreviewResponse | null>(null);
+  const [previewData, setPreviewData] = useState<JobPreviewResponseData | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
 
   // Load jobs and quota

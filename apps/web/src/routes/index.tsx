@@ -47,7 +47,7 @@ import CreateQuizQuestion from '@/pages/teacher/component/create-quiz';
 import TopicQuestionList from '@/pages/teacher/component/topic-question-list';
 import Login from '@/pages/auth/login';
 import NewPassword from '@/pages/auth/new-password';
-// import AdminProtectedRoute from '@/component/protected-routes/admin-routes';
+import AdminProtectedRoute from '@/component/protected-routes/admin-routes';
 import { PublicRoute } from '@/component/protected-routes/public-route';
 import StudentProtectedRoute from '@/component/protected-routes/student-routes';
 import UploadScan from '@/pages/teacher/component/upload-scan';
@@ -128,7 +128,7 @@ const router = createBrowserRouter([
     {
         path: '/admin',
         element:
-            <AdminLayout />,
+            <AdminProtectedRoute><AdminLayout /></AdminProtectedRoute>,
         children: [
             {
                 index: true,

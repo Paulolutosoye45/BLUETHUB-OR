@@ -7,17 +7,19 @@ import AssessmentSubmissions from "./assessment-submissions"
 import PendingReviews from "./pending-reviews"
 import UpcomingDeadlines from "./upcoming-deadlines"
 import PendingUploadsCard from "./pending-uploads-card"
-import { useState } from "react"
+// import { useState } from "react"
+import { useOutletContext } from "react-router-dom";
 
 
 const TeacherDashboard = () => {
-  const [_, setIsOpen]= useState(false)
+
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   return (
     <div className="">
       <div className="lg:rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-5 bg-chestnut">
           <div className="flex gap-2 items-center">
-            <Menu className="lg:hidden text-white" onClick={() => setIsOpen(true)} />
+            <Menu className="lg:hidden text-white" onClick={openMobileNav} />
             <span className="text-white font-semibold text-base">Dashboard</span>
           </div>
           <button className="text-white">

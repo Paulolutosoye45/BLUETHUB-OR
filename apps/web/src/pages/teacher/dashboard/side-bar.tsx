@@ -1,5 +1,5 @@
 // TeacherSidebar.tsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 
 import bluethub from "@/assets/png/bluethub.png";
@@ -19,6 +19,10 @@ import studentIcon from "@/assets/svg/student.svg";
 import coursesIcon from "@/assets/svg/courses.svg";
 import classIconIcon from "@/assets/svg/class.svg";
 import AssignmentIcon from "@/assets/svg/assignment.svg";
+import UploadIcon from "@/assets/svg/upload.svg";
+import PlayIcon from "@/assets/svg/play.svg";
+import QuizzesIcon from "@/assets/svg/quizzes.svg";
+import libraryIcon from "@/assets/svg/library.svg";
 // import { useTeacherProfile } from "@/hooks/use-teacher-profile"; // adjust to your actual hook
 
 const MAIN_LINKS: NavItem[] = [
@@ -34,6 +38,41 @@ const ACADEMIC_LINKS: NavItem[] = [
   { icons: MonitorPlayIcon, name: "Recorded Class", path: "/teacher/recorded-class" },
   { icons: AssignmentIcon, name: "Question/Assessment", path: "/teacher/assessment" },
   { icons: BookTextIcon, name: "My Lesson", path: "/teacher/syllabus" },
+  {
+    icons: UploadIcon,
+    name: "Submit Lesson",
+    path: "/teacher/submit-lesson",
+  },
+  {
+    icons: libraryIcon,
+    name: "My Lessons",
+    path: "/teacher/my-lessons",
+  },
+  {
+    icons: PlayIcon,
+    name: "Start Class",
+    path: "/teacher/start-class",
+  },
+  {
+    icons: UploadIcon,
+    name: "My Drafts",
+    path: "/teacher/drafts",
+  },
+  {
+    icons: AssignmentIcon,
+    name: "Question/Assessment",
+    path: "/teacher/assessment",
+  },
+  {
+    icons: QuizzesIcon,
+    name: "Question Bank",
+    path: "/teacher/question-bank",
+  },
+  {
+    icons: BookTextIcon,
+    name: "My Syllabus",
+    path: "/teacher/syllabus",
+  },
 ];
 
 const OTHER_LINKS: NavItem[] = [
@@ -308,6 +347,95 @@ const TeacherSidebar = () => {
         />
       </div>
     </aside>
+  );
+};
+
+
+// Add these imports to TeacherSidebar.tsx
+import { X } from "lucide-react";
+
+interface IMobileTeacherNav {
+  isOpen: boolean;
+  setIsOpen: React.Dispatch<React.SetStateAction<boolean>>;
+}
+
+export const MobileTeacherNav = ({ isOpen, setIsOpen }: IMobileTeacherNav) => {
+  const navigate = useNavigate();
+  const { logout } = useAuthContext();
+  const drawerRef = useRef<HTMLDivElement>(null);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+    setIsOpen(false);
+  };
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isOpen]);
+
+  // Lock body scroll when open
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        aria-hidden="true"
+        className={[
+          "lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] transition-opacity duration-300",
+          isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+        ].join(" ")}
+      />
+
+      {/* Drawer */}
+      <div
+        ref={drawerRef}
+        className={[
+          "lg:hidden fixed top-0 left-0 z-50 h-full w-[272px] bg-white flex flex-col shadow-xl transition-transform duration-300 ease-in-out",
+          isOpen ? "translate-x-0" : "-translate-x-full",
+        ].join(" ")}
+      >
+        {/* Header: logo + close */}
+        <div className="flex items-center justify-between px-4 py-4 border-b border-[#29238210] shrink-0">
+          <img src={bluethub} alt="Bluethub" className="h-6" />
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#29238210] text-[#292382] transition-colors"
+            aria-label="Close navigation"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Scrollable nav — reuses exact same NavContent as desktop */}
+        <div
+          className="flex-1 overflow-y-auto py-4
+            [&::-webkit-scrollbar]:w-1
+            [&::-webkit-scrollbar-track]:bg-transparent
+            [&::-webkit-scrollbar-thumb]:rounded-full
+            [&::-webkit-scrollbar-thumb]:bg-[#29238230]"
+        >
+          <NavContent
+            isCollapsed={false}
+            setIsCollapsed={() => {}}
+            onNavigate={() => setIsOpen(false)}
+            onLogout={handleLogout}
+          />
+        </div>
+      </div>
+    </>
   );
 };
 

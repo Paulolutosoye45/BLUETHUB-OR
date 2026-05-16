@@ -126,9 +126,34 @@ export interface QuestionPreviewResponse {
   responseCode: string;
 }
 
+export interface SubmitScanJobPayload {
+  subjectId: string;
+  fileUrl: string;
+  filePublicId: string;
+  fileName: string;
+  fileType: "image" | "pdf";
+  pageCount?: number;
+}
+
+
+export interface SubmitJobResponseData {
+  jobId: string;
+  status: JobStatusEnum;
+  estimatedCompletionTime?: string;
+  queuePosition?: number;
+}
 const headers = { "X-Tenant-ID": X_Tenant_ID };
 
 export const questionJobService = {
+
+   // ── SUBMIT SCAN JOB ────────────────────────────────────────────────────────
+  submitScanJob: (payload: SubmitScanJobPayload) =>
+    API.post<TResponse<SubmitJobResponseData>>(
+      "api/question-jobs/submit",
+      payload,
+      { headers }
+    ),
+
   // POST api/questionjob/submit — multipart/form-data
   submitJob: (formData: FormData) =>
     API.post<TResponse<SubmitJobResponse>>("api/questionjob/submit", formData, {
@@ -140,13 +165,22 @@ export const questionJobService = {
     API.get<JobListResponse>("api/questionjob/my-jobs", { headers }),
 
   // GET api/questionjob/{jobId}/preview
-  getJobPreview: (jobId: string) =>
-    API.get<TResponse<QuestionPreviewResponse>>(
-      `api/questionjob/${jobId}/preview`,
-      { headers }
-    ),
+  // Fix the service return type
+getJobPreview: (jobId: string) =>
+  API.get<TResponse<JobPreviewResponseData>>(
+    `api/questionjob/${jobId}/preview`,
+    { headers }
+  ),
 
   // POST api/questionjob/{jobId}/retry
   retryJob: (jobId: string) =>
     API.post<TResponse<unknown>>(`api/questionjob/${jobId}/retry`, {}, { headers }),
+
+  // ── CANCEL JOB ─────────────────────────────────────────────────────────────
+  cancelJob: (jobId: string) =>
+    API.post<TResponse<null>>(
+      `api/question-jobs/${jobId}/cancel`,
+      {},
+      { headers }
+    ),
 };
