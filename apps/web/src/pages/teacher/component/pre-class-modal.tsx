@@ -123,6 +123,10 @@ const PreClassModal = ({
       );
     } catch { /* proceed if cache unavailable */ }
 
+    // Clear any previous draft session so the board starts fresh
+    localStorage.removeItem("continueSessionId");
+    localStorage.removeItem("continueLessonId");
+
     sessionStorage.setItem("activeLesson", JSON.stringify({
       lesson,
       media,

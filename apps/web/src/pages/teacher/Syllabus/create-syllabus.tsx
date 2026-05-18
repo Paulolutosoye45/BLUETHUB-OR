@@ -1,64 +1,256 @@
-import {
-    Button, Input, Label,
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuGroup,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
+﻿import {
+    Button, Label,
+    DropdownMenu, DropdownMenuContent, DropdownMenuGroup,
+    DropdownMenuItem, DropdownMenuTrigger,
 } from "@bluethub/ui-kit"
-import { BookTextIcon, CalendarRange, Check, ChevronDown, Clock3, EllipsisVertical, Loader2, Plus } from "lucide-react"
+import { Check, ChevronDown, ChevronLeft, Layers, Lock, Loader2, Plus, Trash2, X, BookOpen, Tag } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useState } from "react"
 import { schoolService } from "@/services/school"
-import { WeekRow, type Week } from "@/shared/week-row"
-import Completion from "./completion"
-import SubmissionGuide from "./submission-guide"
 import { AxiosError } from "axios"
-import toast from "react-hot-toast"
-import { API } from "@/services"
-import { X_Tenant_ID } from "@/utils/tenant"
+import { toast } from "@bluethub/ui-kit"
 import { useAuthContext } from "@/contexts/auth-context"
+import { cn } from "@/lib/utils"
 
 interface SubjectItem { id: string; name: string; }
 interface ClassItem { id: string; name: string; subjects: SubjectItem[]; }
 
-const isTeacherRole = (roleName?: string) =>
-    !!roleName?.toLowerCase().includes("teacher");
+interface TopicItem {
+    id: string;
+    name: string;
+    subTopics: string[];
+    isExisting: boolean;
+    existingTopicId?: string;
+    existingSubTopics: string[];
+}
+
+const isAdminRole = (roleName?: string) =>
+    roleName === "Administrator" || roleName === "SuperAdministrator" || roleName === "HeadTeacher";
+
+interface FieldDropdownProps {
+    label: string;
+    placeholder: string;
+    value: string;
+    items: { id: string; name: string }[];
+    disabled?: boolean;
+    loading?: boolean;
+    icon?: React.ReactNode;
+    onChange: (item: { id: string; name: string }) => void;
+}
+
+function FieldDropdown({ label, placeholder, value, items, disabled, loading, icon, onChange }: FieldDropdownProps) {
+    const [open, setOpen] = useState(false);
+    const selected = items.find(i => i.id === value);
+    const isDisabled = disabled || loading;
+
+    return (
+        <div className="space-y-2">
+            <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                {icon}
+                {label}
+                <span className="text-red-500">*</span>
+            </Label>
+            <DropdownMenu onOpenChange={setOpen}>
+                <DropdownMenuTrigger asChild disabled={isDisabled}>
+                    <Button
+                        variant="outline"
+                        className={cn(
+                            "w-full justify-between h-12 px-4 rounded-xl text-sm border-2 transition-all",
+                            selected
+                                ? "border-chestnut/30 bg-chestnut/5 text-gray-900"
+                                : "border-gray-200 text-gray-400 bg-white",
+                            "hover:border-chestnut/40 hover:bg-chestnut/5",
+                            isDisabled && "opacity-50 cursor-not-allowed pointer-events-none bg-gray-50"
+                        )}
+                    >
+                        <span className={cn("truncate text-left", selected ? "font-medium text-gray-900" : "text-gray-400")}>
+                            {loading ? "Loading…" : selected?.name ?? placeholder}
+                        </span>
+                        {loading
+                            ? <Loader2 className="w-4 h-4 animate-spin text-gray-400 shrink-0" />
+                            : <ChevronDown className={cn("w-4 h-4 text-gray-400 shrink-0 transition-transform duration-200", open && "rotate-180")} />}
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                    className="w-(--radix-dropdown-menu-trigger-width) max-h-60 overflow-y-auto rounded-xl border border-gray-200 shadow-xl bg-white p-1.5 z-50"
+                    align="start"
+                    sideOffset={4}
+                >
+                    <DropdownMenuGroup>
+                        {items.length === 0 ? (
+                            <div className="px-3 py-6 text-center text-sm text-gray-400">No options available</div>
+                        ) : items.map(item => (
+                            <DropdownMenuItem
+                                key={item.id}
+                                onClick={() => onChange(item)}
+                                className={cn(
+                                    "flex items-center justify-between rounded-lg py-3 px-3 text-sm cursor-pointer",
+                                    value === item.id
+                                        ? "bg-chestnut text-white font-medium"
+                                        : "text-gray-700 hover:bg-chestnut/5 hover:text-chestnut"
+                                )}
+                            >
+                                <span className="truncate">{item.name}</span>
+                                {value === item.id && <Check className="w-4 h-4 shrink-0 ml-2" />}
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuGroup>
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+    );
+}
+
+const TopicCard = ({
+    topic, index, onNameChange, onDelete, onAddSubTopic, onRemoveSubTopic,
+}: {
+    topic: TopicItem;
+    index: number;
+    onNameChange: (name: string) => void;
+    onDelete: () => void;
+    onAddSubTopic: (val: string) => void;
+    onRemoveSubTopic: (idx: number) => void;
+}) => {
+    const [subInput, setSubInput] = useState("");
+
+    const handleAdd = () => {
+        if (!subInput.trim()) return;
+        onAddSubTopic(subInput.trim());
+        setSubInput("");
+    };
+
+    return (
+        <div className={cn(
+            "border-2 rounded-2xl bg-white overflow-hidden shadow-sm transition-colors",
+            topic.isExisting
+                ? "border-chestnut/20 hover:border-chestnut/35"
+                : "border-gray-100 hover:border-chestnut/20"
+        )}>
+            <div className={cn(
+                "flex items-center gap-3 px-4 py-3.5 border-b border-gray-100",
+                topic.isExisting
+                    ? "bg-gradient-to-r from-chestnut/10 to-chestnut/5"
+                    : "bg-gradient-to-r from-chestnut/5 to-transparent"
+            )}>
+                <div className="w-7 h-7 rounded-lg bg-chestnut flex items-center justify-center text-white font-bold text-xs shrink-0">
+                    {index + 1}
+                </div>
+                {topic.isExisting ? (
+                    <div className="flex-1 flex items-center gap-2 min-w-0">
+                        <span className="flex-1 text-sm font-semibold text-gray-800 truncate">{topic.name}</span>
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-chestnut bg-chestnut/10 px-2 py-0.5 rounded-full shrink-0">
+                            <Lock className="w-2.5 h-2.5" />
+                            Existing
+                        </span>
+                    </div>
+                ) : (
+                    <input
+                        value={topic.name}
+                        onChange={e => onNameChange(e.target.value)}
+                        placeholder="Topic name e.g. Photosynthesis"
+                        className="flex-1 text-sm font-semibold text-gray-800 bg-transparent outline-none placeholder:text-gray-300 placeholder:font-normal"
+                    />
+                )}
+                {!topic.isExisting && (
+                    <button
+                        onClick={onDelete}
+                        className="shrink-0 p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors"
+                        title="Remove topic"
+                    >
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
+
+            <div className="px-4 py-3.5 space-y-3">
+                {topic.existingSubTopics.length > 0 && (
+                    <div>
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                            Saved subtopics
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {topic.existingSubTopics.map((st, i) => (
+                                <span
+                                    key={`existing-${i}`}
+                                    className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-500 text-xs font-medium px-3 py-1.5 rounded-full"
+                                >
+                                    <Lock className="w-2.5 h-2.5 opacity-60" />
+                                    {st}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {topic.subTopics.length > 0 && (
+                    <div>
+                        {topic.existingSubTopics.length > 0 && (
+                            <p className="text-[10px] font-semibold text-chestnut/70 uppercase tracking-wide mb-1.5">
+                                New subtopics
+                            </p>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                            {topic.subTopics.map((st, i) => (
+                                <span
+                                    key={`new-${i}`}
+                                    className="inline-flex items-center gap-1.5 bg-chestnut/10 text-chestnut text-xs font-semibold px-3 py-1.5 rounded-full"
+                                >
+                                    {st}
+                                    <button onClick={() => onRemoveSubTopic(i)} className="hover:text-red-500 transition-colors">
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                    <div className="flex-1 flex items-center gap-2 border-2 border-gray-100 rounded-xl px-3 py-2.5 focus-within:border-chestnut/30 focus-within:bg-chestnut/5 transition-all">
+                        <Tag className="w-3.5 h-3.5 text-gray-300 shrink-0" />
+                        <input
+                            value={subInput}
+                            onChange={e => setSubInput(e.target.value)}
+                            onKeyDown={e => e.key === "Enter" && handleAdd()}
+                            placeholder={topic.isExisting ? "Add new subtopic to this topic" : "Add subtopic, press Enter"}
+                            className="flex-1 text-xs bg-transparent outline-none text-gray-700 placeholder:text-gray-300"
+                        />
+                    </div>
+                    <button
+                        onClick={handleAdd}
+                        disabled={!subInput.trim()}
+                        className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-chestnut text-white hover:bg-chestnut/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shrink-0"
+                    >
+                        Add
+                    </button>
+                </div>
+
+                {topic.existingSubTopics.length === 0 && topic.subTopics.length === 0 && (
+                    <p className="text-[11px] text-gray-300">
+                        No subtopics yet — type above and press Enter or click Add
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+};
 
 const CreateSyllabus = () => {
     const navigate = useNavigate();
     const { user } = useAuthContext();
-    const isTeacher = isTeacherRole(user?.roleName);
+    const isAdmin = isAdminRole(user?.roleName);
 
     const [selectedClass, setSelectedClass] = useState<ClassItem | null>(null);
     const [selectedSubject, setSelectedSubject] = useState<SubjectItem | null>(null);
     const [subjects, setSubjects] = useState<SubjectItem[]>([]);
-    const [isSubjectOpen, setIsSubjectOpen] = useState(false);
-    const [isClassOpen, setIsClassOpen] = useState(false);
     const [classes, setClasses] = useState<ClassItem[]>([]);
-
-    const [title, setTitle] = useState("");
-    const [textbook, setTextbook] = useState("");
-    const [aim, setAim] = useState("");
-    const [weeks, setWeeks] = useState<Week[]>([]);
-    const [expandAll, setExpandAll] = useState(false);
+    const [topics, setTopics] = useState<TopicItem[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    const [loadingCurriculum, setLoadingCurriculum] = useState(false);
 
-    // ── Populate classrooms ────────────────────────────────────────────────────
     useEffect(() => {
-        if (isTeacher) {
-            // Teacher: classrooms + their subjects come directly from roleData
-            const roleClassrooms = user?.roleData?.classrooms ?? [];
-            setClasses(roleClassrooms.map((c: any) => ({
-                id: String(c.classroomId),
-                name: String(c.className),
-                subjects: (c.subjects ?? []).map((s: any) => ({
-                    id: String(s.subjectId),
-                    name: String(s.subjectName),
-                })),
-            })));
-        } else {
-            // Admin/HeadTeacher: fetch all classrooms from API
+        if (!user?.id) return;
+        if (isAdmin) {
             schoolService.getAllClassRooms()
                 .then(({ data }) => {
                     const raw: any[] = (data as any).data?.classrooms ?? [];
@@ -69,19 +261,24 @@ const CreateSyllabus = () => {
                     })));
                 })
                 .catch(() => {});
+        } else {
+            const classroomsData: any[] = user.roleData?.classrooms ?? [];
+            setClasses(classroomsData.map((c: any) => ({
+                id: String(c.classroomId),
+                name: String(c.className),
+                subjects: (c.subjects ?? []).map((s: any) => ({
+                    id: String(s.subjectId),
+                    name: String(s.subjectName),
+                })),
+            })));
         }
-    }, [isTeacher, user]);
+    }, [isAdmin, user?.id, user?.roleData]);
 
-    // ── Populate subjects when class changes ───────────────────────────────────
     useEffect(() => {
         setSelectedSubject(null);
+        setTopics([]);
         if (!selectedClass) { setSubjects([]); return; }
-
-        if (isTeacher) {
-            // Subjects already embedded in the class item from roleData
-            setSubjects(selectedClass.subjects);
-        } else {
-            // Admin: fetch subjects for the selected classroom
+        if (isAdmin) {
             schoolService.getSubjectsByClassroomId(selectedClass.id).then((res) => {
                 const data = (res.data as any)?.data;
                 const major: any[] = data?.majorSubjects ?? [];
@@ -91,347 +288,353 @@ const CreateSyllabus = () => {
                     name: String(s.subjectName ?? s.name ?? ""),
                 })));
             }).catch(() => setSubjects([]));
+        } else {
+            setSubjects(selectedClass.subjects);
         }
-    }, [selectedClass, isTeacher]);
+    }, [selectedClass, isAdmin]);
 
-    // ── Completion checks ──────────────────────────────────────────────────────
-    const totalTopics = useMemo(() => weeks.reduce((acc, w) => acc + w.topics.length, 0), [weeks]);
-    const weeksDone = useMemo(() => weeks.filter(w => w.topics.length > 0).length, [weeks]);
-    const checks = useMemo(() => ({
-        subjectSelected: !!(selectedClass && selectedSubject),
-        titleAdded: title.trim().length > 0,
-        atLeast4Weeks: weeks.length >= 4,
-        eachWeekHasTopics: weeks.length > 0 && weeks.every(w => w.topics.length > 0),
-    }), [selectedClass, selectedSubject, title, weeks]);
+    useEffect(() => {
+        setTopics([]);
+        if (!selectedSubject) return;
 
-    const canSubmit = checks.subjectSelected && checks.titleAdded && checks.atLeast4Weeks && checks.eachWeekHasTopics;
+        setLoadingCurriculum(true);
+        schoolService.getSubjectCurriculum(selectedSubject.id)
+            .then((res) => {
+                const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
+                const existingTopics: any[] = raw.Topics ?? raw.topics ?? [];
+                if (existingTopics.length > 0) {
+                    setTopics(existingTopics.map((t: any) => ({
+                        id: String(t.Id ?? t.id),
+                        name: String(t.Name ?? t.name ?? ""),
+                        subTopics: [],
+                        isExisting: true,
+                        existingTopicId: String(t.Id ?? t.id),
+                        existingSubTopics: (t.SubTopics ?? t.subTopics ?? []).map(
+                            (s: any) => String(s.Name ?? s.name ?? "")
+                        ),
+                    })));
+                }
+            })
+            .catch(() => {})
+            .finally(() => setLoadingCurriculum(false));
+    }, [selectedSubject]);
 
-    const handleAddWeek = () => {
-        if (weeks.length >= 12) return;
-        setWeeks(prev => [...prev, {
-            id: crypto.randomUUID(),
-            title: `Week ${prev.length + 1}`,
-            topics: [],
-        }]);
+    const addTopic = () => setTopics(prev => [
+        ...prev,
+        { id: String(Date.now()), name: "", subTopics: [], isExisting: false, existingSubTopics: [] },
+    ]);
+
+    const updateTopicName = (idx: number, name: string) =>
+        setTopics(prev => prev.map((t, i) => i === idx ? { ...t, name } : t));
+
+    const deleteTopic = (idx: number) =>
+        setTopics(prev => prev.filter((_, i) => i !== idx));
+
+    const addSubTopic = (idx: number, value: string) => {
+        if (!value.trim()) return;
+        setTopics(prev => prev.map((t, i) =>
+            i === idx ? { ...t, subTopics: [...t.subTopics, value.trim()] } : t
+        ));
     };
 
-    // ── Submit ─────────────────────────────────────────────────────────────────
+    const removeSubTopic = (topicIdx: number, subIdx: number) =>
+        setTopics(prev => prev.map((t, i) =>
+            i === topicIdx ? { ...t, subTopics: t.subTopics.filter((_, j) => j !== subIdx) } : t
+        ));
+
     const handleSubmit = async () => {
-        if (!canSubmit || !selectedClass || !selectedSubject) return;
-        if (!aim.trim()) { toast.error("Please add an objective / overview"); return; }
+        if (!selectedClass || !selectedSubject) {
+            toast.error("Please select a class and subject");
+            return;
+        }
+
+        const existingWithNew = topics.filter(t => t.isExisting && t.subTopics.length > 0);
+        const newTopics = topics.filter(t => !t.isExisting && t.name.trim());
+
+        if (existingWithNew.length === 0 && newTopics.length === 0) {
+            toast.error("Add at least one new topic or subtopic to save");
+            return;
+        }
 
         setSubmitting(true);
         try {
-            const payload = {
-                classroomId: selectedClass.id,
-                subjectId: selectedSubject.id,
-                title: title.trim(),
-                recommendedTextbook: textbook.trim(),
-                objectives: aim.trim(),
-                weeks: weeks.map((w, i) => ({
-                    weekNumber: i + 1,
-                    title: w.title,
-                    topics: w.topics,
-                })),
-            };
-            await API.post("/api/Syllabus/create", payload, {
-                headers: { "X-Tenant-ID": X_Tenant_ID },
-            });
-            toast.success("Syllabus submitted for approval");
+            const ops: Promise<any>[] = [];
+
+            for (const t of existingWithNew) {
+                ops.push(
+                    schoolService.addSubTopicsToTopic(t.existingTopicId!, t.subTopics)
+                );
+            }
+
+            if (newTopics.length > 0) {
+                ops.push(
+                    schoolService.createTopic({
+                        classroomId: selectedClass.id,
+                        subjectId: selectedSubject.id,
+                        topics: newTopics.map(t => ({
+                            name: t.name.trim(),
+                            subTopics: t.subTopics,
+                        })),
+                    })
+                );
+            }
+
+            await Promise.all(ops);
+            toast.success("Topics saved successfully");
             navigate("/teacher/syllabus");
         } catch (err) {
             const msg = err instanceof AxiosError
                 ? err.response?.data?.responseMessage ?? err.response?.data?.message ?? err.message
                 : (err as Error).message;
-            toast.error(msg || "Failed to submit syllabus");
+            toast.error(msg || "Failed to save");
         } finally {
             setSubmitting(false);
         }
     };
 
-    return (
-        <div className="p-3 font-poppins">
-            <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
+    const totalExistingSubTopics = topics.reduce((s, t) => s + t.existingSubTopics.length, 0);
+    const totalNewSubTopics = topics.reduce((s, t) => s + t.subTopics.length, 0);
+    const newTopicsCount = topics.filter(t => !t.isExisting).length;
+    const existingTopicsCount = topics.filter(t => t.isExisting).length;
 
-                {/* ── Top Nav ──────────────────────────────────────────────────── */}
-                <div className="flex items-center justify-between px-4 py-5 sticky top-0 z-30 bg-chestnut">
-                    <span className="text-white font-semibold text-sm">Syllabus</span>
-                    <button className="text-white">
-                        <EllipsisVertical size={18} />
+    const canSubmit = !!selectedClass && !!selectedSubject && !loadingCurriculum && (
+        topics.some(t => !t.isExisting && t.name.trim()) ||
+        topics.some(t => t.isExisting && t.subTopics.length > 0)
+    );
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-orange-50/20 font-poppins">
+            <header className="sticky top-0 z-30 bg-chestnut shadow-sm">
+                <div className="max-w-3xl mx-auto px-4 sm:px-6">
+                    <div className="flex items-center justify-between h-14">
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => navigate(-1)}
+                                className="p-1.5 -ml-1.5 rounded-xl hover:bg-white/10 transition-colors text-white"
+                            >
+                                <ChevronLeft className="w-5 h-5" />
+                            </button>
+                            <div>
+                                <p className="text-white font-semibold text-sm leading-tight">Create / Update Topics</p>
+                                <p className="text-white/60 text-[10px]">Add or extend topics & subtopics</p>
+                            </div>
+                        </div>
+                        {(selectedClass || selectedSubject) && (
+                            <div className="flex items-center gap-1.5 bg-white/15 px-3 py-1.5 rounded-full">
+                                {selectedClass && (
+                                    <span className="text-white text-[10px] font-semibold truncate max-w-[80px]">
+                                        {selectedClass.name}
+                                    </span>
+                                )}
+                                {selectedClass && selectedSubject && (
+                                    <span className="text-white/50 text-[10px]">·</span>
+                                )}
+                                {selectedSubject && (
+                                    <span className="text-white text-[10px] font-semibold truncate max-w-[80px]">
+                                        {selectedSubject.name}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </header>
+
+            <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 pb-32 sm:pb-8 space-y-5">
+                <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="px-5 py-4 bg-gradient-to-r from-chestnut/8 to-transparent border-b border-gray-100">
+                        <div className="flex items-center gap-3">
+                            <div className={cn(
+                                "w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
+                                selectedClass && selectedSubject ? "bg-green-500 text-white" : "bg-chestnut text-white"
+                            )}>
+                                {selectedClass && selectedSubject
+                                    ? <Check className="w-4 h-4" />
+                                    : <BookOpen className="w-4 h-4" />}
+                            </div>
+                            <div>
+                                <h2 className="text-sm font-semibold text-gray-900">Class & Subject</h2>
+                                <p className="text-xs text-gray-400">Choose where these topics belong</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-5">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <FieldDropdown
+                                label="Classroom"
+                                placeholder="Select class"
+                                value={selectedClass?.id ?? ""}
+                                items={classes}
+                                onChange={(item) => setSelectedClass({ ...item, subjects: classes.find(c => c.id === item.id)?.subjects ?? [] })}
+                            />
+                            <FieldDropdown
+                                label="Subject"
+                                placeholder={selectedClass ? "Select subject" : "Select class first"}
+                                value={selectedSubject?.id ?? ""}
+                                items={subjects}
+                                disabled={!selectedClass}
+                                loading={loadingCurriculum && !!selectedSubject}
+                                onChange={(item) => setSelectedSubject(item)}
+                            />
+                        </div>
+                    </div>
+                </section>
+
+                <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                    <div className="px-5 py-4 bg-gradient-to-r from-indigo-50 to-transparent border-b border-gray-100">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className={cn(
+                                    "w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
+                                    canSubmit ? "bg-green-500 text-white" : "bg-indigo-500 text-white"
+                                )}>
+                                    {loadingCurriculum
+                                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                                        : canSubmit ? <Check className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
+                                </div>
+                                <div>
+                                    <h2 className="text-sm font-semibold text-gray-900">
+                                        Topics
+                                        {topics.length > 0 && !loadingCurriculum && (
+                                            <span className="ml-2 text-xs font-normal text-gray-400">
+                                                {existingTopicsCount > 0 && `${existingTopicsCount} existing`}
+                                                {existingTopicsCount > 0 && newTopicsCount > 0 && " · "}
+                                                {newTopicsCount > 0 && `${newTopicsCount} new`}
+                                                {" · "}
+                                                {totalExistingSubTopics + totalNewSubTopics} subtopics
+                                                {totalNewSubTopics > 0 && ` (${totalNewSubTopics} new)`}
+                                            </span>
+                                        )}
+                                    </h2>
+                                    <p className="text-xs text-gray-400">
+                                        {loadingCurriculum
+                                            ? "Loading existing topics…"
+                                            : existingTopicsCount > 0
+                                                ? "Add new subtopics to existing topics, or create new topics"
+                                                : "Add topics with their subtopics"}
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={addTopic}
+                                disabled={loadingCurriculum}
+                                className="flex items-center gap-1.5 text-xs font-semibold text-chestnut bg-chestnut/8 hover:bg-chestnut/15 px-3.5 py-2 rounded-xl transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                                New Topic
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="p-5 space-y-3">
+                        {loadingCurriculum ? (
+                            <div className="flex items-center justify-center gap-3 py-12 text-gray-400">
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                                <span className="text-sm">Loading existing topics…</span>
+                            </div>
+                        ) : topics.length === 0 ? (
+                            <div
+                                onClick={addTopic}
+                                className="flex flex-col items-center justify-center gap-3 border-2 border-dashed border-gray-200 rounded-2xl py-12 cursor-pointer hover:border-chestnut/30 hover:bg-chestnut/5 transition-all"
+                            >
+                                <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center">
+                                    <Layers className="w-6 h-6 text-gray-300" />
+                                </div>
+                                <div className="text-center">
+                                    <p className="text-sm font-medium text-gray-400">No topics yet</p>
+                                    <p className="text-xs text-gray-300 mt-0.5">Click here or "New Topic" to add your first topic</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                {existingTopicsCount > 0 && (
+                                    <div className="flex items-center gap-2 px-1 mb-1">
+                                        <div className="flex-1 h-px bg-gray-100" />
+                                        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
+                                            Existing — add subtopics below
+                                        </span>
+                                        <div className="flex-1 h-px bg-gray-100" />
+                                    </div>
+                                )}
+                                {topics.filter(t => t.isExisting).map((topic, _) => {
+                                    const globalIdx = topics.indexOf(topic);
+                                    return (
+                                        <TopicCard
+                                            key={topic.id}
+                                            topic={topic}
+                                            index={globalIdx}
+                                            onNameChange={(name) => updateTopicName(globalIdx, name)}
+                                            onDelete={() => deleteTopic(globalIdx)}
+                                            onAddSubTopic={(val) => addSubTopic(globalIdx, val)}
+                                            onRemoveSubTopic={(subIdx) => removeSubTopic(globalIdx, subIdx)}
+                                        />
+                                    );
+                                })}
+
+                                {newTopicsCount > 0 && (
+                                    <div className="flex items-center gap-2 px-1 mt-4 mb-1">
+                                        <div className="flex-1 h-px bg-gray-100" />
+                                        <span className="text-[10px] font-semibold text-chestnut/60 uppercase tracking-wide">
+                                            New topics
+                                        </span>
+                                        <div className="flex-1 h-px bg-gray-100" />
+                                    </div>
+                                )}
+                                {topics.filter(t => !t.isExisting).map((topic) => {
+                                    const globalIdx = topics.indexOf(topic);
+                                    return (
+                                        <TopicCard
+                                            key={topic.id}
+                                            topic={topic}
+                                            index={globalIdx}
+                                            onNameChange={(name) => updateTopicName(globalIdx, name)}
+                                            onDelete={() => deleteTopic(globalIdx)}
+                                            onAddSubTopic={(val) => addSubTopic(globalIdx, val)}
+                                            onRemoveSubTopic={(subIdx) => removeSubTopic(globalIdx, subIdx)}
+                                        />
+                                    );
+                                })}
+                            </>
+                        )}
+                    </div>
+                </section>
+
+                <div className="hidden sm:flex items-center justify-between pt-1">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={handleSubmit}
+                        disabled={submitting || !canSubmit}
+                        className="flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-semibold text-white bg-chestnut hover:bg-chestnut/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                    >
+                        {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {submitting ? "Saving…" : "Save Topics"}
                     </button>
                 </div>
+            </main>
 
-                {/* ── White card ───────────────────────────────────────────────── */}
-                <div className="flex-1 p-3 bg-white/70 backdrop-blur-sm">
-
-                    {/* Page header row */}
-                    <div className="flex items-start justify-between mb-4">
-                        <div>
-                            <h1 className="text-xl font-bold font-Instrument text-blck-b2 leading-tight">
-                                Syllabus builder
-                            </h1>
-                            <p className="text-sm text-[#A0A8C0] mt-0.5">
-                                Build a complete term syllabus week by week and submit for admin approval
-                            </p>
-                        </div>
-                        <Button
-                            onClick={() => navigate('/teacher/syllabus')}
-                            className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[#0F0F0E] text-xs font-medium bg-white shrink-0 transition-opacity border border-[#E8E8E3] hover:bg-white"
-                        >
-                            <BookTextIcon className="text-[#0F0F0E]" />
-                            My Syllabus
-                        </Button>
-                    </div>
-
-                    {/* Banner */}
-                    <div className="rounded-[16px] pl-[34px] py-[22px] bg-chestnut">
-                        <div className="space-y-1">
-                            <h1 className="text-white font-normal font-Instrument text-[22px]">Syllabus builder</h1>
-                            <p className="text-[#FFFFFF8C]">Define your subject plan, add weekly topics and submit for approval</p>
-                            <div className="pt-[2.5px] flex items-center gap-2">
-                                <div className="flex items-center gap-[6px] bg-[#FFFFFF1A] rounded-[20px] py-[6px] px-3">
-                                    <CalendarRange className="size-[13px] text-[#FFFFFFCC]" />
-                                    <span className="text-[#FFFFFFCC] text-xs">Second term 2025/2026</span>
-                                </div>
-                                <div className="flex items-center gap-[6px] bg-[#FFFFFF1A] rounded-[20px] py-[6px] px-3">
-                                    <Clock3 className="size-[13px] text-[#FFFFFFCC]" />
-                                    <span className="text-[#FFFFFFCC] text-xs">{weeks.length} week{weeks.length !== 1 ? "s" : ""} planned</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex gap-5 mt-10">
-
-                        {/* ── Left column ───────────────────────────────────────── */}
-                        <div className="space-y-4 flex-1 grow">
-
-                            {/* Syllabus details form */}
-                            <div className="border border-[#D9D9D9] bg-white rounded-[10px] pb-5 pt-2.5 px-4">
-                                <div className="p-[2px] border-b-2 border-[#D9D9D9] pb-[6px] mb-[20px]">
-                                    <h2 className="text-[#3A3A3A] font-medium font-poppins text-sm">Syllabus details</h2>
-                                    <span className="font-medium text-xs text-[#3A3A3A80]">Define the subject, class and term for this syllabus</span>
-                                </div>
-                                <div className="space-y-3">
-                                    {/* Row 1: Class → Subject */}
-                                    <div className="grid grid-cols-1 items-center sm:grid-cols-2 gap-3">
-                                        {/* Class (first — Subject depends on it) */}
-                                        <div className="space-y-2">
-                                            <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">
-                                                Class <span className="text-red-500">*</span>
-                                            </Label>
-                                            <DropdownMenu onOpenChange={setIsClassOpen}>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        className={`w-full justify-between font-medium border-0 ring-2 py-2.5 px-4 text-sm rounded-xl transition-all ${selectedClass
-                                                            ? "ring-chestnut/30 text-chestnut bg-chestnut/5"
-                                                            : "ring-gray-200 text-gray-400 bg-white"
-                                                            } hover:ring-chestnut/40`}
-                                                    >
-                                                        <span className={selectedClass ? "font-semibold text-chestnut" : ""}>
-                                                            {selectedClass ? selectedClass.name : "Select class"}
-                                                        </span>
-                                                        <ChevronDown className={`w-4 h-4 text-chestnut/50 transition-transform duration-200 ${isClassOpen ? "rotate-180" : ""}`} />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-52 overflow-y-auto rounded-xl border border-gray-100 shadow-lg bg-white p-1.5" align="start" sideOffset={6}>
-                                                    <DropdownMenuGroup className="space-y-0.5">
-                                                        {classes.map((classroom) => (
-                                                            <DropdownMenuItem
-                                                                key={classroom.id}
-                                                                onClick={() => setSelectedClass(classroom)}
-                                                                className={`text-sm py-2.5 px-3 rounded-lg cursor-pointer ${selectedClass?.id === classroom.id ? "bg-chestnut text-white" : "text-gray-700 hover:bg-chestnut/5 hover:text-chestnut"}`}
-                                                            >
-                                                                <span className="flex-1">{classroom.name}</span>
-                                                                {selectedClass?.id === classroom.id && <Check className="w-3.5 h-3.5" />}
-                                                            </DropdownMenuItem>
-                                                        ))}
-                                                    </DropdownMenuGroup>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </div>
-
-                                        {/* Subject (loads after class is selected) */}
-                                        <div className="space-y-1.5">
-                                            <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">
-                                                Subject <span className="text-red-500">*</span>
-                                            </Label>
-                                            <DropdownMenu onOpenChange={setIsSubjectOpen}>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        disabled={!selectedClass}
-                                                        className={`w-full justify-between font-medium border-0 ring-2 py-2.5 px-4 text-sm rounded-xl transition-all ${selectedSubject
-                                                            ? "ring-chestnut/30 text-chestnut bg-chestnut/5"
-                                                            : "ring-gray-200 text-gray-400 bg-white"
-                                                            } hover:ring-chestnut/40`}
-                                                    >
-                                                        <span className={selectedSubject ? "font-semibold text-chestnut" : ""}>
-                                                            {selectedSubject ? selectedSubject.name : selectedClass ? "Select subject" : "Select class first"}
-                                                        </span>
-                                                        <ChevronDown className={`w-4 h-4 text-chestnut/50 transition-transform duration-200 ${isSubjectOpen ? "rotate-180" : ""}`} />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) max-h-52 overflow-y-auto rounded-xl border border-gray-100 shadow-lg bg-white p-1.5" align="start" sideOffset={6}>
-                                                    <DropdownMenuGroup className="space-y-0.5">
-                                                        {subjects.length === 0 ? (
-                                                            <DropdownMenuItem disabled className="text-xs text-gray-400 py-2 px-3">No subjects found</DropdownMenuItem>
-                                                        ) : subjects.map((s) => (
-                                                            <DropdownMenuItem
-                                                                key={s.id}
-                                                                onClick={() => setSelectedSubject(s)}
-                                                                className={`text-sm py-2.5 px-3 rounded-lg cursor-pointer ${selectedSubject?.id === s.id ? "bg-chestnut text-white" : "text-gray-700 hover:bg-chestnut/5 hover:text-chestnut"}`}
-                                                            >
-                                                                <span className="flex-1">{s.name}</span>
-                                                                {selectedSubject?.id === s.id && <Check className="w-3.5 h-3.5" />}
-                                                            </DropdownMenuItem>
-                                                        ))}
-                                                    </DropdownMenuGroup>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </div>
-                                    </div>
-
-                                    {/* Row 2: Title + Textbook */}
-                                    <div className="grid grid-cols-1 items-center sm:grid-cols-2 gap-3">
-                                        <div className="space-y-1.5">
-                                            <Label className="text-sm font-medium text-[#3A3A3A]">
-                                                Syllabus title <span className="text-red-500">*</span>
-                                            </Label>
-                                            <Input
-                                                type="text"
-                                                value={title}
-                                                onChange={(e) => setTitle(e.target.value)}
-                                                placeholder="e.g. Basic Science — Second Term"
-                                                className="flex-1 border border-gray-200 rounded-md px-4 py-3 text-sm focus:ring-2 focus:ring-chestnut/40 focus:border-chestnut/40 outline-none transition"
-                                            />
-                                        </div>
-                                        <div className="space-y-1.5">
-                                            <Label className="text-sm font-medium text-[#3A3A3A]">
-                                                Recommended textbook
-                                            </Label>
-                                            <Input
-                                                type="text"
-                                                value={textbook}
-                                                onChange={(e) => setTextbook(e.target.value)}
-                                                placeholder="e.g. New School Science for JSS 2"
-                                                className="flex-1 border border-gray-200 rounded-md px-4 py-3 text-sm focus:ring-2 focus:ring-chestnut/40 focus:border-chestnut/40 outline-none transition"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Objectives */}
-                                    <div className="space-y-1.5">
-                                        <Label className="text-sm font-medium text-[#3A3A3A]">
-                                            Objectives / overview <span className="text-red-500">*</span>
-                                        </Label>
-                                        <textarea
-                                            rows={3}
-                                            value={aim}
-                                            onChange={(e) => setAim(e.target.value)}
-                                            placeholder="e.g. Students will explore living things, matter, and energy. By end of term they will classify organisms, explain states of matter, and describe energy transfer."
-                                            className="w-full rounded-xl border border-gray-200 ring-2 ring-chestnut/20 px-4 py-3 text-sm text-[#0F0F0E] placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-chestnut/50 transition-all"
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Weekly Plan */}
-                            <div className="border border-[#E8E8E3] rounded-2xl bg-white overflow-hidden">
-                                <div className="flex items-center justify-between px-5 py-4 border-b border-[#E8E8E3]">
-                                    <div>
-                                        <h3 className="text-[#0F0F0E] font-semibold text-sm">Weekly Plan</h3>
-                                        <p className="text-[#A8A8A4] text-xs mt-0.5">Add topics for each week</p>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-[#A8A8A4] text-xs font-medium">
-                                            {weeks.length}/12 weeks planned
-                                        </span>
-                                        <button
-                                            onClick={() => setExpandAll(p => !p)}
-                                            className="border border-[#E8E8E3] text-xs font-semibold text-[#0F0F0E] px-4 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
-                                        >
-                                            {expandAll ? "Collapse all" : "Expand all"}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="p-4 space-y-3">
-                                    {weeks.map((week, i) => (
-                                        <WeekRow
-                                            key={week.id}
-                                            week={week}
-                                            index={i}
-                                            expanded={expandAll}
-                                            onChange={(updated) =>
-                                                setWeeks(prev => prev.map(w => w.id === updated.id ? updated : w))
-                                            }
-                                            onDelete={() =>
-                                                setWeeks(prev => prev.filter(w => w.id !== week.id))
-                                            }
-                                        />
-                                    ))}
-
-                                    <button
-                                        onClick={handleAddWeek}
-                                        disabled={weeks.length >= 12}
-                                        className="w-full border-2 bg-[#F9FBFF] border-dashed border-[#E8E8E3] rounded-xl py-5 flex items-center justify-center gap-2 text-sm font-semibold text-[#3A3A3A] hover:border-[#292382]/30 hover:text-[#292382] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                    >
-                                        <Plus className="w-4 h-4 text-[#3A3A3A]" />
-                                        Add Week
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Submit CTA */}
-                            <div className="rounded-[10px] border border-[#E8E8E3] bg-white p-6">
-                                <div className="relative flex items-center justify-between gap-6">
-                                    <div>
-                                        <h3 className="text-[#0F0F0E] font-semibold text-base">Ready to submit?</h3>
-                                        <p className="text-[#A0A09C] text-xs mt-0.5">
-                                            {canSubmit
-                                                ? "All requirements met — your syllabus is ready for approval"
-                                                : "Fill in details and add at least 4 weeks with topics"}
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={handleSubmit}
-                                        disabled={!canSubmit || submitting}
-                                        className={`shrink-0 flex items-center gap-2 transition-colors text-white text-sm font-semibold px-5 py-3 rounded-[10px] ${canSubmit && !submitting
-                                            ? "bg-[#292382] hover:bg-[#1e1a6e]"
-                                            : "bg-gray-300 cursor-not-allowed"
-                                            }`}
-                                    >
-                                        {submitting ? (
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                            <svg width="20" height="20" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M2.5 7.25C2.5 7.25 3.25 7.25 4.25 9C4.25 9 7.0295 4.4165 9.5 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                                            </svg>
-                                        )}
-                                        {submitting ? "Submitting…" : "Submit For Approval"}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* ── Right column ──────────────────────────────────────── */}
-                        <div className="space-y-3 shrink-0">
-                            <Completion
-                                weeksPlanned={weeks.length}
-                                totalWeeks={12}
-                                totalTopics={totalTopics}
-                                weeksDone={weeksDone}
-                                checks={checks}
-                            />
-                            <SubmissionGuide />
-                        </div>
-                    </div>
-                </div>
+            <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-white border-t border-gray-100 px-4 py-3 flex gap-3 safe-area-pb shadow-lg">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="flex-1 py-3 rounded-xl text-sm font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors"
+                >
+                    Cancel
+                </button>
+                <button
+                    onClick={handleSubmit}
+                    disabled={submitting || !canSubmit}
+                    className="flex-[2] flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold text-white bg-chestnut hover:bg-chestnut/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                    {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {submitting ? "Saving…" : "Save Topics"}
+                </button>
             </div>
         </div>
-    )
-}
+    );
+};
 
-export default CreateSyllabus
+export default CreateSyllabus;

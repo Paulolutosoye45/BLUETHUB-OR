@@ -28,21 +28,37 @@ const ClassRoomInner = () => {
         return;
       }
 
-      // Check for interrupted sessions (page refresh during recording)
+      // Check for interrupted sessions — only for the current lesson
       try {
+        const currentLessonId = (() => {
+          try {
+            const raw = sessionStorage.getItem('activeLesson');
+            return raw ? JSON.parse(raw)?.lesson?.id : null;
+          } catch { return null; }
+        })();
+
         const interruptedSessions = await getInterruptedSessions();
 
         if (interruptedSessions.length > 0) {
-          // Found interrupted session - show recovery dialog
-          // Use the most recent one
-          const mostRecent = interruptedSessions.sort(
-            (a, b) => new Date(b.recording.startedAt).getTime() - new Date(a.recording.startedAt).getTime()
-          )[0];
+          // Discard sessions from other lessons silently
+          const otherLessons = interruptedSessions.filter(
+            s => !currentLessonId || s.lessonId !== currentLessonId
+          );
+          await Promise.allSettled(otherLessons.map(s => cleanupEntireSession(s.id)));
 
-          console.log('[ClassRoom] Found interrupted session:', mostRecent.id, 'status:', mostRecent.status);
-          setRecoverySession(mostRecent);
-          setShowRecoveryDialog(true);
-          return;
+          // Only offer recovery for the same lesson
+          const sameLesson = interruptedSessions.filter(
+            s => currentLessonId && s.lessonId === currentLessonId
+          );
+
+          if (sameLesson.length > 0) {
+            const mostRecent = sameLesson.sort(
+              (a, b) => new Date(b.recording.startedAt).getTime() - new Date(a.recording.startedAt).getTime()
+            )[0];
+            setRecoverySession(mostRecent);
+            setShowRecoveryDialog(true);
+            return;
+          }
         }
       } catch (err) {
         console.error('[ClassRoom] Failed to check for interrupted sessions:', err);

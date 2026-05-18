@@ -377,7 +377,7 @@ export interface LocalStrokeBatch {
   createdAt: string;
   sentAt: string | null;
 
-  // Index key for backend storage: lessonId_batchIndex
+  // Backend stroke batch identifier: sessionId_batchIndex
   indexKey?: string;
 }
 

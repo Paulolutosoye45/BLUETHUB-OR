@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@bluethub/ui-kit";
@@ -17,6 +17,8 @@ import {
   updateSession,
   cleanupEntireSession,
   saveSessionAsDraft,
+  getAudioChunksBySession,
+  getStrokeBatchesBySession,
 } from "@/utils/db";
 import type { LocalSession } from "@/utils/constant";
 
@@ -34,12 +36,34 @@ const EndClass = () => {
   const [modalState, setModalState] = useState<ModalState>("closed");
   const [uploadProgress, setUploadProgress] = useState({ phase: "", current: 0, total: 0, percentage: 0 });
   const [errorMessage, setErrorMessage] = useState("");
+  const allowExitRef = useRef(false);
+  const backGuardInstalledRef = useRef(false);
 
   // Token-based upload hook
   const { uploadSession, abort: abortUpload } = useSessionUpload();
 
   // Class hasn't started yet if no time has elapsed
   const classNotStarted = timerElapsedSeconds === 0;
+
+  useEffect(() => {
+    if (classNotStarted || backGuardInstalledRef.current) return;
+
+    const onPopState = () => {
+      if (allowExitRef.current) return;
+      // Keep user on board route and show existing end-class options.
+      window.history.pushState({ boardExitGuard: true }, "", window.location.href);
+      setModalState((prev) => (prev === "uploading" ? prev : "confirm"));
+    };
+
+    window.history.pushState({ boardExitGuard: true }, "", window.location.href);
+    window.addEventListener("popstate", onPopState);
+    backGuardInstalledRef.current = true;
+
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      backGuardInstalledRef.current = false;
+    };
+  }, [classNotStarted]);
 
   const handleEndClick = () => {
     if (classNotStarted) {
@@ -81,6 +105,8 @@ const EndClass = () => {
       localStorage.removeItem("recordingStartTimerMs");
 
       toast.success("Recording discarded");
+      allowExitRef.current = true;
+      navigate("/teacher");
       setModalState("closed");
     } catch (err) {
       console.error("Failed to discard:", err);
@@ -243,7 +269,7 @@ const EndClass = () => {
       const session = await getSession(sessionId);
 
       if (session) {
-        const manifest = buildManifest(session, results);
+        const manifest = await buildManifest(session, results);
         await boardSessionService.submitManifest(sessionId, manifest);
 
         // Update session status
@@ -253,8 +279,9 @@ const EndClass = () => {
       }
 
       setUploadProgress({ phase: "Complete!", current: 1, total: 1, percentage: 100 });
-      setModalState("complete");
       toast.success("Lesson uploaded successfully!");
+      allowExitRef.current = true;
+      navigate("/teacher");
 
     } catch (err) {
       console.error("Upload failed:", err);
@@ -263,21 +290,106 @@ const EndClass = () => {
     }
   };
 
-  // Build manifest from local session and upload results
-  // Note: Stroke batches are uploaded to MongoDB separately via submitBatch endpoint
-  // The manifest references them by index key (lessonId_batchIndex)
-  const buildManifest = (
+  // Build manifest from local session and upload results using actual IDB timing data
+  const buildManifest = async (
     session: Awaited<ReturnType<typeof getSession>>,
     uploadResults: UploadResults
-  ): SessionManifestPayload => {
+  ): Promise<SessionManifestPayload> => {
     if (!session) {
       throw new Error('Session not found');
     }
 
-    const { audioUrls, strokeBatches } = uploadResults;
+    const { audioUrls, strokeBatches: uploadedStrokeBatches } = uploadResults;
 
-    // Estimate sizes (we don't have exact sizes in upload results)
-    const estimatedAudioSizeBytes = audioUrls.length * 50000; // ~50KB per chunk
+    // Fetch actual timing data from IDB
+    const allAudioChunks = await getAudioChunksBySession(session.id);
+    const allStrokeBatches = await getStrokeBatchesBySession(session.id);
+
+    // Build a map of uploadBatchIndex → actual startMs/endMs from IDB audio chunks
+    // Each upload batch (60s) covers 6 × 10s local chunks — take min startMs / max endMs
+    const audioBatchTimings = new Map<number, { startMs: number; endMs: number; sizeBytes: number }>();
+    for (const chunk of allAudioChunks) {
+      const idx = chunk.uploadBatchIndex;
+      const existing = audioBatchTimings.get(idx);
+      audioBatchTimings.set(idx, {
+        startMs: existing ? Math.min(existing.startMs, chunk.startMs) : chunk.startMs,
+        endMs: existing ? Math.max(existing.endMs, chunk.endMs) : chunk.endMs,
+        sizeBytes: (existing?.sizeBytes ?? 0) + chunk.sizeBytes,
+      });
+    }
+
+    // Build a map of batchIndex → actual IDB stroke batch record
+    const strokeBatchMap = new Map<number, typeof allStrokeBatches[0]>();
+    for (const batch of allStrokeBatches) {
+      strokeBatchMap.set(batch.batchIndex, batch);
+    }
+
+    // Build chunks array with actual timestamps and events
+    const chunks = audioUrls.map((audio) => {
+      const timing = audioBatchTimings.get(audio.chunkIndex);
+      const startMs = timing?.startMs ?? audio.chunkIndex * 60000;
+      const endMs = timing?.endMs ?? (audio.chunkIndex + 1) * 60000;
+      const sizeBytes = timing?.sizeBytes ?? 150000;
+
+      // Collect board/media events that fall within this audio chunk's time window
+      const events: unknown[] = [];
+
+      session.mediaEvents
+        .filter(e => {
+          const ms = e.showMs ?? 0;
+          return ms >= startMs && ms < endMs;
+        })
+        .forEach(e => {
+          events.push({ type: 'media:show', timestampMs: e.showMs ?? 0, mediaAssetId: e.id });
+          if (e.closed !== null && e.closedMs !== undefined && e.closedMs >= startMs && e.closedMs < endMs) {
+            events.push({ type: 'media:hide', timestampMs: e.closedMs, mediaAssetId: e.id });
+          }
+        });
+
+      session.boardEvents
+        .filter(e => e.timestampMs >= startMs && e.timestampMs < endMs)
+        .forEach(e => {
+          events.push({ type: 'board:switch', timestampMs: e.timestampMs, fromBoard: e.fromBoard, toBoard: e.toBoard });
+        });
+
+      (events as Array<{ timestampMs: number }>).sort((a, b) => a.timestampMs - b.timestampMs);
+
+      return {
+        index: audio.chunkIndex,
+        startMs,
+        endMs,
+        audio: {
+          url: audio.url,
+          mediaId: audio.mediaId,
+          sizeBytes,
+          durationMs: endMs - startMs,
+        },
+        events,
+      };
+    });
+
+    // Build stroke batches with actual timing from IDB
+    const strokeBatchesManifest = uploadedStrokeBatches.map((uploaded) => {
+      const idbBatch = strokeBatchMap.get(uploaded.batchIndex);
+      return {
+        id: uploaded.id,
+        batchIndex: uploaded.batchIndex,
+        indexKey: uploaded.indexKey,
+        startMs: idbBatch?.startMs ?? uploaded.batchIndex * 60000,
+        endMs: idbBatch?.endMs ?? (uploaded.batchIndex + 1) * 60000,
+        strokeCount: idbBatch?.strokeCount ?? 0,
+        sizeBytes: idbBatch?.sizeBytes ?? 5000,
+      };
+    });
+
+    // Collect unique board indices from stroke data
+    const boardIndices = new Set<number>();
+    allStrokeBatches.forEach(b => b.strokes.forEach(s => boardIndices.add(s.currentBoard)));
+    if (boardIndices.size === 0) boardIndices.add(0);
+
+    const totalAudioSizeBytes = allAudioChunks
+      .filter(c => c.syncStatus === 'sent')
+      .reduce((sum, c) => sum + c.sizeBytes, 0);
 
     return {
       version: "2.0",
@@ -300,54 +412,23 @@ const EndClass = () => {
         totalDurationMs: session.recording.totalDurationMs,
         totalDurationFormatted: formatDuration(session.recording.totalDurationMs),
         chunkCount: audioUrls.length,
-        chunkDurationMs: 60000,        // Upload batch size (60s)
-        seekGranularityMs: 10000,      // Seeking granularity (10s) - for player skip controls
-        totalAudioSizeBytes: estimatedAudioSizeBytes,
-        totalStrokeCount: strokeBatches.length,
-        boardCount: 1,
-        strokeBatchCount: strokeBatches.length,
+        chunkDurationMs: 60000,
+        seekGranularityMs: 10000,
+        totalAudioSizeBytes,
+        totalStrokeCount: allStrokeBatches.reduce((sum, b) => sum + b.strokeCount, 0),
+        boardCount: boardIndices.size,
+        strokeBatchCount: uploadedStrokeBatches.length,
       },
-      // Audio chunks (Cloudinary URLs) - 60s (1-minute) each
-      chunks: audioUrls.map((audio, idx) => {
-        const startMs = idx * 60000;
-        const endMs = startMs + 60000;
-
-        return {
-          index: audio.chunkIndex,
-          startMs,
-          endMs,
-          audio: {
-            url: audio.url,
-            mediaId: audio.mediaId,
-            sizeBytes: 150000, // ~150KB per 1-minute chunk
-            durationMs: 60000,
-          },
-          events: [],
-        };
-      }),
-      // Stroke batches (stored in MongoDB, referenced by index key)
-      strokeBatches: strokeBatches.map((batch) => ({
-        batchIndex: batch.batchIndex,
-        indexKey: batch.indexKey, // lessonId_batchIndex
-        startMs: batch.batchIndex * 60000, // 1-minute batches
-        endMs: (batch.batchIndex + 1) * 60000,
-        strokeCount: 0, // Will be populated from local data if needed
-        sizeBytes: 5000, // Approximate
+      chunks,
+      strokeBatches: strokeBatchesManifest,
+      mediaAssets: session.mediaEvents
+        .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
+        .map((m) => ({ id: m.id, name: m.name, type: m.type, url: m.url })),
+      boards: Array.from(boardIndices).sort().map(index => ({
+        index,
+        dimensions: { width: session.recording.screenWidth, height: session.recording.screenHeight },
+        strokeCount: allStrokeBatches.flatMap(b => b.strokes).filter(s => s.currentBoard === index).length,
       })),
-      mediaAssets: session.mediaEvents.map((m) => ({
-        id: m.id,
-        name: m.name,
-        type: m.type,
-        url: m.url,
-      })),
-      boards: [{
-        index: 1,
-        dimensions: {
-          width: session.recording.screenWidth,
-          height: session.recording.screenHeight,
-        },
-        strokeCount: strokeBatches.length,
-      }],
       chapters: session.adjustments.chapters.map((c) => ({
         title: c.label,
         startMs: c.timestampMs,

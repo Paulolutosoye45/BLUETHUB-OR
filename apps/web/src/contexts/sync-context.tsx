@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useCallback, useState, useRef, useEffect } from 'react';
 import type { LocalSession } from '@/utils/constant';
+import { token, X_Tenant_ID } from '@/utils';
 import {
   getSession,
   getAllSessions,
@@ -196,35 +197,58 @@ export function SyncProvider({ children, onSyncComplete, onSyncError }: SyncProv
       return;
     }
 
-    setError(null);
-    setIsSyncing(true);
-    setIsPaused(false);
-    setCurrentSessionId(sessionId);
-    setProgress({ phase: 'audio', current: 0, total: 0, percentage: 0 });
+    void (async () => {
+      setError(null);
+      setIsSyncing(true);
+      setIsPaused(false);
+      setCurrentSessionId(sessionId);
+      setProgress({ phase: 'audio', current: 0, total: 0, percentage: 0 });
 
-    cloudinaryConfigRef.current = cloudinaryConfig;
-    const worker = initWorker();
+      const session = await getSession(sessionId);
+      const authToken = token.getToken();
 
-    worker.postMessage({
-      type: 'START',
-      sessionId,
-      cloudinaryConfig,
+      if (!session?.lessonId) {
+        throw new Error('Missing lessonId for sync session');
+      }
+
+      if (!authToken) {
+        throw new Error('Authentication required to publish session');
+      }
+
+      cloudinaryConfigRef.current = cloudinaryConfig;
+      const worker = initWorker();
+
+      worker.postMessage({
+        type: 'START_SYNC',
+        sessionId,
+        lessonId: session.lessonId,
+        cloudinaryConfig,
+        authToken,
+        tenantId: X_Tenant_ID,
+        apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
+      });
+    })().catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : 'Failed to start sync';
+      console.error('[SyncContext] Failed to start sync:', err);
+      setError(message);
+      setIsSyncing(false);
+      setIsPaused(false);
     });
   }, [isSyncing, initWorker]);
 
   const pauseSync = useCallback(() => {
     if (!workerRef.current || !isSyncing) return;
-    workerRef.current.postMessage({ type: 'PAUSE' });
+    workerRef.current.postMessage({ type: 'PAUSE_SYNC' });
   }, [isSyncing]);
 
   const resumeSync = useCallback(() => {
     if (!workerRef.current || !isPaused) return;
-    workerRef.current.postMessage({ type: 'RESUME' });
+    workerRef.current.postMessage({ type: 'RESUME_SYNC' });
   }, [isPaused]);
 
   const cancelSync = useCallback(() => {
     if (!workerRef.current) return;
-    workerRef.current.postMessage({ type: 'CANCEL' });
+    workerRef.current.postMessage({ type: 'CANCEL_SYNC' });
   }, []);
 
   const retrySync = useCallback(() => {
