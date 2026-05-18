@@ -10,7 +10,7 @@
  * - Progress tracking per chunk
  * - Retry logic for failed uploads
  * - Status updates to IndexedDB
- * - Index key generation: lessonId_batchIndex
+ * - Stroke batch ID generation: sessionId_batchIndex
  */
 
 import { useCallback, useRef, useState } from 'react';
@@ -77,10 +77,14 @@ export interface UploadState {
 
 export interface UploadResults {
   audioUrls: Array<{ chunkIndex: number; url: string; mediaId: string }>;
-  // Stroke batches go to MongoDB, not Cloudinary - tracked by index key
-  strokeBatches: Array<{ batchIndex: number; indexKey: string }>;
+  // Stroke batches go to MongoDB, not Cloudinary - tracked by session-scoped batch ID
+  strokeBatches: Array<{ batchIndex: number; id: string; indexKey: string }>;
   success: boolean;
   errors: string[];
+}
+
+function buildStrokeBatchId(sessionId: string, batchIndex: number): string {
+  return `${sessionId}_${batchIndex}`;
 }
 
 interface UploadOptions {
@@ -171,18 +175,17 @@ export function useSessionUpload() {
 
   /**
    * Upload a single stroke batch to backend MongoDB with retry logic
-   * Index key format: lessonId_batchIndex (e.g., "abc123_0", "abc123_1")
+   * Stroke batch ID format: sessionId_batchIndex (e.g., "session-123_0")
    */
   const uploadStrokeBatch = useCallback(async (
     batch: LocalStrokeBatch,
     sessionId: string,
     _onProgress?: (progress: UploadProgress) => void
-  ): Promise<{ success: boolean; indexKey?: string; error?: string }> => {
+  ): Promise<{ success: boolean; id?: string; indexKey?: string; error?: string }> => {
     const maxRetries = 3;
     let lastError = '';
 
-    // Generate index key: lessonId_batchIndex
-    const indexKey = `${batch.lessonId}_${batch.batchIndex}`;
+    const strokeBatchId = buildStrokeBatchId(sessionId, batch.batchIndex);
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       if (abortRef.current) {
@@ -205,9 +208,11 @@ export function useSessionUpload() {
         // Submit to backend (returns 204 No Content on success)
         await boardSessionService.submitBatch(sessionId, payload);
 
-        // Update local DB with success (indexKey stored as cdnUrl for tracking)
-        await updateStrokeBatchStatus(batch.id, 'sent', { indexKey });
-        return { success: true, indexKey };
+        // Persist the backend-facing identifier so manifest assembly can reuse it later.
+        await updateStrokeBatchStatus(batch.id, 'sent', {
+          indexKey: strokeBatchId,
+        });
+        return { success: true, id: strokeBatchId, indexKey: strokeBatchId };
       } catch (err) {
         lastError = err instanceof Error ? err.message : 'Unknown error';
       }
@@ -333,9 +338,10 @@ export function useSessionUpload() {
         for (let j = 0; j < batchResults.length; j++) {
           const result = batchResults[j];
           const originalBatch = batch[j];
-          if (result.success && result.indexKey) {
+          if (result.success && result.id && result.indexKey) {
             results.strokeBatches.push({
               batchIndex: originalBatch.batchIndex,
+              id: result.id,
               indexKey: result.indexKey,
             });
             uploadedStrokes++;

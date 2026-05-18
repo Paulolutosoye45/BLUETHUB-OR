@@ -10,12 +10,12 @@ import {
 } from "react-konva";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getBezierPoints, gzipCompress, gzipDecompress } from "@/utils/gzip";
-import { addStrokes, getClassByBoard, getClassBySessionAndBoard, getSession } from "@/utils/db";
+import { addStrokes, getClassBySessionAndBoard, getSession } from "@/utils/db";
 import type { RootState } from "@/store";
 import { resetClassRuntime, setEndClass, setSendQueueRefList, setSessionIdRef, setPauseTime } from "@/store/class-action-slice";
 import { useDispatch, useSelector } from "react-redux";
 import { useGlobalTimer } from "@/hooks/useGlobalTimer";
-import { type Position } from "@/utils/constant";
+import { type Position, type CompressedStroke } from "@/utils/constant";
 import type Konva from "konva";
 import type { Stroke } from "@/utils/constant";
 import { ACTIONS, type arrow, type circle, type rectangle, type straightLine, type triangle } from "@/utils/Konva";
@@ -199,42 +199,15 @@ const Class = () => {
             try {
                 // Use loadedSessionId (from draft continue) or sessionIdRef (from Redux)
                 const effectiveSessionId = loadedSessionId || sessionIdRef;
-                console.log('[Class] Loading strokes for board:', currentBoard, 'session:', effectiveSessionId, '(loaded:', loadedSessionId, 'redux:', sessionIdRef, ')');
 
-                // Debug: Get ALL strokes to see what's in the database
-                const { getClass } = await import('@/utils/db');
-                const allStrokes = await getClass();
-                console.log('[Class] DEBUG - Total strokes in DB:', allStrokes.length);
-                if (allStrokes.length > 0) {
-                    const sessionIds = [...new Set(allStrokes.map(s => s.sessionId))];
-                    const boards = [...new Set(allStrokes.map(s => s.currentBoard))];
-                    console.log('[Class] DEBUG - Session IDs in DB:', sessionIds);
-                    console.log('[Class] DEBUG - Boards in DB:', boards);
-                    console.log('[Class] DEBUG - Looking for sessionId:', effectiveSessionId, 'board:', currentBoard);
-                    const matchingSession = allStrokes.filter(s => s.sessionId === effectiveSessionId);
-                    console.log('[Class] DEBUG - Strokes matching sessionId:', matchingSession.length);
-                    const matchingBoard = allStrokes.filter(s => s.currentBoard === currentBoard);
-                    console.log('[Class] DEBUG - Strokes matching board:', matchingBoard.length);
-                    const matchingBoth = allStrokes.filter(s => s.sessionId === effectiveSessionId && s.currentBoard === currentBoard);
-                    console.log('[Class] DEBUG - Strokes matching BOTH:', matchingBoth.length);
-                }
-
-                // Load strokes filtered by session if available, otherwise by board only
-                let boardStrokes;
+                // Only load strokes for this specific session — never load by board alone
+                // (board-only fallback would show strokes from other lessons on the same board number)
+                let boardStrokes: CompressedStroke[];
                 if (effectiveSessionId) {
                     boardStrokes = await getClassBySessionAndBoard(effectiveSessionId, currentBoard);
-                    console.log('[Class] Loaded by session+board:', boardStrokes.length);
-                    // If no strokes found by sessionId, try loading all strokes for this board
-                    // This handles legacy strokes saved without sessionId
-                    if (boardStrokes.length === 0) {
-                        console.log('[Class] No strokes found by sessionId, trying board only (legacy fallback)...');
-                        boardStrokes = await getClassByBoard(currentBoard);
-                        console.log('[Class] Loaded by board only:', boardStrokes.length);
-                    }
                 } else {
-                    boardStrokes = await getClassByBoard(currentBoard);
+                    boardStrokes = [];
                 }
-                console.log('[Class] Final loaded strokes:', boardStrokes.length);
                 const nextStrokes: Stroke[] = [];
                 const nextRectangles: rectangle[] = [];
                 const nextCircles: circle[] = [];

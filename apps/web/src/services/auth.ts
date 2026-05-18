@@ -77,7 +77,9 @@ API.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         localStorage.clear();
-        // window.location.href = "/auth";
+        if (window.location.pathname !== "/auth") {
+          window.location.href = "/auth";
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
