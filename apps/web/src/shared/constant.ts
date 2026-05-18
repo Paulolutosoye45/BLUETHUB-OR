@@ -74,6 +74,11 @@ export const TACADEMICLINKS = [
     name: "My Syllabus",
     path: "/teacher/syllabus",
   },
+  {
+    icons: AssignmentIcon,
+    name: "Approvals",
+    path: "/teacher/approvals",
+  },
 ];
 
 

@@ -58,6 +58,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  const hydrateUserFromToken = async () => {
+    const storedToken = token.getToken();
+
+    if (!storedToken) {
+      setUser(null);
+      return;
+    }
+
+    const parsed = getParsedToken(storedToken);
+
+    if (!parsed?.id) {
+      setUser(null);
+      return;
+    }
+
+    const response = await authService.getUserById(parsed.id);
+    setUser(response.data.data);
+  };
+
   useEffect(() => {
     const init = async () => {
       const storedToken = token.getToken();
@@ -76,11 +95,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       try {
         setIsLoading(true)
-        const response = await authService.getUserById(parsed.id);
-        setUser(response.data.data);
+        await hydrateUserFromToken();
       } catch {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
@@ -94,6 +113,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUser({
       ...userData,
       roleName: userData.roleName ?? userData.roleName,  // ← normalize here too
+    });
+
+    void hydrateUserFromToken().catch((error) => {
+      console.error('Error hydrating user after login:', error);
     });
   };
 
@@ -115,23 +138,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const refreshUser = async () => {
-    const storedToken = token.getToken();
-
-    if (!storedToken) {
-      setIsLoading(false);
-      return;
-    }
-
-    const parsed = getParsedToken(storedToken);
-
-    if (!parsed) {
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const response = await authService.getUserById(parsed.id);
-      setUser(response.data);
+      await hydrateUserFromToken();
     } catch (error) {
       console.error('Error refreshing user:', error);
       logout();

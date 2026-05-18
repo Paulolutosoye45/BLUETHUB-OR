@@ -43,7 +43,6 @@ import {
   type DraftLessonPayload,
 } from "@/services/lesson";
 import { schoolService } from "@/services/school";
-import { authService } from "@/services/auth";
 import { useAuthContext } from "@/contexts/auth-context";
 import { localData } from "@/utils";
 import toast from "react-hot-toast";
@@ -645,16 +644,8 @@ const SubmitLesson = () => {
           return;
         }
 
-        const response = await authService.getUserById(user.id);
-        const userData = (response.data as any)?.data;
-
-        if (!userData) {
-          toast.error("Could not load user data");
-          setLoadingClassrooms(false);
-          return;
-        }
-
-        const classroomsData = userData?.roleData?.classrooms;
+        // Use roleData already loaded by AuthContext — no extra API call needed
+        const classroomsData = user.roleData?.classrooms;
         if (classroomsData && Array.isArray(classroomsData) && classroomsData.length > 0) {
           setRoleDataClassrooms(classroomsData);
           setClassrooms(
@@ -674,7 +665,7 @@ const SubmitLesson = () => {
     };
 
     fetchUserData();
-  }, [user?.id, isAdminRole]);
+  }, [user?.id, user?.roleData, isAdminRole]);
 
   useEffect(() => {
     if (!classroomId) return;
@@ -716,30 +707,37 @@ const SubmitLesson = () => {
   }, [classroomId, roleDataClassrooms, isAdminRole]);
 
   useEffect(() => {
-    if (!subjectId || !classroomId) return;
+    if (!subjectId) return;
     setTopicId(""); setTopicLabel("");
     setSubTopicValue("");
     setTopics([]); setSubTopics([]); setTopicsData([]);
     setLoadingTopics(true);
 
-    schoolService.getTopicsWithSubTopics(subjectId, classroomId)
+    schoolService.getSubjectCurriculum(subjectId)
       .then((res) => {
-        const topics: any[] = (res.data as any)?.data?.topics ?? [];
+        const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
+        // Support both PascalCase (curriculum API) and camelCase
+        const topics: any[] = raw.Topics ?? raw.topics ?? [];
         setTopicsData(topics);
-        setTopics(topics.map((t: any) => ({ id: String(t.topicId), label: t.topicName })));
+        setTopics(topics.map((t: any) => ({
+          id: String(t.Id ?? t.id ?? t.topicId),
+          label: String(t.Name ?? t.name ?? t.topicName ?? ""),
+        })));
       })
       .catch(() => { setTopics([]); toast.error("Could not load topics"); })
       .finally(() => setLoadingTopics(false));
-  }, [subjectId, classroomId]);
+  }, [subjectId]);
 
   useEffect(() => {
     if (!topicId) { setSubTopics([]); return; }
     setSubTopicId("");
     setSubTopicValue("");
-    const matched = topicsData.find((t: any) => String(t.topicId) === topicId);
-    const subs: SelectItem[] = (matched?.subTopics ?? []).map((s: any) => ({
-      id: String(s.subTopicId),
-      label: s.name,
+    const matched = topicsData.find(
+      (t: any) => String(t.Id ?? t.id ?? t.topicId) === topicId
+    );
+    const subs: SelectItem[] = (matched?.SubTopics ?? matched?.subTopics ?? []).map((s: any) => ({
+      id: String(s.Id ?? s.id ?? s.subTopicId),
+      label: String(s.Name ?? s.name ?? ""),
     }));
     setSubTopics(subs);
   }, [topicId, topicsData]);
@@ -858,7 +856,10 @@ const SubmitLesson = () => {
   const formValid = !!classroomId && !!subjectId && !!topicId && subTopicValue.trim().length > 0 &&
     aim.trim().length > 0 && description.trim().length > 0;
 
+  // Save Draft: requires form completion only (media is optional)
   const canSaveDraft = formValid && !busy;
+  
+  // Submit: requires form completion AND media upload
   const canSubmit = formValid && allUploaded && !busy;
 
   const step1Done = !!classroomId && !!subjectId && !!topicId && subTopicValue.trim().length > 0;
@@ -1375,6 +1376,7 @@ const SubmitLesson = () => {
                 >
                   Cancel
                 </Button>
+                {/* Save Draft — media is optional, button enabled when form is complete */}
                 <Button
                   onClick={handleSaveDraft}
                   disabled={!canSaveDraft}
@@ -1384,6 +1386,7 @@ const SubmitLesson = () => {
                       ? "bg-white border-2 border-blue-500 text-blue-600 hover:bg-blue-50"
                       : "bg-gray-100 border-2 border-gray-200 text-gray-400 cursor-not-allowed"
                   )}
+                  title="Save your lesson draft (media files optional)"
                 >
                   {isSavingDraft ? (
                     <span className="flex items-center gap-2">
@@ -1397,6 +1400,7 @@ const SubmitLesson = () => {
                     </span>
                   )}
                 </Button>
+                {/* Submit — requires form complete + media uploaded */}
                 <Button
                   onClick={handleSubmit}
                   disabled={!canSubmit}
@@ -1406,6 +1410,7 @@ const SubmitLesson = () => {
                       ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/25"
                       : "bg-gray-300 cursor-not-allowed"
                   )}
+                  title={!canSubmit && !formValid ? "Fill all required fields first" : !canSubmit && !allUploaded ? "Add media files to submit" : ""}
                 >
                   {isSubmitting ? (
                     <span className="flex items-center gap-2">
@@ -1424,6 +1429,7 @@ const SubmitLesson = () => {
         {/* Mobile Bottom Bar */}
         <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-white border-t border-gray-200 px-4 py-3 space-y-2 safe-area-pb">
           <div className="flex gap-2">
+            {/* Mobile Save Draft — media is optional */}
             <button
               onClick={handleSaveDraft}
               disabled={!canSaveDraft}
@@ -1433,6 +1439,7 @@ const SubmitLesson = () => {
                   ? "border-blue-500 text-blue-600 bg-white active:bg-blue-50"
                   : "border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed"
               )}
+              title="Save your lesson draft (media files optional)"
             >
               {isSavingDraft ? (
                 <>
@@ -1451,6 +1458,7 @@ const SubmitLesson = () => {
                 </>
               )}
             </button>
+            {/* Mobile Submit — requires form + media */}
             <button
               onClick={handleSubmit}
               disabled={!canSubmit}
@@ -1460,6 +1468,7 @@ const SubmitLesson = () => {
                   ? "bg-gradient-to-r from-blue-600 to-blue-700 active:from-blue-700 active:to-blue-800 shadow-lg shadow-blue-500/25"
                   : "bg-gray-300 cursor-not-allowed"
               )}
+              title={!canSubmit && !formValid ? "Fill all required fields first" : !canSubmit && !allUploaded ? "Add media files to submit" : ""}
             >
               {isSubmitting ? (
                 <>

@@ -1,228 +1,289 @@
-import { Button, Input } from "@bluethub/ui-kit"
-import { EllipsisVertical, PlusIcon, Search, X } from "lucide-react"
-import { useState } from "react";
+import { useAuthContext } from "@/contexts/auth-context";
+import { authService } from "@/services/auth";
+import { schoolService } from "@/services/school";
+import { cn } from "@/lib/utils";
+import { BookOpen, ChevronDown, ChevronRight, Layers, Loader2, PlusIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { SyllabusCard, type SyllabusCardProps } from "./syllabus-card";
+import { useEffect, useMemo, useState } from "react";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-const STATUS_FILTERS = [
-    { label: "All", value: "" },
-    { label: "Approved", value: "Approved" },
-    { label: "Pending", value: "Pending review" }, // ← match CardStatus
-    { label: "Rejected", value: "Rejected" },
-    { label: "Drafts", value: "Draft" },           // ← match CardStatus
-] as const;
+interface SubTopic {
+    id: string;
+    name: string;
+    topicId: string;
+    isActive: boolean;
+}
 
-type FilterValue = (typeof STATUS_FILTERS)[number]["value"];
+interface Topic {
+    id: string;
+    name: string;
+    subjectId: string;
+    subTopics: SubTopic[];
+}
 
-const syllabusCards: SyllabusCardProps[] = [
-    {
-        id: "SYL-2025-019",
-        title: "Basic Science — Second Term",
-        subtitle: "Basic Science · JSS 2A · Second term · 2025/2026",
-        weeks: 12,
-        topics: 36,
-        date: "12 Apr 2026",
-        status: "Pending review",
-    },
-    {
-        id: "SYL-2024-011",
-        title: "Basic Science — First Term",
-        subtitle: "Basic Science · JSS 2A · First term · 2025/2026",
-        weeks: 12,
-        topics: 38,
-        date: "Oct 2025",
-        status: "Approved",
-    },
-    {
-        id: "SYL-2024-008",
-        title: "Biology — First Term",
-        subtitle: "Biology · SSS 1A · First term · 2025/2026",
-        weeks: 12,
-        topics: 42,
-        date: "Oct 2025",
-        status: "Pending review",
-    },
-    {
-        id: "SYL-2024-006",
-        title: "Basic Science — Third Term",
-        subtitle: "Basic Science · JSS 2A · Third term · 2024/2025",
-        weeks: 10,
-        topics: 30,
-        date: "May 2025",
-        status: "Approved",
-    },
-    {
-        id: "SYL-2024-003",
-        title: "Biology — Second Term Draft",
-        subtitle: "Biology · SSS 1A · Second term · 2024/2025",
-        weeks: 8,
-        topics: 24,
-        date: "Feb 2025",
-        status: "Rejected",
-        rejectionReason: "The syllabus is missing weeks 7 and 8. Please complete all planned weeks with at least one topic each, and ensure the re...",
-    },
-    {
-        id: "SYL-2024-001",
-        title: "Computer Science — Draft",
-        subtitle: "Computer Science · JSS 2A · Second term · 2025/2026",
-        weeks: 4,
-        topics: 8,
-        date: "16 Apr 2026",
-        status: "Draft",
-        lastEdited: "16 Apr 2026",
-    },
-];
+interface CurriculumData {
+    subjectId: string;
+    subjectName: string;
+    category: string;
+    classCategory: string;
+    topics: Topic[];
+}
 
+interface SubjectItem {
+    subjectId: string;
+    subjectName: string;
+}
+
+// ── TopicRow ─────────────────────────────────────────────────────────────────
+
+function TopicRow({ topic }: { topic: Topic }) {
+    const [open, setOpen] = useState(false);
+
+    return (
+        <div className="border border-[#E8E8E3] rounded-xl overflow-hidden">
+            <button
+                onClick={() => setOpen((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
+            >
+                <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-[#EEF1FB] flex items-center justify-center shrink-0">
+                        <Layers size={14} className="text-[#4B6EF5]" />
+                    </div>
+                    <span className="text-sm font-medium text-[#1A1A2E]">{topic.name}</span>
+                    <span className="text-xs text-[#A0A8C0] bg-[#F5F6FA] px-2 py-0.5 rounded-full">
+                        {topic.subTopics.length} subtopic{topic.subTopics.length !== 1 ? "s" : ""}
+                    </span>
+                </div>
+                {open ? (
+                    <ChevronDown size={16} className="text-[#A0A8C0] shrink-0" />
+                ) : (
+                    <ChevronRight size={16} className="text-[#A0A8C0] shrink-0" />
+                )}
+            </button>
+
+            {open && topic.subTopics.length > 0 && (
+                <div className="border-t border-[#E8E8E3] divide-y divide-[#F0F0F0] bg-[#FAFAFA]">
+                    {topic.subTopics.map((st) => (
+                        <div key={st.id} className="flex items-center gap-2.5 px-6 py-2.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-chestnut shrink-0" />
+                            <span className="text-sm text-[#3A3A4A]">{st.name}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {open && topic.subTopics.length === 0 && (
+                <div className="border-t border-[#E8E8E3] px-6 py-3 bg-[#FAFAFA]">
+                    <p className="text-xs text-[#A0A8C0]">No subtopics added yet.</p>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ── Main Component ────────────────────────────────────────────────────────────
 
 const MySyllabus = () => {
-    const navigate = useNavigate()
-    const [activeFilter, setActiveFilter] = useState<FilterValue>("");
-    const [search, setSearch] = useState("");
+    const navigate = useNavigate();
+    const { user, isLoading: authLoading } = useAuthContext();
+    const [fallbackClassrooms, setFallbackClassrooms] = useState<any[]>([]);
 
-    const handleFilterChange = (f: FilterValue) => {
-        setActiveFilter(f);
-        // setPage(1);
-    };
+    // Collect unique subjects from the teacher's roleData (already in memory)
+    const subjects = useMemo<SubjectItem[]>(() => {
+        const classrooms = user?.roleData?.classrooms?.length
+            ? user.roleData.classrooms
+            : fallbackClassrooms;
+        const seen = new Set<string>();
+        const result: SubjectItem[] = [];
+        for (const cls of classrooms) {
+            for (const s of cls.subjects ?? []) {
+                if (!seen.has(s.subjectId)) {
+                    seen.add(s.subjectId);
+                    result.push({ subjectId: s.subjectId, subjectName: s.subjectName });
+                }
+            }
+        }
+        return result;
+    }, [user]);
 
-    const filteredCards = syllabusCards.filter((card) => {
-        const matchesFilter = activeFilter === "" || card.status === activeFilter;
-        const matchesSearch =
-            card.title.toLowerCase().includes(search.toLowerCase()) ||
-            card.id.toLowerCase().includes(search.toLowerCase());
-        return matchesFilter && matchesSearch;
-    });
+    const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
+    const [curriculum, setCurriculum] = useState<CurriculumData | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [hydratingUser, setHydratingUser] = useState(false);
+
+    useEffect(() => {
+        if (authLoading || !user?.id || user?.roleData?.classrooms?.length || hydratingUser) return;
+
+        setHydratingUser(true);
+        authService.getUserById(user.id)
+            .then((response) => {
+                setFallbackClassrooms(response.data?.data?.roleData?.classrooms ?? []);
+            })
+            .catch(() => setError("Failed to load your assigned subjects. Please try again."))
+            .finally(() => setHydratingUser(false));
+    }, [authLoading, hydratingUser, user?.id, user?.roleData?.classrooms?.length]);
+
+    // Auto-select first subject on mount
+    useEffect(() => {
+        if (subjects.length > 0 && !selectedSubjectId) {
+            setSelectedSubjectId(subjects[0].subjectId);
+        }
+    }, [subjects]);
+
+    // Fetch curriculum whenever selected subject changes
+    useEffect(() => {
+        if (!selectedSubjectId) return;
+        setLoading(true);
+        setError(null);
+        setCurriculum(null);
+
+        schoolService.getSubjectCurriculum(selectedSubjectId)
+            .then((res) => {
+                const data = (res.data as any)?.data;
+                if (data) {
+                    setCurriculum({
+                        subjectId: data.SubjectId ?? data.subjectId,
+                        subjectName: data.SubjectName ?? data.subjectName,
+                        category: data.Category ?? data.category,
+                        classCategory: data.ClassCategory ?? data.classCategory,
+                        topics: (data.Topics ?? data.topics ?? []).map((t: any) => ({
+                            id: t.Id ?? t.id,
+                            name: t.Name ?? t.name,
+                            subjectId: t.SubjectId ?? t.subjectId,
+                            subTopics: (t.SubTopics ?? t.subTopics ?? []).map((st: any) => ({
+                                id: st.Id ?? st.id,
+                                name: st.Name ?? st.name,
+                                topicId: st.TopicId ?? st.topicId,
+                                isActive: st.IsActive ?? st.isActive ?? true,
+                            })),
+                        })),
+                    });
+                } else {
+                    setError("No curriculum data returned.");
+                }
+            })
+            .catch(() => setError("Failed to load curriculum. Please try again."))
+            .finally(() => setLoading(false));
+    }, [selectedSubjectId]);
+
+    const selectedSubjectName = subjects.find((s) => s.subjectId === selectedSubjectId)?.subjectName ?? "";
 
     return (
         <div className="p-3 font-poppins">
-            <div className="backdrop-blur-sm rounded-2xl border border-white/20  overflow-hidden">
+            <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
 
                 {/* ── Top Nav ──────────────────────────────────────────────────── */}
-                <div
-                    className="flex items-center justify-between px-4 py-5 sticky top-0 z-30 bg-chestnut"
-                >
+                <div className="flex items-center justify-between px-4 py-5 sticky top-0 z-30 bg-chestnut">
                     <div className="flex items-center gap-2.5">
-                        {/* <LayoutGrid className="w-6 h-6 text-white" /> */}
-                        <span className="text-white font-semibold text-sm">Syllabus</span>
+                        <span className="text-white font-semibold text-sm">My Syllabus</span>
                     </div>
-                    <button className="text-white">
-                        <EllipsisVertical size={18} />
+                    <button
+                        onClick={() => navigate('/teacher/create-syllabus')}
+                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white text-xs font-semibold bg-white/20 hover:bg-white/30 transition-colors"
+                    >
+                        <PlusIcon size={14} />
+                        Create new
                     </button>
                 </div>
 
-                {/* ── White card ───────────────────────────────────────────────── */}
-                <div className="flex-1 p-3 bg-white/70 backdrop-blur-sm">
-                    <div className="space-7-20">
+                {/* ── Body ─────────────────────────────────────────────────────── */}
+                <div className="flex-1 bg-white/70 backdrop-blur-sm">
 
-                        {/* Page header row */}
-                        <div className="flex items-start justify-between mb-4">
-                            <div>
-                                <h1 className="text-xl font-bold text-blck-b2 leading-tight">
-                                    My Syllabus
-                                </h1>
-                                <p className="text-sm text-[#A0A8C0]  mt-0.5">
-                                    View and manage all syllabus  you've created — approved, pending and drafts
+                    {authLoading || hydratingUser ? (
+                        <div className="flex items-center justify-center py-20">
+                            <Loader2 size={28} className="animate-spin text-chestnut" />
+                        </div>
+                    ) : subjects.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-20 gap-3">
+                            <BookOpen size={40} className="text-[#A0A8C0]" />
+                            <p className="text-sm text-[#A0A8C0]">No subjects assigned to your account.</p>
+                        </div>
+                    ) : (
+                        <div className="flex min-h-[500px]">
+
+                            {/* ── Subject Sidebar ─────────────────────────────── */}
+                            <div className="w-56 shrink-0 border-r border-[#E8E8E3] bg-[#F9F9FB] p-3 space-y-1">
+                                <p className="text-[10px] uppercase tracking-widest text-[#A0A8C0] font-semibold px-2 pb-2">
+                                    Subjects
                                 </p>
-                            </div>
-                            <div className="flex items-center gap-3 justify-between">
-                                <Button
-                                    // onClick={() => navigate('/admin/registration/class/new')}
-                                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-[#0F0F0E] text-xs font-medium  bg-white shrink-0 transition-opacity border border-[#E8E8E3] hover:bg-white"
-                                >
-                                    <X className="text-[#0F0F0E]" />
-                                    Rejected
-                                </Button>
-
-                                <Button
-                                    onClick={() => navigate('/teacher/create-syllabus')}
-                                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white text-xs font-semibold  bg-chestnut shrink-0 transition-opacity hover:opacity-90"
-                                >
-                                    <PlusIcon />
-                                    Create new syllabus
-                                </Button>
-                            </div>
-                        </div>
-
-                        <div className="grid grid-cols-4 gap-[14px] my-[28px]">
-                            <div className="border border[#E8E8E3] bg-white rounded-[13px] py-[18px] px-5 space-y-1">
-                                <div className="bg-[#EEF1FB] rounded-[9px] w-9 h-9 flex items-center justify-center "></div>
-                                <h4 className="pt-2 text-chestnut text-[28px] leading-[28px] font-semibold">
-                                    6
-                                </h4>
-                                <p className="text-[#5A5A5A] font-normal text-xs">Total syllabi </p>
-                            </div>
-                            <div className="border border[#E8E8E3] bg-white rounded-[13px] py-[18px] px-5 space-y-1">
-                                <div className="bg-[#E6F7F2] rounded-[9px] w-9 h-9 flex items-center justify-center "></div>
-                                <h4 className="pt-2 text-[#16A37A] text-[28px] leading-[28px] font-semibold">
-                                    2
-                                </h4>
-                                <p className="text-[#5A5A5A] font-normal text-xs">Approved </p>
-                            </div>
-                            <div className="border border[#E8E8E3] bg-white rounded-[13px] py-[18px] px-5 space-y-1">
-                                <div className="bg-[#FFF8ED] rounded-[9px] w-9 h-9 flex items-center justify-center "></div>
-                                <h4 className="pt-2 text-[#C47C0A] text-[28px] leading-[28px] font-semibold">
-                                    6
-                                </h4>
-                                <p className="text-[#5A5A5A] font-normal text-xs">Pending review</p>
-                            </div>
-                            <div className="border border[#E8E8E3] bg-white rounded-[13px] py-[18px] px-5 space-y-1">
-                                <div className="bg-[#FDECEA] rounded-[9px] w-9 h-9 flex items-center justify-center "></div>
-                                <h4 className="pt-2 text-[#C0392B] text-[28px] leading-[28px] font-semibold">
-                                    1
-                                </h4>
-                                <p className="text-[#5A5A5A] font-normal text-xs">Rejected / revision needed</p>
-                            </div>
-                        </div>
-
-                        <div className="mb-[21px] flex items-center justify-between">
-                            <div className="flex gap-2 flex-wrap">
-                                {STATUS_FILTERS.map((f) => (
+                                {subjects.map((s) => (
                                     <button
-                                        key={f.value}
-                                        onClick={() => handleFilterChange(f.value)}
-                                        className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${activeFilter === f.value
-                                            ? "bg-chestnut text-white shadow-sm"
-                                            : "bg-white text-[#5A5A5A] border border-[#5A5A5A] hover:bg-gray-200"
-                                            }`}
+                                        key={s.subjectId}
+                                        onClick={() => setSelectedSubjectId(s.subjectId)}
+                                        className={cn(
+                                            "w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                                            selectedSubjectId === s.subjectId
+                                                ? "bg-chestnut text-white shadow-sm"
+                                                : "text-[#3A3A4A] hover:bg-[#EFEFEF]"
+                                        )}
                                     >
-                                        {f.label}
+                                        {s.subjectName}
                                     </button>
                                 ))}
                             </div>
 
-                            <div className="relative w-[40%]">
-                                <Search
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
-                                    size={18}
-                                />
+                            {/* ── Curriculum Panel ────────────────────────────── */}
+                            <div className="flex-1 p-5 overflow-y-auto">
 
-                                <Input
-                                    type="text"
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Search syllabi..."
-                                    className="pl-10 pr-4 h-11 rounded-xl focus-visible:ring-2 focus-visible:ring-primary"
-                                />
+                                {/* Header */}
+                                <div className="mb-5">
+                                    <h1 className="text-lg font-bold text-[#1A1A2E]">{selectedSubjectName}</h1>
+                                    {curriculum && (
+                                        <p className="text-xs text-[#A0A8C0] mt-0.5">
+                                            {curriculum.category} · {curriculum.classCategory} ·{" "}
+                                            {curriculum.topics.length} topic{curriculum.topics.length !== 1 ? "s" : ""}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Loading */}
+                                {loading && (
+                                    <div className="flex items-center justify-center py-16">
+                                        <Loader2 size={28} className="animate-spin text-chestnut" />
+                                    </div>
+                                )}
+
+                                {/* Error */}
+                                {!loading && error && (
+                                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                                        {error}
+                                    </div>
+                                )}
+
+                                {/* Topics list */}
+                                {!loading && !error && curriculum && (
+                                    <>
+                                        {curriculum.topics.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-16 gap-2">
+                                                <Layers size={36} className="text-[#D0D4E8]" />
+                                                <p className="text-sm text-[#A0A8C0]">No topics found for this subject.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {curriculum.topics.map((topic) => (
+                                                    <TopicRow key={topic.id} topic={topic} />
+                                                ))}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+
+                                {/* Empty state before any fetch */}
+                                {!loading && !error && !curriculum && (
+                                    <div className="flex flex-col items-center justify-center py-16 gap-2">
+                                        <BookOpen size={36} className="text-[#D0D4E8]" />
+                                        <p className="text-sm text-[#A0A8C0]">Select a subject to view its curriculum.</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {filteredCards.length > 0 ? (
-                                filteredCards.map((card) => (
-                                    <SyllabusCard key={card.id} {...card} />
-                                ))
-                            ) : (
-                                <p className="text-sm text-[#A0A09C] col-span-3 text-center py-10">
-                                    No syllabi found.
-                                </p>
-                            )}
-                        </div>
-
-                    </div>
+                    )}
                 </div>
             </div>
         </div>
-    )
-}
+    );
+};
 
-export default MySyllabus
+export default MySyllabus;

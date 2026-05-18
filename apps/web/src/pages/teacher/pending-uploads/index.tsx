@@ -486,7 +486,7 @@ const PendingUploads = () => {
 
   // Build manifest from upload results
   // Note: Stroke batches are uploaded to MongoDB separately via submitBatch endpoint
-  // The manifest references them by index key (lessonId_batchIndex)
+  // The manifest references them by session-scoped batch ID (sessionId_batchIndex)
   const buildManifestFromResults = (session: LocalSession, results: UploadResults) => {
     const { audioUrls, strokeBatches } = results;
 
@@ -533,8 +533,9 @@ const PendingUploads = () => {
       })),
       // Stroke batches (stored in MongoDB, referenced by index key)
       strokeBatches: strokeBatches.map((batch) => ({
+        id: batch.id,
         batchIndex: batch.batchIndex,
-        indexKey: batch.indexKey, // lessonId_batchIndex
+        indexKey: batch.indexKey, // sessionId_batchIndex
         startMs: batch.batchIndex * 60000, // 1-minute batches
         endMs: (batch.batchIndex + 1) * 60000,
         strokeCount: 0, // Will be populated from local data if needed

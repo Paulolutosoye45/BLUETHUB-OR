@@ -79,10 +79,11 @@ export interface SessionManifestPayload {
     events: unknown[];
   }>;
   // Stroke batches are stored separately in MongoDB via submitBatch endpoint
-  // The manifest only references them by index key
+  // The manifest references them by explicit id and index key
   strokeBatches: Array<{
+    id: string;       // sessionId_batchIndex
     batchIndex: number;
-    indexKey: string; // lessonId_batchIndex
+    indexKey: string; // sessionId_batchIndex
     startMs: number;
     endMs: number;
     strokeCount: number;
@@ -184,7 +185,7 @@ export const boardSessionService = {
   },
 
   /**
-   * Get a single stroke batch by index key (lessonId_batchIndex)
+    * Get a single stroke batch by index key (sessionId_batchIndex)
    * Used for on-demand loading during playback
    */
   getBatchByIndexKey: async (indexKey: string): Promise<FetchedStrokeBatch | null> => {

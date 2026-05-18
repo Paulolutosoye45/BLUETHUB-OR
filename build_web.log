@@ -1,0 +1,12 @@
+
+> @bluethub/web@0.0.0 build C:\Users\hp\Desktop\TechHubFE-V2\BLUETHUB-OR\apps\web
+> tsc -b && vite build
+
+src/pages/teacher/component/topic-subtopic-creator.tsx(73,39): error TS2339: Property 'getTopics' does not exist on type '{ registerSubject: (data: IRegisterSubject) => Promise<AxiosResponse<TResponse<unknown>, any, {}>>; getAllSchoolSubject: (schoolId: string) => Promise<...>; ... 7 more ...; addSubTopicsToTopic: (topicId: string, subTopics: string[]) => Promise<...>; }'.
+src/pages/teacher/component/topic-subtopic-creator.tsx(237,9): error TS6133: 'handleNewTopicHeaderAction' is declared but its value is never read.
+src/pages/teacher/component/topic-subtopic-creator.tsx(301,54): error TS2551: Property 'createSubTopics' does not exist on type '{ registerSubject: (data: IRegisterSubject) => Promise<AxiosResponse<TResponse<unknown>, any, {}>>; getAllSchoolSubject: (schoolId: string) => Promise<...>; ... 7 more ...; addSubTopicsToTopic: (topicId: string, subTopics: string[]) => Promise<...>; }'. Did you mean 'createTopic'?
+src/pages/teacher/Syllabus/my-syllabus.tsx(5,47): error TS6133: 'EllipsisVertical' is declared but its value is never read.
+src/services/index.ts(22,13): error TS2339: Property 'removeToken' does not exist on type '{ getToken(): string | null; isAuthenticated(): boolean; login(accessToken: string, refreshToken: string): void; logout(): void; clearAll(): void; getRefreshToken(): string | null; setTokens(accessToken: string, refreshToken: string): void; clearTokens(): void; }'.
+C:\Users\hp\Desktop\TechHubFE-V2\BLUETHUB-OR\apps\web:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @bluethub/web@0.0.0 build: `tsc -b && vite build`
+Exit status 2

@@ -15,6 +15,21 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      token.clearTokens();
+      localStorage.removeItem("refreshToken");
+      localStorage.removeItem("schoolInfo");
+      if (window.location.pathname !== "/auth") {
+        window.location.href = "/auth";
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // ── Shared response wrapper ──────────────────────────────────────────────────
 export type TResponse<T> = {
   responseMessage: string;

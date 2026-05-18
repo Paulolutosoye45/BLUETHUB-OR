@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@bluethub/ui-kit";
@@ -36,12 +36,34 @@ const EndClass = () => {
   const [modalState, setModalState] = useState<ModalState>("closed");
   const [uploadProgress, setUploadProgress] = useState({ phase: "", current: 0, total: 0, percentage: 0 });
   const [errorMessage, setErrorMessage] = useState("");
+  const allowExitRef = useRef(false);
+  const backGuardInstalledRef = useRef(false);
 
   // Token-based upload hook
   const { uploadSession, abort: abortUpload } = useSessionUpload();
 
   // Class hasn't started yet if no time has elapsed
   const classNotStarted = timerElapsedSeconds === 0;
+
+  useEffect(() => {
+    if (classNotStarted || backGuardInstalledRef.current) return;
+
+    const onPopState = () => {
+      if (allowExitRef.current) return;
+      // Keep user on board route and show existing end-class options.
+      window.history.pushState({ boardExitGuard: true }, "", window.location.href);
+      setModalState((prev) => (prev === "uploading" ? prev : "confirm"));
+    };
+
+    window.history.pushState({ boardExitGuard: true }, "", window.location.href);
+    window.addEventListener("popstate", onPopState);
+    backGuardInstalledRef.current = true;
+
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      backGuardInstalledRef.current = false;
+    };
+  }, [classNotStarted]);
 
   const handleEndClick = () => {
     if (classNotStarted) {
@@ -83,6 +105,8 @@ const EndClass = () => {
       localStorage.removeItem("recordingStartTimerMs");
 
       toast.success("Recording discarded");
+      allowExitRef.current = true;
+      navigate("/teacher");
       setModalState("closed");
     } catch (err) {
       console.error("Failed to discard:", err);
@@ -255,8 +279,9 @@ const EndClass = () => {
       }
 
       setUploadProgress({ phase: "Complete!", current: 1, total: 1, percentage: 100 });
-      setModalState("complete");
       toast.success("Lesson uploaded successfully!");
+      allowExitRef.current = true;
+      navigate("/teacher");
 
     } catch (err) {
       console.error("Upload failed:", err);
@@ -347,6 +372,7 @@ const EndClass = () => {
     const strokeBatchesManifest = uploadedStrokeBatches.map((uploaded) => {
       const idbBatch = strokeBatchMap.get(uploaded.batchIndex);
       return {
+        id: uploaded.id,
         batchIndex: uploaded.batchIndex,
         indexKey: uploaded.indexKey,
         startMs: idbBatch?.startMs ?? uploaded.batchIndex * 60000,
