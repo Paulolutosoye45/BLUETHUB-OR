@@ -1,8 +1,12 @@
+import type { schoolInfo } from "@/services";
+import { localData } from "@/utils";
 import { CircleAlert, EllipsisVertical, PlusIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const EmptyStudent = () => {
-   const navigate = useNavigate()
+    const navigate = useNavigate()
+
+    const school = localData.retrieve("schoolInfo") as schoolInfo
     return (
         <div className="p-6 font-poppins">
             <div className="backdrop-blur-sm rounded-2xl border border-white/70  overflow-hidden">
@@ -68,7 +72,7 @@ const EmptyStudent = () => {
 
                         {/* Sub-text */}
                         <p className="text-sm text-chestnut/50 text-center  leading-relaxed mb-6">
-                            Greenfield College doesn't have any student  set up yet. Add your first Student
+                            {school.schoolName} doesn't have any student  set up yet. Add your first Student
                             now and they'll be available when registering Report Sheet and feedback .
                         </p>
 
@@ -112,7 +116,7 @@ const EmptyStudent = () => {
 
                         {/* Hint */}
                         <div className="flex items-center gap-1.5">
-                             <CircleAlert className="w-3.5 h-3.5 text-gray-400 shrink-0"  />
+                            <CircleAlert className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                             <span className="text-[11px] text-gray-400">
                                 You can add multiple Student one after another
                             </span>

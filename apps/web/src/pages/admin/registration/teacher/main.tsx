@@ -29,7 +29,7 @@ const TeacherMain = () => {
                         Teacher’s Details
                     </h1>
                 </section>
-                <div className="flex justify-center gap-20 mt-7 px-4  ">
+                <div className="flex justify-center gap-20 mt-7 px-4 ">
                     <div className="space-y-3 w-105">
                         <label className="text-chestnut font-semibold text-base flex items-center gap-2">
                             <UserCircle className="w-4 h-4" />

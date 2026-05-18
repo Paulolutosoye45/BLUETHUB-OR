@@ -1,5 +1,8 @@
 import { API, type TResponse } from ".";
-import { X_Tenant_ID } from "@/utils/tenant";
+// import { X_Tenant_ID } from "@/utils/tenant";
+
+
+const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
 
 // ── Request types ───────────────────────────────────────────────────────────
 export type JobQuestionType = "Objective" | "Theory" | "TrueFalse";

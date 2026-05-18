@@ -6,8 +6,7 @@ import { AxiosError } from "axios";
 import { Eye, EyeOff, Loader2, User, Lock, } from "lucide-react";
 
 import { authService } from "@/services/auth";
-import { Hashing, localData, token } from "@/utils";
-import { X_Tenant_ID } from "@/utils/tenant";
+import { Hashing, localData, token, } from "@/utils";
 import { getParsedToken } from "@/utils/decode";
 import { useAuthContext } from "@/contexts/auth-context";
 import { loginSchema } from "@/utils/validate";
@@ -88,7 +87,7 @@ function Login() {
 
     const hashedPassword = await Hashing(data.password);
 
-
+    const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
     const payload = {
       username: data.userName,
       hashPassword: hashedPassword,
