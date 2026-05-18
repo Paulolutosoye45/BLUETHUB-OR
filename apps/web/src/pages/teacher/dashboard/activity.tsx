@@ -128,16 +128,16 @@ const Activity = () => {
           <div
             key={action.label}
             onClick={() => navigate(action.path)}
-            className="group border border-[#E8E8E3] py-3.5 px-5 rounded-[12px] bg-white flex items-center gap-3.5 cursor-pointer transition-all duration-300 relative overflow-hidden"
+            className="group border border-[#E8E8E3] p-2 md:py-3.5 md:px-5 rounded-[12px] bg-white flex items-center gap-3.5 cursor-pointer transition-all duration-300 relative overflow-hidden"
           >
             <div className="absolute inset-0 bg-linear-to-r from-chestnut/3 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-            <div className="bg-[#EEF1FB] size-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:bg-chestnut/10 transition-all duration-300">
+            <div className="bg-[#EEF1FB] size-8 md:size-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:bg-chestnut/10 transition-all duration-300">
               {action.icon}
             </div>
 
             <div className="space-y-0.5 relative">
-              <h3 className="text-[#0F0F0E] font-semibold text-xs group-hover:text-chestnut transition-colors duration-300">
+              <h3 className="text-[#0F0F0E] font-medium md:font-semibold text-xs group-hover:text-chestnut transition-colors duration-300">
                 {action.label}
               </h3>
               <p className="text-[#A8A8A4] text-[11px] font-normal leading-tight">

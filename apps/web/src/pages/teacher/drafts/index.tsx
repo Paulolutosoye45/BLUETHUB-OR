@@ -239,7 +239,7 @@ export default function DraftLessons() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="rounded-full bg-blue-100 px-4 py-1.5 text-sm font-semibold text-blue-700">
+              <span className="rounded-full bg-blue-100 px-4 py-1.5 text-sm font-semibold text-chestnut">
                 {sessions.length} {sessions.length === 1 ? "draft" : "drafts"}
               </span>
             </div>
@@ -289,7 +289,7 @@ export default function DraftLessons() {
             </p>
             <button
               onClick={() => navigate("/teacher/start-class")}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-chestnut px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
             >
               <Play className="h-4 w-4" />
               Start New Class
