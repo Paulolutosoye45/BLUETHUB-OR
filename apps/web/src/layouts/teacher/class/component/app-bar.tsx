@@ -1,5 +1,4 @@
 import Participants from "@/pages/teacher/note-board/app-bar/participants";
-import Time from "@/pages/teacher/note-board/app-bar/time";
 import Topic from "@/pages/teacher/note-board/app-bar/topic";
 import { PlayCircle } from "lucide-react";
 import BoardSelector from "./board-selector";
@@ -31,11 +30,6 @@ const AppBar = () => {
                     </div>
                 )}
                 <Topic />
-            </div>
-
-            {/* Center Section - Time */}
-            <div className="absolute left-1/2 transform -translate-x-1/2">
-                <Time />
             </div>
 
             {/* Right Section - Actions */}
