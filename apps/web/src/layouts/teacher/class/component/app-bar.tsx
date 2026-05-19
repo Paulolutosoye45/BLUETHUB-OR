@@ -1,5 +1,6 @@
 import Participants from "@/pages/teacher/note-board/app-bar/participants";
 import Topic from "@/pages/teacher/note-board/app-bar/topic";
+import Time from "@/pages/teacher/note-board/app-bar/time";
 import { PlayCircle } from "lucide-react";
 import BoardSelector from "./board-selector";
 import { useSelector } from "react-redux";
@@ -34,6 +35,9 @@ const AppBar = () => {
 
             {/* Right Section - Actions */}
             <div className="flex items-center gap-3">
+                {/* Timers */}
+                <Time />
+
                 {/* Replay Button */}
                 <button
                     onClick={() => window.open("/replay", "_blank", "noopener")}

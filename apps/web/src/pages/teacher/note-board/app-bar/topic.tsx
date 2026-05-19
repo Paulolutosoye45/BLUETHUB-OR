@@ -58,6 +58,8 @@ const Topic = () => {
     lessonData?.lesson?.topic ||
     "New Lesson";
 
+  const subTopic = lessonData?.lesson?.subTopic || "";
+
   return (
     <div className="flex items-center gap-4">
       {/* Subject & Class Badge */}
@@ -72,12 +74,19 @@ const Topic = () => {
         </div>
       </div>
 
-      {/* Topic */}
+      {/* Topic & Subtopic */}
       <div className="flex items-center gap-2">
         <div className="w-px h-6 bg-gray-200" />
-        <h2 className="font-poppins font-semibold text-base text-gray-800 max-w-xs truncate">
-          {topic}
-        </h2>
+        <div className="flex flex-col">
+          <h2 className="font-poppins font-semibold text-base text-gray-800 max-w-xs truncate leading-tight">
+            {topic}
+          </h2>
+          {subTopic && (
+            <span className="text-xs text-gray-500 max-w-xs truncate leading-tight">
+              {subTopic}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );

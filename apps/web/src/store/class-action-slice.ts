@@ -25,7 +25,7 @@ const initialState: classActiveState = {
   value: "SELECT",
   type: "",
   fillColor: "#000000",
-  classDuration: "23:45",
+  classDuration: "",
   currentTime: "",
   pauseTime: true,
   timeUp: false,
