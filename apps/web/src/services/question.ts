@@ -1,5 +1,7 @@
 import { API, type TResponse } from ".";
-import { X_Tenant_ID } from "@/utils/tenant";
+// import { X_Tenant_ID } from "@/utils/tenant";
+
+const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
 
 export const QuestionTypeEnum = {
   MultipleChoice: 1,
