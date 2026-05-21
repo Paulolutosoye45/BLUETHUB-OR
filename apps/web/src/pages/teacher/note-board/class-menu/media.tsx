@@ -60,11 +60,24 @@ const Media = () => {
       try {
         // Load lesson media from sessionStorage (set by pre-class modal)
         const resolveMediaType = (mediaType: string, fileExtension: string): "video" | "pdf" | "image" => {
-          const mt = mediaType?.toLowerCase();
-          const ext = fileExtension?.toLowerCase();
-          if (mt === "video") return "video";
-          if (mt === "document" || ext === "pdf") return "pdf";
-          return "image";
+          const mt = (mediaType ?? '').toLowerCase();
+          const ext = (fileExtension ?? '').toLowerCase().replace(/^\./, '');
+
+          // Accept both logical labels (video/document) and MIME-like values.
+          if (mt.includes('video') || ['mp4', 'webm', 'mov', 'm4v'].includes(ext)) {
+            return 'video';
+          }
+
+          // Treat office documents as document-mode (rendered in frame via iframe fallback).
+          if (
+            mt.includes('pdf') ||
+            mt.includes('document') ||
+            ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'].includes(ext)
+          ) {
+            return 'pdf';
+          }
+
+          return 'image';
         };
 
         let lessonMedia: IMedia[] = [];

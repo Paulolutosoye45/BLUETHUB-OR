@@ -482,8 +482,9 @@ export default function Replay() {
     //
     // Fallback: if audio data is unavailable, fall back to the timerDisplay offset.
 
-    // Primary anchor: stored directly when recording started (integer ms, no arithmetic).
-    // Fallback 1: reconstruct from first batch metadata.
+    // Primary anchor: reconstruct from the first audio batch for THIS replay session.
+    // This avoids stale cross-session localStorage anchors causing board/audio drift.
+    // Fallback 1: stored anchor from localStorage.
     // Fallback 2: timerDisplay string offset (coarsest, 1-second resolution).
     const stored = parseInt(localStorage.getItem('sessionStartWallMs') ?? '0', 10);
     const sortedAudio = [...audioList].sort((a, b) => a.batchId - b.batchId);
@@ -493,19 +494,18 @@ export default function Replay() {
       : 0;
     const timerOffset = parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10);
 
-    const sessionStartWallMs = stored || reconstructed || 0;
+    const sessionStartWallMs = reconstructed || stored || 0;
 
-    // Safety: if the anchor is somehow later than the earliest stroke timestamp
-    // (e.g. due to a clock skew edge-case), clamp it back so no stroke is forced
-    // to startMs = 0 unfairly. This complements the sessionId filter above.
+    // Safety: only use min-stroke fallback when there is no reliable anchor.
+    // Using min stroke as anchor while audio exists can pull board events too early.
     const minStrokeTs = allStrokes.reduce(
       (min, s) => (s.timestamp && s.timestamp < min ? s.timestamp : min),
       Infinity
     );
     const effectiveAnchor =
-      sessionStartWallMs > 0 && minStrokeTs < sessionStartWallMs
-        ? minStrokeTs          // shift anchor back to first real stroke
-        : sessionStartWallMs;
+      sessionStartWallMs > 0
+        ? sessionStartWallMs
+        : (Number.isFinite(minStrokeTs) ? minStrokeTs : 0);
 
     const timelines = allStrokes.map(s => {
       let startMs: number;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getAllSessions, cleanupEntireSession, getSessionSyncStats } from "@/utils/db";
+import { getAllSessions, cleanupEntireSession } from "@/utils/db";
 import type { LocalSession } from "@/utils/constant";
 import {
   Clock,
@@ -16,7 +16,6 @@ import {
   Filter,
   ChevronRight,
   Mic,
-  PenTool,
   AlertCircle,
   CheckCircle2,
   Loader2,
@@ -26,14 +25,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 
-type DraftSession = LocalSession & {
-  syncStats?: {
-    totalAudio: number;
-    audioSent: number;
-    totalStrokes: number;
-    strokesSent: number;
-  };
-};
+type DraftSession = LocalSession;
 
 const statusConfig = {
   draft: {
@@ -128,6 +120,16 @@ function getRelativeTime(dateStr: string): string {
   return formatDate(dateStr);
 }
 
+function getDraftTitle(session: DraftSession): string {
+  const lessonAny = session.lesson as DraftSession["lesson"] & { subTopicName?: string };
+  const subTopicName = lessonAny.subTopicName?.trim();
+  const subTopic = session.lesson.subTopic?.trim();
+
+  if (subTopicName) return subTopicName;
+  if (subTopic) return subTopic;
+  return "No subtopic";
+}
+
 export default function DraftLessons() {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<DraftSession[]>([]);
@@ -146,27 +148,8 @@ export default function DraftLessons() {
     try {
       const allSessions = await getAllSessions();
 
-      // Filter out published sessions and enrich with sync stats
-      const draftSessions = await Promise.all(
-        allSessions
-          .filter((s) => s.status !== "published")
-          .map(async (session) => {
-            try {
-              const stats = await getSessionSyncStats(session.id);
-              return {
-                ...session,
-                syncStats: {
-                  totalAudio: stats.totalAudio,
-                  audioSent: stats.audioSent,
-                  totalStrokes: stats.totalStrokes,
-                  strokesSent: stats.strokesSent,
-                },
-              };
-            } catch {
-              return session;
-            }
-          })
-      );
+      // Filter out published sessions
+      const draftSessions = allSessions.filter((s) => s.status !== "published");
 
       // Sort by most recent first
       draftSessions.sort(
@@ -202,9 +185,12 @@ export default function DraftLessons() {
   };
 
   const filteredSessions = sessions.filter((session) => {
+    const title = getDraftTitle(session);
     const matchesSearch =
       searchQuery === "" ||
+      title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       session.lesson.topic.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      session.lesson.subTopic.toLowerCase().includes(searchQuery.toLowerCase()) ||
       session.lesson.subjectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       session.lesson.className.toLowerCase().includes(searchQuery.toLowerCase());
 
@@ -366,15 +352,8 @@ export default function DraftLessons() {
 
                     {/* Topic */}
                     <h3 className="mt-3 text-lg font-bold text-gray-900 line-clamp-2">
-                      {session.lesson.topic}
+                      {getDraftTitle(session)}
                     </h3>
-
-                    {/* Sub-topic */}
-                    {session.lesson.subTopic && (
-                      <p className="mt-1 text-sm text-gray-500 line-clamp-1">
-                        {session.lesson.subTopic}
-                      </p>
-                    )}
 
                     {/* Class Info */}
                     <div className="mt-3 flex items-center gap-2">
@@ -410,32 +389,6 @@ export default function DraftLessons() {
                           {status.label}
                         </span>
                       </div>
-
-                      {/* Audio Chunks */}
-                      {session.syncStats && (
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-1.5 text-gray-400">
-                            <Mic className="h-3.5 w-3.5" />
-                            <span className="text-xs font-medium uppercase tracking-wide">Audio</span>
-                          </div>
-                          <span className="mt-1 text-sm font-semibold text-gray-700">
-                            {session.syncStats.totalAudio} chunks
-                          </span>
-                        </div>
-                      )}
-
-                      {/* Strokes */}
-                      {session.syncStats && (
-                        <div className="flex flex-col">
-                          <div className="flex items-center gap-1.5 text-gray-400">
-                            <PenTool className="h-3.5 w-3.5" />
-                            <span className="text-xs font-medium uppercase tracking-wide">Board</span>
-                          </div>
-                          <span className="mt-1 text-sm font-semibold text-gray-700">
-                            {session.syncStats.totalStrokes} batches
-                          </span>
-                        </div>
-                      )}
                     </div>
                   </div>
 

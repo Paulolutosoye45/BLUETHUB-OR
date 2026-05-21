@@ -102,15 +102,6 @@ const ClassBottom = () => {
                 </span>
             </Button>
 
-            {/* Control Label */}
-            <span className={`
-                text-[10px] font-semibold uppercase tracking-wide
-                ${controlState === "start" ? "text-emerald-600" :
-                  controlState === "pause" ? "text-amber-600" : "text-blue-600"}
-            `}>
-                {controlLabel}
-            </span>
-
             {/* Divider */}
             <div className="w-8 h-px bg-gray-200" />
 

@@ -36,6 +36,21 @@ const REJECTION_REASONS = [
   { id: "other", label: "Other Reason", icon: Mail },
 ];
 
+const buildLessonTitle = (approval: ApprovalItemDto): string => {
+  const lesson = approval.lesson;
+  if (!lesson) return "Lesson Submission";
+
+  const parts = [
+    lesson.subjectName,
+    lesson.topicName,
+    lesson.subTopic ?? lesson.subTopicName,
+  ]
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter((value) => value.length > 0);
+
+  return parts.length > 0 ? parts.join(" - ") : "Lesson Submission";
+};
+
 const LessonReviewModal = ({
   open,
   onOpenChange,
@@ -94,6 +109,7 @@ const LessonReviewModal = ({
   if (!open) return null;
 
   const lesson = approval.lesson;
+  const lessonTitle = buildLessonTitle(approval);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -129,7 +145,7 @@ const LessonReviewModal = ({
                     Pending Review
                   </p>
                   <h2 className="text-white font-bold text-lg leading-tight truncate">
-                    {lesson?.topicName ?? "Lesson Submission"}
+                    {lessonTitle}
                   </h2>
                 </div>
               </div>
@@ -268,7 +284,7 @@ const LessonReviewModal = ({
                     Reject Submission
                   </p>
                   <h2 className="text-white font-bold text-lg leading-tight truncate">
-                    {lesson?.topicName ?? "Lesson Submission"}
+                    {lessonTitle}
                   </h2>
                 </div>
               </div>
@@ -428,7 +444,7 @@ const LessonReviewModal = ({
                     Approved
                   </p>
                   <h2 className="text-white font-bold text-lg leading-tight truncate">
-                    {lesson?.topicName ?? "Lesson Submission"}
+                    {lessonTitle}
                   </h2>
                 </div>
               </div>
@@ -512,7 +528,7 @@ const LessonReviewModal = ({
                     Rejected
                   </p>
                   <h2 className="text-white font-bold text-lg leading-tight truncate">
-                    {lesson?.topicName ?? "Lesson Submission"}
+                    {lessonTitle}
                   </h2>
                 </div>
               </div>
@@ -556,8 +572,9 @@ const LessonReviewModal = ({
                   </p>
                 </div>
                 <p className="text-sm text-red-700">
-                  This submission was rejected. The teacher has been notified and
-                  can resubmit after making corrections.
+                  {approval.rejectionReason?.trim()
+                    ? approval.rejectionReason
+                    : "This submission was rejected. The teacher has been notified and can resubmit after making corrections."}
                 </p>
               </div>
             </div>
