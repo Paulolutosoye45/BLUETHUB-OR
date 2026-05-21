@@ -36,7 +36,7 @@ import { lessonService } from "@/services/lesson";
 import { useAuthContext } from "@/contexts/auth-context";
 
 // ── Types ──────────────────────────────────────────────────────────────────
-type QuestionType = "Multiple Choice" | "True/False" | "Short Answer" | "Essay";
+type QuestionType = "Multiple Choice" | "Single Choice" | "True/False" | "Short Answer" | "Essay";
 
 interface Option {
   key: string;
@@ -64,6 +64,7 @@ interface QuestionDraft {
 // ── Constants ─────────────────────────────────────────────────────────────
 const QUESTION_TYPES: QuestionType[] = [
   "Multiple Choice",
+  "Single Choice",
   "True/False",
   "Short Answer",
   "Essay",
@@ -307,7 +308,8 @@ const QuestionCard = ({
   onUpdate: (updates: Partial<QuestionDraft>) => void;
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const showOptions = draft.questionType === "Multiple Choice";
+  const showOptions = draft.questionType === "Multiple Choice" || draft.questionType === "Single Choice";
+  const singleChoiceMode = draft.questionType === "Single Choice";
   const showTrueFalse = draft.questionType === "True/False";
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -343,9 +345,11 @@ const QuestionCard = ({
 
   const toggleCorrectAnswer = (key: string) =>
     onUpdate({
-      correctAnswers: draft.correctAnswers.includes(key)
-        ? draft.correctAnswers.filter((k) => k !== key)
-        : [...draft.correctAnswers, key],
+      correctAnswers: singleChoiceMode
+        ? (draft.correctAnswers.includes(key) ? [] : [key])
+        : (draft.correctAnswers.includes(key)
+          ? draft.correctAnswers.filter((k) => k !== key)
+          : [...draft.correctAnswers, key]),
     });
 
   return (
@@ -489,7 +493,9 @@ const QuestionCard = ({
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium text-chestnut">Options:</Label>
                 <span className="text-[11px] text-slate-400 font-medium">
-                  Tick checkbox to mark correct answer(s)
+                  {singleChoiceMode
+                    ? "Select one correct answer"
+                    : "Tick checkbox to mark correct answer(s)"}
                 </span>
               </div>
 
@@ -692,8 +698,8 @@ const CreateQuizQuestion = () => {
         topicId: effectiveTopicId,
         topic: effectiveTopic || undefined,
         subTopic: effectiveSubTopic,
-        title: "Board Question",
-        textContent: "",
+        title: result.questionText || "Board Question",
+        textContent: result.questionText || "",
         questionType: QuestionTypeEnum.BoardBased,
         difficultyLevel: result.difficultyLevel,
         marksAllocation: 1,
@@ -713,7 +719,7 @@ const CreateQuizQuestion = () => {
       const boardDraft: QuestionDraft = {
         id: crypto.randomUUID(),
         questionType: "Short Answer",
-        question: `Board Question (session: ${result.boardSessionId.slice(0, 8)}…)`,
+        question: result.questionText || `Board Question (session: ${result.boardSessionId.slice(0, 8)}…)`,
         options: [],
         correctAnswers: result.correctAnswers,
         difficultyLevel: result.difficultyLevel,
@@ -736,6 +742,7 @@ const CreateQuizQuestion = () => {
   const toQuestionTypeEnum = (qt: QuestionType): number => {
     switch (qt) {
       case "Multiple Choice": return QuestionTypeEnum.MultipleChoice;
+      case "Single Choice": return QuestionTypeEnum.MultipleChoice;
       case "True/False": return QuestionTypeEnum.TrueOrFalse;
       case "Short Answer": return QuestionTypeEnum.ShortAnswer;
       case "Essay": return QuestionTypeEnum.Essay;
@@ -750,7 +757,7 @@ const CreateQuizQuestion = () => {
         { optionLabel: "B", optionText: "False", isCorrect: draft.correctAnswers.includes("False"), orderIndex: 2 },
       ];
     }
-    if (draft.questionType !== "Multiple Choice") return [];
+    if (draft.questionType !== "Multiple Choice" && draft.questionType !== "Single Choice") return [];
     return draft.options.map((opt, idx) => ({
       optionLabel: opt.key,
       optionText: opt.value.trim(),
@@ -765,6 +772,8 @@ const CreateQuizQuestion = () => {
     const filledOptions = draft.options.filter((o) => o.value.trim());
     if (filledOptions.length > 0 && draft.correctAnswers.length === 0 && draft.questionType !== "True/False")
       return `Question ${num}: Tick at least one correct answer.`;
+    if (draft.questionType === "Single Choice" && draft.correctAnswers.length > 1)
+      return `Question ${num}: Single Choice allows only one correct answer.`;
     if (draft.questionType === "True/False" && draft.correctAnswers.length === 0)
       return `Question ${num}: Select True or False.`;
     if (draft.difficultyLevel === 0)

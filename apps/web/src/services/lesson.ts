@@ -1,6 +1,8 @@
 import { API, type TResponse } from ".";
-import { X_Tenant_ID } from "@/utils/tenant";
+// import { X_Tenant_ID } from "@/utils/tenant";
 import type { IActions, CompressedStroke, SessionManifest } from "@/utils/constant";
+
+const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
 
 export interface CloudinarySignature {
   signature: string;
@@ -80,9 +82,16 @@ export interface LessonItem {
   classroomId: string;
   subjectId: string;
   topicId: string;
+  subjectName?: string;
+  topicName?: string;
+  className?: string;
   subTopic: string;
   aim: string;
   description: string;
+  accessDate?: string | null;
+  accessTime?: string | null;
+  accessEndsAt?: string | null;
+  isAccessOpen?: boolean;
   status: string;
   createdBy: string;
   approvedBy: string | null;
@@ -162,6 +171,8 @@ export interface LessonSummaryDto {
   description: string;
   subjectName: string;
   topicName: string;
+  subTopic?: string;
+  subTopicName?: string;
   className: string;
   mediaCount: number;
 }
@@ -177,6 +188,8 @@ export interface ApprovalItemDto {
   requestedByName: string;
   requestedByEmail: string;
   lesson: LessonSummaryDto | null;
+  rejectionReason?: string | null;
+  respondedAt?: string | null;
 }
 
 export interface PendingApprovalsResponse {

@@ -33,7 +33,7 @@ const Time = () => {
   return (
     <div className="flex items-center gap-4">
       {/* Elapsed Time */}
-      <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-50 border border-blue-200">
+      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200">
         <Timer className="w-4 h-4 text-blue-600" />
         <div className="flex flex-col">
           <span className="text-[10px] font-medium text-blue-400 uppercase tracking-wide leading-none">
@@ -45,58 +45,62 @@ const Time = () => {
         </div>
       </div>
 
-      {/* Remaining Time */}
-      <div
-        className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all duration-300 ${
-          timeUp
-            ? "bg-red-50 border-red-300"
-            : isLowTime
-            ? "bg-amber-50 border-amber-300 animate-pulse"
-            : pauseTime
-            ? "bg-gray-100 border-gray-300"
-            : "bg-emerald-50 border-emerald-200"
-        }`}
-      >
-        {timeUp ? (
-          <AlertTriangle className="w-4 h-4 text-red-600" />
-        ) : (
-          <Clock className={`w-4 h-4 ${isLowTime ? "text-amber-600" : pauseTime ? "text-gray-500" : "text-emerald-600"}`} />
-        )}
-        <div className="flex flex-col">
-          <span
-            className={`text-[10px] font-medium uppercase tracking-wide leading-none ${
-              timeUp ? "text-red-400" : isLowTime ? "text-amber-400" : pauseTime ? "text-gray-400" : "text-emerald-400"
+      {/* Remaining Time — only shown when lesson duration is set */}
+      {totalSeconds > 0 && (
+        <>
+          <div
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all duration-300 ${
+              timeUp
+                ? "bg-red-50 border-red-300"
+                : isLowTime
+                ? "bg-amber-50 border-amber-300 animate-pulse"
+                : pauseTime
+                ? "bg-gray-100 border-gray-300"
+                : "bg-emerald-50 border-emerald-200"
             }`}
           >
-            {timeUp ? "Time Up" : "Remaining"}
-          </span>
-          <span
-            className={`text-sm font-bold tabular-nums ${
-              timeUp ? "text-red-700" : isLowTime ? "text-amber-700" : pauseTime ? "text-gray-600" : "text-emerald-700"
-            }`}
-          >
-            {displayTime}
-          </span>
-        </div>
-      </div>
-
-      {/* Progress Bar (hidden when paused) */}
-      {!pauseTime && totalSeconds > 0 && (
-        <div className="hidden md:flex flex-col gap-1">
-          <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${
-                timeUp
-                  ? "bg-red-500"
-                  : isLowTime
-                  ? "bg-amber-500"
-                  : "bg-gradient-to-r from-blue-500 to-emerald-500"
-              }`}
-              style={{ width: `${progress}%` }}
-            />
+            {timeUp ? (
+              <AlertTriangle className="w-4 h-4 text-red-600" />
+            ) : (
+              <Clock className={`w-4 h-4 ${isLowTime ? "text-amber-600" : pauseTime ? "text-gray-500" : "text-emerald-600"}`} />
+            )}
+            <div className="flex flex-col">
+              <span
+                className={`text-[10px] font-medium uppercase tracking-wide leading-none ${
+                  timeUp ? "text-red-400" : isLowTime ? "text-amber-400" : pauseTime ? "text-gray-400" : "text-emerald-400"
+                }`}
+              >
+                {timeUp ? "Time Up" : "Remaining"}
+              </span>
+              <span
+                className={`text-sm font-bold tabular-nums ${
+                  timeUp ? "text-red-700" : isLowTime ? "text-amber-700" : pauseTime ? "text-gray-600" : "text-emerald-700"
+                }`}
+              >
+                {displayTime}
+              </span>
+            </div>
           </div>
-          <span className="text-[9px] text-gray-400 text-center">{Math.round(progress)}%</span>
-        </div>
+
+          {/* Progress Bar */}
+          {!pauseTime && (
+            <div className="hidden md:flex flex-col gap-1">
+              <div className="w-24 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    timeUp
+                      ? "bg-red-500"
+                      : isLowTime
+                      ? "bg-amber-500"
+                      : "bg-gradient-to-r from-blue-500 to-emerald-500"
+                  }`}
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <span className="text-[9px] text-gray-400 text-center">{Math.round(progress)}%</span>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -27,6 +27,7 @@ import ClassBottom from "@/layouts/teacher/class/component/class-bottom";
 import { clampCircle, clampRect, clampToBoard, clampTriangle, makeDragBoundFunc } from "@/utils/clamp";
 import type { Box } from "konva/lib/shapes/Transformer";
 import MediaFrame from "./media-frame";
+import { useSession } from "@/contexts/session-context";
 
 
 const Class = () => {
@@ -64,6 +65,8 @@ const Class = () => {
 
     const boardW = dimensions.width;
     const boardH = dimensions.height;
+
+    const { sendStroke, sendShape } = useSession();
 
     useEffect(() => {
         setAction(actionSelect);
@@ -329,10 +332,24 @@ const Class = () => {
         dispatch(setSendQueueRefList([compressedShape]));
         try {
             await addStrokes([compressedShape]);
+            // Send to session.worker for upload batching
+            if (isRecording) {
+                sendShape({
+                    id:           shape.id,
+                    shape:        shape as Record<string, unknown>,
+                    color:        shape.stroke || shape.fillColor || "#df4b26",
+                    strokeWidth:  shape.strokeWidth || 2,
+                    shapeType:    shape.type,
+                    currentBoard,
+                    startTime,
+                    endTime,
+                    timestamp,
+                });
+            }
         } catch (err) {
             console.error("❌ Failed to save shape to IndexedDB:", err);
         }
-    }, [sessionIdRef, currentBoard, dispatch, timerElapsedSeconds]);
+    }, [sessionIdRef, currentBoard, dispatch, timerElapsedSeconds, isRecording, sendShape]);
 
     const penDownEvent = useCallback(async (p: Position | null, type: "stroke" | "eraser" = "stroke") => {
         const updatedStroke = p ? [...currentStroke, p.x, p.y] : currentStroke;
@@ -394,12 +411,26 @@ const Class = () => {
 
         try {
             await addStrokes([compressedStroke]);
+            // Send to session.worker for upload batching
+            if (isRecording) {
+                sendStroke({
+                    id:           newStroke.id,
+                    rawPoints:    smoothed,
+                    color:        newStroke.color,
+                    width:        newStroke.width,
+                    strokeType:   type,
+                    currentBoard,
+                    startTime,
+                    endTime,
+                    timestamp,
+                });
+            }
         } catch (err) {
             console.error("❌ Failed to save stroke to IndexedDB:", err);
         }
 
         setCurrentStroke([]);
-    }, [currentStroke, isRecording, sessionIdRef, selectedFillColor, currentBoard, dispatch, timerElapsedSeconds]);
+    }, [currentStroke, isRecording, sessionIdRef, selectedFillColor, currentBoard, dispatch, timerElapsedSeconds, sendStroke]);
 
     /* ── startDrawing ───────────────────────────────────────────────────────── */
     const startDrawing = useCallback((rawPos: Position) => {

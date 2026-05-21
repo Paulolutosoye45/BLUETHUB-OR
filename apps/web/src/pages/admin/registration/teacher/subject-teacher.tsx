@@ -123,7 +123,7 @@ const SubjectTeacher = () => {
 
   return (
     // "space-y-4 px-6 max-w-full min-w-[80%] mx-auto"
-    <div className="space-y-4 px-6 max-w-7xl mx-auto font-poppins">
+    <div className="space-y-4 px-6  font-poppins">
 
       {/* Main Content */}
       <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">

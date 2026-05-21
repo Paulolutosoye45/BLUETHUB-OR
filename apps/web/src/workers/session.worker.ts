@@ -391,6 +391,7 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
               lessonId: sessionMetadata.lessonId,
               schoolId: sessionMetadata.schoolId,
               status: 'recording',
+              uploadRequested: false,
               teacher: sessionMetadata.teacher,
               lesson: sessionMetadata.lesson,
               recording: {
