@@ -244,7 +244,7 @@ const jobResult = await questionJobService.submitJob(formData);
           "max-w-full rounded-t-3xl rounded-b-none max-h-[92vh]",
           // Desktop: centered modal
           "sm:inset-auto sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]",
-          "sm:max-w-md sm:rounded-3xl sm:max-h-[85vh]"
+          "sm:max-w-xl sm:rounded-3xl sm:max-h-[88vh]"
         )}
       >
         {/* Handle bar (mobile) */}
@@ -253,7 +253,7 @@ const jobResult = await questionJobService.submitJob(formData);
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-purple-600" />
@@ -274,7 +274,7 @@ const jobResult = await questionJobService.submitJob(formData);
         {/* Content based on step */}
         <div className="overflow-y-auto">
           {step === "select" && (
-            <div className="p-5 space-y-5">
+            <div className="p-5 sm:p-6 space-y-5">
               {/* Subject Selection */}
               {subjects.length > 1 && (
                 <div>
@@ -304,11 +304,11 @@ const jobResult = await questionJobService.submitJob(formData);
                   </label>
 
                   {/* Upload Options */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4">
                     {/* Camera */}
                     <button
                       onClick={() => cameraInputRef.current?.click()}
-                      className="flex flex-col items-center gap-3 p-5 bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl border-2 border-dashed border-purple-200 active:scale-[0.98] transition-transform"
+                      className="flex flex-col items-center gap-3 p-5 sm:p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl border-2 border-dashed border-purple-200 active:scale-[0.98] transition-transform"
                     >
                       <div className="w-14 h-14 rounded-2xl bg-purple-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
                         <Camera className="w-7 h-7 text-white" />
@@ -329,7 +329,7 @@ const jobResult = await questionJobService.submitJob(formData);
                     {/* File Browser */}
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex flex-col items-center gap-3 p-5 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border-2 border-dashed border-gray-200 active:scale-[0.98] transition-transform"
+                      className="flex flex-col items-center gap-3 p-5 sm:p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl border-2 border-dashed border-gray-200 active:scale-[0.98] transition-transform"
                     >
                       <div className="w-14 h-14 rounded-2xl bg-gray-600 flex items-center justify-center shadow-lg shadow-gray-500/20">
                         <FolderOpen className="w-7 h-7 text-white" />
@@ -363,10 +363,10 @@ const jobResult = await questionJobService.submitJob(formData);
                       <img
                         src={previewUrl}
                         alt="Preview"
-                        className="w-full h-48 object-cover"
+                        className="w-full h-52 sm:h-60 object-cover"
                       />
                     ) : (
-                      <div className="w-full h-48 flex flex-col items-center justify-center">
+                      <div className="w-full h-52 sm:h-60 flex flex-col items-center justify-center">
                         <FileText className="w-12 h-12 text-gray-400 mb-2" />
                         <span className="text-sm text-gray-500">PDF Document</span>
                       </div>
@@ -440,7 +440,7 @@ const jobResult = await questionJobService.submitJob(formData);
 
           {/* Uploading State */}
           {step === "uploading" && (
-            <div className="p-8 flex flex-col items-center justify-center min-h-[300px]">
+            <div className="p-8 sm:p-10 flex flex-col items-center justify-center min-h-[300px]">
               <div className="relative w-24 h-24 mb-6">
                 {/* Progress Ring */}
                 <svg className="w-24 h-24 transform -rotate-90">
@@ -478,7 +478,7 @@ const jobResult = await questionJobService.submitJob(formData);
 
           {/* Submitting State */}
           {step === "submitting" && (
-            <div className="p-8 flex flex-col items-center justify-center min-h-[300px]">
+            <div className="p-8 sm:p-10 flex flex-col items-center justify-center min-h-[300px]">
               <div className="w-20 h-20 bg-purple-100 rounded-3xl flex items-center justify-center mb-5">
                 <Loader2 className="w-10 h-10 text-purple-600 animate-spin" />
               </div>
@@ -489,7 +489,7 @@ const jobResult = await questionJobService.submitJob(formData);
 
           {/* Success State */}
           {step === "done" && (
-            <div className="p-8 flex flex-col items-center justify-center min-h-[300px]">
+            <div className="p-8 sm:p-10 flex flex-col items-center justify-center min-h-[300px]">
               <div className="w-20 h-20 bg-green-100 rounded-3xl flex items-center justify-center mb-5">
                 <CheckCircle2 className="w-10 h-10 text-green-600" />
               </div>
@@ -502,7 +502,7 @@ const jobResult = await questionJobService.submitJob(formData);
 
           {/* Error State */}
           {step === "error" && (
-            <div className="p-8 flex flex-col items-center justify-center min-h-[300px]">
+            <div className="p-8 sm:p-10 flex flex-col items-center justify-center min-h-[300px]">
               <div className="w-20 h-20 bg-red-100 rounded-3xl flex items-center justify-center mb-5">
                 <AlertTriangle className="w-10 h-10 text-red-600" />
               </div>

@@ -4,6 +4,7 @@ import { openDB } from 'idb';
 import {
   DB_NAME, DB_VERSION, STORE_STROKE_BATCHES,
   type LocalStrokeBatch,
+  type CompressedStroke,
 } from '@/utils/constant';
 
 type StrokePayload = {
@@ -15,7 +16,7 @@ type StrokePayload = {
   endTime: string;
   currentBoard: number;
   strokeType: string;
-  timestamp: string;
+  timestamp: number;
   type: string;
   duration?: number;
   metadata?: Record<string, unknown>;
@@ -56,6 +57,22 @@ type FromWorkerMessage =
   | { type: "ERROR"; error: string };
 
 const MAX_RETRIES = 3;
+
+function toStrokePayload(stroke: CompressedStroke): StrokePayload {
+  return {
+    id: stroke.id,
+    data: stroke.data,
+    color: stroke.color,
+    width: stroke.width,
+    startTime: stroke.startTime,
+    endTime: stroke.endTime,
+    currentBoard: stroke.currentBoard,
+    strokeType: stroke.type,
+    timestamp: stroke.timestamp,
+    type: stroke.type,
+    duration: stroke.duration,
+  };
+}
 
 async function submitBatch(
   apiBaseUrl: string,
@@ -158,7 +175,7 @@ self.onmessage = async (event: MessageEvent<ToWorkerMessage>) => {
         endMs: batch.endMs,
         strokeCount: batch.strokeCount,
         boardIndex: 0, // Default to first board
-        strokes: batch.strokes as StrokePayload[],
+        strokes: batch.strokes.map(toStrokePayload),
       }));
 
       console.log('[stroke-upload-worker] ✅ Converted batches for upload:', {
@@ -176,13 +193,8 @@ self.onmessage = async (event: MessageEvent<ToWorkerMessage>) => {
     return;
   }
 
-  if (msg.type !== "START") {
-    console.log('[stroke-upload-worker] Received non-START message:', msg.type);
-    return;
-  }
-
   // Original START message flow
-  const startMsg = msg as Extract<ToWorkerMessage, { type: "START" }>;
+  const startMsg: Extract<ToWorkerMessage, { type: "START" }> = msg;
   await processUpload(startMsg.apiBaseUrl, startMsg.authToken, startMsg.tenantId, startMsg.batches);
 };
 

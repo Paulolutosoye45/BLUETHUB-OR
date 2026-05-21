@@ -155,7 +155,7 @@ const StartClass = () => {
     const parts = [
       lessonMeta?.subjectName ?? lesson.subjectName,
       lessonMeta?.topicName ?? lesson.topicName,
-      lessonMeta?.subTopic ?? lesson.subTopic,
+      lessonMeta?.subTopic ?? lesson.subTopicName ?? lesson.subTopic,
     ]
       .map((value) => (typeof value === "string" ? value.trim() : ""))
       .filter((value) => value.length > 0);
