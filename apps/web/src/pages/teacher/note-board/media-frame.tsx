@@ -8,6 +8,19 @@ import { clearSelectedImage } from "@/store/class-action-slice";
 import { useSession } from "@/contexts/session-context";
 import PdfScrollViewer from "@/component/pdf-scroll-viewer";
 
+const getFileExtension = (nameOrUrl?: string): string => {
+  if (!nameOrUrl) return '';
+  try {
+    const clean = nameOrUrl.split('?')[0].split('#')[0];
+    const last = clean.split('.').pop() ?? '';
+    return last.toLowerCase();
+  } catch {
+    return '';
+  }
+};
+
+const OFFICE_DOC_EXTENSIONS = new Set(['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx']);
+
 const getRecordingElapsedMs = (timerElapsedSeconds: number): number => {
   const recordingStartTimerMs = parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10);
   return Math.max(0, Math.round(timerElapsedSeconds * 1000) - recordingStartTimerMs);
@@ -38,6 +51,15 @@ const MediaFrame = () => {
   const dispatch = useDispatch();
   const { sendMediaHide, sendPdfPage, sendMediaScroll, sendMediaPlayback } = useSession();
   const frameSize = getFrameSizeByType(selectedImage?.type);
+  const fileExt = getFileExtension(selectedImage?.name) || getFileExtension(selectedImage?.url);
+  const normalizedType = (selectedImage?.type ?? '').toLowerCase();
+  const isOfficeDoc = OFFICE_DOC_EXTENSIONS.has(fileExt);
+  const isPdf = normalizedType === 'pdf' && !isOfficeDoc;
+  const isVideo = normalizedType === 'video';
+  const isImage = normalizedType === 'image';
+  const officeViewerUrl = mediaUrl
+    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(mediaUrl)}`
+    : null;
 
   // Load media URL from cache when selectedImage changes
   useEffect(() => {
@@ -82,7 +104,6 @@ const MediaFrame = () => {
   }, []);
 
   if (!selectedImage?.id) return null;
-  const isPdf = selectedImage.type === "pdf";
 
   if (isLoading) {
     return (
@@ -137,13 +158,19 @@ const MediaFrame = () => {
               }}
               onScrollRatioChange={handlePdfScrollRatio}
             />
-          ) : selectedImage.type === "image" && mediaUrl ? (
+          ) : isOfficeDoc && officeViewerUrl ? (
+            <iframe
+              src={officeViewerUrl}
+              title={selectedImage.name}
+              className="w-full h-full border-0"
+            />
+          ) : isImage && mediaUrl ? (
             <img
               src={mediaUrl}
               alt={selectedImage.name}
               className="w-full h-full object-contain"
             />
-          ) : selectedImage.type === "video" && mediaUrl ? (
+          ) : isVideo && mediaUrl ? (
             <video
               src={mediaUrl}
               controls

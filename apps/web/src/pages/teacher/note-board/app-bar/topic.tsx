@@ -9,6 +9,10 @@ interface ActiveLesson {
     // flat shape from LessonForClassDto (via PreClassModal)
     topicName?: string;
     subTopic?: string;
+    subTopicName?: string;
+    subtopic?: string;
+    subtopicName?: string;
+    subTopicObj?: { name?: string };
     subjectName?: string;
     name?: string;
     className?: string;
@@ -25,6 +29,15 @@ interface ActiveLesson {
 const Topic = () => {
   const dispatch = useDispatch();
   const [lessonData, setLessonData] = useState<ActiveLesson | null>(null);
+
+  const pickText = (...values: Array<string | undefined | null>) => {
+    for (const value of values) {
+      if (typeof value === "string" && value.trim().length > 0) {
+        return value.trim();
+      }
+    }
+    return "";
+  };
 
   useEffect(() => {
     const storedLesson = sessionStorage.getItem("activeLesson");
@@ -58,7 +71,19 @@ const Topic = () => {
     lessonData?.lesson?.topic ||
     "New Lesson";
 
-  const subTopic = lessonData?.lesson?.subTopic || "";
+  const lesson = lessonData?.lesson as Record<string, unknown> | undefined;
+  const subTopic = pickText(
+    lessonData?.lesson?.subTopic,
+    lessonData?.lesson?.subTopicName,
+    lessonData?.lesson?.subtopic,
+    lessonData?.lesson?.subtopicName,
+    typeof lesson?.subTopic === "object" && lesson?.subTopic !== null
+      ? (lesson.subTopic as { name?: string }).name
+      : undefined,
+    typeof lesson?.subTopicObj === "object" && lesson?.subTopicObj !== null
+      ? (lesson.subTopicObj as { name?: string }).name
+      : undefined
+  );
 
   return (
     <div className="flex items-center gap-4">

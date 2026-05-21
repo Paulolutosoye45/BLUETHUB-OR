@@ -45,7 +45,6 @@ const Time = () => {
         </div>
       </div>
 
-
       {/* Remaining Time — only shown when lesson duration is set */}
       {totalSeconds > 0 && (
         <>
@@ -82,7 +81,7 @@ const Time = () => {
               </span>
             </div>
           </div>
-    </div>
+
           {/* Progress Bar */}
           {!pauseTime && (
             <div className="hidden md:flex flex-col gap-1">
@@ -103,6 +102,7 @@ const Time = () => {
           )}
         </>
       )}
+    </div>
   );
 };
 

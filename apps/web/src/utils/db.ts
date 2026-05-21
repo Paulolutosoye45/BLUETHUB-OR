@@ -513,6 +513,7 @@ export async function saveSessionAsDraft(sessionId: string, sessionData: LocalSe
       ? {
           ...existing,
           status: 'draft',
+          uploadRequested: false,
           recording: {
             ...existing.recording,
             totalDurationMs: sessionData.recording.totalDurationMs,
@@ -544,6 +545,7 @@ export async function saveSessionAsDraft(sessionId: string, sessionData: LocalSe
       ? {
           ...existing,
           status: 'draft',
+          uploadRequested: false,
           recording: {
             ...existing.recording,
             totalDurationMs: sessionData.recording.totalDurationMs,
@@ -642,6 +644,7 @@ function saveSessionRaw(sessionId: string, sessionData: LocalSession): Promise<v
             ? {
                 ...existing,
                 status: 'draft',
+                uploadRequested: false,
                 recording: {
                   ...existing.recording,
                   totalDurationMs: sessionData.recording.totalDurationMs,

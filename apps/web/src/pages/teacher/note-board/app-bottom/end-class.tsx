@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@bluethub/ui-kit";
 import PhoneIcon from "@/assets/svg/phone.svg?react";
-import { Upload, Trash2, X, AlertTriangle, Loader2, CheckCircle, Save } from "lucide-react";
+import { Upload, Trash2, X, AlertTriangle, Loader2, CheckCircle, Save, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 import { useDispatch, useSelector } from "react-redux";
 import { setEndClass } from "@/store/class-action-slice";
@@ -17,12 +17,13 @@ import {
   updateSession,
   cleanupEntireSession,
   saveSessionAsDraft,
+  getAllSessions,
   getAudioChunksBySession,
   getStrokeBatchesBySession,
 } from "@/utils/db";
 import type { LocalSession } from "@/utils/constant";
 
-type ModalState = "closed" | "confirm" | "discard-confirm" | "uploading" | "complete" | "error" | "draft-saved";
+type ModalState = "closed" | "confirm" | "discard-confirm" | "uploading" | "complete" | "error" | "draft-saved" | "pending-uploads";
 
 const EndClass = () => {
   const dispatch = useDispatch();
@@ -36,6 +37,8 @@ const EndClass = () => {
   const [modalState, setModalState] = useState<ModalState>("closed");
   const [uploadProgress, setUploadProgress] = useState({ phase: "", current: 0, total: 0, percentage: 0 });
   const [errorMessage, setErrorMessage] = useState("");
+  const [pendingUploads, setPendingUploads] = useState<LocalSession[]>([]);
+  const [selectedPendingSessionId, setSelectedPendingSessionId] = useState<string | null>(null);
   const allowExitRef = useRef(false);
   const backGuardInstalledRef = useRef(false);
 
@@ -70,6 +73,7 @@ const EndClass = () => {
       toast.error("Class hasn't started yet");
       return;
     }
+    void loadPendingUploads();
     setModalState("confirm");
   };
 
@@ -81,6 +85,20 @@ const EndClass = () => {
     setModalState("closed");
     setUploadProgress({ phase: "", current: 0, total: 0, percentage: 0 });
     setErrorMessage("");
+    setSelectedPendingSessionId(null);
+  };
+
+  const loadPendingUploads = async () => {
+    const sessions = await getAllSessions();
+    const pending = sessions
+      .filter((s) => Boolean(s.uploadRequested) && s.status !== "published")
+      .sort((a, b) => new Date(b.modifiedAt).getTime() - new Date(a.modifiedAt).getTime());
+    setPendingUploads(pending);
+  };
+
+  const handleOpenPendingUploads = async () => {
+    await loadPendingUploads();
+    setModalState("pending-uploads");
   };
 
   const handleDiscard = async () => {
@@ -148,6 +166,7 @@ const EndClass = () => {
         lessonId: `draft_${effectiveSessionId}`,
         schoolId: "local",
         status: "draft",
+        uploadRequested: false,
         teacher: {
           id: "local",
           name: "Teacher",
@@ -224,32 +243,40 @@ const EndClass = () => {
     }
   };
 
-  const handleUpload = async () => {
+  const uploadBySessionId = async (targetSessionId: string, opts?: { stopActiveRecording?: boolean; navigateOnSuccess?: boolean }) => {
+    const shouldStopActiveRecording = opts?.stopActiveRecording ?? false;
+    const shouldNavigateOnSuccess = opts?.navigateOnSuccess ?? false;
+
     setModalState("uploading");
     setUploadProgress({ phase: "Preparing...", current: 0, total: 0, percentage: 0 });
 
     try {
-      // Stop recording first
-      await stopRecording();
-      dispatch(setEndClass());
-      timer.stop();
-
-      // Wait for worker to finalize
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      if (!sessionId) {
-        throw new Error("No session ID");
+      if (shouldStopActiveRecording) {
+        await stopRecording();
+        dispatch(setEndClass());
+        timer.stop();
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
-      // Use token-based upload service
+      const existingSession = await getSession(targetSessionId);
+      if (existingSession) {
+        existingSession.uploadRequested = true;
+        existingSession.status = "publishing";
+        await updateSession(existingSession);
+      }
+
       setUploadProgress({ phase: "Starting upload...", current: 0, total: 0, percentage: 0 });
 
-      const results = await uploadSession(sessionId, {
+      const results = await uploadSession(targetSessionId, {
         concurrency: 2,
         onProgress: (state) => {
-          const phaseLabel = state.phase === 'audio' ? 'Uploading audio...' :
-                            state.phase === 'strokes' ? 'Uploading board data...' :
-                            state.phase === 'complete' ? 'Complete!' : 'Preparing...';
+          const phaseLabel = state.phase === 'audio'
+            ? 'Uploading audio...'
+            : state.phase === 'strokes'
+              ? 'Uploading board data...'
+              : state.phase === 'complete'
+                ? 'Complete!'
+                : 'Preparing...';
           setUploadProgress({
             phase: phaseLabel,
             current: state.currentChunk,
@@ -263,31 +290,57 @@ const EndClass = () => {
         throw new Error(results.errors.join('; ') || 'Upload failed');
       }
 
-      // Submit manifest to backend
       setUploadProgress({ phase: "Finalizing...", current: 0, total: 1, percentage: 95 });
 
-      const session = await getSession(sessionId);
+      const finalizedSession = await getSession(targetSessionId);
+      if (finalizedSession) {
+        const manifest = await buildManifest(finalizedSession, results);
+        await boardSessionService.submitManifest(targetSessionId, manifest);
 
-      if (session) {
-        const manifest = await buildManifest(session, results);
-        await boardSessionService.submitManifest(sessionId, manifest);
-
-        // Update session status
-        session.status = "published";
-        session.syncProgress.manifestSent = true;
-        await updateSession(session);
+        finalizedSession.status = "published";
+        finalizedSession.uploadRequested = false;
+        finalizedSession.syncProgress.manifestSent = true;
+        await updateSession(finalizedSession);
       }
 
       setUploadProgress({ phase: "Complete!", current: 1, total: 1, percentage: 100 });
       toast.success("Lesson uploaded successfully!");
-      allowExitRef.current = true;
-      navigate("/teacher");
 
+      if (shouldNavigateOnSuccess) {
+        allowExitRef.current = true;
+        navigate("/teacher");
+      } else {
+        await loadPendingUploads();
+        setModalState("pending-uploads");
+      }
     } catch (err) {
+      const uploadError = err instanceof Error ? err.message : "Upload failed";
       console.error("Upload failed:", err);
-      setErrorMessage(err instanceof Error ? err.message : "Upload failed");
+
+      const failedSession = await getSession(targetSessionId);
+      if (failedSession) {
+        failedSession.status = "failed";
+        failedSession.uploadRequested = true;
+        await updateSession(failedSession);
+      }
+
+      setErrorMessage(uploadError);
       setModalState("error");
     }
+  };
+
+  const handleUpload = async () => {
+    if (!sessionId) {
+      toast.error("No session ID");
+      return;
+    }
+    await uploadBySessionId(sessionId, { stopActiveRecording: true, navigateOnSuccess: true });
+  };
+
+  const handleRetryPendingUpload = async (targetSessionId: string) => {
+    setSelectedPendingSessionId(targetSessionId);
+    await uploadBySessionId(targetSessionId, { stopActiveRecording: false, navigateOnSuccess: false });
+    setSelectedPendingSessionId(null);
   };
 
   // Build manifest from local session and upload results using actual IDB timing data
@@ -475,6 +528,7 @@ const EndClass = () => {
                 {modalState === "complete" && "Upload Complete"}
                 {modalState === "error" && "Upload Failed"}
                 {modalState === "draft-saved" && "Draft Saved"}
+                {modalState === "pending-uploads" && "Pending Uploads"}
               </h2>
               <button
                 onClick={handleClose}
@@ -523,6 +577,77 @@ const EndClass = () => {
                       <span className="text-xs text-gray-500 group-hover:text-red-500 text-center">
                         Delete recording
                       </span>
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleOpenPendingUploads}
+                    className="w-full flex items-center justify-center gap-2 p-3 border border-indigo-200 bg-indigo-50 rounded-xl hover:bg-indigo-100 transition-colors"
+                  >
+                    <RefreshCw className="w-4 h-4 text-indigo-700" />
+                    <span className="text-sm font-medium text-indigo-800">View Pending Uploads</span>
+                    {pendingUploads.length > 0 && (
+                      <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 rounded-full bg-indigo-600 text-white text-xs font-semibold">
+                        {pendingUploads.length}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* Pending Uploads State */}
+              {modalState === "pending-uploads" && (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-600">
+                    Lessons you selected for upload but are not fully pushed yet.
+                  </p>
+
+                  {pendingUploads.length === 0 ? (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+                      No pending uploads. Only lessons where Upload was selected appear here.
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                      {pendingUploads.map((pending) => (
+                        <div key={pending.id} className="rounded-lg border border-gray-200 p-3 bg-white">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 truncate">{pending.lesson.topic || "Untitled lesson"}</p>
+                              <p className="text-xs text-gray-500 truncate">{pending.lesson.subTopic || "No subtopic"}</p>
+                              <p className="text-xs text-gray-500 mt-1">
+                                Status: <span className="font-medium text-gray-700">{pending.status}</span>
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => void handleRetryPendingUpload(pending.id)}
+                              disabled={selectedPendingSessionId === pending.id}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300"
+                            >
+                              {selectedPendingSessionId === pending.id ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Upload className="w-3.5 h-3.5" />
+                              )}
+                              Push
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setModalState("confirm")}
+                      className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={() => void loadPendingUploads()}
+                      className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-100 hover:bg-indigo-200 rounded-lg transition-colors"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Refresh
                     </button>
                   </div>
                 </div>
@@ -661,6 +786,12 @@ const EndClass = () => {
                       className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                     >
                       Close
+                    </button>
+                    <button
+                      onClick={() => void handleOpenPendingUploads()}
+                      className="flex-1 px-4 py-2 text-sm font-medium text-indigo-700 bg-indigo-100 hover:bg-indigo-200 rounded-lg transition-colors"
+                    >
+                      Pending Uploads
                     </button>
                     <button
                       onClick={handleUpload}

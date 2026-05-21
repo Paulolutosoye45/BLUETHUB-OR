@@ -1,5 +1,11 @@
 /// <reference lib="webworker" />
 
+import { openDB } from 'idb';
+import {
+  DB_NAME, DB_VERSION, STORE_STROKE_BATCHES,
+  type LocalStrokeBatch,
+} from '@/utils/constant';
+
 type StrokePayload = {
   id: string;
   data: string;
@@ -27,13 +33,21 @@ type StrokeBatchMessage = {
   strokes: StrokePayload[];
 };
 
-type ToWorkerMessage = {
-  type: "START";
-  apiBaseUrl: string;
-  authToken: string;
-  tenantId: string;
-  batches: StrokeBatchMessage[];
-};
+type ToWorkerMessage =
+  | {
+      type: "START";
+      apiBaseUrl: string;
+      authToken: string;
+      tenantId: string;
+      batches: StrokeBatchMessage[];
+    }
+  | {
+      type: "START_UPLOAD";
+      sessionId: string;
+      apiBaseUrl: string;
+      authToken: string;
+      tenantId: string;
+    };
 
 type FromWorkerMessage =
   | { type: "BATCH_SENT"; localId: string; batchIndex: number; id: string; indexKey: string }
@@ -63,7 +77,7 @@ async function submitBatch(
     boardIndex: batch.boardIndex,
   };
 
-  console.log('[WORKER] 📤 Submitting stroke batch:', {
+  console.log('[stroke-upload-worker] 📤 Submitting stroke batch:', {
     url,
     batchIndex: batch.batchIndex,
     sessionId: batch.sessionId,
@@ -85,7 +99,7 @@ async function submitBatch(
     body: JSON.stringify(requestBody),
   });
 
-  console.log('[WORKER] 📥 Response received:', {
+  console.log('[stroke-upload-worker] 📥 Response received:', {
     status: response.status,
     statusText: response.statusText,
     batchIndex: batch.batchIndex,
@@ -94,27 +108,96 @@ async function submitBatch(
 
   if (response.status !== 204 && response.status !== 200) {
     const text = await response.text();
-    console.error('[WORKER] ❌ Upload failed — server response body:', text);
+    console.error('[stroke-upload-worker] ❌ Upload failed — server response body:', text);
     throw new Error(`Stroke batch upload failed: ${response.status} ${text}`);
   }
 
-  console.log('[WORKER] ✅ Batch', batch.batchIndex, 'uploaded successfully');
+  console.log('[stroke-upload-worker] ✅ Batch', batch.batchIndex, 'uploaded successfully');
 }
 
 self.onmessage = async (event: MessageEvent<ToWorkerMessage>) => {
   const msg = event.data;
 
-  if (msg.type !== "START") {
-    console.log('[WORKER] Received non-START message:', msg.type);
+  console.log('[stroke-upload-worker] Message received:', msg.type);
+
+  if (msg.type === "START_UPLOAD") {
+    // New flow: Load batches from IDB for a completed session
+    console.log('[stroke-upload-worker] START_UPLOAD for sessionId:', (msg as any).sessionId);
+
+    if (!(msg as any).apiBaseUrl) {
+      console.error('[stroke-upload-worker] ❌ apiBaseUrl is missing');
+      self.postMessage({ type: 'ERROR', error: 'apiBaseUrl is missing' } as FromWorkerMessage);
+      return;
+    }
+
+    try {
+      // Open IDB and load pending stroke batches
+      const db = await openDB(DB_NAME, DB_VERSION);
+      const allBatches = await db.getAll(STORE_STROKE_BATCHES);
+      
+      // Filter for the session and convert to upload format
+      const sessionBatches = allBatches
+        .filter((b: LocalStrokeBatch) => b.sessionId === (msg as any).sessionId && b.syncStatus === 'pending')
+        .sort((a: LocalStrokeBatch, b: LocalStrokeBatch) => a.batchIndex - b.batchIndex);
+
+      console.log('[stroke-upload-worker] Loaded', sessionBatches.length, 'pending batches from IDB for sessionId:', (msg as any).sessionId);
+
+      if (sessionBatches.length === 0) {
+        console.log('[stroke-upload-worker] No pending batches to upload');
+        self.postMessage({ type: 'COMPLETE' } as FromWorkerMessage);
+        return;
+      }
+
+      // Convert LocalStrokeBatch to StrokeBatchMessage format
+      const batches: StrokeBatchMessage[] = sessionBatches.map((batch: LocalStrokeBatch) => ({
+        localId: batch.id,
+        sessionId: batch.sessionId,
+        lessonId: batch.lessonId,
+        batchIndex: batch.batchIndex,
+        startMs: batch.startMs,
+        endMs: batch.endMs,
+        strokeCount: batch.strokeCount,
+        boardIndex: 0, // Default to first board
+        strokes: batch.strokes as StrokePayload[],
+      }));
+
+      console.log('[stroke-upload-worker] ✅ Converted batches for upload:', {
+        count: batches.length,
+        sample: batches.slice(0, 2).map(b => ({ index: b.batchIndex, strokes: b.strokeCount })),
+      });
+
+      // Now process like START message
+      await processUpload((msg as any).apiBaseUrl, (msg as any).authToken, (msg as any).tenantId, batches);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error('[stroke-upload-worker] ❌ Failed to load batches from IDB:', errorMsg);
+      self.postMessage({ type: 'ERROR', error: errorMsg } as FromWorkerMessage);
+    }
     return;
   }
 
-  console.log('[WORKER] START message received:', {
-    apiBaseUrl: msg.apiBaseUrl,
-    hasAuthToken: !!msg.authToken,
-    tenantId: msg.tenantId,
-    batchCount: msg.batches?.length ?? 0,
-    batches: msg.batches?.map(b => ({
+  if (msg.type !== "START") {
+    console.log('[stroke-upload-worker] Received non-START message:', msg.type);
+    return;
+  }
+
+  // Original START message flow
+  const startMsg = msg as Extract<ToWorkerMessage, { type: "START" }>;
+  await processUpload(startMsg.apiBaseUrl, startMsg.authToken, startMsg.tenantId, startMsg.batches);
+};
+
+async function processUpload(
+  apiBaseUrl: string,
+  authToken: string,
+  tenantId: string,
+  batches: StrokeBatchMessage[]
+): Promise<void> {
+  console.log('[stroke-upload-worker] Processing upload:', {
+    apiBaseUrl,
+    hasAuthToken: !!authToken,
+    tenantId,
+    batchCount: batches?.length ?? 0,
+    batches: batches?.map(b => ({
       localId: b.localId,
       batchIndex: b.batchIndex,
       sessionId: b.sessionId,
@@ -123,37 +206,37 @@ self.onmessage = async (event: MessageEvent<ToWorkerMessage>) => {
   });
 
   // ── Critical pre-flight checks ─────────────────────────────────────────────
-  if (!msg.apiBaseUrl) {
-    console.error('[WORKER] ❌ ABORT: apiBaseUrl is missing — cannot upload any batches');
+  if (!apiBaseUrl) {
+    console.error('[stroke-upload-worker] ❌ ABORT: apiBaseUrl is missing — cannot upload any batches');
     self.postMessage({ type: 'ERROR', error: 'apiBaseUrl is missing' } as FromWorkerMessage);
     return;
   }
-  if (!msg.authToken) {
-    console.error('[WORKER] ❌ WARNING: authToken is missing — all API requests will return 401 Unauthorized');
+  if (!authToken) {
+    console.error('[stroke-upload-worker] ❌ WARNING: authToken is missing — all API requests will return 401 Unauthorized');
   }
-  if (!msg.tenantId) {
-    console.error('[WORKER] ❌ WARNING: tenantId is missing — X-Tenant-ID header will be empty, requests may be rejected');
+  if (!tenantId) {
+    console.error('[stroke-upload-worker] ❌ WARNING: tenantId is missing — X-Tenant-ID header will be empty, requests may be rejected');
   }
-  if (!msg.batches || msg.batches.length === 0) {
+  if (!batches || batches.length === 0) {
     console.warn(
-      '[WORKER] ⚠️ batches array is EMPTY — nothing to upload.',
+      '[stroke-upload-worker] ⚠️ batches array is EMPTY — nothing to upload.',
       'Root cause: session.worker may not have flushed STROKE_BATCHES to IDB,',
       'OR class.tsx never called sendStroke() so session.worker never received RAW_STROKE messages.'
     );
     self.postMessage({ type: 'COMPLETE' } as FromWorkerMessage);
     return;
   }
-  console.log('[WORKER] ✅ Pre-flight OK — starting upload of', msg.batches.length, 'batch(es)');
+  console.log('[stroke-upload-worker] ✅ Pre-flight OK — starting upload of', batches.length, 'batch(es)');
 
   try {
-    for (const batch of msg.batches) {
+    for (const batch of batches) {
       let uploaded = false;
       let lastError = "Unknown error";
 
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
-          console.log(`[WORKER] Attempting batch ${batch.batchIndex}, attempt ${attempt + 1}/${MAX_RETRIES}`);
-          await submitBatch(msg.apiBaseUrl, msg.authToken, msg.tenantId, batch);
+          console.log(`[stroke-upload-worker] Attempting batch ${batch.batchIndex}, attempt ${attempt + 1}/${MAX_RETRIES}`);
+          await submitBatch(apiBaseUrl, authToken, tenantId, batch);
           const indexKey = `${batch.sessionId}_${batch.batchIndex}`;
           const done: FromWorkerMessage = {
             type: "BATCH_SENT",
@@ -162,13 +245,13 @@ self.onmessage = async (event: MessageEvent<ToWorkerMessage>) => {
             id: indexKey,
             indexKey,
           };
-          console.log('[WORKER] Posting BATCH_SENT message:', done);
+          console.log('[stroke-upload-worker] Posting BATCH_SENT message:', done);
           self.postMessage(done);
           uploaded = true;
           break;
         } catch (err) {
           lastError = err instanceof Error ? err.message : "Unknown error";
-          console.log(`[WORKER] Batch ${batch.batchIndex} attempt ${attempt + 1} failed:`, lastError);
+          console.log(`[stroke-upload-worker] Batch ${batch.batchIndex} attempt ${attempt + 1} failed:`, lastError);
           if (attempt < MAX_RETRIES - 1) {
             await new Promise((resolve) => setTimeout(resolve, Math.pow(2, attempt) * 1000));
           }
@@ -182,21 +265,21 @@ self.onmessage = async (event: MessageEvent<ToWorkerMessage>) => {
           batchIndex: batch.batchIndex,
           error: lastError,
         };
-        console.log('[WORKER] Posting BATCH_FAILED message:', failed);
+        console.log('[stroke-upload-worker] Posting BATCH_FAILED message:', failed);
         self.postMessage(failed);
       }
     }
 
     const complete: FromWorkerMessage = { type: "COMPLETE" };
-    console.log('[WORKER] All batches processed, posting COMPLETE');
+    console.log('[stroke-upload-worker] All batches processed, posting COMPLETE');
     self.postMessage(complete);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : "Worker failed";
-    console.error('[WORKER] Caught error in main handler:', errorMsg);
+    console.error('[stroke-upload-worker] Caught error in main handler:', errorMsg);
     const failed: FromWorkerMessage = {
       type: "ERROR",
       error: errorMsg,
     };
     self.postMessage(failed);
   }
-};
+}

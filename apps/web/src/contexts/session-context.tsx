@@ -94,11 +94,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const isRecording  = useSelector((state: RootState) => state.action.isRecording);
   const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
 
-  const workerRef        = useRef<Worker | null>(null);
-  const streamRef        = useRef<MediaStream | null>(null);
-  const recorderRef      = useRef<MediaRecorder | null>(null);
-  const batchIndexRef    = useRef(0);
-  const sessionStartMsRef = useRef(0);
+  const workerRef               = useRef<Worker | null>(null);
+  const strokeUploadWorkerRef   = useRef<Worker | null>(null);
+  const streamRef               = useRef<MediaStream | null>(null);
+  const recorderRef             = useRef<MediaRecorder | null>(null);
+  const batchIndexRef           = useRef(0);
+  const sessionStartMsRef       = useRef(0);
 
   // State flags
   const [isMicMuted, setIsMicMuted] = useState(true);
@@ -150,6 +151,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         case 'SESSION_COMPLETE':
           console.log('[SessionContext] Session complete:', msg.sessionId);
+          // Trigger stroke-upload worker to upload pending stroke batches
+          if (strokeUploadWorkerRef.current) {
+            const authToken = localStorage.getItem('token') || '';
+            const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+            const tenantId = 'pearl'; // X-Tenant-ID
+            
+            console.log('[SessionContext] Initiating stroke batch uploads for session:', msg.sessionId);
+            strokeUploadWorkerRef.current.postMessage({
+              type: 'START_UPLOAD',
+              sessionId: msg.sessionId,
+              apiBaseUrl,
+              authToken,
+              tenantId,
+            });
+          }
           break;
 
         case 'ERROR':
@@ -164,6 +180,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => {
       worker.terminate();
       workerRef.current = null;
+    };
+  }, []);
+
+  // ── Stroke-Upload Worker lifecycle ────────────────────────────────────────
+
+  useEffect(() => {
+    const strokeUploadWorker = new Worker(
+      new URL('../workers/stroke-upload.worker.ts', import.meta.url),
+      { type: 'module' }
+    );
+
+    strokeUploadWorker.onmessage = (e: MessageEvent) => {
+      const msg = e.data;
+      console.log('[SessionContext] Stroke-upload worker message:', msg.type);
+    };
+
+    strokeUploadWorker.onerror = (e) => {
+      console.error('[StrokeUploadWorker] uncaught', e.message);
+    };
+
+    strokeUploadWorkerRef.current = strokeUploadWorker;
+
+    return () => {
+      strokeUploadWorker.terminate();
+      strokeUploadWorkerRef.current = null;
     };
   }, []);
 

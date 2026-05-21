@@ -262,6 +262,7 @@ export interface LocalSession {
   schoolId: string;
 
   status: SessionStatus;
+  uploadRequested?: boolean;
 
   teacher: {
     id: string;

@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Stage, Layer, Line } from "react-konva";
 import type Konva from "konva";
-import { Button, Input, Label } from "@bluethub/ui-kit";
+import { Button, Input, Label, Textarea } from "@bluethub/ui-kit";
 import {
   Check,
   Eraser,
@@ -36,6 +36,7 @@ interface OptionRow {
 
 export interface BoardQuestionResult {
   boardSessionId: string;
+  questionText: string;
   options: CreateOptionPayload[];
   correctAnswers: string[];
   difficultyLevel: number;
@@ -140,7 +141,8 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [boardSessionId, setBoardSessionId] = useState<string | null>(null);
 
-  // Options + difficulty
+  // Optional text + options + difficulty
+  const [questionText, setQuestionText] = useState("");
   const [options, setOptions] = useState<OptionRow[]>([
     { key: "A", value: "" },
     { key: "B", value: "" },
@@ -286,7 +288,13 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
       isCorrect: correctAnswers.includes(opt.key),
       orderIndex: idx + 1,
     }));
-    onSaved({ boardSessionId, options: payload, correctAnswers, difficultyLevel });
+    onSaved({
+      boardSessionId,
+      questionText: questionText.trim(),
+      options: payload,
+      correctAnswers,
+      difficultyLevel,
+    });
   };
 
   const boardLocked = !!boardSessionId;
@@ -483,19 +491,32 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
         )}
       </div>
 
-      {/* ── Options + Difficulty (appear after board is saved) ─────── */}
-      {boardLocked && (
-        <div className="border border-[#29238280] rounded-2xl overflow-hidden">
-          <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-[#D9D9D9] bg-white/60">
-            <h3 className="font-semibold text-chestnut text-sm sm:text-base">
-              Answer Options <span className="text-slate-400 font-normal text-xs">(optional)</span>
-            </h3>
-            <p className="text-[12px] text-slate-400 mt-0.5">
-              Optionally add choices and tick the correct one(s)
-            </p>
-          </div>
+      {/* ── Optional text + options + difficulty ───────────────────── */}
+      <div className="border border-[#29238280] rounded-2xl overflow-hidden">
+        <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-[#D9D9D9] bg-white/60">
+          <h3 className="font-semibold text-chestnut text-sm sm:text-base">
+            Question Details <span className="text-slate-400 font-normal text-xs">(optional)</span>
+          </h3>
+          <p className="text-[12px] text-slate-400 mt-0.5">
+            You can type question text and options now. Save board before adding to list.
+          </p>
+        </div>
 
-          <div className="flex flex-col gap-5 p-4 sm:p-6">
+        <div className="flex flex-col gap-5 p-4 sm:p-6">
+            {/* Optional question text */}
+            <div className="flex flex-col gap-2">
+              <Label className="text-sm font-medium text-chestnut">
+                Question Text <span className="text-slate-400 font-normal text-xs">(optional)</span>
+              </Label>
+              <Textarea
+                value={questionText}
+                onChange={(e) => setQuestionText(e.target.value)}
+                placeholder="Type the question text that goes with this board drawing..."
+                rows={3}
+                className="w-full px-4 py-3 text-sm text-slate-700 font-medium placeholder:text-slate-300 bg-white border border-black/15 rounded-xl resize-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 transition-all duration-200"
+              />
+            </div>
+
             {/* Difficulty */}
             <div className="flex flex-col gap-2">
               <Label className="text-sm font-medium text-chestnut">Difficulty Level:</Label>
@@ -571,30 +592,29 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
               )}
             </div>
 
-            {/* Footer actions */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-[#D9D9D9]">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="flex items-center justify-center gap-1.5 text-sm font-semibold text-slate-400 hover:text-slate-600 cursor-pointer"
-              >
-                <X size={14} />
-                Cancel board question
-              </button>
-              <Button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="flex items-center justify-center gap-2 px-6 py-5 rounded-xl bg-chestnut hover:bg-chestnut/90 disabled:opacity-60 transition-all cursor-pointer"
-              >
-                {isSubmitting && <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />}
-                <span className="text-white font-semibold text-sm">
-                  {isSubmitting ? "Adding…" : "Add to Question List"}
-                </span>
-              </Button>
-            </div>
+          {/* Footer actions */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-[#D9D9D9]">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex items-center justify-center gap-1.5 text-sm font-semibold text-slate-400 hover:text-slate-600 cursor-pointer"
+            >
+              <X size={14} />
+              Cancel board question
+            </button>
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || !boardSessionId}
+              className="flex items-center justify-center gap-2 px-6 py-5 rounded-xl bg-chestnut hover:bg-chestnut/90 disabled:opacity-60 transition-all cursor-pointer"
+            >
+              {isSubmitting && <Loader2 className="w-4 h-4 animate-spin text-white shrink-0" />}
+              <span className="text-white font-semibold text-sm">
+                {isSubmitting ? "Adding…" : boardSessionId ? "Add to Question List" : "Save Board to Continue"}
+              </span>
+            </Button>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

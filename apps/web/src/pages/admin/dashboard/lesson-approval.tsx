@@ -19,6 +19,21 @@ import toast from "react-hot-toast";
 
 type FilterTab = "all" | "pending" | "approved" | "rejected";
 
+const buildApprovalLessonTitle = (approval: ApprovalItemDto): string => {
+  const lesson = approval.lesson;
+  if (!lesson) return "Lesson Submission";
+
+  const parts = [
+    lesson.subjectName,
+    lesson.topicName,
+    lesson.subTopic ?? lesson.subTopicName,
+  ]
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter((value) => value.length > 0);
+
+  return parts.length > 0 ? parts.join(" - ") : "Lesson Submission";
+};
+
 const LessonApproval = () => {
   const [approvals, setApprovals] = useState<ApprovalItemDto[]>([]);
   const [loading, setLoading] = useState(true);
@@ -318,7 +333,7 @@ const LessonApproval = () => {
                           <div className="min-w-0 flex-1">
                             {/* Topic / Title */}
                             <h3 className="font-bold text-gray-900 text-sm sm:text-base truncate">
-                              {approval.lesson?.topicName ?? "Lesson Submission"}
+                              {buildApprovalLessonTitle(approval)}
                             </h3>
 
                             {/* Meta row */}
