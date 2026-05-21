@@ -84,6 +84,7 @@ export interface LessonItem {
   topicId: string;
   subjectName?: string;
   topicName?: string;
+  subTopicName?: string;
   className?: string;
   subTopic: string;
   aim: string;

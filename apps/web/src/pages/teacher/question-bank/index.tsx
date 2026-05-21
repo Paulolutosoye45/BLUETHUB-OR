@@ -127,7 +127,7 @@ function JobCard({ job, onPreview, onRetry }: JobCardProps) {
   return (
     <div
       className={cn(
-        "bg-white rounded-2xl border overflow-hidden transition-all active:scale-[0.98]",
+        "bg-white rounded-2xl border overflow-hidden transition-all active:scale-[0.98] md:hover:shadow-md md:hover:-translate-y-0.5",
         config.border,
         isPreviewable && "shadow-sm"
       )}
@@ -150,10 +150,10 @@ function JobCard({ job, onPreview, onRetry }: JobCardProps) {
 
           {/* Info */}
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900 text-[15px] truncate pr-2">
+            <h3 className="font-semibold text-gray-900 text-[15px] sm:text-base truncate pr-2">
               {job.fileName}
             </h3>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
               {job.subjectName}
             </p>
 
@@ -231,14 +231,14 @@ function JobCard({ job, onPreview, onRetry }: JobCardProps) {
 
 function EmptyState({ onUpload }: { onUpload: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+    <div className="flex flex-col items-center justify-center py-12 px-6 text-center sm:py-16">
       <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-purple-200 rounded-3xl flex items-center justify-center mb-5">
         <ScanLine className="w-10 h-10 text-purple-600" />
       </div>
       <h2 className="text-xl font-bold text-gray-900 mb-2">
         No scans yet
       </h2>
-      <p className="text-gray-500 text-sm max-w-[280px] mb-6">
+      <p className="text-gray-500 text-sm max-w-[320px] mb-6">
         Upload an image or PDF of your questions and let AI extract them automatically
       </p>
       <Button
@@ -380,7 +380,7 @@ const QuestionBankScan = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header - Fixed */}
       <header className="sticky top-0 z-40 bg-white border-b border-gray-100">
-        <div className="px-4 h-14 flex items-center justify-between">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate(-1)}
@@ -388,7 +388,7 @@ const QuestionBankScan = () => {
             >
               <ChevronLeft className="w-5 h-5 text-gray-700" />
             </button>
-            <h1 className="text-lg font-bold text-gray-900">Question Bank</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900">Question Bank</h1>
           </div>
 
           {/* Quota Pill */}
@@ -404,19 +404,19 @@ const QuestionBankScan = () => {
       </header>
 
       {/* Hero Card */}
-      <div className="px-4 pt-4">
-        <div className="bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-700 rounded-3xl p-5 text-white relative overflow-hidden">
+      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 pt-4 sm:pt-6">
+        <div className="bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-700 rounded-3xl p-5 sm:p-6 md:p-7 text-white relative overflow-hidden">
           {/* Background decoration */}
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+          <div className="absolute top-0 right-0 w-32 h-32 md:w-44 md:h-44 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-24 h-24 md:w-36 md:h-36 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
 
           <div className="relative">
             <div className="flex items-center gap-2 mb-2">
               <ScanLine className="w-5 h-5" />
               <span className="text-sm font-medium text-purple-200">AI-Powered</span>
             </div>
-            <h2 className="text-xl font-bold mb-1">Scan Questions</h2>
-            <p className="text-purple-200 text-sm mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold mb-1">Scan Questions</h2>
+            <p className="text-purple-200 text-sm sm:text-base mb-4 max-w-xl">
               Upload photos of questions and let AI extract them instantly
             </p>
 
@@ -439,7 +439,7 @@ const QuestionBankScan = () => {
       </div>
 
       {/* Content */}
-      <main className="px-4 py-5">
+      <main className="mx-auto w-full max-w-6xl px-4 sm:px-6 py-5 sm:py-6">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-16">
             <Loader2 className="w-8 h-8 animate-spin text-purple-500 mb-3" />
@@ -449,6 +449,21 @@ const QuestionBankScan = () => {
           <EmptyState onUpload={() => setShowUploadModal(true)} />
         ) : (
           <div className="space-y-6">
+            <section className="grid grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3">
+                <p className="text-[11px] uppercase tracking-wide text-blue-600 font-semibold">Processing</p>
+                <p className="text-xl font-bold text-blue-900 mt-0.5">{activeJobs.length}</p>
+              </div>
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3">
+                <p className="text-[11px] uppercase tracking-wide text-emerald-600 font-semibold">Ready</p>
+                <p className="text-xl font-bold text-emerald-900 mt-0.5">{completedJobs.length}</p>
+              </div>
+              <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
+                <p className="text-[11px] uppercase tracking-wide text-red-600 font-semibold">Failed</p>
+                <p className="text-xl font-bold text-red-900 mt-0.5">{failedJobs.length}</p>
+              </div>
+            </section>
+
             {/* Active Jobs */}
             {activeJobs.length > 0 && (
               <section>
@@ -458,7 +473,7 @@ const QuestionBankScan = () => {
                     Processing ({activeJobs.length})
                   </h3>
                 </div>
-                <div className="space-y-3">
+                <div className="grid gap-3 md:grid-cols-2">
                   {activeJobs.map((job) => (
                     <JobCard
                       key={job.jobId}
@@ -480,7 +495,7 @@ const QuestionBankScan = () => {
                     Ready for Review ({completedJobs.length})
                   </h3>
                 </div>
-                <div className="space-y-3">
+                <div className="grid gap-3 md:grid-cols-2">
                   {completedJobs.map((job) => (
                     <JobCard
                       key={job.jobId}
@@ -502,7 +517,7 @@ const QuestionBankScan = () => {
                     Failed ({failedJobs.length})
                   </h3>
                 </div>
-                <div className="space-y-3">
+                <div className="grid gap-3 md:grid-cols-2">
                   {failedJobs.map((job) => (
                     <JobCard
                       key={job.jobId}
@@ -524,7 +539,7 @@ const QuestionBankScan = () => {
           onClick={() => setShowUploadModal(true)}
           disabled={quota?.remaining === 0}
           className={cn(
-            "fixed bottom-6 right-4 w-14 h-14 rounded-full flex items-center justify-center",
+            "fixed bottom-6 right-4 w-14 h-14 rounded-full flex items-center justify-center sm:hidden",
             "bg-gradient-to-br from-purple-600 to-purple-700 shadow-xl shadow-purple-500/40",
             "active:scale-95 transition-transform z-50",
             quota?.remaining === 0 && "opacity-50"

@@ -178,8 +178,8 @@ function QuestionCard({
   return (
     <div className="flex-1 overflow-y-auto">
       {/* Question Header */}
-      <div className="px-5 py-4 bg-gray-50 border-b border-gray-100">
-        <div className="flex items-center justify-between mb-3">
+      <div className="px-5 sm:px-6 py-4 bg-gray-50 border-b border-gray-100">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <span className="text-sm font-medium text-gray-500">
             Question {questionNumber} of {totalQuestions}
           </span>
@@ -210,7 +210,7 @@ function QuestionCard({
       </div>
 
       {/* Question Content */}
-      <div className="p-5 space-y-5">
+      <div className="p-5 sm:p-6 space-y-5">
         {/* Question Title */}
         {isEditing ? (
           <div>
@@ -286,7 +286,7 @@ function QuestionCard({
 
         {/* Edit Mode Controls */}
         {isEditing && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
               <Label className="text-xs font-medium text-gray-500 mb-1.5 block">Type</Label>
               <Select
@@ -606,11 +606,11 @@ export default function QuestionPreviewModal({
           "fixed inset-0 translate-x-0 translate-y-0 max-w-full rounded-none",
           // Desktop: large modal
           "sm:inset-auto sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%]",
-          "sm:max-w-lg sm:max-h-[90vh] sm:rounded-3xl"
+          "sm:max-w-2xl sm:max-h-[90vh] sm:rounded-3xl"
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 h-14 border-b border-gray-100 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-6 h-14 sm:h-16 border-b border-gray-100 shrink-0">
           <button
             onClick={handleComplete}
             className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 active:bg-gray-200"
@@ -620,7 +620,7 @@ export default function QuestionPreviewModal({
 
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-purple-600" />
-            <span className="font-semibold text-gray-900">Review Questions</span>
+            <span className="font-semibold text-gray-900 text-sm sm:text-base">Review Questions</span>
           </div>
 
           {data?.fileUrl && (
@@ -648,7 +648,7 @@ export default function QuestionPreviewModal({
         ) : (
           <>
             {/* Progress Bar */}
-            <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
+            <div className="px-4 sm:px-6 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
               <div className="flex items-center justify-between text-xs mb-2">
                 <div className="flex items-center gap-3">
                   <span className="flex items-center gap-1">
@@ -713,7 +713,7 @@ export default function QuestionPreviewModal({
                 {currentIndex > 0 && (
                   <button
                     onClick={goPrev}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center border border-gray-200 sm:left-4"
+                    className="hidden sm:flex absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-lg items-center justify-center border border-gray-200 sm:left-4"
                   >
                     <ChevronLeft className="w-5 h-5 text-gray-700" />
                   </button>
@@ -721,7 +721,7 @@ export default function QuestionPreviewModal({
                 {currentIndex < data.questions.length - 1 && (
                   <button
                     onClick={goNext}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-lg flex items-center justify-center border border-gray-200 sm:right-4"
+                    className="hidden sm:flex absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white shadow-lg items-center justify-center border border-gray-200 sm:right-4"
                   >
                     <ChevronRight className="w-5 h-5 text-gray-700" />
                   </button>
