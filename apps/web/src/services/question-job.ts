@@ -131,6 +131,7 @@ export interface QuestionPreviewResponse {
 
 export interface SubmitScanJobPayload {
   subjectId: string;
+  classroomId?: string;
   fileUrl: string;
   filePublicId: string;
   fileName: string;

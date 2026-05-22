@@ -34,6 +34,7 @@ import {
 import { schoolService } from "@/services/school";
 import { lessonService } from "@/services/lesson";
 import { useAuthContext } from "@/contexts/auth-context";
+import { authService } from "@/services/auth";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type QuestionType = "Multiple Choice" | "Single Choice" | "True/False" | "Short Answer" | "Essay";
@@ -46,6 +47,13 @@ interface Option {
 interface ApiItem {
   id: string;
   name: string;
+}
+
+interface TeacherAssignment {
+  classroomId: string;
+  className: string;
+  subjectId: string;
+  subjectName: string;
 }
 
 interface QuestionDraft {
@@ -97,6 +105,11 @@ const createDraft = (): QuestionDraft => ({
   isSubmitting: false,
   isPublished: false,
 });
+
+const getCreatedQuestionId = (res: unknown): string | null => {
+  const data = (res as { data?: { questionId?: string; id?: string } } | undefined)?.data;
+  return data?.questionId ?? data?.id ?? null;
+};
 
 // ── SelectDropdown ─────────────────────────────────────────────────────────
 const SelectDropdown = ({
@@ -614,13 +627,22 @@ const CreateQuizQuestion = () => {
   const [subjects, setSubjects] = useState<ApiItem[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>();
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>();
+  const [topics, setTopics] = useState<ApiItem[]>([]);
+  const [subtopics, setSubtopics] = useState<ApiItem[]>([]);
+  const [topicsData, setTopicsData] = useState<any[]>([]);
+  const [selectedTopicId, setSelectedTopicId] = useState<string>();
+  const [selectedSubTopicId, setSelectedSubTopicId] = useState<string>();
   const [adminTopic, setAdminTopic] = useState("");
   const [adminTopicId, setAdminTopicId] = useState("");
   const [adminSubTopic, setAdminSubTopic] = useState("");
   const [classroomsLoading, setClassroomsLoading] = useState(false);
   const [subjectsLoading, setSubjectsLoading] = useState(false);
+  const [topicsLoading, setTopicsLoading] = useState(false);
+  const [subtopicsLoading, setSubtopicsLoading] = useState(false);
+  const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>([]);
 
   // ── URL params (teacher flow) ───────────────────────────────────────────
+  const classIdParam = searchParams.get("classroomId") ?? "";
   const subjectIdParam = searchParams.get("subjectId") ?? "";
   const topicIdParam = searchParams.get("topicId") ?? "";
   const topicParam = searchParams.get("topic") ?? "";
@@ -628,10 +650,68 @@ const CreateQuizQuestion = () => {
   const boardSessionId = searchParams.get("boardSessionId") ?? "";
   const scanSessionId = searchParams.get("scanSessionId") ?? "";
 
-  const effectiveSubjectId = isAdmin ? (selectedSubjectId ?? "") : subjectIdParam;
-  const effectiveTopicId = isAdmin ? adminTopicId || null : topicIdParam || null;
-  const effectiveTopic = isAdmin ? adminTopic : topicParam;
-  const effectiveSubTopic = isAdmin ? adminSubTopic || EMPTY_GUID : subTopicParam;
+  const selectedTopicName = topics.find((t) => t.id === selectedTopicId)?.name;
+
+  const effectiveSubjectId = selectedSubjectId ?? "";
+  const effectiveTopicId = selectedTopicId ?? (isAdmin ? adminTopicId || null : topicIdParam || null);
+  const effectiveTopic = selectedTopicName ?? (isAdmin ? adminTopic : topicParam);
+  const effectiveSubTopic = selectedSubTopicId ?? (isAdmin ? adminSubTopic || EMPTY_GUID : subTopicParam);
+
+  // ── Load teacher assignment pairs (non-admin flow) ──────────────────────
+  useEffect(() => {
+    if (isAdmin || !user?.id) return;
+
+    setClassroomsLoading(true);
+    setSubjectsLoading(true);
+
+    authService
+      .getUserById(user.id)
+      .then((res) => {
+        const roleData = (res.data as any)?.data?.roleData;
+        const roleClassrooms: any[] = roleData?.classrooms ?? [];
+
+        const pairs: TeacherAssignment[] = [];
+        const uniqueClassrooms = new Map<string, ApiItem>();
+
+        for (const c of roleClassrooms) {
+          if (!c?.classroomId || !c?.className) continue;
+          uniqueClassrooms.set(c.classroomId, { id: c.classroomId, name: c.className });
+
+          for (const s of c.subjects ?? []) {
+            if (!s?.subjectId || !s?.subjectName) continue;
+            pairs.push({
+              classroomId: c.classroomId,
+              className: c.className,
+              subjectId: s.subjectId,
+              subjectName: s.subjectName,
+            });
+          }
+        }
+
+        setTeacherAssignments(pairs);
+        setClassrooms(Array.from(uniqueClassrooms.values()));
+
+        // Default class and subject from query params if available, else first assigned
+        const classForSubject = subjectIdParam
+          ? pairs.find((p) => p.subjectId === subjectIdParam)
+          : undefined;
+
+        const initialClassId = classIdParam || classForSubject?.classroomId || pairs[0]?.classroomId;
+        const initialSubjectId =
+          subjectIdParam ||
+          pairs.find((p) => p.classroomId === initialClassId && p.subjectId === subjectIdParam)?.subjectId ||
+          pairs.find((p) => p.classroomId === initialClassId)?.subjectId ||
+          pairs[0]?.subjectId;
+
+        if (initialClassId) setSelectedClassId(initialClassId);
+        if (initialSubjectId) setSelectedSubjectId(initialSubjectId);
+      })
+      .catch(() => toast.error("Failed to load your class/subject assignments"))
+      .finally(() => {
+        setClassroomsLoading(false);
+        setSubjectsLoading(false);
+      });
+  }, [isAdmin, user?.id, classIdParam, subjectIdParam]);
 
   // ── Fetch classrooms for admin ──────────────────────────────────────────
   useEffect(() => {
@@ -642,11 +722,16 @@ const CreateQuizQuestion = () => {
       .then((res) => {
         const raw: { id: string; name: string }[] =
           (res.data as any)?.data?.classrooms ?? [];
-        setClassrooms(raw.map((c) => ({ id: c.id, name: c.name })));
+        const nextClassrooms = raw.map((c) => ({ id: c.id, name: c.name }));
+        setClassrooms(nextClassrooms);
+
+        if (classIdParam && nextClassrooms.some((c) => c.id === classIdParam)) {
+          setSelectedClassId(classIdParam);
+        }
       })
       .catch(() => toast.error("Failed to load classrooms"))
       .finally(() => setClassroomsLoading(false));
-  }, [isAdmin]);
+  }, [isAdmin, classIdParam]);
 
   // ── Fetch subjects when class changes ───────────────────────────────────
   useEffect(() => {
@@ -661,11 +746,102 @@ const CreateQuizQuestion = () => {
           (res.data as any)?.data?.subjects ??
           (res.data as any)?.data ??
           [];
-        setSubjects(raw.map((s) => ({ id: s.id, name: s.name })));
+        const nextSubjects = raw.map((s) => ({ id: s.id, name: s.name }));
+        setSubjects(nextSubjects);
+
+        if (subjectIdParam && nextSubjects.some((s) => s.id === subjectIdParam)) {
+          setSelectedSubjectId(subjectIdParam);
+        } else if (nextSubjects[0]) {
+          setSelectedSubjectId(nextSubjects[0].id);
+        }
       })
       .catch(() => toast.error("Failed to load subjects"))
       .finally(() => setSubjectsLoading(false));
-  }, [isAdmin, selectedClassId]);
+  }, [isAdmin, selectedClassId, subjectIdParam]);
+
+  // ── Fetch topics when subject changes ───────────────────────────────────
+  useEffect(() => {
+    if (!selectedSubjectId) {
+      setTopics([]);
+      setSubtopics([]);
+      setTopicsData([]);
+      setSelectedTopicId(undefined);
+      setSelectedSubTopicId(undefined);
+      return;
+    }
+
+    setSelectedTopicId(undefined);
+    setSelectedSubTopicId(undefined);
+    setSubtopics([]);
+    setTopicsData([]);
+    setTopicsLoading(true);
+
+    schoolService
+      .getSubjectCurriculum(selectedSubjectId)
+      .then((res) => {
+        const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
+        const rawTopics: any[] = raw.Topics ?? raw.topics ?? [];
+        const nextTopics: ApiItem[] = rawTopics.map((t: any) => ({
+          id: String(t.Id ?? t.id ?? t.topicId),
+          name: String(t.Name ?? t.name ?? t.topicName ?? ""),
+        }));
+
+        setTopicsData(rawTopics);
+        setTopics(nextTopics);
+
+        if (topicIdParam && nextTopics.some((t) => t.id === topicIdParam)) {
+          setSelectedTopicId(topicIdParam);
+        }
+      })
+      .catch(() => toast.error("Failed to load topics"))
+      .finally(() => setTopicsLoading(false));
+  }, [selectedSubjectId, topicIdParam]);
+
+  // ── Populate subtopics from selected topic (submit-lesson pattern) ──────
+  useEffect(() => {
+    if (!selectedTopicId) {
+      setSubtopics([]);
+      setSelectedSubTopicId(undefined);
+      return;
+    }
+
+    setSelectedSubTopicId(undefined);
+    setSubtopicsLoading(true);
+
+    const matchedTopic = topicsData.find(
+      (t: any) => String(t.Id ?? t.id ?? t.topicId) === selectedTopicId,
+    );
+    const nextSubtopics: ApiItem[] = (matchedTopic?.SubTopics ?? matchedTopic?.subTopics ?? []).map((s: any) => ({
+      id: String(s.Id ?? s.id ?? s.subTopicId),
+      name: String(s.Name ?? s.name ?? s.subTopicName ?? ""),
+    }));
+
+    setSubtopics(nextSubtopics);
+    if (subTopicParam && nextSubtopics.some((s) => s.id === subTopicParam)) {
+      setSelectedSubTopicId(subTopicParam);
+    }
+    setSubtopicsLoading(false);
+  }, [selectedTopicId, subTopicParam, topicsData]);
+
+  // ── Filter subjects by selected class for teacher flow ──────────────────
+  useEffect(() => {
+    if (isAdmin || !selectedClassId) return;
+
+    const classSubjects = teacherAssignments
+      .filter((a) => a.classroomId === selectedClassId)
+      .reduce<ApiItem[]>((acc, a) => {
+        if (!acc.some((x) => x.id === a.subjectId)) {
+          acc.push({ id: a.subjectId, name: a.subjectName });
+        }
+        return acc;
+      }, []);
+
+    setSubjects(classSubjects);
+
+    if (!classSubjects.some((s) => s.id === selectedSubjectId)) {
+      setSelectedSubjectId(classSubjects[0]?.id);
+    }
+  }, [isAdmin, selectedClassId, teacherAssignments, selectedSubjectId]);
 
   // ── Draft helpers ───────────────────────────────────────────────────────
   const updateDraft = (id: string, updates: Partial<QuestionDraft>) =>
@@ -680,11 +856,23 @@ const CreateQuizQuestion = () => {
 
   // ── Board question saved → publish it immediately then add to list ───────
   const handleBoardSaved = async (result: BoardQuestionResult) => {
-    if (isAdmin) {
-      if (!selectedClassId) { toast.error("Please select a class."); return; }
-      if (!selectedSubjectId) { toast.error("Please select a subject."); return; }
-    } else if (!effectiveSubjectId) {
-      toast.error("Subject is missing.");
+    if (!selectedClassId) {
+      toast.error("Please select a class.");
+      return;
+    }
+
+    if (!effectiveSubjectId) {
+      toast.error("Please select a subject.");
+      return;
+    }
+
+    if (!selectedTopicId) {
+      toast.error("Please select a topic.");
+      return;
+    }
+
+    if (!selectedSubTopicId) {
+      toast.error("Please select a sub-topic.");
       return;
     }
 
@@ -712,8 +900,19 @@ const CreateQuizQuestion = () => {
         classroomId: selectedClassId ?? null,
       });
 
+      const createdQuestionId = getCreatedQuestionId(res.data);
+      if (!createdQuestionId) {
+        throw new Error("Question created but no questionId returned from API.");
+      }
+
+      await questionService.publishQuestion(createdQuestionId);
+
       const duplicate = res.data?.data?.isDuplicate;
       if (!duplicate) toast.success("Board question published.");
+
+      // Reset the board and drafts list after a successful board-question publish
+      setDrafts([createDraft()]);
+      setQuizType("questions");
 
       // Add a locked/published card to the draft list so teacher can see it
       const boardDraft: QuestionDraft = {
@@ -803,11 +1002,23 @@ const CreateQuizQuestion = () => {
   // ── Publish all unpublished drafts at once ──────────────────────────────
   const handlePublishAll = async () => {
     // Validate context
-    if (isAdmin) {
-      if (!selectedClassId) { toast.error("Please select a class."); return; }
-      if (!selectedSubjectId) { toast.error("Please select a subject."); return; }
-    } else if (!effectiveSubjectId) {
-      toast.error("Subject is missing. Please start from Assessment subject selection.");
+    if (!selectedClassId) {
+      toast.error("Please select a class.");
+      return;
+    }
+
+    if (!effectiveSubjectId) {
+      toast.error("Please select a subject.");
+      return;
+    }
+
+    if (!selectedTopicId) {
+      toast.error("Please select a topic.");
+      return;
+    }
+
+    if (!selectedSubTopicId) {
+      toast.error("Please select a sub-topic.");
       return;
     }
 
@@ -867,6 +1078,13 @@ const CreateQuizQuestion = () => {
           imageUrl,
         });
 
+        const createdQuestionId = getCreatedQuestionId(res.data);
+        if (!createdQuestionId) {
+          throw new Error(`Q${drafts.indexOf(draft) + 1}: Question created but no questionId returned from API.`);
+        }
+
+        await questionService.publishQuestion(createdQuestionId);
+
         const duplicate = res.data?.data?.isDuplicate;
         updateDraft(draft.id, { isPublished: true, isSubmitting: false });
         if (!duplicate) successCount++;
@@ -890,6 +1108,19 @@ const CreateQuizQuestion = () => {
           ? `All ${successCount} question${successCount !== 1 ? "s" : ""} published!`
           : `${successCount} of ${pending.length} questions published.`
       );
+
+      // Clear the form: reset drafts and context selections
+      if (successCount === pending.length) {
+        setDrafts([createDraft()]);
+        setSelectedTopicId(undefined);
+        setSelectedSubTopicId(undefined);
+        setTopics([]);
+        setSubtopics([]);
+        setTopicsData([]);
+        setAdminTopic("");
+        setAdminTopicId("");
+        setAdminSubTopic("");
+      }
     }
   };
 
@@ -897,11 +1128,12 @@ const CreateQuizQuestion = () => {
   const selectedSubjectName = subjects.find((s) => s.id === selectedSubjectId)?.name;
   const selectedClassName = classrooms.find((c) => c.id === selectedClassId)?.name;
   const contextLabel =
-    isAdmin && selectedSubjectName
+    selectedSubjectName
       ? `${selectedClassName ? `${selectedClassName} — ` : ""}${selectedSubjectName}${adminTopic ? `: ${adminTopic}` : ""}`
       : topicParam || "Create Quiz Question";
 
   const unpublishedCount = drafts.filter((d) => !d.isPublished).length;
+  const canPublish = !!selectedClassId && !!effectiveSubjectId && !!selectedTopicId && !!selectedSubTopicId;
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -922,7 +1154,7 @@ const CreateQuizQuestion = () => {
               </p>
             </div>
             <Link
-              to="questionlist"
+              to="/teacher/assessment/questionlist"
               className="inline-flex items-center justify-center self-start sm:self-auto bg-chestnut text-white text-sm font-semibold rounded-lg px-5 py-2.5 shadow-sm hover:-translate-y-0.5 transition-transform duration-150 whitespace-nowrap"
             >
               View Past Questions
@@ -931,87 +1163,118 @@ const CreateQuizQuestion = () => {
 
           <div className="h-px bg-[#29238280] w-full mb-5" />
 
-          {/* ── Admin Context Panel ── */}
-          {isAdmin && (
-            <div className="mb-5 rounded-xl border border-indigo-100 bg-indigo-50/40 overflow-hidden">
-              <div className="flex items-center gap-2.5 px-4 sm:px-5 py-3 border-b border-indigo-100 bg-indigo-50">
-                <div className="w-1 h-4 rounded-full bg-indigo-500" />
-                <h3 className="font-semibold text-xs text-indigo-600 uppercase tracking-widest">
-                  Admin Context
-                </h3>
+          {/* ── Context Panel ── */}
+              <div className="mb-5 rounded-xl border border-indigo-100 bg-indigo-50/40 overflow-hidden">
+                <div className="flex items-center gap-2.5 px-4 sm:px-5 py-3 border-b border-indigo-100 bg-indigo-50">
+                  <div className="w-1 h-4 rounded-full bg-indigo-500" />
+                  <h3 className="font-semibold text-xs text-indigo-600 uppercase tracking-widest">
+                    {isAdmin ? "Admin Context" : "Teaching Context"}
+                  </h3>
+                </div>
+
+                <div className="p-4 sm:p-5 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
+                        Class <span className="text-red-400">*</span>
+                      </Label>
+                      <ApiDropdown
+                        value={selectedClassId}
+                        items={classrooms}
+                        placeholder="Select class"
+                        onSelect={(item) => setSelectedClassId(item.id)}
+                        loading={classroomsLoading}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
+                        Subject <span className="text-red-400">*</span>
+                      </Label>
+                      <ApiDropdown
+                        value={selectedSubjectId}
+                        items={subjects}
+                        placeholder={selectedClassId ? "Select subject" : "Select class first"}
+                        onSelect={(item) => setSelectedSubjectId(item.id)}
+                        loading={subjectsLoading}
+                        disabled={!selectedClassId}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
+                        Topic <span className="text-red-400">*</span>
+                      </Label>
+                      <ApiDropdown
+                        value={selectedTopicId}
+                        items={topics}
+                        placeholder={selectedSubjectId ? "Select topic" : "Select subject first"}
+                        onSelect={(item) => setSelectedTopicId(item.id)}
+                        loading={topicsLoading}
+                        disabled={!selectedSubjectId}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
+                        Sub-topic <span className="text-red-400">*</span>
+                      </Label>
+                      <ApiDropdown
+                        value={selectedSubTopicId}
+                        items={subtopics}
+                        placeholder={selectedTopicId ? "Select sub-topic" : "Select topic first"}
+                        onSelect={(item) => setSelectedSubTopicId(item.id)}
+                        loading={subtopicsLoading}
+                        disabled={!selectedTopicId}
+                      />
+                    </div>
+                  </div>
+
+                  {isAdmin && (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <div className="flex flex-col gap-1.5">
+                          <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
+                            Topic
+                          </Label>
+                          <Input
+                            value={adminTopic}
+                            onChange={(e) => setAdminTopic(e.target.value)}
+                            placeholder="e.g. Cells & their functions"
+                            className="h-10 px-3 text-sm border border-black/15 rounded-lg focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                          <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
+                            Sub-topic
+                          </Label>
+                          <Input
+                            value={adminSubTopic}
+                            onChange={(e) => setAdminSubTopic(e.target.value)}
+                            placeholder="e.g. Cell Properties and Functions"
+                            className="h-10 px-3 text-sm border border-black/15 rounded-lg focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
+                          Topic ID{" "}
+                          <span className="text-slate-300 normal-case font-normal tracking-normal">
+                            — optional
+                          </span>
+                        </Label>
+                        <Input
+                          value={adminTopicId}
+                          onChange={(e) => setAdminTopicId(e.target.value)}
+                          placeholder="Paste topic UUID if available"
+                          className="h-10 px-3 text-sm border border-black/15 rounded-lg focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all sm:max-w-sm"
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
-
-              <div className="p-4 sm:p-5 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
-                      Class <span className="text-red-400">*</span>
-                    </Label>
-                    <ApiDropdown
-                      value={selectedClassId}
-                      items={classrooms}
-                      placeholder="Select class"
-                      onSelect={(item) => setSelectedClassId(item.id)}
-                      loading={classroomsLoading}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
-                      Subject <span className="text-red-400">*</span>
-                    </Label>
-                    <ApiDropdown
-                      value={selectedSubjectId}
-                      items={subjects}
-                      placeholder={selectedClassId ? "Select subject" : "Select class first"}
-                      onSelect={(item) => setSelectedSubjectId(item.id)}
-                      loading={subjectsLoading}
-                      disabled={!selectedClassId}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
-                      Topic
-                    </Label>
-                    <Input
-                      value={adminTopic}
-                      onChange={(e) => setAdminTopic(e.target.value)}
-                      placeholder="e.g. Cells & their functions"
-                      className="h-10 px-3 text-sm border border-black/15 rounded-lg focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
-                      Sub-topic
-                    </Label>
-                    <Input
-                      value={adminSubTopic}
-                      onChange={(e) => setAdminSubTopic(e.target.value)}
-                      placeholder="e.g. Cell Properties and Functions"
-                      className="h-10 px-3 text-sm border border-black/15 rounded-lg focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
-                    Topic ID{" "}
-                    <span className="text-slate-300 normal-case font-normal tracking-normal">
-                      — optional
-                    </span>
-                  </Label>
-                  <Input
-                    value={adminTopicId}
-                    onChange={(e) => setAdminTopicId(e.target.value)}
-                    placeholder="Paste topic UUID if available"
-                    className="h-10 px-3 text-sm border border-black/15 rounded-lg focus:border-indigo-400 focus:ring-2 focus:ring-indigo-50 transition-all sm:max-w-sm"
-                  />
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* ── Question Cards or Board ── */}
           {quizType === "questions" ? (
@@ -1054,7 +1317,13 @@ const CreateQuizQuestion = () => {
 
               {/* Publish All */}
               {unpublishedCount > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-[#D9D9D9]">
+                <div className="flex flex-col gap-2 pt-2 border-t border-[#D9D9D9]">
+                  {!canPublish && (
+                    <p className="text-xs text-amber-500 font-medium">
+                      Select a class, subject, topic and sub-topic before publishing.
+                    </p>
+                  )}
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                   <div className="text-sm text-slate-500 font-medium">
                     {publishProgress
                       ? `Publishing ${publishProgress.done} of ${publishProgress.total}…`
@@ -1062,8 +1331,8 @@ const CreateQuizQuestion = () => {
                   </div>
                   <Button
                     onClick={handlePublishAll}
-                    disabled={isPublishingAll}
-                    className="flex items-center justify-center gap-2 px-8 py-5 rounded-xl cursor-pointer bg-chestnut hover:bg-chestnut/90 disabled:opacity-60 transition-all shadow-sm shadow-chestnut/20 w-full sm:w-auto"
+                    disabled={isPublishingAll || !canPublish}
+                    className="flex items-center justify-center gap-2 px-8 py-5 rounded-xl cursor-pointer bg-chestnut hover:bg-chestnut/90 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-sm shadow-chestnut/20 w-full sm:w-auto"
                   >
                     {isPublishingAll ? (
                       <>
@@ -1078,6 +1347,7 @@ const CreateQuizQuestion = () => {
                       </span>
                     )}
                   </Button>
+                  </div>
                 </div>
               )}
             </div>

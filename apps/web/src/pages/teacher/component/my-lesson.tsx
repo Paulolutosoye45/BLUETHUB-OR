@@ -132,6 +132,10 @@ const MyLesson = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // ── Lesson meta for start-class block-check ──
+  const [lessonMetaById, setLessonMetaById] = useState<Record<string, LessonForClassDto>>({});
+  const [checkingLessonIds, setCheckingLessonIds] = useState<Record<string, boolean>>({});
+
   // ── Review Modal ──
   const [reviewLesson, setReviewLesson] = useState<RLesson | null>(null);
 
@@ -168,12 +172,72 @@ const MyLesson = () => {
         });
         setTotalCount(total);
         setTotalPages(pages);
+
+        // Background-fetch lesson meta for approved lessons to enable block-check
+        const approvedIds = items
+          .filter((l) => l.status === "Approved")
+          .map((l) => l.id);
+        if (approvedIds.length > 0) {
+          setCheckingLessonIds((prev) => {
+            const next = { ...prev };
+            approvedIds.forEach((id) => { next[id] = true; });
+            return next;
+          });
+          const nextMeta: Record<string, LessonForClassDto> = {};
+          Promise.allSettled(
+            approvedIds.map((id) =>
+              lessonService.getLessonForClass(id)
+                .then((r) => {
+                  const d = (r.data as any)?.data;
+                  if (d?.lesson) nextMeta[id] = d.lesson as LessonForClassDto;
+                })
+                .finally(() => setCheckingLessonIds((prev) => ({ ...prev, [id]: false })))
+            )
+          ).then(() => setLessonMetaById((prev) => ({ ...prev, ...nextMeta })));
+        }
       })
       .catch((err) => {
         const msg = (err as any)?.response?.data?.responseMessage ?? "Could not load lessons";
         setError(msg);
       })
       .finally(() => setLoading(false));
+  };
+
+  // ── Start-class block helpers (mirrors start-class.tsx) ──
+  const parseAccessDate = (accessDate?: string | null): Date | null => {
+    if (!accessDate) return null;
+    const dateOnly = accessDate.includes("T") ? accessDate.split("T")[0] : accessDate;
+    const [y, m, d] = dateOnly.split("-").map(Number);
+    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
+      const fallback = new Date(accessDate);
+      return Number.isNaN(fallback.getTime()) ? null : fallback;
+    }
+    const parsed = new Date(y, m - 1, d, 0, 0, 0, 0);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
+  const getLessonStartBlockReason = (lesson: LessonItem): string | null => {
+    const meta = lessonMetaById[lesson.id];
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const accessDate = meta?.accessDate ?? lesson.accessDate;
+    const scheduleDate = parseAccessDate(accessDate);
+    if (scheduleDate && today > scheduleDate) {
+      return `Scheduled date was ${scheduleDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}`;
+    }
+    return null;
+  };
+
+  const buildLessonTitle = (lesson: LessonItem): string => {
+    const meta = lessonMetaById[lesson.id];
+    const parts = [
+      meta?.subjectName ?? lesson.subjectName,
+      meta?.topicName  ?? lesson.topicName,
+      meta?.subTopic   ?? lesson.subTopicName ?? lesson.subTopic,
+    ]
+      .map((v) => (typeof v === "string" ? v.trim() : ""))
+      .filter((v) => v.length > 0);
+    return parts.length > 0 ? parts.join(" › ") : "Untitled Lesson";
   };
 
   useEffect(() => {
@@ -207,6 +271,23 @@ const MyLesson = () => {
     } finally {
       setLoadingLessonDetails(false);
     }
+  };
+
+  const handleStartClassWithChecks = (lesson: LessonItem) => {
+    const isChecking = checkingLessonIds[lesson.id] === true;
+    const blockedReason = getLessonStartBlockReason(lesson);
+
+    if (isChecking) {
+      toast("Still checking schedule, please wait a moment...");
+      return;
+    }
+
+    if (blockedReason) {
+      toast.error(blockedReason);
+      return;
+    }
+
+    handleStartClass(lesson.id);
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -329,9 +410,12 @@ const MyLesson = () => {
                               >
                                 <TableCell className="px-5 py-3.5">
                                   <p className="text-[#0F0F0E] font-semibold text-sm leading-tight line-clamp-1">
-                                    {lesson.subTopic || "Untitled"}
+                                    {buildLessonTitle(lesson)}
                                   </p>
                                   <p className="text-[#A8A8A4] text-[11px] mt-0.5 line-clamp-1">
+                                    {lesson.subjectName && (
+                                      <span className="font-medium text-chestnut/70">{lesson.subjectName} · </span>
+                                    )}
                                     {lesson.aim}
                                   </p>
                                 </TableCell>
@@ -346,17 +430,31 @@ const MyLesson = () => {
                                 </TableCell>
                                 <TableCell className="pr-5 text-right">
                                   <div className="flex items-center justify-end gap-2">
-                                    {lesson.status === "Approved" && (
-                                      <button
-                                        onClick={() => handleStartClass(lesson.id)}
-                                        className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600
-                                          hover:from-emerald-600 hover:to-emerald-700 text-white text-xs font-semibold
-                                          px-3 py-1.5 rounded-lg transition-all shadow-sm"
-                                      >
-                                        <Play size={12} />
-                                        Start Class
-                                      </button>
-                                    )}
+                                    {lesson.status === "Approved" && (() => {
+                                      const isChecking = checkingLessonIds[lesson.id] === true;
+                                      const blockedReason = getLessonStartBlockReason(lesson);
+                                      const isBlocked = Boolean(blockedReason);
+                                      return (
+                                        <button
+                                          onClick={() => handleStartClassWithChecks(lesson)}
+                                          disabled={isBlocked || isChecking}
+                                          title={blockedReason ?? undefined}
+                                          className={`flex items-center gap-1.5 text-white text-xs font-semibold
+                                            px-3 py-1.5 rounded-lg transition-all shadow-sm ${
+                                              isBlocked || isChecking
+                                                ? "bg-gray-300 cursor-not-allowed"
+                                                : "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
+                                            }`}
+                                        >
+                                          {isChecking ? (
+                                            <Loader2 size={12} className="animate-spin" />
+                                          ) : (
+                                            <Play size={12} />
+                                          )}
+                                          {isBlocked ? "Unavailable" : isChecking ? "Checking…" : "Start Class"}
+                                        </button>
+                                      );
+                                    })()}
                                     <button
                                       onClick={() => setReviewLesson(toRLesson(lesson, teacherName))}
                                       className="border border-[#E8E8E3] hover:border-chestnut/30 hover:text-chestnut
@@ -390,8 +488,11 @@ const MyLesson = () => {
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                               <p className="font-semibold text-sm text-[#0F0F0E] leading-tight line-clamp-2">
-                                {lesson.subTopic || "Untitled"}
+                                {buildLessonTitle(lesson)}
                               </p>
+                              {lesson.subjectName && (
+                                <p className="text-[10px] font-semibold text-chestnut/70 mt-0.5">{lesson.subjectName}</p>
+                              )}
                               <p className="text-[11px] text-[#A8A8A4] mt-1 line-clamp-1">{lesson.aim}</p>
                             </div>
                             <span className={`shrink-0 inline-flex items-center gap-1 rounded-full py-0.5 px-2 text-[10px] font-semibold ${style.badge}`}>
@@ -402,16 +503,30 @@ const MyLesson = () => {
                           <div className="flex items-center justify-between mt-3">
                             <span className="text-[11px] text-gray-400">{formatDate(lesson.createdAt)}</span>
                             <div className="flex items-center gap-2">
-                              {lesson.status === "Approved" && (
-                                <button
-                                  onClick={() => handleStartClass(lesson.id)}
-                                  className="flex items-center gap-1 bg-gradient-to-r from-emerald-500 to-emerald-600
-                                    text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg"
-                                >
-                                  <Play size={10} />
-                                  Start
-                                </button>
-                              )}
+                              {lesson.status === "Approved" && (() => {
+                                const isChecking = checkingLessonIds[lesson.id] === true;
+                                const blockedReason = getLessonStartBlockReason(lesson);
+                                const isBlocked = Boolean(blockedReason);
+                                return (
+                                  <button
+                                    onClick={() => handleStartClassWithChecks(lesson)}
+                                    disabled={isBlocked || isChecking}
+                                    title={blockedReason ?? undefined}
+                                    className={`flex items-center gap-1 text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg ${
+                                      isBlocked || isChecking
+                                        ? "bg-gray-300 cursor-not-allowed"
+                                        : "bg-gradient-to-r from-emerald-500 to-emerald-600"
+                                    }`}
+                                  >
+                                    {isChecking ? (
+                                      <Loader2 size={10} className="animate-spin" />
+                                    ) : (
+                                      <Play size={10} />
+                                    )}
+                                    {isBlocked ? "N/A" : isChecking ? "…" : "Start"}
+                                  </button>
+                                );
+                              })()}
                               <button
                                 onClick={() => setReviewLesson(toRLesson(lesson, teacherName))}
                                 className="border border-[#E8E8E3] text-[#0F0F0E] text-xs font-medium px-3 py-1.5
