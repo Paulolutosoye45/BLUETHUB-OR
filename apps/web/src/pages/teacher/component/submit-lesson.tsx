@@ -108,6 +108,18 @@ function relativeTime(iso: string): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+function toLocalDateInputValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeDateInput(value: string): string {
+  if (!value) return "";
+  return value.includes("T") ? value.split("T")[0] : value;
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 export const extractLabel = (item: Record<string, unknown>): string =>
@@ -386,8 +398,8 @@ function FileRow({ entry, index, onRemove, onRetry, onDragStart, onDragOver, onD
 
 interface SetQuestionsModalProps {
   open: boolean;
-  subjectLabel: string;
-  classroomLabel: string;
+  subjectLabel?: string | null;
+  classroomLabel?: string | null;
   onSkip: () => void;
   onConfirm: (quizId: string) => void;
   onDismiss: () => void;
@@ -398,10 +410,22 @@ function SetQuestionsModal({
   open, subjectLabel, classroomLabel, onSkip, onConfirm, onDismiss, isSubmitting,
 }: SetQuestionsModalProps) {
   const [quizId, setQuizId] = useState("");
+  const safeSubjectLabel = (subjectLabel ?? "").trim();
+  const safeClassroomLabel = (classroomLabel ?? "").trim();
+
+  useEffect(() => {
+    if (!open) return;
+    console.log("[SetQuestionsModal] open", {
+      subjectLabel,
+      classroomLabel,
+      safeSubjectLabel,
+      safeClassroomLabel,
+    });
+  }, [open, subjectLabel, classroomLabel, safeSubjectLabel, safeClassroomLabel]);
 
   if (!open) return null;
 
-  const abbr = subjectLabel
+  const abbr = safeSubjectLabel
     .split(" ")
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? "")
@@ -436,11 +460,11 @@ function SetQuestionsModal({
               </div>
               <div>
                 <p className="text-xs text-gray-500 font-medium">Current Class</p>
-                <p className="text-sm font-semibold text-gray-900">{subjectLabel || "—"}</p>
+                <p className="text-sm font-semibold text-gray-900">{safeSubjectLabel || "—"}</p>
               </div>
             </div>
             <span className="text-xs font-semibold text-blue-600 bg-blue-100 px-3 py-1.5 rounded-lg">
-              {classroomLabel || "—"}
+              {safeClassroomLabel || "—"}
             </span>
           </div>
 
@@ -498,6 +522,17 @@ const SubmitLesson = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const isAdminRole = user?.roleName === "Administrator" || user?.roleName === "SuperAdministrator" || user?.roleName === "HeadTeacher";
+  const DEBUG_SUBMIT_LESSON = true;
+
+  const debugLog = useCallback((label: string, payload?: unknown) => {
+    if (!DEBUG_SUBMIT_LESSON) return;
+    const ts = new Date().toISOString();
+    if (payload !== undefined) {
+      console.log(`[SubmitLesson][${ts}] ${label}`, payload);
+      return;
+    }
+    console.log(`[SubmitLesson][${ts}] ${label}`);
+  }, [DEBUG_SUBMIT_LESSON]);
 
   // ── Data State ──
   const [classrooms, setClassrooms] = useState<SelectItem[]>([]);
@@ -583,17 +618,17 @@ const SubmitLesson = () => {
   }, [classroomId, subjectId, topicId, subTopicId, subTopicValue, aim, description, scheduledDate, scheduledTime, durationMinutes, completedCount]);
 
   const restoreDraft = (draft: LessonDraft) => {
-    setClassroomId(draft.classroomId);
-    setClassroomLabel(draft.classroomLabel);
-    setSubjectId(draft.subjectId);
-    setSubjectLabel(draft.subjectLabel);
-    setTopicId(draft.topicId);
-    setTopicLabel(draft.topicLabel);
+    setClassroomId(draft.classroomId ?? "");
+    setClassroomLabel(draft.classroomLabel ?? "");
+    setSubjectId(draft.subjectId ?? "");
+    setSubjectLabel(draft.subjectLabel ?? "");
+    setTopicId(draft.topicId ?? "");
+    setTopicLabel(draft.topicLabel ?? "");
     setSubTopicId(draft.subTopicId ?? "");
-    setSubTopicValue(draft.subTopicValue);
-    setAim(draft.aim);
-    setDescription(draft.description);
-    setScheduledDate(draft.scheduledDate ?? "");
+    setSubTopicValue(draft.subTopicValue ?? "");
+    setAim(draft.aim ?? "");
+    setDescription(draft.description ?? "");
+    setScheduledDate(normalizeDateInput(draft.scheduledDate ?? ""));
     setScheduledTime(draft.scheduledTime ?? "");
     setDurationMinutes(draft.durationMinutes ?? "");
 
@@ -859,8 +894,32 @@ const SubmitLesson = () => {
   // Save Draft: requires form completion only (media is optional)
   const canSaveDraft = formValid && !busy;
   
-  // Submit: requires form completion AND media upload
-  const canSubmit = formValid && allUploaded && !busy;
+  const hasUploadErrors = uploadFiles.some((f) => f.status === "error");
+  const hasPendingUploads = uploadFiles.some((f) => f.status === "uploading" || f.status === "idle");
+
+  // Submit: requires form completion, and no active/failed upload states
+  // (media remains optional)
+  const canSubmit = formValid && !hasUploadErrors && !hasPendingUploads && !busy;
+
+  useEffect(() => {
+    debugLog("Date state changed", {
+      scheduledDate,
+      localMinDate: toLocalDateInputValue(new Date()),
+      timezoneOffsetMinutes: new Date().getTimezoneOffset(),
+    });
+  }, [scheduledDate, debugLog]);
+
+  useEffect(() => {
+    debugLog("Submit gate state", {
+      formValid,
+      hasUploadErrors,
+      hasPendingUploads,
+      busy,
+      canSubmit,
+      showQuizModal,
+      uploadFiles: uploadFiles.map((f) => ({ uid: f.uid, status: f.status })),
+    });
+  }, [formValid, hasUploadErrors, hasPendingUploads, busy, canSubmit, showQuizModal, uploadFiles, debugLog]);
 
   const step1Done = !!classroomId && !!subjectId && !!topicId && subTopicValue.trim().length > 0;
   const step2Done = aim.trim().length > 0 && description.trim().length > 0;
@@ -910,31 +969,67 @@ const SubmitLesson = () => {
   };
 
   const handleSubmit = () => {
-    if (!canSubmit) return;
+    debugLog("Submit clicked", {
+      canSubmit,
+      formValid,
+      hasPendingUploads,
+      hasUploadErrors,
+      busy,
+      showQuizModal,
+    });
+
+    if (!canSubmit) {
+      if (!formValid) {
+        debugLog("Submit blocked: form invalid");
+        toast.error("Fill all required fields first");
+        return;
+      }
+      if (hasPendingUploads) {
+        debugLog("Submit blocked: uploads pending");
+        toast.error("Please wait for uploads to complete");
+        return;
+      }
+      if (hasUploadErrors) {
+        debugLog("Submit blocked: upload errors");
+        toast.error("Fix or remove failed uploads before submitting");
+        return;
+      }
+      debugLog("Submit blocked: unknown gate state");
+      return;
+    }
+    debugLog("Opening quiz modal");
     setShowQuizModal(true);
   };
 
   const handleConfirmSubmit = async (quizId: string | null) => {
+    debugLog("Confirm submit", { quizId });
     setShowQuizModal(false);
     setIsSubmitting(true);
     try {
+      const mediaFiles = buildMediaPayload();
+
       await lessonService.submitLesson({
         classroomId, subjectId, topicId,
         subTopicId,
         subTopic: subTopicValue.trim(),
         aim: aim.trim(),
         description: description.trim(),
-        mediaFiles: buildMediaPayload(),
+        ...(mediaFiles.length > 0 ? { mediaFiles } : {}),
         accessDate: buildAccessDate(),
         accessTime: buildAccessTime(),
         durationMinutes: durationMinutes ? Number(durationMinutes) : null,
         ...(quizId ? { quizId } : { quizId: null }),
       });
       if (user?.id) localData.remove(draftKey(user.id));
+      debugLog("Lesson submitted successfully");
       toast.success("Lesson submitted for approval");
       navigate(-1);
     } catch (err: unknown) {
       const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
+      debugLog("Lesson submit failed", {
+        responseMessage: e?.response?.data?.responseMessage,
+        message: e?.message,
+      });
       toast.error(e?.response?.data?.responseMessage ?? e?.message ?? "Submission failed");
     } finally {
       setIsSubmitting(false);
@@ -1144,8 +1239,17 @@ const SubmitLesson = () => {
                       <input
                         type="date"
                         value={scheduledDate}
-                        onChange={(e) => setScheduledDate(e.target.value)}
-                        min={new Date().toISOString().split("T")[0]}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          const normalized = normalizeDateInput(raw);
+                          debugLog("Date input changed", {
+                            raw,
+                            normalized,
+                            min: toLocalDateInputValue(new Date()),
+                          });
+                          setScheduledDate(normalized);
+                        }}
+                        min={toLocalDateInputValue(new Date())}
                         className="w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all bg-white"
                       />
                     </div>
@@ -1364,9 +1468,15 @@ const SubmitLesson = () => {
             <div className="hidden sm:flex items-center justify-between pt-4">
               <p className="text-sm text-gray-500">
                 {!formValid && "Fill all required fields to continue"}
-                {formValid && !allUploaded && "Add media files to submit"}
-                {formValid && allUploaded && "Ready to submit for approval"}
+                {formValid && hasPendingUploads && "Please wait for uploads to complete"}
+                {formValid && hasUploadErrors && "Fix or remove failed uploads"}
+                {formValid && !hasPendingUploads && !hasUploadErrors && "Ready to submit for approval"}
               </p>
+              {DEBUG_SUBMIT_LESSON && (
+                <p className="text-[11px] text-amber-600">
+                  debug: modal={String(showQuizModal)} canSubmit={String(canSubmit)} formValid={String(formValid)} pending={String(hasPendingUploads)} errors={String(hasUploadErrors)}
+                </p>
+              )}
               <div className="flex gap-3">
                 <Button
                   variant="outline"
@@ -1410,7 +1520,13 @@ const SubmitLesson = () => {
                       ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/25"
                       : "bg-gray-300 cursor-not-allowed"
                   )}
-                  title={!canSubmit && !formValid ? "Fill all required fields first" : !canSubmit && !allUploaded ? "Add media files to submit" : ""}
+                  title={!canSubmit && !formValid
+                    ? "Fill all required fields first"
+                    : !canSubmit && hasPendingUploads
+                      ? "Wait for uploads to finish"
+                      : !canSubmit && hasUploadErrors
+                        ? "Fix or remove failed uploads"
+                        : ""}
                 >
                   {isSubmitting ? (
                     <span className="flex items-center gap-2">
@@ -1468,7 +1584,13 @@ const SubmitLesson = () => {
                   ? "bg-gradient-to-r from-blue-600 to-blue-700 active:from-blue-700 active:to-blue-800 shadow-lg shadow-blue-500/25"
                   : "bg-gray-300 cursor-not-allowed"
               )}
-              title={!canSubmit && !formValid ? "Fill all required fields first" : !canSubmit && !allUploaded ? "Add media files to submit" : ""}
+              title={!canSubmit && !formValid
+                ? "Fill all required fields first"
+                : !canSubmit && hasPendingUploads
+                  ? "Wait for uploads to finish"
+                  : !canSubmit && hasUploadErrors
+                    ? "Fix or remove failed uploads"
+                    : ""}
             >
               {isSubmitting ? (
                 <>
@@ -1477,8 +1599,10 @@ const SubmitLesson = () => {
                 </>
               ) : !formValid ? (
                 "Fill all fields"
-              ) : !allUploaded ? (
-                "Add media files"
+              ) : hasPendingUploads ? (
+                "Uploading files..."
+              ) : hasUploadErrors ? (
+                "Fix uploads"
               ) : (
                 "Submit for Approval"
               )}
