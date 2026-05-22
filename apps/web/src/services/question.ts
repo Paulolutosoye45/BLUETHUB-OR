@@ -89,6 +89,24 @@ export interface UpdateQuestionPayload {
 export interface QuestionFilterPayload {
   page?: number;
   pageSize?: number;
+  classroomId?: string;
+  subjectId?: string;
+  topicId?: string;
+  subTopicId?: string;
+  questionType?: number;
+  difficultyLevel?: number;
+  status?: number;
+  searchText?: string;
+  includePendingReview?: boolean;
+  scanSessionId?: string;
+}
+
+export interface QuestionFilterPayloadV2 {
+  page?: number;
+  pageSize?: number;
+  subjectId?: string;
+  topicId?: string;
+  subTopicIds?: string[];
   questionType?: number;
   difficultyLevel?: number;
   status?: number;
@@ -207,15 +225,21 @@ export interface QuestionSummaryDto {
   clientId?: string;
   title: string;
   topic?: string;
+  topicName?: string;
+  subTopicName?: string;
+  className?: string | null;
   subjectName?: string;
   questionType: number;
+  questionTypeName?: string;
   difficultyLevel: number;
+  difficultyLevelName?: string;
   marksAllocation: number;
   hasBoardSession: boolean;
   hasMedia: boolean;
   hasAudio: boolean;
   isScanned: boolean;
   status: number;
+  statusName?: string;
   creationDate: string;
 }
 
@@ -229,6 +253,50 @@ export interface QuestionListResponseData {
   page: number;
   pageSize: number;
   hasMore: boolean;
+}
+
+export interface StatusSummaryDto {
+  draft: number;
+  published: number;
+  pendingReview: number;
+}
+
+export interface DifficultyBreakdownDto {
+  difficultyLevel: number;
+  difficultyLevelName: string;
+  questionCount: number;
+}
+
+export interface TypeBreakdownDto {
+  questionType: number;
+  questionTypeName: string;
+  questionCount: number;
+}
+
+export interface SubTopicSummaryDto {
+  subTopicId: string;
+  subTopicName: string;
+  questionCount: number;
+  draftCount: number;
+  publishedCount: number;
+  pendingReviewCount: number;
+}
+
+export interface TopicSummaryDto {
+  topicId: string;
+  topicName: string;
+  questionCount: number;
+  subTopics: SubTopicSummaryDto[];
+}
+
+export interface SubjectQuestionSummaryResponseData {
+  classroomId: string;
+  subjectId: string;
+  totalQuestions: number;
+  statusSummary: StatusSummaryDto;
+  difficultyBreakdown: DifficultyBreakdownDto[];
+  typeBreakdown: TypeBreakdownDto[];
+  topics: TopicSummaryDto[];
 }
 
 export interface PendingReviewResponseData {
@@ -278,7 +346,46 @@ export const questionService = {
   // ── CREATE ─────────────────────────────────────────────────────────────────
   createQuestion: (payload: CreateQuestionPayload) =>
     API.post<TResponse<CreateQuestionResponseData>>(
-      "api/Question/createquestions",
+      "https://techhubschmanagement.onrender.com/api/Questions/createquestions",
+      payload,
+      {
+        headers: { "X-Tenant-ID": X_Tenant_ID },
+      },
+    ),
+
+  // ── PUBLISH ───────────────────────────────────────────────────────────────
+  publishQuestion: (questionId: string) =>
+    API.post<TResponse<unknown>>(
+      `api/questions/${questionId}/publish`,
+      {},
+      {
+        headers: { "X-Tenant-ID": X_Tenant_ID },
+      },
+    ),
+
+  // ── LIST ─────────────────────────────────────────────────────────────────
+  getQuestions: (params: QuestionFilterPayload) =>
+    API.get<TResponse<QuestionListResponseData>>("api/questions", {
+      params,
+      headers: { "X-Tenant-ID": X_Tenant_ID },
+    }),
+
+  getSubjectQuestionSummary: (
+    classroomId: string,
+    subjectId: string,
+    subTopicId?: string,
+  ) =>
+    API.get<TResponse<SubjectQuestionSummaryResponseData>>(
+      `api/questions/classroom/${classroomId}/subject/${subjectId}/summary`,
+      {
+        params: subTopicId ? { subTopicId } : undefined,
+        headers: { "X-Tenant-ID": X_Tenant_ID },
+      },
+    ),
+
+  getQuestionsByClassroom: (classroomId: string, payload: QuestionFilterPayloadV2) =>
+    API.post<TResponse<QuestionListResponseData>>(
+      `api/questions/classroom/${classroomId}/questions`,
       payload,
       {
         headers: { "X-Tenant-ID": X_Tenant_ID },

@@ -45,6 +45,18 @@ interface SubjectOption {
   name: string;
 }
 
+interface ClassroomOption {
+  id: string;
+  name: string;
+}
+
+interface AssignmentPair {
+  subjectId: string;
+  subjectName: string;
+  classroomId: string;
+  className: string;
+}
+
 type UploadStep = "select" | "uploading" | "submitting" | "done" | "error";
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -62,7 +74,10 @@ export default function ScanUploadModal({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<string>("");
+  const [selectedClassroom, setSelectedClassroom] = useState<string>("");
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
+  const [classrooms, setClassrooms] = useState<ClassroomOption[]>([]);
+  const [assignmentPairs, setAssignmentPairs] = useState<AssignmentPair[]>([]);
   const [step, setStep] = useState<UploadStep>("select");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
@@ -73,20 +88,76 @@ export default function ScanUploadModal({
     authService.getUserById(user.id).then((res) => {
       const roleData = (res.data as any)?.data?.roleData;
       const classrooms: any[] = roleData?.classrooms ?? [];
-      const seen = new Set<string>();
+      const seenSubjects = new Set<string>();
+      const seenPairs = new Set<string>();
       const subjectList: SubjectOption[] = [];
+      const pairs: AssignmentPair[] = [];
       for (const c of classrooms) {
+        const classroomId = c.classroomId;
+        const className = c.className;
+        if (!classroomId || !className) continue;
+
         for (const s of (c.subjects ?? [])) {
-          if (!seen.has(s.subjectId)) {
-            seen.add(s.subjectId);
+          if (!s.subjectId || !s.subjectName) continue;
+
+          if (!seenSubjects.has(s.subjectId)) {
+            seenSubjects.add(s.subjectId);
             subjectList.push({ id: s.subjectId, name: s.subjectName });
+          }
+
+          const key = `${s.subjectId}_${classroomId}`;
+          if (!seenPairs.has(key)) {
+            seenPairs.add(key);
+            pairs.push({
+              subjectId: s.subjectId,
+              subjectName: s.subjectName,
+              classroomId,
+              className,
+            });
           }
         }
       }
+
+      setAssignmentPairs(pairs);
       setSubjects(subjectList);
-      if (subjectList.length === 1) setSelectedSubject(subjectList[0].id);
+
+      if (subjectList.length === 1) {
+        const onlySubject = subjectList[0].id;
+        setSelectedSubject(onlySubject);
+
+        const subjectClassrooms = pairs
+          .filter((p) => p.subjectId === onlySubject)
+          .map((p) => ({ id: p.classroomId, name: p.className }))
+          .filter((item, index, arr) => arr.findIndex((x) => x.id === item.id) === index);
+
+        setClassrooms(subjectClassrooms);
+        if (subjectClassrooms.length === 1) {
+          setSelectedClassroom(subjectClassrooms[0].id);
+        }
+      } else {
+        setClassrooms([]);
+      }
     }).catch(() => {});
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!selectedSubject) {
+      setClassrooms([]);
+      setSelectedClassroom("");
+      return;
+    }
+
+    const filteredClassrooms = assignmentPairs
+      .filter((p) => p.subjectId === selectedSubject)
+      .map((p) => ({ id: p.classroomId, name: p.className }))
+      .filter((item, index, arr) => arr.findIndex((x) => x.id === item.id) === index);
+
+    setClassrooms(filteredClassrooms);
+
+    if (!filteredClassrooms.some((c) => c.id === selectedClassroom)) {
+      setSelectedClassroom(filteredClassrooms.length === 1 ? filteredClassrooms[0].id : "");
+    }
+  }, [assignmentPairs, selectedSubject, selectedClassroom]);
 
   // Reset state when modal opens/closes
   const resetState = useCallback(() => {
@@ -95,12 +166,25 @@ export default function ScanUploadModal({
     setStep("select");
     setUploadProgress(0);
     setErrorMessage("");
+    setSelectedClassroom("");
     if (subjects.length === 1) {
-      setSelectedSubject(subjects[0].id);
+      const onlySubject = subjects[0].id;
+      setSelectedSubject(onlySubject);
+
+      const subjectClassrooms = assignmentPairs
+        .filter((p) => p.subjectId === onlySubject)
+        .map((p) => ({ id: p.classroomId, name: p.className }))
+        .filter((item, index, arr) => arr.findIndex((x) => x.id === item.id) === index);
+
+      setClassrooms(subjectClassrooms);
+      if (subjectClassrooms.length === 1) {
+        setSelectedClassroom(subjectClassrooms[0].id);
+      }
     } else {
       setSelectedSubject("");
+      setClassrooms([]);
     }
-  }, [subjects]);
+  }, [subjects, assignmentPairs]);
 
   useEffect(() => {
     if (open) {
@@ -170,7 +254,7 @@ export default function ScanUploadModal({
 
   // Upload and submit
   const handleSubmit = async () => {
-    if (!selectedFile || !selectedSubject) return;
+    if (!selectedFile || !selectedSubject || !selectedClassroom) return;
 
     try {
       setStep("uploading");
@@ -198,6 +282,7 @@ export default function ScanUploadModal({
       // Submit scan job
    const formData = new FormData();
 formData.append("subjectId", selectedSubject);
+formData.append("classroomId", selectedClassroom);
 formData.append("fileUrl", uploadResult.cdnUrl);
 formData.append("filePublicId", uploadResult.publicId || "");
 formData.append("fileName", selectedFile.name);
@@ -231,7 +316,7 @@ const jobResult = await questionJobService.submitJob(formData);
   };
 
   const isImage = selectedFile?.type.startsWith("image/");
-  const canSubmit = selectedFile && selectedSubject && remainingScans > 0;
+  const canSubmit = selectedFile && selectedSubject && selectedClassroom && remainingScans > 0;
 
   return (
     <Dialog open={open} onOpenChange={(open) => !open && handleClose()}>
@@ -276,7 +361,7 @@ const jobResult = await questionJobService.submitJob(formData);
           {step === "select" && (
             <div className="p-5 sm:p-6 space-y-5">
               {/* Subject Selection */}
-              {subjects.length > 1 && (
+              {(subjects.length > 1 || assignmentPairs.length > 0) && (
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
                     Select Subject
@@ -293,6 +378,44 @@ const jobResult = await questionJobService.submitJob(formData);
                       ))}
                     </SelectContent>
                   </Select>
+                </div>
+              )}
+
+              {/* Classroom Selection */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Select Classroom
+                </label>
+                <Select
+                  value={selectedClassroom}
+                  onValueChange={setSelectedClassroom}
+                  disabled={!selectedSubject || classrooms.length === 0}
+                >
+                  <SelectTrigger className="h-12 rounded-xl bg-gray-50 border-gray-200">
+                    <SelectValue
+                      placeholder={
+                        !selectedSubject
+                          ? "Choose a subject first"
+                          : classrooms.length === 0
+                            ? "No classroom for selected subject"
+                            : "Choose a classroom"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classrooms.map((classroom) => (
+                      <SelectItem key={classroom.id} value={classroom.id}>
+                        {classroom.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {assignmentPairs.length === 0 && (
+                <div className="flex items-start gap-3 text-amber-700 text-sm bg-amber-50 px-4 py-3 rounded-xl">
+                  <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                  <span>No assigned subject/classroom found for your account.</span>
                 </div>
               )}
 

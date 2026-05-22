@@ -45,6 +45,7 @@ import WatchClass from '@/pages/student/class/watch-class';
 import Assessment from '@/pages/teacher/component/assessment';
 import CreateQuizQuestion from '@/pages/teacher/component/create-quiz';
 import TopicQuestionList from '@/pages/teacher/component/topic-question-list';
+import SubtopicQuestionList from '@/pages/teacher/component/subtopic-question-list';
 import Login from '@/pages/auth/login';
 import NewPassword from '@/pages/auth/new-password';
 import AdminProtectedRoute from '@/component/protected-routes/admin-routes';
@@ -230,6 +231,7 @@ const router = createBrowserRouter([
             { path: "start-class", element: <StartClass /> },
             { path: "assessment/createQuiz", element: <CreateQuizQuestion /> },
             { path: "assessment/questionlist", element: <TopicQuestionList /> },
+            { path: "assessment/questionlist/subtopic", element: <SubtopicQuestionList /> },
             { path: "assessment/upload-scan", element: <UploadScan /> },
             { path: "assessment/review", element: <ReviewQuestion /> },
             { path: "assessment/My-Uploads", element: <MyUploads /> },

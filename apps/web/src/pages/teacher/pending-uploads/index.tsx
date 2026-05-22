@@ -31,6 +31,7 @@ import {
 import { Button } from "@bluethub/ui-kit";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
+import { useAuthContext } from "@/contexts/auth-context";
 import {
   getAllSessions,
   getAudioChunksBySession,
@@ -335,6 +336,7 @@ function SessionCard({
 
 const PendingUploads = () => {
   const navigate = useNavigate();
+  const { user } = useAuthContext();
   const [sessions, setSessions] = useState<SessionUploadStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -358,12 +360,25 @@ const PendingUploads = () => {
 
   // Load sessions with pending uploads
   const loadSessions = useCallback(async () => {
+    if (!user?.id && !user?.emailAddress) {
+      setSessions([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const allSessions = await getAllSessions();
 
+      // Scope sessions to the currently logged-in teacher on shared browsers/devices.
+      const userSessions = allSessions.filter((s) => {
+        const byId = !!user?.id && s.teacher?.id === user.id;
+        const byEmail = !!user?.emailAddress && s.teacher?.email === user.emailAddress;
+        return byId || byEmail;
+      });
+
       // Filter sessions that need upload (not published, has data)
-      const pendingSessions = allSessions.filter(
+      const pendingSessions = userSessions.filter(
         (s) => s.status !== "published" && (s.totalAudioChunks > 0 || s.totalStrokeBatches > 0)
       );
 
@@ -423,7 +438,7 @@ const PendingUploads = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id, user?.emailAddress]);
 
   useEffect(() => {
     loadSessions();
