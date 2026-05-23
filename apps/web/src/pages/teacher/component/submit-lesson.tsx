@@ -1014,7 +1014,7 @@ const SubmitLesson = () => {
         subTopic: subTopicValue.trim(),
         aim: aim.trim(),
         description: description.trim(),
-        ...(mediaFiles.length > 0 ? { mediaFiles } : {}),
+        mediaFiles,
         accessDate: buildAccessDate(),
         accessTime: buildAccessTime(),
         durationMinutes: durationMinutes ? Number(durationMinutes) : null,

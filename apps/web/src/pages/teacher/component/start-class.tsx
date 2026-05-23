@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { lessonService, type LessonItem, type LessonForClassDto, type LessonMediaDto } from "@/services/lesson";
 import PreClassModal from "./pre-class-modal";
-import toast from "react-hot-toast";
 
 const StartClass = () => {
   const [lessons, setLessons] = useState<LessonItem[]>([]);
@@ -105,7 +104,7 @@ const StartClass = () => {
     approvedByName: null,
     accessDate: lesson.accessDate ?? null,
     accessTime: lesson.accessTime ?? null,
-    durationMinutes: null,
+    durationMinutes: lesson.durationMinutes ?? null,
     accessEndsAt: lesson.accessEndsAt ?? null,
     isAccessOpen: true,
   });
@@ -291,7 +290,7 @@ const StartClass = () => {
                     </p>
                   )}
 
-                  {/* Meta */
+                  {/* Meta */}
                   <div className="flex flex-wrap items-center gap-2 mb-4 text-xs text-gray-500">
                     <span className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-md">
                       <BookOpen size={12} />

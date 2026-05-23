@@ -146,6 +146,32 @@ export interface SubmitJobResponseData {
   estimatedCompletionTime?: string;
   queuePosition?: number;
 }
+
+export interface JobStatusesSummary {
+  total: number;
+  pending: number;
+  processing: number;
+  completed: number;
+  failed: number;
+}
+
+export interface JobStatusItem {
+  jobId: string;
+  status: "Pending" | "Processing" | "Completed" | "Failed";
+  questionType: JobQuestionType;
+  extractedCount: number;
+  failureReason: string | null;
+  attemptCount: number;
+  createdAt: string;
+  completedAt: string | null;
+  subTopicName: string;
+  topicName: string;
+}
+
+export interface JobStatusesResponseData {
+  summary: JobStatusesSummary;
+  jobs: JobStatusItem[];
+}
 const headers = { "X-Tenant-ID": X_Tenant_ID };
 
 export const questionJobService = {
@@ -167,6 +193,18 @@ export const questionJobService = {
   // GET api/questionjob/my-jobs
   getMyJobs: () =>
     API.get<JobListResponse>("api/questionjob/my-jobs", { headers }),
+
+  // GET api/questionjob/jobs/status
+  getJobStatuses: (params: {
+    classroomId: string;
+    subjectId: string;
+    topicId?: string;
+    subTopicId?: string;
+  }) =>
+    API.get<TResponse<JobStatusesResponseData>>("api/questionjob/jobs/status", {
+      headers,
+      params,
+    }),
 
   // GET api/questionjob/{jobId}/preview
   // Fix the service return type

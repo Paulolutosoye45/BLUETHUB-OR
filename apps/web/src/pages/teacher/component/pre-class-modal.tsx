@@ -17,7 +17,6 @@ import {
   Loader2,
 } from "lucide-react";
 import type { LessonForClassDto, LessonMediaDto } from "@/services/lesson";
-import toast from "react-hot-toast";
 
 interface PreClassModalProps {
   open: boolean;
