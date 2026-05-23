@@ -1,16 +1,18 @@
 import TitleBar from "@/shared/title-bar";
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import toast from "react-hot-toast";
 import { CheckCircle2, ChevronDown, ImagePlus, Loader2, Upload } from "lucide-react";
 import { schoolService } from "@/services/school";
-import { lessonService, type LessonTopic, type LessonSubTopic } from "@/services/lesson";
 import { questionJobService, type JobQuestionType } from "@/services/question-job";
+import { useAuthContext } from "@/contexts/auth-context";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface Subject { id: string; name: string; }
-// interface Classroom { id: string; name: string; }
+interface Classroom { id: string; name: string; }
+interface TopicOption { id: string; name: string; }
+interface SubTopicOption { id: string; name: string; }
 
 // ── Small helpers ──────────────────────────────────────────────────────────
 const Field = ({ label, children, required }: { label: string; children: React.ReactNode; required?: boolean }) => (
@@ -68,19 +70,21 @@ const Sel = ({
 const UploadScan = () => {
   const navigate = useNavigate();
   const fileRef = useRef<HTMLInputElement>(null);
+  const { user, isLoading: authLoading, refreshUser } = useAuthContext();
 
   // Cascade state
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [subjectsLoading, setSubjectsLoading] = useState(false);
+  const [classroomId, setClassroomId] = useState("");
+
   const [subjectId, setSubjectId] = useState("");
 
-  const [topics, setTopics] = useState<LessonTopic[]>([]);
+  const [topics, setTopics] = useState<TopicOption[]>([]);
   const [topicsLoading, setTopicsLoading] = useState(false);
   const [topicId, setTopicId] = useState("");
 
-  const [subtopics, setSubtopics] = useState<LessonSubTopic[]>([]);
+  const [subtopics, setSubtopics] = useState<SubTopicOption[]>([]);
   const [subtopicsLoading, setSubtopicsLoading] = useState(false);
   const [subtopicId, setSubtopicId] = useState("");
+  const [topicsData, setTopicsData] = useState<any[]>([]);
 
   // Form fields
   const [questionType, setQuestionType] = useState<JobQuestionType>("Objective");
@@ -95,47 +99,133 @@ const UploadScan = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);
 
-  // ── Cascade loaders ──────────────────────────────────────────────────────
-  const loadSubjects = async () => {
-    if (subjects.length > 0) return;
-    setSubjectsLoading(true);
-    try {
-      const { data } = await schoolService.getAllSubject();
-      setSubjects((data.data?.subjects ?? []).map((s: any) => ({ id: s.id, name: s.name })));
-    } catch {
-      toast.error("Failed to load subjects");
-    } finally {
-      setSubjectsLoading(false);
-    }
-  };
+  const classrooms = useMemo<Classroom[]>(() => {
+    return (user?.roleData?.classrooms ?? []).map((item) => ({
+      id: String(item.classroomId),
+      name: String(item.className),
+    }));
+  }, [user?.roleData?.classrooms]);
 
-  const handleSubjectChange = async (id: string) => {
-    setSubjectId(id);
-    setTopicId(""); setSubtopicId("");
-    setTopics([]); setSubtopics([]);
+  const subjects = useMemo<Subject[]>(() => {
+    const selectedClassroom = (user?.roleData?.classrooms ?? []).find(
+      (item) => String(item.classroomId) === classroomId
+    );
+
+    return (selectedClassroom?.subjects ?? []).map((item) => ({
+      id: String(item.subjectId),
+      name: String(item.subjectName),
+    }));
+  }, [user?.roleData?.classrooms, classroomId]);
+
+  useEffect(() => {
+    if (!authLoading) {
+      void refreshUser();
+    }
+  }, [authLoading]);
+
+  useEffect(() => {
+    if (classroomId && !classrooms.some((item) => item.id === classroomId)) {
+      setClassroomId("");
+      setSubjectId("");
+      setTopicId("");
+      setSubtopicId("");
+      setTopics([]);
+      setSubtopics([]);
+    }
+  }, [classroomId, classrooms]);
+
+  useEffect(() => {
+    if (subjectId && !subjects.some((item) => item.id === subjectId)) {
+      setSubjectId("");
+      setTopicId("");
+      setSubtopicId("");
+      setTopics([]);
+      setSubtopics([]);
+      setTopicsData([]);
+    }
+  }, [subjectId, subjects]);
+
+  useEffect(() => {
+    if (!subjectId) {
+      setTopics([]);
+      setSubtopics([]);
+      setTopicsData([]);
+      return;
+    }
+
+    setTopicId("");
+    setSubtopicId("");
+    setTopics([]);
+    setSubtopics([]);
+    setTopicsData([]);
     setTopicsLoading(true);
-    try {
-      const { data } = await lessonService.getTopicsBySubject(id);
-      setTopics(data.data ?? []);
-    } catch {
-      toast.error("Failed to load topics");
-    } finally {
-      setTopicsLoading(false);
+
+    schoolService
+      .getSubjectCurriculum(subjectId)
+      .then((res) => {
+        const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
+        const nextTopics: any[] = raw.Topics ?? raw.topics ?? [];
+
+        setTopicsData(nextTopics);
+        setTopics(
+          nextTopics.map((t: any) => ({
+            id: String(t.Id ?? t.id ?? t.topicId ?? ""),
+            name: String(t.Name ?? t.name ?? t.topicName ?? ""),
+          }))
+        );
+      })
+      .catch(() => {
+        setTopics([]);
+        toast.error("Could not load topics");
+      })
+      .finally(() => setTopicsLoading(false));
+  }, [subjectId]);
+
+  useEffect(() => {
+    if (!topicId) {
+      setSubtopics([]);
+      return;
     }
+
+    setSubtopicsLoading(true);
+    setSubtopicId("");
+
+    const matched = topicsData.find(
+      (t: any) => String(t.Id ?? t.id ?? t.topicId) === topicId
+    );
+
+    const nextSubtopics: SubTopicOption[] = (matched?.SubTopics ?? matched?.subTopics ?? []).map((s: any) => ({
+      id: String(s.Id ?? s.id ?? s.subTopicId ?? ""),
+      name: String(s.Name ?? s.name ?? s.subTopicName ?? ""),
+    }));
+
+    setSubtopics(nextSubtopics);
+    setSubtopicsLoading(false);
+  }, [topicId, topicsData]);
+
+  const handleClassroomChange = async (id: string) => {
+    setClassroomId(id);
+    setSubjectId("");
+    setTopicId("");
+    setSubtopicId("");
+    setTopics([]);
+    setSubtopics([]);
+    setTopicsData([]);
   };
 
-  const handleTopicChange = async (id: string) => {
+  const handleSubjectChange = (id: string) => {
+    setSubjectId(id);
+    setTopicId("");
+    setSubtopicId("");
+    setTopics([]);
+    setSubtopics([]);
+    setTopicsData([]);
+  };
+
+  const handleTopicChange = (id: string) => {
     setTopicId(id);
-    setSubtopicId(""); setSubtopics([]);
-    setSubtopicsLoading(true);
-    try {
-      const { data } = await lessonService.getSubTopicsByTopic(id);
-      setSubtopics(data.data ?? []);
-    } catch {
-      toast.error("Failed to load sub-topics");
-    } finally {
-      setSubtopicsLoading(false);
-    }
+    setSubtopicId("");
+    setSubtopics([]);
   };
 
   // ── Image pick ───────────────────────────────────────────────────────────
@@ -155,11 +245,17 @@ const UploadScan = () => {
   // ── Submit ───────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     if (!imageFile) { toast.error("Select an image first"); return; }
+    if (!classroomId) { toast.error("Select a classroom"); return; }
+    if (!subjectId) { toast.error("Select a subject"); return; }
+    if (!topicId) { toast.error("Select a topic"); return; }
     if (!subtopicId) { toast.error("Select a sub-topic"); return; }
     if (marksAllocation < 1) { toast.error("Marks must be at least 1"); return; }
 
     const form = new FormData();
     form.append("image", imageFile);
+    form.append("ClassroomId", classroomId);
+    form.append("SubjectId", subjectId);
+    form.append("TopicId", topicId);
     form.append("SubTopicId", subtopicId);
     form.append("QuestionType", questionType);
     form.append("HasImages", String(hasImages));
@@ -170,7 +266,7 @@ const UploadScan = () => {
       const { data } = await questionJobService.submitJob(form);
       const jobId = data.data?.jobId ?? (data as any).jobId;
       setSubmittedJobId(jobId);
-      toast.success("Job submitted! AI is processing your image.");
+      toast.success("Your request is being processed at the moment.");
     } catch (err) {
       const e = err as AxiosError<{ responseMessage?: string }>;
       toast.error(e.response?.data?.responseMessage ?? e.message ?? "Submission failed");
@@ -188,8 +284,9 @@ const UploadScan = () => {
           <div className="p-8 bg-white/70 backdrop-blur-sm flex flex-col items-center gap-6 text-center">
             <CheckCircle2 className="w-16 h-16 text-emerald-500" />
             <div>
-              <h2 className="text-xl font-bold text-slate-800">Job Submitted!</h2>
-              <p className="text-sm text-slate-500 mt-1">Your image is being processed by AI. Check My Uploads for the status.</p>
+              <h2 className="text-xl font-bold text-slate-800">Request Accepted</h2>
+              <p className="text-sm text-slate-500 mt-1">Your request is being processed at the moment.</p>
+              <p className="text-sm text-slate-500 mt-1">A background process will pick it from the database and update the status when processing is complete.</p>
               <p className="text-xs text-slate-400 mt-2 font-mono">Job ID: {submittedJobId}</p>
             </div>
             <div className="flex gap-3">
@@ -203,7 +300,7 @@ const UploadScan = () => {
                 onClick={() => navigate("/teacher/assessment/My-Uploads")}
                 className="px-5 py-2.5 rounded-lg bg-chestnut text-white text-sm font-semibold hover:bg-chestnut/90 transition-colors"
               >
-                View My Jobs →
+                Check Processing Status →
               </button>
             </div>
           </div>
@@ -267,21 +364,28 @@ const UploadScan = () => {
             {/* ── RIGHT: Form fields ─────────────────────────────── */}
             <div className="lg:w-80 shrink-0 flex flex-col gap-4">
 
+              {/* Classroom */}
+              <Field label="Classroom" required>
+                <Sel
+                  value={classroomId}
+                  options={classrooms}
+                  placeholder="Select classroom"
+                  onSelect={handleClassroomChange}
+                  loading={authLoading}
+                  disabled={false}
+                />
+              </Field>
+
               {/* Subject */}
               <Field label="Subject" required>
                 <Sel
                   value={subjectId}
                   options={subjects}
-                  placeholder="Select subject"
+                  placeholder={classroomId ? "Select subject" : "Select classroom first"}
                   onSelect={handleSubjectChange}
-                  loading={subjectsLoading}
-                  disabled={false}
+                  loading={authLoading}
+                  disabled={!classroomId}
                 />
-                {subjects.length === 0 && !subjectsLoading && (
-                  <button type="button" onClick={loadSubjects} className="text-xs text-indigo-500 self-start mt-0.5 hover:underline cursor-pointer">
-                    Load subjects
-                  </button>
-                )}
               </Field>
 
               {/* Topic */}
@@ -357,7 +461,7 @@ const UploadScan = () => {
               <button
                 type="button"
                 onClick={handleSubmit}
-                disabled={submitting || !imageFile || !subtopicId}
+                disabled={submitting || !imageFile || !classroomId || !subjectId || !topicId || !subtopicId}
                 className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-chestnut hover:bg-chestnut/90 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold transition-all cursor-pointer mt-2"
               >
                 {submitting ? (

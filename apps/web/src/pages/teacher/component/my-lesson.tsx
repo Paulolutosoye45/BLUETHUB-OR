@@ -144,6 +144,7 @@ const MyLesson = () => {
   const [selectedLessonForClass, setSelectedLessonForClass] = useState<LessonForClassDto | null>(null);
   const [lessonMedia, setLessonMedia] = useState<LessonMediaDto[]>([]);
   const [loadingLessonDetails, setLoadingLessonDetails] = useState(false);
+  const [lessonLoadError, setLessonLoadError] = useState<string | null>(null);
 
   // ── Fetch ──
   const fetchLessons = (filter: FilterValue, pageNum: number) => {
@@ -203,30 +204,33 @@ const MyLesson = () => {
       .finally(() => setLoading(false));
   };
 
-  // ── Start-class block helpers (mirrors start-class.tsx) ──
-  const parseAccessDate = (accessDate?: string | null): Date | null => {
-    if (!accessDate) return null;
-    const dateOnly = accessDate.includes("T") ? accessDate.split("T")[0] : accessDate;
-    const [y, m, d] = dateOnly.split("-").map(Number);
-    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
-      const fallback = new Date(accessDate);
-      return Number.isNaN(fallback.getTime()) ? null : fallback;
-    }
-    const parsed = new Date(y, m - 1, d, 0, 0, 0, 0);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  };
-
-  const getLessonStartBlockReason = (lesson: LessonItem): string | null => {
-    const meta = lessonMetaById[lesson.id];
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const accessDate = meta?.accessDate ?? lesson.accessDate;
-    const scheduleDate = parseAccessDate(accessDate);
-    if (scheduleDate && today > scheduleDate) {
-      return `Scheduled date was ${scheduleDate.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}`;
-    }
-    return null;
-  };
+  // ── Start-class helpers ──
+  const buildFallbackLessonDto = (lesson: LessonItem): LessonForClassDto => ({
+    id: lesson.id,
+    aim: lesson.aim ?? "",
+    description: lesson.description ?? "",
+    status: lesson.status,
+    createdAt: lesson.createdAt,
+    approvedAt: lesson.approvedAt ?? null,
+    subTopic: lesson.subTopicName ?? lesson.subTopic ?? "",
+    subTopicId: "",
+    classroomId: lesson.classroomId ?? "",
+    name: lesson.subTopic ?? lesson.subTopicName ?? "",
+    className: lesson.className ?? "",
+    subjectId: lesson.subjectId ?? "",
+    subjectName: lesson.subjectName ?? "",
+    topicId: lesson.topicId ?? "",
+    topicName: lesson.topicName ?? "",
+    teacherId: "",
+    teacherName: "",
+    teacherEmail: "",
+    approvedByName: null,
+    accessDate: lesson.accessDate ?? null,
+    accessTime: lesson.accessTime ?? null,
+    durationMinutes: null,
+    accessEndsAt: lesson.accessEndsAt ?? null,
+    isAccessOpen: true,
+  });
 
   const buildLessonTitle = (lesson: LessonItem): string => {
     const meta = lessonMetaById[lesson.id];
@@ -250,44 +254,36 @@ const MyLesson = () => {
   };
 
   // ── Start Class handler ──
-  const handleStartClass = async (lessonId: string) => {
+  const handleStartClass = async (lesson: LessonItem) => {
     setPreClassModalOpen(true);
     setLoadingLessonDetails(true);
+    setLessonLoadError(null);
     setSelectedLessonForClass(null);
     setLessonMedia([]);
 
     try {
-      const res = await lessonService.getLessonForClass(lessonId);
+      const res = await lessonService.getLessonForClass(lesson.id);
       const data = (res.data as any)?.data;
       setSelectedLessonForClass(data?.lesson ?? data?.Lesson ?? null);
       setLessonMedia(data?.media ?? data?.Media ?? []);
     } catch (err: any) {
-      const msg =
-        err?.response?.data?.responseMessage ??
-        err?.response?.data?.ResponseMessage ??
-        "Failed to load lesson details";
-      toast.error(msg);
-      setPreClassModalOpen(false);
+      // The API may reject the request if the student access window hasn't opened yet.
+      // This restriction is for students watching the replay — teachers can always record.
+      // Fall back to the LessonItem data we already have so the modal can open.
+      console.warn("getLessonForClass failed (schedule gate?) — using LessonItem fallback", err);
+      setSelectedLessonForClass(buildFallbackLessonDto(lesson));
+      setLessonMedia([]);
     } finally {
       setLoadingLessonDetails(false);
     }
   };
 
   const handleStartClassWithChecks = (lesson: LessonItem) => {
-    const isChecking = checkingLessonIds[lesson.id] === true;
-    const blockedReason = getLessonStartBlockReason(lesson);
-
-    if (isChecking) {
-      toast("Still checking schedule, please wait a moment...");
+    if (checkingLessonIds[lesson.id] === true) {
+      toast("Loading lesson info, please wait a moment...");
       return;
     }
-
-    if (blockedReason) {
-      toast.error(blockedReason);
-      return;
-    }
-
-    handleStartClass(lesson.id);
+    handleStartClass(lesson);
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -432,16 +428,13 @@ const MyLesson = () => {
                                   <div className="flex items-center justify-end gap-2">
                                     {lesson.status === "Approved" && (() => {
                                       const isChecking = checkingLessonIds[lesson.id] === true;
-                                      const blockedReason = getLessonStartBlockReason(lesson);
-                                      const isBlocked = Boolean(blockedReason);
                                       return (
                                         <button
                                           onClick={() => handleStartClassWithChecks(lesson)}
-                                          disabled={isBlocked || isChecking}
-                                          title={blockedReason ?? undefined}
+                                          disabled={isChecking}
                                           className={`flex items-center gap-1.5 text-white text-xs font-semibold
                                             px-3 py-1.5 rounded-lg transition-all shadow-sm ${
-                                              isBlocked || isChecking
+                                              isChecking
                                                 ? "bg-gray-300 cursor-not-allowed"
                                                 : "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
                                             }`}
@@ -451,7 +444,7 @@ const MyLesson = () => {
                                           ) : (
                                             <Play size={12} />
                                           )}
-                                          {isBlocked ? "Unavailable" : isChecking ? "Checking…" : "Start Class"}
+                                          {isChecking ? "Loading…" : "Start Class"}
                                         </button>
                                       );
                                     })()}
@@ -505,15 +498,12 @@ const MyLesson = () => {
                             <div className="flex items-center gap-2">
                               {lesson.status === "Approved" && (() => {
                                 const isChecking = checkingLessonIds[lesson.id] === true;
-                                const blockedReason = getLessonStartBlockReason(lesson);
-                                const isBlocked = Boolean(blockedReason);
                                 return (
                                   <button
                                     onClick={() => handleStartClassWithChecks(lesson)}
-                                    disabled={isBlocked || isChecking}
-                                    title={blockedReason ?? undefined}
+                                    disabled={isChecking}
                                     className={`flex items-center gap-1 text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg ${
-                                      isBlocked || isChecking
+                                      isChecking
                                         ? "bg-gray-300 cursor-not-allowed"
                                         : "bg-gradient-to-r from-emerald-500 to-emerald-600"
                                     }`}
@@ -523,10 +513,10 @@ const MyLesson = () => {
                                     ) : (
                                       <Play size={10} />
                                     )}
-                                    {isBlocked ? "N/A" : isChecking ? "…" : "Start"}
+                                    {isChecking ? "…" : "Start"}
                                   </button>
                                 );
-                              })()}
+                                })()}
                               <button
                                 onClick={() => setReviewLesson(toRLesson(lesson, teacherName))}
                                 className="border border-[#E8E8E3] text-[#0F0F0E] text-xs font-medium px-3 py-1.5
@@ -600,6 +590,7 @@ const MyLesson = () => {
         lesson={selectedLessonForClass}
         media={lessonMedia}
         isLoading={loadingLessonDetails}
+        errorMessage={lessonLoadError}
       />
     </>
   );

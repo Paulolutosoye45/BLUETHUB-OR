@@ -109,12 +109,12 @@ const AssessmentSelectSubject = () => {
   };
 
   return (
-    <div className="min-h-screen font-poppins">
+    <div className="w-full font-poppins">
       {/* ── Main Card ── */}
-      <div className="flex bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden min-h-150">
+      <div className="flex flex-col lg:flex-row bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden min-h-[40rem] lg:min-h-[37.5rem]">
 
         {/* ── Left Panel ── */}
-        <div className="w-[40%] shrink-0 flex flex-col gap-6 p-7 bg-slate-50/70 border-r border-slate-100">
+        <div className="w-full lg:w-[40%] shrink-0 flex flex-col gap-4 sm:gap-6 p-4 sm:p-6 lg:p-7 bg-slate-50/70 border-b lg:border-b-0 lg:border-r border-slate-100">
 
           {/* Subject Selector — uses your existing component structure */}
           <div className="pt-2 pb-6 border border-black/10 rounded-[10px] px-4">
@@ -150,7 +150,7 @@ const AssessmentSelectSubject = () => {
                   {SUBJECT_OPTIONS.map((option) => (
                     <DropdownMenuItem
                       key={option.value}
-                      className={`font-Poppins w-70   text-sm font-medium py-3 px-4 rounded-md cursor-pointer transition-all duration-200 ${
+                      className={`font-Poppins text-sm font-medium py-3 px-4 rounded-md cursor-pointer transition-all duration-200 ${
                         value === option.label
                           ? "bg-indigo-50 text-indigo-600"
                           : "text-slate-700 hover:bg-slate-50 focus:bg-slate-50"
@@ -176,7 +176,7 @@ const AssessmentSelectSubject = () => {
               <Label className="font-Poppins font-medium text-sm text-slate-700 block">
                 Select Topic
               </Label>
-              <div className="flex flex-col gap-0.5 overflow-y-auto max-h-105 [&::-webkit-scrollbar]:w-0.75 [&::-webkit-scrollbar-thumb]:bg-indigo-100 [&::-webkit-scrollbar-thumb]:rounded-full">
+              <div className="flex flex-col gap-0.5 overflow-y-auto max-h-72 lg:max-h-[26rem] [&::-webkit-scrollbar]:w-0.75 [&::-webkit-scrollbar-thumb]:bg-indigo-100 [&::-webkit-scrollbar-thumb]:rounded-full">
                 {topics.map((t, i) => (
                   <button
                     key={i}
@@ -203,7 +203,7 @@ const AssessmentSelectSubject = () => {
 
           {/* Empty state — no subject selected */}
           {!value && (
-            <div className="flex-1 flex mt-40 justify-center">
+            <div className="flex-1 flex mt-10 lg:mt-32 justify-center items-center py-6">
               <p className="font-medium text-base text-center font-Poppins">
                 Select a subject to<br />view topics
               </p>
@@ -212,8 +212,8 @@ const AssessmentSelectSubject = () => {
         </div>
 
         {/* ── Right Panel ── */}
-        <div className="flex-1 flex flex-col gap-5 p-8">
-          <div className="flex items-center justify-between">
+        <div className="flex-1 flex flex-col gap-4 sm:gap-5 p-4 sm:p-6 lg:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <ClipboardList size={15} className="text-indigo-400" />
               <span className="text-[15px] font-semibold text-slate-900 tracking-tight font-Poppins">
@@ -249,7 +249,7 @@ const AssessmentSelectSubject = () => {
               subtopics.map((sub, i) => (
                 <div
                   key={i}
-                  className="group flex items-center justify-between px-5 py-4  rounded-xl border border-[#29238280] hover:border-indigo-200 hover:shadow-sm transition-all cursor-pointer"
+                  className="group flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 sm:px-5 py-3 sm:py-4 rounded-xl border border-[#29238280] hover:border-indigo-200 hover:shadow-sm transition-all cursor-pointer"
                 >
                   <div className="flex items-center gap-3.5">
                       <span className="text-[11px] font-bold text-indigo-200 tabular-nums  tracking-wide group-hover:text-indigo-300 transition-colors font-Poppins">

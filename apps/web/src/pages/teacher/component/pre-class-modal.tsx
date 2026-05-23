@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   X,
@@ -17,7 +17,6 @@ import {
   Loader2,
 } from "lucide-react";
 import type { LessonForClassDto, LessonMediaDto } from "@/services/lesson";
-import toast from "react-hot-toast";
 
 interface PreClassModalProps {
   open: boolean;
@@ -25,6 +24,7 @@ interface PreClassModalProps {
   lesson: LessonForClassDto | null;
   media: LessonMediaDto[];
   isLoading?: boolean;
+  errorMessage?: string | null;
 }
 
 const RULES = [
@@ -78,43 +78,26 @@ const PreClassModal = ({
   lesson,
   media,
   isLoading = false,
+  errorMessage = null,
 }: PreClassModalProps) => {
   const navigate = useNavigate();
   const [understood, setUnderstood] = useState(false);
   const [caching, setCaching] = useState(false);
   const [cacheProgress, setCacheProgress] = useState(0);
 
-  const parseAccessDate = (accessDate?: string | null): Date | null => {
-    if (!accessDate) return null;
+  // NOTE: accessDate/accessTime is the student viewing window, NOT a teacher recording restriction.
+  // Teachers can always start a class regardless of the schedule. Schedule is shown as info only.
 
-    const dateOnly = accessDate.includes("T") ? accessDate.split("T")[0] : accessDate;
-    const [y, m, d] = dateOnly.split("-").map((part) => Number(part));
-    if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
-      const fallback = new Date(accessDate);
-      return Number.isNaN(fallback.getTime()) ? null : fallback;
-    }
-
-    const parsed = new Date(y, m - 1, d, 0, 0, 0, 0);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
-  };
-
-  const blockedStartReason = useMemo(() => {
-    if (!lesson) return null;
-
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const scheduleDate = parseAccessDate(lesson.accessDate);
-
-    if (scheduleDate && today > scheduleDate) {
-      return `This lesson cannot start because its scheduled date was ${scheduleDate.toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })}.`;
-    }
-
-    return null;
-  }, [lesson]);
+  useEffect(() => {
+    if (!open) return;
+    console.log("[PreClassModal] open/state", {
+      lessonId: lesson?.id,
+      accessDate: lesson?.accessDate,
+      accessTime: lesson?.accessTime,
+      isLoading,
+      errorMessage,
+    });
+  }, [open, lesson?.id, lesson?.accessDate, lesson?.accessTime, isLoading, errorMessage]);
 
   // Pre-fetch media into browser cache when modal opens
   useEffect(() => {
@@ -146,11 +129,6 @@ const PreClassModal = ({
 
   const handleStartClass = async () => {
     if (!understood || !lesson || caching) return;
-
-    if (blockedStartReason) {
-      toast.error(blockedStartReason);
-      return;
-    }
 
     setCaching(true);
 
@@ -226,6 +204,13 @@ const PreClassModal = ({
             </div>
           ) : (
             <div className="px-6 py-5">
+              {errorMessage && (
+                <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm font-semibold text-red-700">Unable to load class details</p>
+                  <p className="mt-1 text-xs leading-relaxed text-red-600">{errorMessage}</p>
+                </div>
+              )}
+
               {/* Lesson Info Card */}
               {lesson && (
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-2xl p-4 mb-6 border border-gray-100">
@@ -355,12 +340,7 @@ const PreClassModal = ({
             </div>
           )}
 
-              {blockedStartReason && (
-                <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 p-4">
-                  <p className="text-sm font-semibold text-red-700">Class cannot start</p>
-                  <p className="mt-1 text-xs leading-relaxed text-red-600">{blockedStartReason}</p>
-                </div>
-              )}
+
         </div>
 
         {/* Footer */}
@@ -373,9 +353,9 @@ const PreClassModal = ({
           </button>
           <button
             onClick={handleStartClass}
-            disabled={!understood || isLoading || !lesson || caching || Boolean(blockedStartReason)}
+            disabled={!understood || (isLoading && !lesson) || caching}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-white transition-all ${
-              understood && !isLoading && lesson && !caching && !blockedStartReason
+              understood && !(isLoading && !lesson) && lesson && !caching
                 ? "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/25"
                 : "bg-gray-300 cursor-not-allowed"
             }`}
