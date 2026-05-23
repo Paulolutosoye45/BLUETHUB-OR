@@ -5,7 +5,6 @@ import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
 import { schoolService } from "@/services/school";
-import { authService } from "@/services/auth";
 import {
   questionService,
   type SubjectQuestionSummaryResponseData,
@@ -79,7 +78,7 @@ const SelectField = ({
 
 const TopicQuestionList = () => {
   const navigate = useNavigate();
-  const { user } = useAuthContext();
+  const { user, isLoading: authLoading, refreshUser } = useAuthContext();
   const isAdmin = ADMIN_ROLES.includes(user?.roleName ?? "");
 
   const [classrooms, setClassrooms] = useState<ApiItem[]>([]);
@@ -136,6 +135,12 @@ const TopicQuestionList = () => {
   };
 
   useEffect(() => {
+    if (!authLoading && !isAdmin) {
+      void refreshUser();
+    }
+  }, [authLoading, isAdmin]);
+
+  useEffect(() => {
     if (!user?.id) return;
 
     if (isAdmin) {
@@ -152,10 +157,8 @@ const TopicQuestionList = () => {
     }
 
     setClassroomsLoading(true);
-    authService
-      .getUserById(user.id)
-      .then((res) => {
-        const roleClassrooms = (res.data as any)?.data?.roleData?.classrooms ?? [];
+    Promise.resolve(user?.roleData?.classrooms ?? [])
+      .then((roleClassrooms) => {
         const pairs: TeacherAssignment[] = [];
         const uniqueClassrooms = new Map<string, ApiItem>();
 
@@ -184,7 +187,7 @@ const TopicQuestionList = () => {
       })
       .catch(() => toast.error("Failed to load your assignments"))
       .finally(() => setClassroomsLoading(false));
-  }, [isAdmin, user?.id]);
+  }, [isAdmin, user?.id, user?.roleData?.classrooms]);
 
   useEffect(() => {
     if (!selectedClassId) {

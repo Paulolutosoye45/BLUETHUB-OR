@@ -1,7 +1,7 @@
 
 // import { Button } from "@bluethub/ui-kit"
 import AssessmentSelectSubject from "./assessment-select-subject"
-import { Link, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { EllipsisVertical } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
@@ -22,10 +22,10 @@ const Assessment = () => {
   }, [])
 
   return (
-    <div className="p-6 font-poppins">
+    <div className="p-3 sm:p-4 lg:p-6 font-poppins">
       <div className="backdrop-blur-sm rounded-2xl border border-white/20  overflow-hidden">
         {/* <TitleBar title="" hasVertical /> */}
-        <div className={`bg-linear-to-r from-chestnut to-chestnut/90 px-6 py-5 rounded-t-lg flex items-center justify-between`}>
+        <div className={`bg-linear-to-r from-chestnut to-chestnut/90 px-4 sm:px-6 py-4 sm:py-5 rounded-t-lg flex items-center justify-between`}>
 
           {/* Left side — back arrow + title + chevron */}
           <div className="flex items-center gap-2.5">
@@ -52,8 +52,9 @@ const Assessment = () => {
             {dropdownOpen && (
               <div className="absolute right-0 top-8 z-50 overflow-hidden bg-white rounded-xl shadow-lg border border-gray-100 py-1 w-44">
                 {[
-                  { label: "View Past Question", link: '/teacher/assessment/questionlist' },
-                  { label: "Use Media", link: '/teacher/assessment/upload-scan' },
+                  { label: "View Existing Questions", link: '/teacher/assessment/questionlist' },
+                  { label: "Extract Question", link: '/teacher/assessment/upload-scan' },
+                  { label: "Type Question", link: '/teacher/assessment/createQuiz' },
                   { label: "My Uploads", link: '/teacher/assessment/My-Uploads' },
                 ].map((item) => (
                   <button
@@ -73,17 +74,20 @@ const Assessment = () => {
 
         </div>
 
-        <div className="flex-1 p-8 bg-white/70 backdrop-blur-sm">
-          <div className="flex items-center justify-between mb-6" >
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-white/70 backdrop-blur-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6" >
             <div>
-              <h1 style={{ fontSize: 26, fontWeight: 700, color: "#1A1C5E", margin: 0, letterSpacing: -0.3 }}>
-                No question yet
+              <h1 className="text-[22px] sm:text-[26px] font-bold text-[#1A1C5E] m-0 tracking-[-0.3px]">
+                Question Journey
               </h1>
-              <p style={{ fontSize: 13.5, color: "#7B7FA8", margin: "5px 0 0", fontWeight: 400 }}>
-                Upload Question to Teacher's portal
+              <p className="text-[13px] sm:text-[13.5px] text-[#7B7FA8] mt-1.5 font-normal">
+                Choose how you want to add questions to your assessment.
               </p>
             </div>
-            <Link to='questionlist' style={{
+            <button
+              onClick={() => navigate('/teacher/assessment/questionlist')}
+              className="w-full sm:w-auto"
+              style={{
               background: "#E8302C",
               color: "#fff",
               border: "none",
@@ -99,36 +103,33 @@ const Assessment = () => {
               onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-1px)")}
               onMouseLeave={e => (e.currentTarget.style.transform = "translateY(0)")}
             >
-              View Past Question
-            </Link>
+              View Existing Questions
+            </button>
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-7">
+            <button
+              onClick={() => navigate('/teacher/assessment/upload-scan')}
+              className="text-left border border-[#C7CAF0] rounded-xl p-5 bg-[#2118920D] hover:border-chestnut/40 hover:shadow-sm transition-all"
+            >
+              <p className="text-sm font-semibold text-[#1A1C5E] mb-1">Extract Question</p>
+              <p className="text-[13px] text-[#6C70A6] leading-5">
+                Upload media and extract questions automatically from scanned files.
+              </p>
+            </button>
 
-          <div className="bg-[#2118921A]" style={{
-            border: "1px solid #C7CAF0",
-            borderRadius: 10,
-            padding: "13px 18px",
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginBottom: 28,
-          }}>
-            <svg width="18" height="18" fill="#2D2FA3" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" opacity="0.15" fill="#2D2FA3" />
-              <circle cx="12" cy="12" r="10" stroke="#2D2FA3" strokeWidth="2" fill="none" />
-              <path d="M12 8v4m0 4h.01" stroke="#2D2FA3" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-            <span style={{ fontSize: 13.5, color: "#3B3D8C" }}>
-              To Upload Question into Teacher's Portal{" "}
-              <Link to='createQuiz' style={{ color: "#E8302C", fontWeight: 600, textDecoration: "none" }}>
-                Click Here
-              </Link>
-            </span>
+            <button
+              onClick={() => navigate('/teacher/assessment/createQuiz')}
+              className="text-left border border-[#C7CAF0] rounded-xl p-5 bg-[#2118920D] hover:border-chestnut/40 hover:shadow-sm transition-all"
+            >
+              <p className="text-sm font-semibold text-[#1A1C5E] mb-1">Type Question</p>
+              <p className="text-[13px] text-[#6C70A6] leading-5">
+                Manually type and format questions using the current question form.
+              </p>
+            </button>
           </div>
 
-
-
-          <section className="mt-6">
+          <section className="mt-4 sm:mt-6">
             {/* Left Sidebar */}
             <section>
               <AssessmentSelectSubject />

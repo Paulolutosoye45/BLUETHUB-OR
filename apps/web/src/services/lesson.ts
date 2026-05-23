@@ -91,6 +91,7 @@ export interface LessonItem {
   description: string;
   accessDate?: string | null;
   accessTime?: string | null;
+  durationMinutes?: number | null;
   accessEndsAt?: string | null;
   isAccessOpen?: boolean;
   status: string;
