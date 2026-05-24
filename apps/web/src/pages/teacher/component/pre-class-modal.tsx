@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   X,
@@ -84,6 +84,13 @@ const PreClassModal = ({
   const [understood, setUnderstood] = useState(false);
   const [caching, setCaching] = useState(false);
   const [cacheProgress, setCacheProgress] = useState(0);
+  const lessonMediaLinks = useMemo(
+    () =>
+      media.filter(
+        (item) => typeof item.cloudinaryUrl === "string" && item.cloudinaryUrl.trim().length > 0
+      ),
+    [media]
+  );
 
   // NOTE: accessDate/accessTime is the student viewing window, NOT a teacher recording restriction.
   // Teachers can always start a class regardless of the schedule. Schedule is shown as info only.
@@ -101,26 +108,26 @@ const PreClassModal = ({
 
   // Pre-fetch media into browser cache when modal opens
   useEffect(() => {
-    if (!open || media.length === 0) return;
+    if (!open || lessonMediaLinks.length === 0) return;
     let cancelled = false;
     (async () => {
       try {
         const cache = await caches.open("bluethub-lesson-media");
-        for (let i = 0; i < media.length; i++) {
+        for (let i = 0; i < lessonMediaLinks.length; i++) {
           if (cancelled) break;
-          const url = media[i].cloudinaryUrl;
+          const url = lessonMediaLinks[i].cloudinaryUrl;
           if (url) {
             const cached = await cache.match(url);
             if (!cached) await cache.add(url).catch(() => {});
           }
-          setCacheProgress(Math.round(((i + 1) / media.length) * 100));
+          setCacheProgress(Math.round(((i + 1) / lessonMediaLinks.length) * 100));
         }
       } catch {
         // Cache API unavailable — proceed without caching
       }
     })();
     return () => { cancelled = true; };
-  }, [open, media]);
+  }, [open, lessonMediaLinks]);
 
   const handleClose = () => {
     setUnderstood(false);
@@ -136,7 +143,7 @@ const PreClassModal = ({
     try {
       const cache = await caches.open("bluethub-lesson-media");
       await Promise.allSettled(
-        media.map((m) => m.cloudinaryUrl ? cache.add(m.cloudinaryUrl).catch(() => {}) : Promise.resolve())
+        lessonMediaLinks.map((m) => cache.add(m.cloudinaryUrl).catch(() => {}))
       );
     } catch { /* proceed if cache unavailable */ }
 
@@ -146,12 +153,12 @@ const PreClassModal = ({
 
     sessionStorage.setItem("activeLesson", JSON.stringify({
       lesson,
-      media,
+      media: lessonMediaLinks,
       startedAt: new Date().toISOString(),
     }));
 
     navigate("/teacher/board", {
-      state: { lessonId: lesson.id, lesson, media },
+      state: { lessonId: lesson.id, lesson, media: lessonMediaLinks },
     });
   };
 
@@ -266,13 +273,35 @@ const PreClassModal = ({
                         </div>
                       )}
                     </div>
-                    {media.length > 0 && (
+                    {lessonMediaLinks.length > 0 && (
                       <div className="text-center shrink-0">
-                        <p className="text-2xl font-bold text-chestnut">{media.length}</p>
+                        <p className="text-2xl font-bold text-chestnut">{lessonMediaLinks.length}</p>
                         <p className="text-[10px] text-gray-400 uppercase">Media Files</p>
                       </div>
                     )}
                   </div>
+
+                  {lessonMediaLinks.length > 0 && (
+                    <div className="mt-4 rounded-xl border border-gray-200 bg-white/80 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">
+                        Lesson Media Links
+                      </p>
+                      <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
+                        {lessonMediaLinks.map((item) => (
+                          <a
+                            key={item.id}
+                            href={item.cloudinaryUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block text-xs text-blue-600 hover:text-blue-700 hover:underline break-all"
+                            title={item.cloudinaryUrl}
+                          >
+                            {item.originalFileName || item.fileName || item.cloudinaryUrl}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

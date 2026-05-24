@@ -18,22 +18,6 @@ const getRecordingElapsedMs = (timerElapsedSeconds: number): number => {
   return Math.max(0, Math.round(timerElapsedSeconds * 1000) - recordingStartTimerMs);
 };
 
-// List preferred PDFs in priority order. First one found in public/ wins.
-const BOARD_PDF_CANDIDATES = ['/invoiceMar-v2.pdf', '/pdf.pdf'];
-
-const resolveBoardPdfUrl = async (): Promise<string> => {
-  for (const candidate of BOARD_PDF_CANDIDATES) {
-    try {
-      const response = await fetch(candidate, { method: 'HEAD' });
-      if (response.ok) return candidate;
-    } catch {
-      // Try next candidate.
-    }
-  }
-
-  return '/pdf.pdf';
-};
-
 const Media = () => {
   const [availableMedia, setAvailableMedia] = useState<IMedia[]>([]);
   const [cachedIds, setCachedIds] = useState<Set<string>>(new Set());
@@ -97,32 +81,8 @@ const Media = () => {
           }
         } catch { /* ignore parse errors */ }
 
-        const boardPdfUrl = await resolveBoardPdfUrl();
-        const pdfFileName = boardPdfUrl.split('/').pop()?.replace(/\.pdf$/i, '') ?? 'pdf';
-        const pdfCacheId = `pdf-${pdfFileName}`;
-        await deleteImage('pdf-1').catch(() => undefined);
-
-        // Use lesson media if available, otherwise fall back to demo assets
-        const loadedImages: IMedia[] = lessonMedia.length > 0 ? lessonMedia : [
-          {
-            id: "image01",
-            name: "image01",
-            type: "image",
-            url: "https://cdn-jagbh.nitrocdn.com/TYVZHePxisufUuSiVWDElscksnaOxEbE/assets/images/source/rev-50b38d4/s39613.pcdn.co/wp-content/uploads/2019/11/Implementing-active-learning-and-student-centered-pedagogy.jpg",
-          },
-          {
-            id: "video01",
-            name: "video01",
-            type: "video",
-            url: "/video01.mp4",
-          },
-          {
-            id: pdfCacheId,
-            name: pdfFileName,
-            type: "pdf",
-            url: boardPdfUrl,
-          },
-        ];
+        // Use only media links from lesson info (no demo fallbacks).
+        const loadedImages: IMedia[] = lessonMedia;
 
         setAvailableMedia(loadedImages);
 
@@ -208,9 +168,9 @@ const Media = () => {
           <div className="max-h-96 overflow-y-auto">
             {availableMedia.length > 0 ? (
               <div className="p-4 space-y-2">
-                {availableMedia.map((media, index) => (
+                {availableMedia.map((media) => (
                   <div
-                    key={index}
+                    key={media.id}
                     className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${!cachedIds.has(media.id)
                       ? 'bg-gray-50 border border-gray-200 cursor-not-allowed opacity-60'
                       : selectedImage?.id === media.id

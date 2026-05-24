@@ -55,7 +55,7 @@ const Assessment = () => {
                   { label: "View Existing Questions", link: '/teacher/assessment/questionlist' },
                   { label: "Extract Question", link: '/teacher/assessment/upload-scan' },
                   { label: "Type Question", link: '/teacher/assessment/createQuiz' },
-                  { label: "My Uploads", link: '/teacher/assessment/My-Uploads' },
+                  { label: "Pending Job Status", link: '/teacher/assessment/My-Uploads' },
                 ].map((item) => (
                   <button
                     key={item.label}

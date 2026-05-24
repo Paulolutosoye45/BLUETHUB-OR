@@ -1,7 +1,7 @@
 import TitleBar from "@/shared/title-bar";
-import { Button, Label } from "@bluethub/ui-kit";
+import { Button, Dialog, DialogContent, DialogTitle, Label } from "@bluethub/ui-kit";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
 import { schoolService } from "@/services/school";
@@ -36,6 +36,14 @@ interface SubTopicChip {
 }
 
 const ADMIN_ROLES = ["SuperAdministrator", "Administrator"];
+const QUESTION_LIST_FILTER_STORAGE_KEY = "teacher-question-list-filters";
+
+type PersistedFilters = {
+  classroomId?: string;
+  subjectId?: string;
+  topicId?: string;
+  subTopicId?: string;
+};
 
 const SelectField = ({
   label,
@@ -78,8 +86,31 @@ const SelectField = ({
 
 const TopicQuestionList = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isLoading: authLoading, refreshUser } = useAuthContext();
   const isAdmin = ADMIN_ROLES.includes(user?.roleName ?? "");
+
+  const [initialFilters] = useState<PersistedFilters>(() => {
+    const fromQuery: PersistedFilters = {
+      classroomId: searchParams.get("classroomId") ?? undefined,
+      subjectId: searchParams.get("subjectId") ?? undefined,
+      topicId: searchParams.get("topicId") ?? undefined,
+      subTopicId: searchParams.get("subTopicId") ?? undefined,
+    };
+
+    if (fromQuery.classroomId || fromQuery.subjectId || fromQuery.topicId || fromQuery.subTopicId) {
+      return fromQuery;
+    }
+
+    try {
+      const raw = localStorage.getItem(QUESTION_LIST_FILTER_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as PersistedFilters;
+      return parsed ?? {};
+    } catch {
+      return {};
+    }
+  });
 
   const [classrooms, setClassrooms] = useState<ApiItem[]>([]);
   const [subjects, setSubjects] = useState<ApiItem[]>([]);
@@ -87,15 +118,16 @@ const TopicQuestionList = () => {
   const [questions, setQuestions] = useState<QuestionSummaryDto[]>([]);
   const [questionsTotal, setQuestionsTotal] = useState(0);
 
-  const [selectedClassId, setSelectedClassId] = useState<string>();
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>();
-  const [selectedTopicId, setSelectedTopicId] = useState<string>();
-  const [selectedSubTopicId, setSelectedSubTopicId] = useState<string>();
+  const [selectedClassId, setSelectedClassId] = useState<string | undefined>(initialFilters.classroomId);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | undefined>(initialFilters.subjectId);
+  const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>(initialFilters.topicId);
+  const [selectedSubTopicId, setSelectedSubTopicId] = useState<string | undefined>(initialFilters.subTopicId);
 
   const [classroomsLoading, setClassroomsLoading] = useState(false);
   const [subjectsLoading, setSubjectsLoading] = useState(false);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState<QuestionSummaryDto | null>(null);
 
   const [teacherAssignments, setTeacherAssignments] = useState<TeacherAssignment[]>([]);
 
@@ -120,9 +152,9 @@ const TopicQuestionList = () => {
       })
       .then((res) => {
         const raw = res.data as any;
-        // Backend returns questions at top level (data field is null)
-        const items = raw.questions ?? raw.data?.questions ?? [];
-        const total = raw.totalCount ?? raw.data?.totalCount ?? items.length;
+        const payload = raw.data ?? raw.dat ?? raw;
+        const items = raw.questions ?? raw.dat?.questions ?? payload?.questions ?? [];
+        const total = raw.totalCount ?? raw.dat?.totalCount ?? payload?.totalCount ?? items.length;
         setQuestions(items);
         setQuestionsTotal(total);
       })
@@ -141,6 +173,17 @@ const TopicQuestionList = () => {
   }, [authLoading, isAdmin]);
 
   useEffect(() => {
+    const payload: PersistedFilters = {
+      classroomId: selectedClassId,
+      subjectId: selectedSubjectId,
+      topicId: selectedTopicId,
+      subTopicId: selectedSubTopicId,
+    };
+
+    localStorage.setItem(QUESTION_LIST_FILTER_STORAGE_KEY, JSON.stringify(payload));
+  }, [selectedClassId, selectedSubjectId, selectedTopicId, selectedSubTopicId]);
+
+  useEffect(() => {
     if (!user?.id) return;
 
     if (isAdmin) {
@@ -149,7 +192,15 @@ const TopicQuestionList = () => {
         .getAllClassRooms()
         .then((res) => {
           const raw = (res.data as any)?.data?.classrooms ?? [];
-          setClassrooms(raw.map((c: any) => ({ id: String(c.id), name: String(c.name) })));
+          const nextClassrooms = raw.map((c: any) => ({ id: String(c.id), name: String(c.name) }));
+          setClassrooms(nextClassrooms);
+          setSelectedClassId((prev) => {
+            if (prev && nextClassrooms.some((c: ApiItem) => c.id === prev)) return prev;
+            if (initialFilters.classroomId && nextClassrooms.some((c: ApiItem) => c.id === initialFilters.classroomId)) {
+              return initialFilters.classroomId;
+            }
+            return nextClassrooms[0]?.id;
+          });
         })
         .catch(() => toast.error("Failed to load classrooms"))
         .finally(() => setClassroomsLoading(false));
@@ -183,24 +234,30 @@ const TopicQuestionList = () => {
         const nextClassrooms = Array.from(uniqueClassrooms.values());
         setTeacherAssignments(pairs);
         setClassrooms(nextClassrooms);
-        if (nextClassrooms[0]) setSelectedClassId(nextClassrooms[0].id);
+        setSelectedClassId((prev) => {
+          if (prev && nextClassrooms.some((c) => c.id === prev)) return prev;
+          if (initialFilters.classroomId && nextClassrooms.some((c) => c.id === initialFilters.classroomId)) {
+            return initialFilters.classroomId;
+          }
+          return nextClassrooms[0]?.id;
+        });
       })
       .catch(() => toast.error("Failed to load your assignments"))
       .finally(() => setClassroomsLoading(false));
-  }, [isAdmin, user?.id, user?.roleData?.classrooms]);
+  }, [initialFilters.classroomId, isAdmin, user?.id, user?.roleData?.classrooms]);
 
   useEffect(() => {
     if (!selectedClassId) {
       setSubjects([]);
       setSelectedSubjectId(undefined);
       setSelectedTopicId(undefined);
+      setSelectedSubTopicId(undefined);
       setSummary(null);
       setQuestions([]);
       setQuestionsTotal(0);
       return;
     }
 
-    setSelectedSubjectId(undefined);
     setSelectedTopicId(undefined);
     setSelectedSubTopicId(undefined);
     setSummary(null);
@@ -216,12 +273,18 @@ const TopicQuestionList = () => {
           const major = data?.majorSubjects ?? [];
           const minor = data?.minorSubjects ?? [];
           const flat = [...major, ...minor];
-          setSubjects(
-            flat.map((s: any) => ({
+          const nextSubjects = flat.map((s: any) => ({
               id: String(s.subjectId ?? s.id),
               name: String(s.subjectName ?? s.name),
-            })),
-          );
+            }));
+          setSubjects(nextSubjects);
+          setSelectedSubjectId((prev) => {
+            if (prev && nextSubjects.some((s: ApiItem) => s.id === prev)) return prev;
+            if (initialFilters.subjectId && nextSubjects.some((s: ApiItem) => s.id === initialFilters.subjectId)) {
+              return initialFilters.subjectId;
+            }
+            return nextSubjects[0]?.id;
+          });
         })
         .catch(() => toast.error("Failed to load subjects"))
         .finally(() => setSubjectsLoading(false));
@@ -238,9 +301,15 @@ const TopicQuestionList = () => {
       }, []);
 
     setSubjects(classSubjects);
-    if (classSubjects[0]) setSelectedSubjectId(classSubjects[0].id);
+    setSelectedSubjectId((prev) => {
+      if (prev && classSubjects.some((s) => s.id === prev)) return prev;
+      if (initialFilters.subjectId && classSubjects.some((s) => s.id === initialFilters.subjectId)) {
+        return initialFilters.subjectId;
+      }
+      return classSubjects[0]?.id;
+    });
     setSubjectsLoading(false);
-  }, [isAdmin, selectedClassId, teacherAssignments]);
+  }, [initialFilters.subjectId, isAdmin, selectedClassId, teacherAssignments]);
 
   useEffect(() => {
     if (!selectedClassId || !selectedSubjectId) {
@@ -248,14 +317,12 @@ const TopicQuestionList = () => {
       return;
     }
 
-    setSelectedTopicId(undefined);
-    setSelectedSubTopicId(undefined);
-
     setSummaryLoading(true);
     questionService
       .getSubjectQuestionSummary(selectedClassId, selectedSubjectId, selectedSubTopicId)
       .then((res) => {
-        setSummary((res.data as any)?.data ?? null);
+        const raw = res.data as any;
+        setSummary(raw?.data ?? raw?.dat ?? null);
       })
       .catch(() => {
         setSummary(null);
@@ -580,7 +647,12 @@ const TopicQuestionList = () => {
 
             <div className="divide-y divide-slate-100">
               {displayedQuestions.map((question, idx) => (
-                <div key={question.id} className="px-4 py-3 sm:py-4">
+                <button
+                  key={question.id}
+                  type="button"
+                  onClick={() => setSelectedQuestion(question)}
+                  className="w-full text-left px-4 py-3 sm:py-4 hover:bg-slate-50 transition-colors"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-xs text-slate-400 font-medium">#{idx + 1}</p>
@@ -595,10 +667,54 @@ const TopicQuestionList = () => {
                       {question.status}
                     </span>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           </div>
+
+          <Dialog open={!!selectedQuestion} onOpenChange={(open) => !open && setSelectedQuestion(null)}>
+            <DialogContent className="max-w-xl rounded-2xl p-0 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff]">
+                <DialogTitle className="text-base font-semibold text-slate-800">Question Details</DialogTitle>
+              </div>
+
+              {selectedQuestion && (
+                <div className="p-5 space-y-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Question</p>
+                    <p className="mt-2 text-sm text-slate-700 leading-6">
+                      {selectedQuestion.title || "Untitled question"}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <span className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600">
+                      Type: {selectedQuestion.questionTypeName || `Type ${selectedQuestion.questionType}`}
+                    </span>
+                    <span className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600">
+                      Difficulty: {selectedQuestion.difficultyLevelName || `Level ${selectedQuestion.difficultyLevel}`}
+                    </span>
+                    <span className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600">
+                      Topic: {selectedQuestion.topicName || selectedQuestion.topic || "No topic"}
+                    </span>
+                    <span className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600">
+                      Status: {selectedQuestion.statusName || `Status ${selectedQuestion.status}`}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      onClick={() => setSelectedQuestion(null)}
+                      className="h-10 rounded-xl bg-chestnut hover:bg-chestnut/90 text-white px-4"
+                    >
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
 
           <div className="sm:hidden">
             <Button
