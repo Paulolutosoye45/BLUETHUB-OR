@@ -1,17 +1,207 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import TitleBar from "@/shared/title-bar";
+import { Button, Dialog, DialogContent, DialogTitle } from "@bluethub/ui-kit";
 import { useAuthContext } from "@/contexts/auth-context";
 import { schoolService } from "@/services/school";
 import {
   questionJobService,
+  type ExtractedQuestionDto,
   type JobStatusItem,
   type JobStatusesSummary,
 } from "@/services/question-job";
 
 type SelectItem = { id: string; name: string };
+type QuestionContentPart = {
+  type?: string;
+  value?: string;
+  display?: string;
+};
+
+type UploadedOption = {
+  optionLabel?: string;
+  optionText?: string;
+  label?: string;
+  plainText?: string;
+  html?: string;
+  contentParts?: unknown;
+  isCorrect?: boolean;
+  orderIndex?: number;
+};
+
+type UploadedQuestion = Omit<ExtractedQuestionDto, "options"> & {
+  questionNumber?: number;
+  hasLatex?: boolean;
+  hasImages?: boolean;
+  options?: UploadedOption[];
+};
+
+type ImageBound = {
+  key: string;
+};
+
+type EditableOption = {
+  id: string;
+  label: string;
+  text: string;
+  isCorrect: boolean;
+};
+
+type EditableQuestion = Omit<UploadedQuestion, "options"> & {
+  localId: string;
+  questionText: string;
+  options: EditableOption[];
+};
+
+const QUESTION_TYPE_CHOICES = [
+  { value: 1, label: "Multiple Choice" },
+  { value: 2, label: "Short Answer" },
+  { value: 3, label: "Essay" },
+  { value: 4, label: "True/False" },
+] as const;
+
+const isOptionQuestionType = (questionType: number) => questionType === 1 || questionType === 4;
+
+const escapeHtml = (value: string) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
+const stripHtml = (value: string) => value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+const nextOptionLabel = (index: number) => String.fromCharCode(65 + index);
+
+const parseContentParts = (contentParts: unknown): QuestionContentPart[] => {
+  if (Array.isArray(contentParts)) {
+    return contentParts as QuestionContentPart[];
+  }
+
+  if (typeof contentParts === "string") {
+    try {
+      const parsed = JSON.parse(contentParts);
+      return Array.isArray(parsed) ? (parsed as QuestionContentPart[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+};
+
+const renderLatex = (value: string, displayMode = false) => {
+  try {
+    return katex.renderToString(value, {
+      throwOnError: false,
+      displayMode,
+      strict: "ignore",
+    });
+  } catch {
+    return value;
+  }
+};
+
+const deriveImageKeyFromUrl = (url: string): string => {
+  const file = url.split("/").pop() ?? "";
+  return file.replace(/\.[a-zA-Z0-9]+$/, "");
+};
+
+const latexInlineSpanRegex = /<span[^>]*class=['\"][^'\"]*th-math-inline[^'\"]*['\"][^>]*>\\\(([\s\S]*?)\\\)<\/span>/g;
+const imagePlaceholderRegex = /\{\{image:([^}]+)\}\}/g;
+
+const buildImageMap = (parts: QuestionContentPart[], imageBounds: ImageBound[]) => {
+  const map = new Map<string, string>();
+
+  parts
+    .filter((part) => part.type === "image" && typeof part.value === "string" && /^https?:\/\//i.test(part.value))
+    .forEach((part) => {
+      const url = part.value as string;
+      const key = deriveImageKeyFromUrl(url);
+      if (!map.has(key)) map.set(key, url);
+    });
+
+  imageBounds.forEach((bound) => {
+    if (map.has(bound.key)) return;
+    const matched = Array.from(map.entries()).find(([k]) => k.includes(bound.key) || bound.key.includes(k));
+    if (matched) map.set(bound.key, matched[1]);
+  });
+
+  return map;
+};
+
+const renderHtmlWithEnhancements = (
+  html: string,
+  parts: QuestionContentPart[],
+  imageBounds: ImageBound[],
+) => {
+  const imageMap = buildImageMap(parts, imageBounds);
+
+  const withMath = html.replace(latexInlineSpanRegex, (_match, expr: string) =>
+    renderLatex(expr, false),
+  );
+
+  const withImages = withMath.replace(imagePlaceholderRegex, (_match, key: string) => {
+    const url = imageMap.get(key.trim());
+    if (!url) {
+      return `<span class="text-xs italic text-slate-400">[Image: ${key}]</span>`;
+    }
+    return `<img src="${url}" alt="${key}" class="my-3 rounded-lg border border-slate-200 max-h-64 w-auto" />`;
+  });
+
+  return withImages;
+};
+
+const normalizeQuestionText = (q: UploadedQuestion) => {
+  const raw = q.questionHtml || "";
+  return raw
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\\\(|\\\)|\{\{image:[^}]+\}\}/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+};
+
+const questionRichnessScore = (q: UploadedQuestion) => {
+  let score = 0;
+  if (q.hasLatex) score += 3;
+  if (q.hasImages) score += 2;
+  if (parseContentParts(q.contentParts).some((p) => p.type === "latex")) score += 3;
+  if (parseContentParts(q.contentParts).some((p) => p.type === "image")) score += 2;
+  if ((q.questionHtml || "").includes("th-math-inline")) score += 2;
+  score += (q.questionHtml || "").length / 1000;
+  return score;
+};
+
+const dedupeQuestions = (questions: UploadedQuestion[]) => {
+  const byId = new Map<string, UploadedQuestion>();
+  const bySignature = new Map<string, UploadedQuestion>();
+
+  const chooseBetter = (a: UploadedQuestion, b: UploadedQuestion) =>
+    questionRichnessScore(a) >= questionRichnessScore(b) ? a : b;
+
+  questions.forEach((q) => {
+    const keyById = q.id || "";
+    const normalized = normalizeQuestionText(q);
+    const keyBySig = `${q.questionNumber ?? ""}|${normalized.slice(0, 180)}`;
+
+    if (keyById) {
+      const prevById = byId.get(keyById);
+      byId.set(keyById, prevById ? chooseBetter(prevById, q) : q);
+      return;
+    }
+
+    const prev = bySignature.get(keyBySig);
+    bySignature.set(keyBySig, prev ? chooseBetter(prev, q) : q);
+  });
+
+  return [...byId.values(), ...bySignature.values()];
+};
 
 const statusPillClass = (status: JobStatusItem["status"]) => {
   switch (status) {
@@ -78,6 +268,209 @@ const MyUploads = () => {
     failed: 0,
   });
   const [jobs, setJobs] = useState<JobStatusItem[]>([]);
+  const [previewJob, setPreviewJob] = useState<JobStatusItem | null>(null);
+  const [editableQuestions, setEditableQuestions] = useState<EditableQuestion[]>([]);
+  const [previewImageBounds, setPreviewImageBounds] = useState<ImageBound[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  const toEditableQuestion = (question: UploadedQuestion, index: number): EditableQuestion => {
+    const parts = parseContentParts(question.contentParts);
+    const fromParts = parts
+      .filter((part) => part.type === "text" || part.type === "latex")
+      .map((part) => {
+        if (part.type === "latex") return `$${part.value ?? ""}$`;
+        return part.value ?? "";
+      })
+      .join("")
+      .trim();
+
+    const questionText = fromParts || stripHtml(question.questionHtml || "") || "";
+
+    const mappedOptions = (question.options ?? []).map((option, optionIndex) => ({
+      id: crypto.randomUUID(),
+      label: option.optionLabel ?? option.label ?? nextOptionLabel(optionIndex),
+      text:
+        option.optionText ??
+        option.plainText ??
+        stripHtml(option.html ?? "") ??
+        "",
+      isCorrect: !!option.isCorrect,
+    }));
+
+    const options =
+      question.questionType === 4
+        ? [
+            { id: crypto.randomUUID(), label: "A", text: "True", isCorrect: mappedOptions[0]?.isCorrect ?? false },
+            { id: crypto.randomUUID(), label: "B", text: "False", isCorrect: mappedOptions[1]?.isCorrect ?? false },
+          ]
+        : mappedOptions;
+
+    return {
+      ...question,
+      localId: crypto.randomUUID(),
+      questionNumber: question.questionNumber ?? index + 1,
+      questionText,
+      options,
+    };
+  };
+
+  const renumberQuestions = (questions: EditableQuestion[]) =>
+    questions.map((question, index) => ({
+      ...question,
+      questionNumber: index + 1,
+      options: question.options.map((option, optionIndex) => ({
+        ...option,
+        label: nextOptionLabel(optionIndex),
+      })),
+    }));
+
+  const updateQuestion = (localId: string, updates: Partial<EditableQuestion>) => {
+    setEditableQuestions((prev) =>
+      prev.map((question) => (question.localId === localId ? { ...question, ...updates } : question)),
+    );
+  };
+
+  const updateQuestionType = (localId: string, questionType: number) => {
+    setEditableQuestions((prev) =>
+      prev.map((question) => {
+        if (question.localId !== localId) return question;
+
+        if (questionType === 4) {
+          return {
+            ...question,
+            questionType,
+            questionTypeName: "TrueFalse",
+            options: [
+              { id: crypto.randomUUID(), label: "A", text: "True", isCorrect: question.options[0]?.isCorrect ?? false },
+              { id: crypto.randomUUID(), label: "B", text: "False", isCorrect: question.options[1]?.isCorrect ?? false },
+            ],
+          };
+        }
+
+        if (questionType === 1) {
+          const base = question.options.length >= 2 ? question.options : [
+            { id: crypto.randomUUID(), label: "A", text: "", isCorrect: false },
+            { id: crypto.randomUUID(), label: "B", text: "", isCorrect: false },
+          ];
+          return {
+            ...question,
+            questionType,
+            questionTypeName: "MultipleChoice",
+            options: base.map((option, index) => ({ ...option, label: nextOptionLabel(index) })),
+          };
+        }
+
+        return {
+          ...question,
+          questionType,
+          questionTypeName:
+            questionType === 2 ? "ShortAnswer" : questionType === 3 ? "Essay" : question.questionTypeName,
+          options: [],
+        };
+      }),
+    );
+  };
+
+  const updateOption = (localId: string, optionId: string, text: string) => {
+    setEditableQuestions((prev) =>
+      prev.map((question) => {
+        if (question.localId !== localId) return question;
+        return {
+          ...question,
+          options: question.options.map((option) =>
+            option.id === optionId ? { ...option, text } : option,
+          ),
+        };
+      }),
+    );
+  };
+
+  const setCorrectOption = (localId: string, optionId: string) => {
+    setEditableQuestions((prev) =>
+      prev.map((question) => {
+        if (question.localId !== localId) return question;
+        return {
+          ...question,
+          options: question.options.map((option) => ({
+            ...option,
+            isCorrect: option.id === optionId,
+          })),
+        };
+      }),
+    );
+  };
+
+  const addOption = (localId: string) => {
+    setEditableQuestions((prev) =>
+      prev.map((question) => {
+        if (question.localId !== localId) return question;
+        const nextOptions = [
+          ...question.options,
+          {
+            id: crypto.randomUUID(),
+            label: nextOptionLabel(question.options.length),
+            text: "",
+            isCorrect: false,
+          },
+        ];
+        return { ...question, options: nextOptions };
+      }),
+    );
+  };
+
+  const removeOption = (localId: string, optionId: string) => {
+    setEditableQuestions((prev) =>
+      prev.map((question) => {
+        if (question.localId !== localId) return question;
+        const filtered = question.options.filter((option) => option.id !== optionId);
+        return {
+          ...question,
+          options: filtered.map((option, index) => ({ ...option, label: nextOptionLabel(index) })),
+        };
+      }),
+    );
+  };
+
+  const addQuestion = () => {
+    setEditableQuestions((prev) =>
+      renumberQuestions([
+        ...prev,
+        {
+          localId: crypto.randomUUID(),
+          id: "",
+          questionNumber: prev.length + 1,
+          questionType: 1,
+          questionTypeName: "MultipleChoice",
+          questionHtml: "",
+          questionText: "",
+          contentParts: [],
+          hasLatex: false,
+          hasImages: false,
+          hasMedia: false,
+          correctAnswer: null,
+          difficultyLevel: 1,
+          marksAllocation: 1,
+          status: 0,
+          statusName: "Draft",
+          subTopicName: prev[0]?.subTopicName ?? "",
+          topicName: prev[0]?.topicName ?? "",
+          creationDate: new Date().toISOString(),
+          options: [
+            { id: crypto.randomUUID(), label: "A", text: "", isCorrect: false },
+            { id: crypto.randomUUID(), label: "B", text: "", isCorrect: false },
+          ],
+        },
+      ]),
+    );
+  };
+
+  const removeQuestion = (localId: string) => {
+    setEditableQuestions((prev) => {
+      const next = prev.filter((question) => question.localId !== localId);
+      return renumberQuestions(next);
+    });
+  };
 
   const classrooms = useMemo<SelectItem[]>(() => {
     return (user?.roleData?.classrooms ?? []).map((c) => ({
@@ -220,6 +613,30 @@ const MyUploads = () => {
     void fetchStatuses();
   }, [classroomId, subjectId, topicId, subTopicId]);
 
+  const handleOpenJobPreview = async (job: JobStatusItem) => {
+    setPreviewJob(job);
+    setEditableQuestions([]);
+    setPreviewImageBounds([]);
+    setIsEditMode(false);
+    setPreviewLoading(true);
+
+    try {
+      const { data } = await questionJobService.getQuestionsByJobId(job.jobId);
+      const raw = data as any;
+      const payload = raw?.data ?? raw?.dat ?? raw;
+      const questions = (payload?.questions ?? []) as UploadedQuestion[];
+      const deduped = dedupeQuestions(questions);
+      setEditableQuestions(deduped.map(toEditableQuestion));
+      setPreviewImageBounds((payload?.imageBounds ?? []) as ImageBound[]);
+    } catch {
+      setEditableQuestions([]);
+      setPreviewImageBounds([]);
+      toast.error("Failed to load questions for this upload job");
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
   const FilterSelect = ({
     label,
     value,
@@ -338,8 +755,14 @@ const MyUploads = () => {
             )}
 
             <div className="divide-y divide-slate-100">
-              {jobs.map((job) => (
-                <article key={job.jobId} className="px-4 py-3 sm:py-4">
+              {jobs.map((job) => {
+                const canViewQuestions = job.status === "Completed";
+
+                return (
+                <article
+                  key={job.jobId}
+                  className="px-4 py-3 sm:py-4"
+                >
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-slate-800 truncate">
@@ -361,12 +784,292 @@ const MyUploads = () => {
                       <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${statusPillClass(job.status)}`}>
                         {job.status}
                       </span>
+                      <Button
+                        type="button"
+                        onClick={() => void handleOpenJobPreview(job)}
+                        disabled={!canViewQuestions}
+                        className="h-8 rounded-lg bg-chestnut hover:bg-chestnut/90 text-white text-xs font-semibold px-3 disabled:bg-slate-200 disabled:text-slate-500"
+                      >
+                        View Questions
+                      </Button>
                     </div>
                   </div>
+                  {!canViewQuestions && (
+                    <p className="text-[11px] text-slate-400 mt-2">
+                      Questions can be viewed after this job is completed.
+                    </p>
+                  )}
                 </article>
-              ))}
+              )})}
             </div>
           </div>
+
+          <Dialog open={!!previewJob} onOpenChange={(open) => !open && setPreviewJob(null)}>
+            <DialogContent className="max-w-3xl rounded-2xl p-0 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff]">
+                <DialogTitle className="text-base font-semibold text-slate-800">Uploaded Job Questions</DialogTitle>
+                {previewJob && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    {previewJob.topicName} • {previewJob.subTopicName} • {previewJob.questionType}
+                  </p>
+                )}
+              </div>
+
+              <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                {previewLoading && (
+                  <div className="py-10 flex items-center justify-center text-slate-500 text-sm gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading questions...
+                  </div>
+                )}
+
+                {!previewLoading && editableQuestions.length === 0 && (
+                  <div className="py-10 text-center text-slate-400 text-sm">
+                    No questions returned for this job.
+                  </div>
+                )}
+
+                {!previewLoading && editableQuestions.length > 0 && (
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    <p className="text-xs text-slate-600 font-medium">
+                      {editableQuestions.length} question{editableQuestions.length !== 1 ? "s" : ""}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        onClick={() => setIsEditMode((prev) => !prev)}
+                        className="h-8 rounded-lg border border-slate-300 bg-white text-slate-700 px-3 text-xs font-semibold"
+                      >
+                        {isEditMode ? "Preview" : "Edit"}
+                      </Button>
+                      {isEditMode && (
+                        <Button
+                          type="button"
+                          onClick={addQuestion}
+                          className="h-8 rounded-lg bg-chestnut hover:bg-chestnut/90 text-white px-3 text-xs font-semibold"
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-1" />
+                          Add Question
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {!previewLoading && editableQuestions.map((question, index) => (
+                  <article key={question.localId} className="rounded-xl border border-slate-200 p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="text-sm font-semibold text-slate-800 leading-6 w-full">
+                        <p>{question.questionNumber ?? index + 1}.</p>
+
+                        {!isEditMode && !!question.questionHtml?.trim() ? (
+                          <div
+                            className="mt-1 prose prose-sm max-w-none text-slate-700"
+                            dangerouslySetInnerHTML={{
+                              __html: renderHtmlWithEnhancements(
+                                question.questionHtml,
+                                parseContentParts(question.contentParts),
+                                previewImageBounds,
+                              ),
+                            }}
+                          />
+                        ) : !isEditMode ? (
+                          <div className="mt-1 space-y-2 text-slate-700 font-normal">
+                            {parseContentParts(question.contentParts).map((part, partIndex) => {
+                              const key = `${question.id}-${partIndex}`;
+                              if (part.type === "latex") {
+                                const isBlock = part.display === "block";
+                                return (
+                                  <span
+                                    key={key}
+                                    className={isBlock ? "block my-2" : "inline"}
+                                    dangerouslySetInnerHTML={{ __html: renderLatex(part.value ?? "", isBlock) }}
+                                  />
+                                );
+                              }
+
+                              if (part.type === "image") {
+                                const src = part.value ?? "";
+                                if (/^https?:\/\//i.test(src)) {
+                                  return (
+                                    <img
+                                      key={key}
+                                      src={src}
+                                      alt="Question visual"
+                                      className="my-2 rounded-lg border border-slate-200 max-h-64 w-auto"
+                                      loading="lazy"
+                                    />
+                                  );
+                                }
+                                return (
+                                  <p key={key} className="text-xs italic text-slate-500">
+                                    [Image placeholder: {part.value ?? "image"}]
+                                  </p>
+                                );
+                              }
+
+                              return <p key={key}>{part.value ?? ""}</p>;
+                            })}
+                          </div>
+                        ) : (
+                          <div className="space-y-3 mt-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <select
+                                value={question.questionType}
+                                onChange={(e) => updateQuestionType(question.localId, Number(e.target.value))}
+                                className="h-10 rounded-lg border border-slate-200 px-3 text-sm"
+                              >
+                                {QUESTION_TYPE_CHOICES.map((choice) => (
+                                  <option key={choice.value} value={choice.value}>{choice.label}</option>
+                                ))}
+                              </select>
+
+                              <input
+                                type="number"
+                                min={1}
+                                value={question.difficultyLevel}
+                                onChange={(e) =>
+                                  updateQuestion(question.localId, {
+                                    difficultyLevel: Math.max(1, Number(e.target.value) || 1),
+                                  })
+                                }
+                                className="h-10 rounded-lg border border-slate-200 px-3 text-sm"
+                                placeholder="Difficulty"
+                              />
+
+                              <input
+                                type="number"
+                                min={1}
+                                value={question.marksAllocation}
+                                onChange={(e) =>
+                                  updateQuestion(question.localId, {
+                                    marksAllocation: Math.max(1, Number(e.target.value) || 1),
+                                  })
+                                }
+                                className="h-10 rounded-lg border border-slate-200 px-3 text-sm"
+                                placeholder="Marks"
+                              />
+                            </div>
+
+                            <textarea
+                              rows={4}
+                              value={question.questionText}
+                              onChange={(e) =>
+                                updateQuestion(question.localId, {
+                                  questionText: e.target.value,
+                                  questionHtml: `<div class='th-question'><div class='th-block'>${escapeHtml(e.target.value)}</div></div>`,
+                                })
+                              }
+                              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                              placeholder="Edit question text"
+                            />
+
+                            {isOptionQuestionType(question.questionType) && (
+                              <div className="space-y-2 rounded-lg border border-slate-200 p-3 bg-slate-50/60">
+                                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Options</p>
+
+                                {question.options.map((option) => (
+                                  <div key={option.id} className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setCorrectOption(question.localId, option.id)}
+                                      className={`h-8 w-8 rounded-full border text-xs font-bold ${option.isCorrect ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white border-slate-300 text-slate-500"}`}
+                                      title="Mark as correct"
+                                    >
+                                      {option.label}
+                                    </button>
+                                    <input
+                                      type="text"
+                                      value={option.text}
+                                      onChange={(e) => updateOption(question.localId, option.id, e.target.value)}
+                                      className="h-9 flex-1 rounded-lg border border-slate-200 px-3 text-sm"
+                                      placeholder={`Option ${option.label}`}
+                                    />
+                                    {question.questionType !== 4 && question.options.length > 2 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => removeOption(question.localId, option.id)}
+                                        className="h-8 w-8 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50"
+                                        title="Remove option"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+
+                                {question.questionType !== 4 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => addOption(question.localId)}
+                                    className="h-8 rounded-lg border border-slate-300 bg-white text-slate-600 px-3 text-xs font-semibold"
+                                  >
+                                    <Plus className="w-3.5 h-3.5 inline mr-1" />
+                                    Add Option
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold px-2 py-1">
+                          {question.questionTypeName || `Type ${question.questionType}`}
+                        </span>
+                        {isEditMode && (
+                          <button
+                            type="button"
+                            onClick={() => removeQuestion(question.localId)}
+                            className="h-8 w-8 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50"
+                            title="Remove question"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                      <span className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600">
+                        Difficulty: {question.difficultyLevel}
+                      </span>
+                      <span className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600">
+                        Marks: {question.marksAllocation}
+                      </span>
+                      <span className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600">
+                        Status: {question.statusName || question.status}
+                      </span>
+                    </div>
+
+                    {!isEditMode && question.options?.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        {question.options.map((option) => (
+                          <div key={`${question.localId}-${option.id}`} className="text-xs text-slate-600">
+                            <span className="font-semibold mr-1">{option.label}.</span>
+                            <span>{option.text}</span>
+                            {option.isCorrect && (
+                              <span className="ml-2 text-emerald-600 font-semibold">(Correct)</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </article>
+                ))}
+
+                <div className="pt-2 flex justify-end">
+                  <Button
+                    type="button"
+                    onClick={() => setPreviewJob(null)}
+                    className="h-10 rounded-xl bg-chestnut hover:bg-chestnut/90 text-white px-4"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
     </div>

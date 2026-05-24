@@ -1,5 +1,5 @@
 import TitleBar from "@/shared/title-bar";
-import { Button } from "@bluethub/ui-kit";
+import { Button, Dialog, DialogContent, DialogTitle } from "@bluethub/ui-kit";
 import { questionService, type QuestionSummaryDto } from "@/services/question";
 import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -20,6 +20,7 @@ const SubtopicQuestionList = () => {
   const [loading, setLoading] = useState(false);
   const [questions, setQuestions] = useState<QuestionSummaryDto[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [selectedQuestion, setSelectedQuestion] = useState<QuestionSummaryDto | null>(null);
 
   useEffect(() => {
     if (!classroomId || !subjectId || !subTopicId) {
@@ -40,9 +41,9 @@ const SubtopicQuestionList = () => {
       })
       .then((res) => {
         const raw = res.data as any;
-        // Backend returns questions at top level (data field is null)
-        const items = (raw.questions ?? raw.data?.questions ?? []) as QuestionSummaryDto[];
-        const total = (raw.totalCount ?? raw.data?.totalCount ?? items.length) as number;
+        const payload = raw.data ?? raw.dat ?? raw;
+        const items = (raw.questions ?? raw.dat?.questions ?? payload?.questions ?? []) as QuestionSummaryDto[];
+        const total = (raw.totalCount ?? raw.dat?.totalCount ?? payload?.totalCount ?? items.length) as number;
         setQuestions(items);
         setTotalCount(total);
       })
@@ -58,6 +59,16 @@ const SubtopicQuestionList = () => {
     if (questions[0]?.subTopicName) return questions[0].subTopicName;
     return subTopicNameParam || "Selected Subtopic";
   }, [questions, subTopicNameParam]);
+
+  const backToSubtopicsHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (classroomId) params.set("classroomId", classroomId);
+    if (subjectId) params.set("subjectId", subjectId);
+    if (topicId) params.set("topicId", topicId);
+
+    const query = params.toString();
+    return `/teacher/assessment/questionlist${query ? `?${query}` : ""}`;
+  }, [classroomId, subjectId, topicId]);
 
   return (
     <div className="p-3 sm:p-5 font-poppins">
@@ -77,7 +88,7 @@ const SubtopicQuestionList = () => {
                 {totalCount} question{totalCount === 1 ? "" : "s"}
               </span>
               <Link
-                to="/teacher/assessment/questionlist"
+                to={backToSubtopicsHref}
                 className="rounded-full border border-slate-200 bg-white text-slate-700 text-xs font-semibold px-3 py-1.5 hover:border-chestnut/50"
               >
                 Back to Subtopics
@@ -99,7 +110,12 @@ const SubtopicQuestionList = () => {
 
             <div className="divide-y divide-slate-100">
               {questions.map((question, idx) => (
-                <article key={question.id} className="px-4 py-3 sm:py-4">
+                <button
+                  key={question.id}
+                  type="button"
+                  onClick={() => setSelectedQuestion(question)}
+                  className="w-full text-left px-4 py-3 sm:py-4 hover:bg-slate-50 transition-colors"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-xs text-slate-400 font-medium">Question {idx + 1}</p>
@@ -124,10 +140,54 @@ const SubtopicQuestionList = () => {
                     <span>{question.creationDate}</span>
                     <span>{question.statusName || `Status ${question.status}`}</span>
                   </div>
-                </article>
+                </button>
               ))}
             </div>
           </div>
+
+          <Dialog open={!!selectedQuestion} onOpenChange={(open) => !open && setSelectedQuestion(null)}>
+            <DialogContent className="max-w-xl rounded-2xl p-0 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff]">
+                <DialogTitle className="text-base font-semibold text-slate-800">Question Details</DialogTitle>
+              </div>
+
+              {selectedQuestion && (
+                <div className="p-5 space-y-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">Question</p>
+                    <p className="mt-2 text-sm text-slate-700 leading-6">
+                      {selectedQuestion.title || "Untitled question"}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <span className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600">
+                      Type: {selectedQuestion.questionTypeName || `Type ${selectedQuestion.questionType}`}
+                    </span>
+                    <span className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600">
+                      Difficulty: {selectedQuestion.difficultyLevelName || `Level ${selectedQuestion.difficultyLevel}`}
+                    </span>
+                    <span className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600">
+                      Topic: {selectedQuestion.topicName || selectedQuestion.topic || "No topic"}
+                    </span>
+                    <span className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600">
+                      Status: {selectedQuestion.statusName || `Status ${selectedQuestion.status}`}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      onClick={() => setSelectedQuestion(null)}
+                      className="h-10 rounded-xl bg-chestnut hover:bg-chestnut/90 text-white px-4"
+                    >
+                      Close
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
 
           <div className="sm:hidden">
             <Button

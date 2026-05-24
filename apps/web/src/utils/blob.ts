@@ -11,7 +11,7 @@ export const fetchImageAsBlob = async (
   const response = await fetch(url);
   const blob = await response.blob();
 
-  await saveImage(id, blob, type, name);
+  await saveImage(id, blob, type, name, url);
 };
 
 // Load PDF from public folder
