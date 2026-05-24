@@ -656,6 +656,7 @@ const CreateQuizQuestion = () => {
   const effectiveTopicId = selectedTopicId ?? (isAdmin ? adminTopicId || null : topicIdParam || null);
   const effectiveTopic = selectedTopicName ?? (isAdmin ? adminTopic : topicParam);
   const effectiveSubTopic = selectedSubTopicId ?? (isAdmin ? adminSubTopic || EMPTY_GUID : subTopicParam);
+  const hasSubTopicContext = !!effectiveSubTopic && effectiveSubTopic !== EMPTY_GUID;
 
   // ── Load teacher assignment pairs (non-admin flow) ──────────────────────
   useEffect(() => {
@@ -866,12 +867,7 @@ const CreateQuizQuestion = () => {
       return;
     }
 
-    if (!selectedTopicId) {
-      toast.error("Please select a topic.");
-      return;
-    }
-
-    if (!selectedSubTopicId) {
+    if (!hasSubTopicContext) {
       toast.error("Please select a sub-topic.");
       return;
     }
@@ -910,24 +906,8 @@ const CreateQuizQuestion = () => {
       const duplicate = res.data?.data?.isDuplicate;
       if (!duplicate) toast.success("Board question published.");
 
-      // Reset the board and drafts list after a successful board-question publish
+      // Reset drafts after successful board-question publish.
       setDrafts([createDraft()]);
-      setQuizType("questions");
-
-      // Add a locked/published card to the draft list so teacher can see it
-      const boardDraft: QuestionDraft = {
-        id: crypto.randomUUID(),
-        questionType: "Short Answer",
-        question: result.questionText || `Board Question (session: ${result.boardSessionId.slice(0, 8)}…)`,
-        options: [],
-        correctAnswers: result.correctAnswers,
-        difficultyLevel: result.difficultyLevel,
-        isSubmitting: false,
-        isPublished: true,
-        imagePreview: null,  // ← add this
-        imageFile: null,
-      };
-      setDrafts((prev) => [...prev, boardDraft]);
       setQuizType("questions");
     } catch (err) {
       const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
@@ -1012,12 +992,7 @@ const CreateQuizQuestion = () => {
       return;
     }
 
-    if (!selectedTopicId) {
-      toast.error("Please select a topic.");
-      return;
-    }
-
-    if (!selectedSubTopicId) {
+    if (!hasSubTopicContext) {
       toast.error("Please select a sub-topic.");
       return;
     }
@@ -1103,24 +1078,12 @@ const CreateQuizQuestion = () => {
     setPublishProgress(null);
 
     if (successCount > 0) {
-      toast.success(
-        successCount === pending.length
-          ? `All ${successCount} question${successCount !== 1 ? "s" : ""} published!`
-          : `${successCount} of ${pending.length} questions published.`
-      );
-
-      // Clear the form: reset drafts and context selections
-      if (successCount === pending.length) {
-        setDrafts([createDraft()]);
-        setSelectedTopicId(undefined);
-        setSelectedSubTopicId(undefined);
-        setTopics([]);
-        setSubtopics([]);
-        setTopicsData([]);
-        setAdminTopic("");
-        setAdminTopicId("");
-        setAdminSubTopic("");
-      }
+      // Remove published items from the list and keep only pending/failed drafts.
+      setDrafts((prev) => {
+        const remaining = prev.filter((d) => !d.isPublished);
+        return remaining.length > 0 ? remaining : [createDraft()];
+      });
+      toast.success("Published successfully");
     }
   };
 
@@ -1133,7 +1096,7 @@ const CreateQuizQuestion = () => {
       : topicParam || "Create Quiz Question";
 
   const unpublishedCount = drafts.filter((d) => !d.isPublished).length;
-  const canPublish = !!selectedClassId && !!effectiveSubjectId && !!selectedTopicId && !!selectedSubTopicId;
+  const canPublish = !!selectedClassId && !!effectiveSubjectId && hasSubTopicContext;
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -1320,7 +1283,7 @@ const CreateQuizQuestion = () => {
                 <div className="flex flex-col gap-2 pt-2 border-t border-[#D9D9D9]">
                   {!canPublish && (
                     <p className="text-xs text-amber-500 font-medium">
-                      Select a class, subject, topic and sub-topic before publishing.
+                      Select a class, subject and sub-topic before publishing.
                     </p>
                   )}
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-3">

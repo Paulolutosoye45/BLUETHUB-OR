@@ -139,6 +139,39 @@ export interface SubmitScanJobPayload {
   pageCount?: number;
 }
 
+// ── Questions by Job types ──────────────────────────────────────────────────
+export interface QuestionOptionDto {
+  optionLabel: string;
+  optionText: string;
+  isCorrect: boolean;
+}
+
+export interface ExtractedQuestionDto {
+  id: string;
+  questionType: number;
+  questionTypeName: string;
+  questionHtml: string;
+  contentParts: unknown;
+  hasLatex: boolean;
+  hasMedia: boolean;
+  correctAnswer: string | null;
+  difficultyLevel: number;
+  marksAllocation: number;
+  status: number;
+  statusName: string;
+  subTopicName: string;
+  topicName: string;
+  creationDate: string;
+  options: QuestionOptionDto[];
+}
+
+export interface QuestionsByJobResponse {
+  jobId: string;
+  questionType: JobQuestionType;
+  totalQuestions: number;
+  questions: ExtractedQuestionDto[];
+}
+
 
 export interface SubmitJobResponseData {
   jobId: string;
@@ -223,6 +256,13 @@ getJobPreview: (jobId: string) =>
     API.post<TResponse<null>>(
       `api/question-jobs/${jobId}/cancel`,
       {},
+      { headers }
+    ),
+
+  // GET api/questionjob/jobs/{jobId}/questions
+  getQuestionsByJobId: (jobId: string) =>
+    API.get<TResponse<QuestionsByJobResponse>>(
+      `api/questions/jobs/${jobId}/questions`,
       { headers }
     ),
 };

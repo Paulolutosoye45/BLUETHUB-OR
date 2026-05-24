@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AxiosError } from "axios";
 import toast from "react-hot-toast";
-import { CheckCircle2, ChevronDown, ImagePlus, Loader2, Upload } from "lucide-react";
+import { CheckCircle2, ChevronDown, FileText, ImagePlus, Loader2, Upload } from "lucide-react";
 import { schoolService } from "@/services/school";
 import { questionJobService, type JobQuestionType } from "@/services/question-job";
 import { useAuthContext } from "@/contexts/auth-context";
@@ -228,17 +228,66 @@ const UploadScan = () => {
     setSubtopics([]);
   };
 
+  const missingFields = useMemo(() => {
+    const missing: string[] = [];
+    if (!imageFile) missing.push("file");
+    if (!classroomId) missing.push("classroom");
+    if (!subjectId) missing.push("subject");
+    if (!topicId) missing.push("topic");
+    if (!subtopicId) missing.push("sub-topic");
+    return missing;
+  }, [imageFile, classroomId, subjectId, topicId, subtopicId]);
+
   // ── Image pick ───────────────────────────────────────────────────────────
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-    if (!allowed.includes(file.type)) { toast.error("Only JPEG, PNG, WebP supported"); return; }
-    if (file.size > 10 * 1024 * 1024) { toast.error("Image must be under 10 MB"); return; }
+    const allowed = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    const lowerName = file.name.toLowerCase();
+    const lowerType = (file.type || "").toLowerCase();
+    const hasKnownDocMime =
+      lowerType.includes("pdf") ||
+      lowerType.includes("word") ||
+      lowerType.includes("officedocument") ||
+      lowerType === "application/octet-stream";
+    const hasAllowedExtension =
+      lowerName.endsWith(".jpg") ||
+      lowerName.endsWith(".jpeg") ||
+      lowerName.endsWith(".png") ||
+      lowerName.endsWith(".webp") ||
+      lowerName.endsWith(".pdf") ||
+      lowerName.endsWith(".doc") ||
+      lowerName.endsWith(".docx");
+
+    if (!allowed.includes(file.type) && !hasAllowedExtension && !hasKnownDocMime) {
+      toast.error("Only image, PDF, DOC and DOCX files are supported");
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("File must be under 20 MB");
+      return;
+    }
+
     setImageFile(file);
-    const reader = new FileReader();
-    reader.onload = () => setImagePreview(reader.result as string);
-    reader.readAsDataURL(file);
+
+    const isImage = file.type.startsWith("image/") || /(\.jpg|\.jpeg|\.png|\.webp)$/i.test(file.name);
+    if (isImage) {
+      const reader = new FileReader();
+      reader.onload = () => setImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setImagePreview(null);
+    }
+
     e.target.value = "";
   };
 
@@ -252,7 +301,9 @@ const UploadScan = () => {
     if (marksAllocation < 1) { toast.error("Marks must be at least 1"); return; }
 
     const form = new FormData();
+    // Send both keys for backward compatibility with existing backend binders.
     form.append("image", imageFile);
+    form.append("file", imageFile);
     form.append("ClassroomId", classroomId);
     form.append("SubjectId", subjectId);
     form.append("TopicId", topicId);
@@ -320,17 +371,17 @@ const UploadScan = () => {
               AI Question Scanner
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Upload a photo or screenshot of a past question — AI will extract and format it for you
+              Upload a question file (image, PDF, DOC or DOCX) — AI will extract and format it for you
             </p>
           </div>
 
           <div className="flex flex-col lg:flex-row gap-6">
 
-            {/* ── LEFT: Image upload ─────────────────────────────── */}
+            {/* ── LEFT: File upload ─────────────────────────────── */}
             <div className="flex-1 flex flex-col gap-4">
-              <input ref={fileRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
+              <input ref={fileRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.doc,.docx" className="hidden" onChange={handleFileChange} />
 
-              {imagePreview ? (
+              {imageFile && imagePreview ? (
                 <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-slate-50" style={{ minHeight: 280 }}>
                   <img
                     src={imagePreview}
@@ -345,6 +396,20 @@ const UploadScan = () => {
                     Change image
                   </button>
                 </div>
+              ) : imageFile ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6" style={{ minHeight: 280 }}>
+                  <div className="h-full flex flex-col items-center justify-center gap-3 text-center">
+                    <FileText size={42} className="text-indigo-300" />
+                    <p className="text-sm font-semibold text-slate-700 break-all max-w-full">{imageFile.name}</p>
+                    <p className="text-xs text-slate-400">{(imageFile.size / (1024 * 1024)).toFixed(2)} MB</p>
+                    <button
+                      onClick={() => { setImageFile(null); setImagePreview(null); }}
+                      className="mt-1 bg-slate-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                    >
+                      Change file
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <button
                   type="button"
@@ -354,8 +419,8 @@ const UploadScan = () => {
                 >
                   <ImagePlus size={40} className="text-indigo-300" />
                   <div className="text-center">
-                    <p className="text-sm font-semibold text-indigo-500">Click to upload question image</p>
-                    <p className="text-xs text-slate-400 mt-1">JPEG · PNG · WebP — max 10 MB</p>
+                    <p className="text-sm font-semibold text-indigo-500">Click to upload question file</p>
+                    <p className="text-xs text-slate-400 mt-1">JPEG · PNG · WebP · PDF · DOC · DOCX — max 20 MB</p>
                   </div>
                 </button>
               )}
@@ -470,6 +535,12 @@ const UploadScan = () => {
                   <><Upload size={16} /> Submit for AI Processing</>
                 )}
               </button>
+
+              {missingFields.length > 0 && (
+                <p className="text-xs text-amber-600">
+                  To enable submit, select: {missingFields.join(", ")}.
+                </p>
+              )}
             </div>
           </div>
         </div>
