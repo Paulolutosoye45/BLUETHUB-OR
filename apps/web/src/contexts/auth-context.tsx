@@ -13,15 +13,39 @@ interface Subject {
   subjectCategory: string;
 }
 
-interface Classroom {
+// Teacher shape
+interface TeacherClassroom {
   classroomId: string;
   className: string;
   subjects: Subject[];
 }
 
-interface RoleData {
-  classrooms: Classroom[];
+interface TeacherRoleData {
+  classrooms: TeacherClassroom[];
 }
+
+// Student shape
+interface StudentClassroom {
+  classroomId: string;
+  className: string | null;
+  classroomIsActive: boolean;
+}
+
+interface StudentRoleData {
+  classroom: StudentClassroom;
+  subjects: Subject[];
+}
+
+type RoleData = TeacherRoleData | StudentRoleData;
+
+// Type guards
+export const isTeacherRoleData = (roleData: RoleData): roleData is TeacherRoleData => {
+  return "classrooms" in roleData;
+};
+
+export const isStudentRoleData = (roleData: RoleData): roleData is StudentRoleData => {
+  return "classroom" in roleData;
+};
 
 interface IUser {
   createdDate: string;

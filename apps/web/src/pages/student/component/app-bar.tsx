@@ -18,10 +18,11 @@ import WaveHand from "@/assets/svg/wave_hand.svg?react";
 import Notification from "@/assets/svg/notifyme.svg?react";
 import LogOutIcon from "@/assets/svg/log-out-04.svg?react";
 import test_profile from "@/assets/png/test_profile.png"
-import { ChevronRight, Settings, User } from "lucide-react";
+import { ChevronRight, Menu, Settings, User } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 const StudentAppBar = () => {
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const [notificationStatus, setNotificationStatus] = useState<string>('')
    const today = new Date();
 
@@ -36,7 +37,18 @@ const StudentAppBar = () => {
   });
 
   return (
-    <section className=" shadow-[0_15px_20px_0_rgba(41,35,130,0.1)]  bg-student-chestnut/5 border-none flex justify-between items-center px-3 py-2 border border-[#E0E0E0]">
+    <>
+    <div className="bg-[#4F61E8] px-[19px] py-[15px] md:hidden flex items-center gap-[5px]">
+        <Menu className="lg:hidden text-white" onClick={openMobileNav} />
+        <div className="flex items-center gap-[5px]">
+          <div className="flex items-center justify-center w-[30px] h-[30px] rounded-full bg-[#6B7AEC] uppercase text-white py-[5px] px-[7px] font-medium text-xs leading-5">ao</div>
+          <div>
+             <h2 className="text-white font-medium text-[10px] leading-[12px]">Adaeze Okonkwo</h2>
+             <h4 className="font-medium text-[7px] leading-[12px] text-[#FFFFFF80]">JSS 3. Spring Term 2026</h4>
+          </div>
+        </div>
+    </div>
+    <section className=" hidden md:flex shadow-[0_15px_20px_0_rgba(41,35,130,0.1)]  bg-student-chestnut/5 border-none justify-between items-center px-3 py-2 border border-[#E0E0E0]">
       <div className="flex items-center gap-3">
         <h2 className="text-student-chestnut font-poppins font-medium text-base">
           Welcome back, Sarah
@@ -156,6 +168,7 @@ const StudentAppBar = () => {
         </DropdownMenu>
       </div>
     </section>
+    </>
   );
 };
 
