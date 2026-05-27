@@ -510,7 +510,14 @@ export default function Replay() {
     const timelines = allStrokes.map(s => {
       let startMs: number;
       if (effectiveAnchor && s.timestamp) {
-        startMs = Math.max(0, s.timestamp - effectiveAnchor);
+        const wallMs = s.timestamp - effectiveAnchor;
+        if (wallMs > 0) {
+          startMs = wallMs;
+        } else {
+          // timestamp pre-dates anchor — use the recorded timer string as fallback
+          // so the stroke still appears at roughly the right moment rather than t=0
+          startMs = Math.max(0, timeToMs(s.startTime) - timerOffset);
+        }
       } else {
         // fallback: timerDisplay "MM:SS" minus stored offset
         startMs = Math.max(0, timeToMs(s.startTime) - timerOffset);
@@ -715,13 +722,12 @@ export default function Replay() {
       currentBlobUrlRef.current = null;
     }
 
-    const blobUrl = URL.createObjectURL(batch.blob);
+    // Preserve MIME type — IDB blobs sometimes lose their type on retrieval
+    const blobType = batch.blob.type || 'audio/webm';
+    const typedBlob = batch.blob.type ? batch.blob : new Blob([batch.blob], { type: blobType });
+    const blobUrl = URL.createObjectURL(typedBlob);
     currentBlobUrlRef.current = blobUrl;
     if (!audioRef.current) throw new Error('Audio element missing');
-    audioRef.current.src = blobUrl;
-    audioRef.current.playbackRate = 1;
-    audioRef.current.defaultPlaybackRate = 1;
-    audioRef.current.preservesPitch = true;
     setCurrentBatch(batchIndex);
 
     return new Promise((resolve, reject) => {
@@ -731,12 +737,23 @@ export default function Replay() {
       };
       const onEnded = () => { cleanup(); resolve(); };
       const onError = () => {
+        const err = audioRef.current?.error;
+        const msg = err ? `code ${err.code}: ${err.message}` : 'unknown';
+        console.error(`[Replay] batch ${batch.batchId} error: ${msg}, blob type: ${blobType}, size: ${batch.blob.size}`);
         cleanup();
-        reject(new Error(`Batch ${batch.batchId} failed`));
+        // Don't reject on decode errors — move to next batch so remaining audio still plays
+        resolve();
       };
       audioRef.current?.addEventListener('ended', onEnded);
       audioRef.current?.addEventListener('error', onError);
-      audioRef.current?.play().catch(e => { cleanup(); reject(e); });
+
+      // Set src and load AFTER attaching listeners so no events are missed
+      audioRef.current!.src = blobUrl;
+      audioRef.current!.playbackRate = 1;
+      audioRef.current!.defaultPlaybackRate = 1;
+      audioRef.current!.preservesPitch = true;
+      audioRef.current!.load();
+      audioRef.current!.play().catch(e => { cleanup(); reject(e); });
     });
   }, []);
 
@@ -774,19 +791,21 @@ export default function Replay() {
     const sortedAudio = [...audioList].sort((a, b) => a.batchId - b.batchId);
 
     // Get sessionStartWallMs for audio batch positioning (same value used for stroke positioning)
+    // Priority: reconstructed from actual batch data > stored localStorage value
+    // This avoids stale localStorage anchors from previous sessions causing drift.
     const stored = parseInt(localStorage.getItem('sessionStartWallMs') ?? '0', 10);
     const firstBatch = sortedAudio[0];
     const reconstructed = firstBatch
       ? firstBatch.timestamp - (firstBatch.duration ?? 10) * 1000
       : 0;
-    const sessionStartWallMs = stored || reconstructed || 0;
+    const sessionStartWallMs = reconstructed || stored || 0;
 
     if (hasAudio && hasStrokes) {
       // Normal case: board slaved to audio clock
       startRaf(readyStrokes);
       for (let i = 0; i < sortedAudio.length; i++) {
         if (stopRef.current) break;
-        try { await playAudioBatch(i, sortedAudio, sessionStartWallMs); } catch (_) { }
+        try { await playAudioBatch(i, sortedAudio, sessionStartWallMs); } catch (e) { console.error('[Replay] audio batch', i, 'failed:', e); }
       }
       stopRaf();
 
@@ -797,7 +816,7 @@ export default function Replay() {
       }
       for (let i = 0; i < sortedAudio.length; i++) {
         if (stopRef.current) break;
-        try { await playAudioBatch(i, sortedAudio, sessionStartWallMs); } catch (_) { }
+        try { await playAudioBatch(i, sortedAudio, sessionStartWallMs); } catch (e) { console.error('[Replay] audio batch', i, 'failed:', e); }
       }
       if (hasMedia) {
         stopRaf();

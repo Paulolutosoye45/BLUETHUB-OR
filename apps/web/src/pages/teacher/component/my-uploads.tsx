@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useOutletContext } from "react-router-dom";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import TitleBar from "@/shared/title-bar";
 import { Button, Dialog, DialogContent, DialogTitle } from "@bluethub/ui-kit";
-import { useAuthContext } from "@/contexts/auth-context";
+import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { schoolService } from "@/services/school";
 import {
   questionJobService,
@@ -245,7 +245,8 @@ const SummaryCard = ({
 };
 
 const MyUploads = () => {
-  const navigate = useNavigate();
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
+
   const { user, isLoading: authLoading, refreshUser } = useAuthContext();
 
   const [classroomId, setClassroomId] = useState("");
@@ -472,22 +473,26 @@ const MyUploads = () => {
     });
   };
 
-  const classrooms = useMemo<SelectItem[]>(() => {
-    return (user?.roleData?.classrooms ?? []).map((c) => ({
-      id: String(c.classroomId),
-      name: String(c.className),
-    }));
-  }, [user?.roleData?.classrooms]);
+const classrooms = useMemo<SelectItem[]>(() => {
+  const roleData = user?.roleData;
+  if (!roleData || !isTeacherRoleData(roleData)) return [];
+  return roleData.classrooms.map((c) => ({
+    id: String(c.classroomId),
+    name: String(c.className),
+  }));
+}, [user?.roleData]);
 
-  const subjects = useMemo<SelectItem[]>(() => {
-    const selectedClassroom = (user?.roleData?.classrooms ?? []).find(
-      (c) => String(c.classroomId) === classroomId
-    );
-    return (selectedClassroom?.subjects ?? []).map((s) => ({
-      id: String(s.subjectId),
-      name: String(s.subjectName),
-    }));
-  }, [user?.roleData?.classrooms, classroomId]);
+const subjects = useMemo<SelectItem[]>(() => {
+  const roleData = user?.roleData;
+  if (!roleData || !isTeacherRoleData(roleData)) return [];
+  const selectedClassroom = roleData.classrooms.find(
+    (c) => String(c.classroomId) === classroomId
+  );
+  return (selectedClassroom?.subjects ?? []).map((s) => ({
+    id: String(s.subjectId),
+    name: String(s.subjectName),
+  }));
+}, [user?.roleData, classroomId]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -673,9 +678,9 @@ const MyUploads = () => {
   );
 
   return (
-    <div className="p-3 sm:p-5 font-poppins">
-      <div className="rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
-        <TitleBar title="My Uploads" hasVertical hasBackIcons onBack={() => navigate(-1)} />
+    <div className=" sm:p-5 font-poppins">
+      <div className="lg:rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
+        <TitleBar title="My Uploads" hasVertical  hasMenu={openMobileNav} />
 
         <div className="p-3 sm:p-5 lg:p-7 space-y-5">
           <div className="rounded-2xl bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff] border border-[#f3dccb] p-4 sm:p-5">

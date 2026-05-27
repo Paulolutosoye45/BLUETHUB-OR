@@ -13,9 +13,8 @@ import grades from "@/assets/svg/grades.svg?react";
 import bluethub_ai from "@/assets/svg/bluethub_ai.svg?react";
 import settings from "@/assets/svg/settings (1).svg?react";
 import B_2 from "@/assets/svg/B_2.svg?react";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
 
 // ── Nav links ──────────────────────────────────────────────────────────────────
 const navLinks = [

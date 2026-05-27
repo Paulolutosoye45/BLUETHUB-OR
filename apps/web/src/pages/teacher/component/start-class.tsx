@@ -9,11 +9,14 @@ import {
   RefreshCw,
   Inbox,
   AlertCircle,
+  Menu,
 } from "lucide-react";
 import { lessonService, type LessonItem, type LessonForClassDto, type LessonMediaDto } from "@/services/lesson";
 import PreClassModal from "./pre-class-modal";
+import { useOutletContext } from "react-router-dom";
 
 const StartClass = () => {
+    const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const [lessons, setLessons] = useState<LessonItem[]>([]);
   const [lessonMetaById, setLessonMetaById] = useState<Record<string, LessonForClassDto>>({});
   const [checkingLessonIds, setCheckingLessonIds] = useState<Record<string, boolean>>({});
@@ -168,7 +171,8 @@ const StartClass = () => {
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+              <Menu className="lg:hidden  w-5 h-5 text-black inline" onClick={openMobileNav} />
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 inline ml-3">
                 Start a Class
               </h1>
               <p className="text-sm text-gray-500 mt-1">
