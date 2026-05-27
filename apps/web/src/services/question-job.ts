@@ -4,6 +4,9 @@ import { API, type TResponse } from ".";
 
 import { X_Tenant_ID } from "@/utils/tenant";
 
+const QUESTION_BACKEND_BASE =
+  (import.meta.env.VITE_API_BASE_URL || "https://techhubschmanagement.onrender.com").replace(/\/$/, "");
+
 // ── Request types ───────────────────────────────────────────────────────────
 export type JobQuestionType = "Objective" | "Theory" | "TrueFalse";
 

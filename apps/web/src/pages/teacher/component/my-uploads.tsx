@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Loader2, Plus, Star, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import katex from "katex";
@@ -15,6 +14,7 @@ import {
   type JobStatusItem,
   type JobStatusesSummary,
 } from "@/services/question-job";
+import { useOutletContext } from "react-router-dom";
 
 type SelectItem = { id: string; name: string };
 type QuestionContentPart = {
@@ -813,12 +813,14 @@ const MyUploads = () => {
     }
   };
 
-  const classrooms = useMemo<SelectItem[]>(() => {
-    return (user?.roleData?.classrooms ?? []).map((c) => ({
-      id: String(c.classroomId),
-      name: String(c.className),
-    }));
-  }, [user?.roleData?.classrooms]);
+ const classrooms = useMemo<SelectItem[]>(() => {
+  const roleData = user?.roleData;
+  if (!roleData || !isTeacherRoleData(roleData)) return [];
+  return roleData.classrooms.map((c) => ({
+    id: String(c.classroomId),
+    name: String(c.className),
+  }));
+}, [user?.roleData]);
 
 const subjects = useMemo<SelectItem[]>(() => {
   const roleData = user?.roleData;
