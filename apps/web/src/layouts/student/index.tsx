@@ -1,17 +1,22 @@
 ;
-import StudentSideBar from "@/pages/student/component/side-bar";
+import StudentSideBar, { MobileStudentNav } from "@/pages/student/component/side-bar";
+import { useState } from "react";
 import { Outlet } from "react-router-dom";
 
 const StudentsLayout = () => {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   return (
-    <section className="flex h-screen overflow-hidden">
-      <div className="shrink-0 z-20">
+    <div className="flex h-screen overflow-hidden">
+      <div className="hidden lg:flex h-full">
         <StudentSideBar />
       </div>
-      <div className="flex-1 overflow-hidden">
-        <Outlet />
+      <div>
+        <MobileStudentNav isOpen={mobileNavOpen} setIsOpen={setMobileNavOpen} />
       </div>
-    </section>
+      <div className="max-w-7xl mx-auto h-screen transition-all p-2 duration-300 border-none  overflow-y-auto">
+        <Outlet context={{ openMobileNav: () => setMobileNavOpen(true) }} />
+      </div>
+    </div>
   );
 };
 

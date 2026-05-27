@@ -1,6 +1,6 @@
 import { Button } from "@bluethub/ui-kit";
-import { ArrowLeft, ChevronRight, EllipsisVertical } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ArrowLeft, ChevronRight, EllipsisVertical, Menu } from "lucide-react";
+import { Link, } from "react-router-dom";
 
 interface TitleBarProps {
     title: string;
@@ -13,6 +13,7 @@ interface TitleBarProps {
     linkBtnLink?: string
     onBack?: () => void;
     onAction?: () => void;
+    hasMenu?: () => void;
 }
 
 const TitleBar = ({
@@ -26,6 +27,7 @@ const TitleBar = ({
     onAction,
     linkBtn,
     linkBtnLink,
+    hasMenu,
 }: TitleBarProps) => {
     const isEdit = type === "normal";
 
@@ -38,7 +40,7 @@ const TitleBar = ({
         : "bg-[#EC1B2C] hover:bg-[#EC1B2C]/90";
 
     return (
-        <div className={`${bgClass} px-6 py-5 rounded-t-lg flex items-center justify-between`}>
+        <div className={`${bgClass} px-6 py-5 lg:rounded-t-lg flex items-center justify-between`}>
 
             {/* Left side — back arrow + title + chevron */}
             <div className={`flex items-center ${hasBackIcons ? "gap-2.5" : ""}`}>
@@ -49,6 +51,12 @@ const TitleBar = ({
                     >
                         <ArrowLeft size={18} />
                     </button>
+                )}
+                {hasMenu && (
+                    <Menu
+                        className="lg:hidden w-5 h-5 text-white mr-2 cursor-pointer"
+                        onClick={hasMenu}  // ✅ not onClick={() => openMobileNav()}
+                    />
                 )}
                 <h2 className="font-semibold font-poppins text-lg text-white leading-none">
                     {title}
@@ -73,8 +81,8 @@ const TitleBar = ({
                 )}
 
                 {linkBtn && linkBtnLink && (
-                    <Link 
-                         to={linkBtnLink}
+                    <Link
+                        to={linkBtnLink}
                         className={`bg-[#EC1B2C] hover:bg-[#EC1B2C]/90 text-white border-white/20 px-6 py-2.5
                         font-semibold text-sm rounded-md hover:text-white
                         cursor-pointer transition-all duration-300`}

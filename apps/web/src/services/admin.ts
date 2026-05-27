@@ -1,4 +1,5 @@
 import { API, type TResponse } from ".";
+import { X_Tenant_ID } from "@/utils/tenant";
 
 // ── Endpoints ────────────────────────────────────────────────────────────────
 const endpoints = {
@@ -24,12 +25,12 @@ type AddCoursePayload = {
 export const adminService = {
   addCourses: (payload: AddCoursePayload) =>
     API.post<TResponse<unknown>>(endpoints.addCourse, payload, {
-      headers: { "X-Tenant-ID": "pearl" },
+      headers: { "X-Tenant-ID": X_Tenant_ID },
     }),
 
   getAllSubjects: (schoolId: string): Promise<any> => {
     const request = API.post(endpoints.getAllSubjects(schoolId), {}, {
-      headers: { "X-Tenant-ID": "pearl" },
+      headers: { "X-Tenant-ID": X_Tenant_ID },
     });
 
     const timeout = new Promise((_, reject) =>

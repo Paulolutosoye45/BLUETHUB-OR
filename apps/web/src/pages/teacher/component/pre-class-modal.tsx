@@ -97,13 +97,13 @@ const PreClassModal = ({
 
   useEffect(() => {
     if (!open) return;
-    console.log("[PreClassModal] open/state", {
-      lessonId: lesson?.id,
-      accessDate: lesson?.accessDate,
-      accessTime: lesson?.accessTime,
-      isLoading,
-      errorMessage,
-    });
+    // console.log("[PreClassModal] open/state", {
+    //   lessonId: lesson?.id,
+    //   accessDate: lesson?.accessDate,
+    //   accessTime: lesson?.accessTime,
+    //   isLoading,
+    //   errorMessage,
+    // });
   }, [open, lesson?.id, lesson?.accessDate, lesson?.accessTime, isLoading, errorMessage]);
 
   // Pre-fetch media into browser cache when modal opens

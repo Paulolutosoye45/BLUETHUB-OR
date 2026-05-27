@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { CheckCircle2, ChevronDown, FileText, ImagePlus, Loader2, Upload } from "lucide-react";
 import { schoolService } from "@/services/school";
 import { questionJobService, type JobQuestionType } from "@/services/question-job";
-import { useAuthContext } from "@/contexts/auth-context";
+import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 interface Subject { id: string; name: string; }
@@ -100,22 +100,25 @@ const UploadScan = () => {
   const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);
 
   const classrooms = useMemo<Classroom[]>(() => {
-    return (user?.roleData?.classrooms ?? []).map((item) => ({
-      id: String(item.classroomId),
-      name: String(item.className),
-    }));
-  }, [user?.roleData?.classrooms]);
+  const roleData = user?.roleData;
+  if (!roleData || !isTeacherRoleData(roleData)) return [];
+  return roleData.classrooms.map((item) => ({
+    id: String(item.classroomId),
+    name: String(item.className),
+  }));
+}, [user?.roleData]);
 
-  const subjects = useMemo<Subject[]>(() => {
-    const selectedClassroom = (user?.roleData?.classrooms ?? []).find(
-      (item) => String(item.classroomId) === classroomId
-    );
-
-    return (selectedClassroom?.subjects ?? []).map((item) => ({
-      id: String(item.subjectId),
-      name: String(item.subjectName),
-    }));
-  }, [user?.roleData?.classrooms, classroomId]);
+const subjects = useMemo<Subject[]>(() => {
+  const roleData = user?.roleData;
+  if (!roleData || !isTeacherRoleData(roleData)) return [];
+  const selectedClassroom = roleData.classrooms.find(
+    (item) => String(item.classroomId) === classroomId
+  );
+  return (selectedClassroom?.subjects ?? []).map((item) => ({
+    id: String(item.subjectId),
+    name: String(item.subjectName),
+  }));
+}, [user?.roleData, classroomId]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -348,7 +351,7 @@ const UploadScan = () => {
                 Upload Another
               </button>
               <button
-                onClick={() => navigate("/teacher/assessment/My-Uploads")}
+                onClick={() => navigate("/teacher/assessments/My-Uploads")}
                 className="px-5 py-2.5 rounded-lg bg-chestnut text-white text-sm font-semibold hover:bg-chestnut/90 transition-colors"
               >
                 Check Processing Status →

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BookOpen, Layers, Loader2, Plus, X } from "lucide-react";
 import { Button, Label } from "@bluethub/ui-kit";
-import { useAuthContext } from "@/contexts/auth-context";
+import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { schoolService } from "@/services/school";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
@@ -42,25 +42,26 @@ const TopicSubtopicCreator = () => {
   const [loadingTopics, setLoadingTopics] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const classrooms: SelectItem[] = useMemo(() => {
-    const roleClassrooms = user?.roleData?.classrooms ?? [];
-    return roleClassrooms.map((item) => ({
-      id: String(item.classroomId),
-      label: String(item.className),
-    }));
-  }, [user?.roleData?.classrooms]);
+ const classrooms: SelectItem[] = useMemo(() => {
+  const roleData = user?.roleData;
+  if (!roleData || !isTeacherRoleData(roleData)) return [];
+  return roleData.classrooms.map((item) => ({
+    id: String(item.classroomId),
+    label: String(item.className),
+  }));
+}, [user?.roleData]);
 
-  const subjects: SelectItem[] = useMemo(() => {
-    const roleClassrooms = user?.roleData?.classrooms ?? [];
-    const selectedClassroom = roleClassrooms.find(
-      (item) => String(item.classroomId) === classroomId
-    );
-
-    return (selectedClassroom?.subjects ?? []).map((item) => ({
-      id: String(item.subjectId),
-      label: String(item.subjectName),
-    }));
-  }, [user?.roleData?.classrooms, classroomId]);
+const subjects: SelectItem[] = useMemo(() => {
+  const roleData = user?.roleData;
+  if (!roleData || !isTeacherRoleData(roleData)) return [];
+  const selectedClassroom = roleData.classrooms.find(
+    (item) => String(item.classroomId) === classroomId
+  );
+  return (selectedClassroom?.subjects ?? []).map((item) => ({
+    id: String(item.subjectId),
+    label: String(item.subjectName),
+  }));
+}, [user?.roleData, classroomId]);
 
   const refreshTopics = async (activeSubjectId: string) => {
     if (!activeSubjectId) {

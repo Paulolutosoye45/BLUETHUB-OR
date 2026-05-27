@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
 import {
   Check,
   ChevronDown,
-  ChevronLeft,
   AlertCircle,
   CheckCircle2,
   GripVertical,
@@ -24,6 +23,7 @@ import {
   FolderOpen,
   Clock,
   Timer,
+  Menu,
 } from "lucide-react";
 import {
   Button,
@@ -43,7 +43,7 @@ import {
   type DraftLessonPayload,
 } from "@/services/lesson";
 import { schoolService } from "@/services/school";
-import { useAuthContext } from "@/contexts/auth-context";
+import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { localData } from "@/utils";
 import toast from "react-hot-toast";
 
@@ -157,7 +157,7 @@ async function runConcurrent<T>(
     async () => {
       while (queue.length > 0) {
         const item = queue.shift()!;
-        await fn(item).catch(() => {});
+        await fn(item).catch(() => { });
       }
     }
   );
@@ -521,6 +521,7 @@ function SetQuestionsModal({
 const SubmitLesson = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const isAdminRole = user?.roleName === "Administrator" || user?.roleName === "SuperAdministrator" || user?.roleName === "HeadTeacher";
   const DEBUG_SUBMIT_LESSON = true;
 
@@ -680,15 +681,22 @@ const SubmitLesson = () => {
         }
 
         // Use roleData already loaded by AuthContext — no extra API call needed
-        const classroomsData = user.roleData?.classrooms;
-        if (classroomsData && Array.isArray(classroomsData) && classroomsData.length > 0) {
-          setRoleDataClassrooms(classroomsData);
-          setClassrooms(
-            classroomsData.map((c: any, index: number) => ({
-              id: String(c.classroomId),
-              label: c.className || `Classroom ${index + 1}`,
-            }))
-          );
+        const roleData = user.roleData;
+
+        if (roleData && isTeacherRoleData(roleData)) {
+          const classroomsData = roleData.classrooms;
+
+          if (classroomsData.length > 0) {
+            setRoleDataClassrooms(classroomsData);
+            setClassrooms(
+              classroomsData.map((c, index) => ({
+                id: c.classroomId,
+                label: c.className || `Classroom ${index + 1}`,
+              }))
+            );
+          } else {
+            setClassrooms([]);
+          }
         } else {
           setClassrooms([]);
         }
@@ -893,7 +901,7 @@ const SubmitLesson = () => {
 
   // Save Draft: requires form completion only (media is optional)
   const canSaveDraft = formValid && !busy;
-  
+
   const hasUploadErrors = uploadFiles.some((f) => f.status === "error");
   const hasPendingUploads = uploadFiles.some((f) => f.status === "uploading" || f.status === "idle");
 
@@ -1038,6 +1046,7 @@ const SubmitLesson = () => {
 
   // ── Render ──
   return (
+    
     <>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
         {/* Header */}
@@ -1046,10 +1055,9 @@ const SubmitLesson = () => {
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => navigate(-1)}
                   className="p-2 -ml-2 rounded-xl hover:bg-gray-100 transition-colors"
                 >
-                  <ChevronLeft className="w-5 h-5 text-gray-600" />
+                  <Menu className="lg:hidden  w-5 h-5 text-gray-600" onClick={openMobileNav} />
                 </button>
                 <div>
                   <h1 className="text-lg font-semibold text-gray-900">Submit Lesson</h1>
@@ -1114,112 +1122,112 @@ const SubmitLesson = () => {
         )}
 
         {/* Main Content */}
-        <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-32 sm:pb-8">
+        <main className="max-w-3xl mx-auto px-2 sm:px-6 lg:px-8 py-6 pb-32 sm:pb-8">
           <div className="space-y-6">
-              {/* Step 1: Class & Topic */}
-              <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-8 h-8 rounded-lg flex items-center justify-center",
-                      step1Done ? "bg-green-500 text-white" : "bg-blue-500 text-white"
-                    )}>
-                      {step1Done ? <Check className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
-                    </div>
-                    <div>
-                      <h2 className="font-semibold text-gray-900">Class & Topic</h2>
-                      <p className="text-xs text-gray-500">Select the class and topic for this lesson</p>
-                    </div>
+            {/* Step 1: Class & Topic */}
+            <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center",
+                    step1Done ? "bg-green-500 text-white" : "bg-blue-500 text-white"
+                  )}>
+                    {step1Done ? <Check className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-gray-900">Class & Topic</h2>
+                    <p className="text-xs text-gray-500">Select the class and topic for this lesson</p>
                   </div>
                 </div>
+              </div>
 
-                <div className="p-5 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FieldSelect
-                      label="Classroom"
-                      placeholder="Select classroom"
-                      value={classroomId}
-                      items={classrooms}
-                      loading={loadingClassrooms}
-                      required
-                      onChange={(id, label) => { setClassroomId(id); setClassroomLabel(label); draftRestored.current = true; }}
-                    />
-                    <FieldSelect
-                      label="Subject"
-                      placeholder={classroomId ? "Select subject" : "Select classroom first"}
-                      value={subjectId}
-                      items={subjects}
-                      loading={loadingSubjects}
-                      disabled={!classroomId}
-                      required
-                      onChange={(id, label) => { setSubjectId(id); setSubjectLabel(label); }}
-                    />
-                  </div>
+              <div className="p-5 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FieldSelect
+                    label="Classroom"
+                    placeholder="Select classroom"
+                    value={classroomId}
+                    items={classrooms}
+                    loading={loadingClassrooms}
+                    required
+                    onChange={(id, label) => { setClassroomId(id); setClassroomLabel(label); draftRestored.current = true; }}
+                  />
+                  <FieldSelect
+                    label="Subject"
+                    placeholder={classroomId ? "Select subject" : "Select classroom first"}
+                    value={subjectId}
+                    items={subjects}
+                    loading={loadingSubjects}
+                    disabled={!classroomId}
+                    required
+                    onChange={(id, label) => { setSubjectId(id); setSubjectLabel(label); }}
+                  />
+                </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <FieldSelect
-                      label="Topic"
-                      placeholder={subjectId ? "Select topic" : "Select subject first"}
-                      value={topicId}
-                      items={topics}
-                      loading={loadingTopics}
-                      disabled={!subjectId}
-                      required
-                      onChange={(id, label) => { setTopicId(id); setTopicLabel(label); }}
-                    />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <FieldSelect
+                    label="Topic"
+                    placeholder={subjectId ? "Select topic" : "Select subject first"}
+                    value={topicId}
+                    items={topics}
+                    loading={loadingTopics}
+                    disabled={!subjectId}
+                    required
+                    onChange={(id, label) => { setTopicId(id); setTopicLabel(label); }}
+                  />
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Sub-Topic <span className="text-red-500">*</span>
-                      </Label>
-                      {subTopics.length > 0 ? (
-                        <FieldSelect
-                          label=""
-                          placeholder="Select sub-topic"
-                          value={subTopicId}
-                          items={subTopics}
-                          loading={loadingSubTopics}
-                          disabled={!topicId}
-                          onChange={(id, label) => { setSubTopicId(id); setSubTopicValue(label); }}
-                        />
-                      ) : (
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={subTopicValue}
-                            onChange={(e) => setSubTopicValue(e.target.value)}
-                            placeholder={loadingSubTopics ? "Loading…" : topicId ? "Type sub-topic" : "Select topic first"}
-                            disabled={!topicId || loadingSubTopics}
-                            className={cn(
-                              "w-full h-12 rounded-xl border-2 px-4 text-sm text-gray-900",
-                              "border-gray-200 placeholder:text-gray-400",
-                              "focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all",
-                              (!topicId || loadingSubTopics) && "opacity-50 cursor-not-allowed bg-gray-50"
-                            )}
-                          />
-                          {loadingSubTopics && (
-                            <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700">
+                      Sub-Topic <span className="text-red-500">*</span>
+                    </Label>
+                    {subTopics.length > 0 ? (
+                      <FieldSelect
+                        label=""
+                        placeholder="Select sub-topic"
+                        value={subTopicId}
+                        items={subTopics}
+                        loading={loadingSubTopics}
+                        disabled={!topicId}
+                        onChange={(id, label) => { setSubTopicId(id); setSubTopicValue(label); }}
+                      />
+                    ) : (
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={subTopicValue}
+                          onChange={(e) => setSubTopicValue(e.target.value)}
+                          placeholder={loadingSubTopics ? "Loading…" : topicId ? "Type sub-topic" : "Select topic first"}
+                          disabled={!topicId || loadingSubTopics}
+                          className={cn(
+                            "w-full h-12 rounded-xl border-2 px-4 text-sm text-gray-900",
+                            "border-gray-200 placeholder:text-gray-400",
+                            "focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all",
+                            (!topicId || loadingSubTopics) && "opacity-50 cursor-not-allowed bg-gray-50"
                           )}
-                        </div>
-                      )}
-                    </div>
+                        />
+                        {loadingSubTopics && (
+                          <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                        )}
+                      </div>
+                    )}
                   </div>
-
-                  {topicLabel && (
-                    <p className="text-xs text-gray-500 flex items-center gap-2 pt-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                      {[classroomLabel, subjectLabel, topicLabel].filter(Boolean).join(" → ")}
-                    </p>
-                  )}
                 </div>
-              </section>
+
+                {topicLabel && (
+                  <p className="text-xs text-gray-500 flex items-center gap-2 pt-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                    {[classroomLabel, subjectLabel, topicLabel].filter(Boolean).join(" → ")}
+                  </p>
+                )}
+              </div>
+            </section>
 
               {/* Schedule & Duration */}
               <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-gray-100">
+                <div className="lg:px-5 py-4 px-4 bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-gray-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-sky-500 text-white">
-                      <Clock className="w-4 h-4" />
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-sky-500 text-white">
+                      <Clock className="w-5 h-5" />
                     </div>
                     <div>
                       <h2 className="font-semibold text-gray-900">Schedule & Duration</h2>
@@ -1228,241 +1236,241 @@ const SubmitLesson = () => {
                   </div>
                 </div>
 
-                <div className="p-5">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {/* Date */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-gray-400" />
-                        Class Date
-                      </Label>
-                      <input
-                        type="date"
-                        value={scheduledDate}
-                        onChange={(e) => {
-                          const raw = e.target.value;
-                          const normalized = normalizeDateInput(raw);
-                          debugLog("Date input changed", {
-                            raw,
-                            normalized,
-                            min: toLocalDateInputValue(new Date()),
-                          });
-                          setScheduledDate(normalized);
-                        }}
-                        min={toLocalDateInputValue(new Date())}
-                        className="w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all bg-white"
-                      />
-                    </div>
-
-                    {/* Time */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-gray-400" />
-                        Start Time
-                      </Label>
-                      <input
-                        type="time"
-                        value={scheduledTime}
-                        onChange={(e) => setScheduledTime(e.target.value)}
-                        disabled={!scheduledDate}
-                        className={cn(
-                          "w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all bg-white",
-                          !scheduledDate && "opacity-50 cursor-not-allowed bg-gray-50"
-                        )}
-                      />
-                    </div>
-
-                    {/* Duration */}
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-                        <Timer className="w-3.5 h-3.5 text-gray-400" />
-                        Duration (minutes)
-                      </Label>
-                      <input
-                        type="number"
-                        value={durationMinutes}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === "" || (Number(v) > 0 && Number(v) <= 480)) setDurationMinutes(v);
-                        }}
-                        placeholder="e.g. 60"
-                        min={1}
-                        max={480}
-                        className="w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all"
-                      />
-                    </div>
+              <div className="p-5">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Date */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-gray-400" />
+                      Class Date
+                    </Label>
+                    <input
+                      type="date"
+                      value={scheduledDate}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const normalized = normalizeDateInput(raw);
+                        debugLog("Date input changed", {
+                          raw,
+                          normalized,
+                          min: toLocalDateInputValue(new Date()),
+                        });
+                        setScheduledDate(normalized);
+                      }}
+                      min={toLocalDateInputValue(new Date())}
+                      className="w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all bg-white"
+                    />
                   </div>
 
-                  {scheduledDate && scheduledTime && (
-                    <p className="mt-3 text-xs text-sky-600 flex items-center gap-1.5">
-                      <Clock className="w-3 h-3" />
-                      Scheduled for{" "}
-                      {new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString("en-US", {
-                        weekday: "short", month: "short", day: "numeric",
-                        year: "numeric", hour: "2-digit", minute: "2-digit",
-                      })}
-                      {durationMinutes && ` · ${durationMinutes} min`}
-                    </p>
-                  )}
-                </div>
-              </section>
+                  {/* Time */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-gray-400" />
+                      Start Time
+                    </Label>
+                    <input
+                      type="time"
+                      value={scheduledTime}
+                      onChange={(e) => setScheduledTime(e.target.value)}
+                      disabled={!scheduledDate}
+                      className={cn(
+                        "w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all bg-white",
+                        !scheduledDate && "opacity-50 cursor-not-allowed bg-gray-50"
+                      )}
+                    />
+                  </div>
 
-              {/* Step 2: Lesson Content */}
-              <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-100">
+                  {/* Duration */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                      <Timer className="w-3.5 h-3.5 text-gray-400" />
+                      Duration (minutes)
+                    </Label>
+                    <input
+                      type="number"
+                      value={durationMinutes}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (v === "" || (Number(v) > 0 && Number(v) <= 480)) setDurationMinutes(v);
+                      }}
+                      placeholder="e.g. 60"
+                      min={1}
+                      max={480}
+                      className="w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {scheduledDate && scheduledTime && (
+                  <p className="mt-3 text-xs text-sky-600 flex items-center gap-1.5">
+                    <Clock className="w-3 h-3" />
+                    Scheduled for{" "}
+                    {new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString("en-US", {
+                      weekday: "short", month: "short", day: "numeric",
+                      year: "numeric", hour: "2-digit", minute: "2-digit",
+                    })}
+                    {durationMinutes && ` · ${durationMinutes} min`}
+                  </p>
+                )}
+              </div>
+            </section>
+
+            {/* Step 2: Lesson Content */}
+            <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 bg-gradient-to-r from-purple-50 to-pink-50 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-8 h-8 rounded-lg flex items-center justify-center",
+                    step2Done ? "bg-green-500 text-white" : "bg-purple-500 text-white"
+                  )}>
+                    {step2Done ? <Check className="w-4 h-4" /> : <BookOpen className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-gray-900">Lesson Content</h2>
+                    <p className="text-xs text-gray-500">Describe the lesson objectives and content</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">
+                    Aim & Objectives <span className="text-red-500">*</span>
+                  </Label>
+                  <textarea
+                    rows={3}
+                    value={aim}
+                    onChange={(e) => setAim(e.target.value)}
+                    placeholder="e.g. Students will understand the role of photosynthesis in plant nutrition…"
+                    className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">
+                    Lesson Description <span className="text-red-500">*</span>
+                  </Label>
+                  <textarea
+                    rows={4}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Provide a detailed overview of lesson content, activities, and expected outcomes…"
+                    className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                  />
+                </div>
+              </div>
+            </section>
+
+            {/* Step 3: Media Files */}
+            <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-100">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className={cn(
                       "w-8 h-8 rounded-lg flex items-center justify-center",
-                      step2Done ? "bg-green-500 text-white" : "bg-purple-500 text-white"
+                      step3Done ? "bg-green-500 text-white" : "bg-emerald-500 text-white"
                     )}>
-                      {step2Done ? <Check className="w-4 h-4" /> : <BookOpen className="w-4 h-4" />}
+                      {step3Done ? <Check className="w-4 h-4" /> : <FolderOpen className="w-4 h-4" />}
                     </div>
                     <div>
-                      <h2 className="font-semibold text-gray-900">Lesson Content</h2>
-                      <p className="text-xs text-gray-500">Describe the lesson objectives and content</p>
+                      <h2 className="font-semibold text-gray-900">Media Files</h2>
+                      <p className="text-xs text-gray-500">Upload lesson materials</p>
                     </div>
+                  </div>
+                  <span className="hidden sm:inline text-xs text-gray-400">
+                    Drag to reorder
+                  </span>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* Drop Zone */}
+                <div
+                  onDragOver={handleDZDragOver}
+                  onDragLeave={handleDZDragLeave}
+                  onDrop={handleDZDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed py-10 cursor-pointer transition-all",
+                    isDraggingOver
+                      ? "border-blue-400 bg-blue-50"
+                      : "border-gray-200 bg-gray-50/50 hover:border-blue-300 hover:bg-blue-50/30"
+                  )}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    accept="video/*,audio/*,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                    onChange={(e) => {
+                      if (e.target.files?.length) {
+                        processFiles(e.target.files);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                  <div className={cn(
+                    "w-14 h-14 rounded-2xl flex items-center justify-center transition-colors",
+                    isDraggingOver ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-600"
+                  )}>
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-gray-700">
+                      {isDraggingOver ? "Drop files here" : "Click to upload or drag and drop"}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Video, Audio, Images, PDF, Documents
+                    </p>
                   </div>
                 </div>
 
-                <div className="p-5 space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">
-                      Aim & Objectives <span className="text-red-500">*</span>
-                    </Label>
-                    <textarea
-                      rows={3}
-                      value={aim}
-                      onChange={(e) => setAim(e.target.value)}
-                      placeholder="e.g. Students will understand the role of photosynthesis in plant nutrition…"
-                      className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                    />
+                {/* File List */}
+                {uploadFiles.length > 0 && (
+                  <div
+                    className="space-y-2"
+                    onDragEnd={() => { dragItemIdx.current = null; setDragTargetIdx(null); }}
+                  >
+                    {uploadFiles.map((entry, idx) => (
+                      <FileRow
+                        key={entry.uid}
+                        entry={entry}
+                        index={idx}
+                        onRemove={handleRemove}
+                        onRetry={handleRetry}
+                        onDragStart={handleRowDragStart}
+                        onDragOver={handleRowDragOver}
+                        onDrop={handleRowDrop}
+                        isDragTarget={dragTargetIdx === idx}
+                      />
+                    ))}
                   </div>
+                )}
 
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">
-                      Lesson Description <span className="text-red-500">*</span>
-                    </Label>
-                    <textarea
-                      rows={4}
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Provide a detailed overview of lesson content, activities, and expected outcomes…"
-                      className="w-full rounded-xl border-2 border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
-                    />
-                  </div>
-                </div>
-              </section>
-
-              {/* Step 3: Media Files */}
-              <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 bg-gradient-to-r from-emerald-50 to-teal-50 border-b border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        "w-8 h-8 rounded-lg flex items-center justify-center",
-                        step3Done ? "bg-green-500 text-white" : "bg-emerald-500 text-white"
-                      )}>
-                        {step3Done ? <Check className="w-4 h-4" /> : <FolderOpen className="w-4 h-4" />}
-                      </div>
-                      <div>
-                        <h2 className="font-semibold text-gray-900">Media Files</h2>
-                        <p className="text-xs text-gray-500">Upload lesson materials</p>
-                      </div>
-                    </div>
-                    <span className="hidden sm:inline text-xs text-gray-400">
-                      Drag to reorder
+                {/* Status Banner */}
+                {uploadFiles.length > 0 && (
+                  <div className={cn(
+                    "flex items-center gap-3 rounded-xl px-4 py-3 text-sm",
+                    allUploaded && "bg-green-50 text-green-700 border border-green-200",
+                    isUploading && "bg-blue-50 text-blue-700 border border-blue-200",
+                    !allUploaded && !isUploading && "bg-amber-50 text-amber-700 border border-amber-200"
+                  )}>
+                    {allUploaded && <CheckCircle2 className="w-5 h-5 shrink-0" />}
+                    {isUploading && <Loader2 className="w-5 h-5 shrink-0 animate-spin" />}
+                    {!allUploaded && !isUploading && <AlertCircle className="w-5 h-5 shrink-0" />}
+                    <span className="font-medium">
+                      {allUploaded && `${uploadFiles.length} file${uploadFiles.length > 1 ? "s" : ""} ready`}
+                      {isUploading && "Uploading files..."}
+                      {!allUploaded && !isUploading && "Some files failed. Retry or remove them."}
                     </span>
                   </div>
-                </div>
-
-                <div className="p-5 space-y-4">
-                  {/* Drop Zone */}
-                  <div
-                    onDragOver={handleDZDragOver}
-                    onDragLeave={handleDZDragLeave}
-                    onDrop={handleDZDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
-                    className={cn(
-                      "flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed py-10 cursor-pointer transition-all",
-                      isDraggingOver
-                        ? "border-blue-400 bg-blue-50"
-                        : "border-gray-200 bg-gray-50/50 hover:border-blue-300 hover:bg-blue-50/30"
-                    )}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      className="hidden"
-                      accept="video/*,audio/*,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                      onChange={(e) => {
-                        if (e.target.files?.length) {
-                          processFiles(e.target.files);
-                          e.target.value = "";
-                        }
-                      }}
-                    />
-                    <div className={cn(
-                      "w-14 h-14 rounded-2xl flex items-center justify-center transition-colors",
-                      isDraggingOver ? "bg-blue-500 text-white" : "bg-blue-100 text-blue-600"
-                    )}>
-                      <Upload className="w-6 h-6" />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-sm font-semibold text-gray-700">
-                        {isDraggingOver ? "Drop files here" : "Click to upload or drag and drop"}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Video, Audio, Images, PDF, Documents
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* File List */}
-                  {uploadFiles.length > 0 && (
-                    <div
-                      className="space-y-2"
-                      onDragEnd={() => { dragItemIdx.current = null; setDragTargetIdx(null); }}
-                    >
-                      {uploadFiles.map((entry, idx) => (
-                        <FileRow
-                          key={entry.uid}
-                          entry={entry}
-                          index={idx}
-                          onRemove={handleRemove}
-                          onRetry={handleRetry}
-                          onDragStart={handleRowDragStart}
-                          onDragOver={handleRowDragOver}
-                          onDrop={handleRowDrop}
-                          isDragTarget={dragTargetIdx === idx}
-                        />
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Status Banner */}
-                  {uploadFiles.length > 0 && (
-                    <div className={cn(
-                      "flex items-center gap-3 rounded-xl px-4 py-3 text-sm",
-                      allUploaded && "bg-green-50 text-green-700 border border-green-200",
-                      isUploading && "bg-blue-50 text-blue-700 border border-blue-200",
-                      !allUploaded && !isUploading && "bg-amber-50 text-amber-700 border border-amber-200"
-                    )}>
-                      {allUploaded && <CheckCircle2 className="w-5 h-5 shrink-0" />}
-                      {isUploading && <Loader2 className="w-5 h-5 shrink-0 animate-spin" />}
-                      {!allUploaded && !isUploading && <AlertCircle className="w-5 h-5 shrink-0" />}
-                      <span className="font-medium">
-                        {allUploaded && `${uploadFiles.length} file${uploadFiles.length > 1 ? "s" : ""} ready`}
-                        {isUploading && "Uploading files..."}
-                        {!allUploaded && !isUploading && "Some files failed. Retry or remove them."}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </section>
+                )}
+              </div>
+            </section>
 
             {/* Desktop Action Buttons */}
             <div className="hidden sm:flex items-center justify-between pt-4">

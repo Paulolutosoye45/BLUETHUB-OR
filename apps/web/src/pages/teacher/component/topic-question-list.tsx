@@ -10,7 +10,7 @@ import {
   type SubjectQuestionSummaryResponseData,
   type QuestionSummaryDto,
 } from "@/services/question";
-import { useAuthContext } from "@/contexts/auth-context";
+import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 
 interface ApiItem {
   id: string;
@@ -207,44 +207,50 @@ const TopicQuestionList = () => {
       return;
     }
 
-    setClassroomsLoading(true);
-    Promise.resolve(user?.roleData?.classrooms ?? [])
-      .then((roleClassrooms) => {
-        const pairs: TeacherAssignment[] = [];
-        const uniqueClassrooms = new Map<string, ApiItem>();
+setClassroomsLoading(true);
 
-        for (const c of roleClassrooms) {
-          if (!c?.classroomId || !c?.className) continue;
-          uniqueClassrooms.set(String(c.classroomId), {
-            id: String(c.classroomId),
-            name: String(c.className),
-          });
+const roleData = user?.roleData;
+const roleClassrooms = (roleData && isTeacherRoleData(roleData))
+  ? roleData.classrooms
+  : [];
 
-          for (const s of c.subjects ?? []) {
-            if (!s?.subjectId || !s?.subjectName) continue;
-            pairs.push({
-              classroomId: String(c.classroomId),
-              className: String(c.className),
-              subjectId: String(s.subjectId),
-              subjectName: String(s.subjectName),
-            });
-          }
-        }
+Promise.resolve(roleClassrooms)
+  .then((roleClassrooms) => {
+    const pairs: TeacherAssignment[] = [];
+    const uniqueClassrooms = new Map<string, ApiItem>();
 
-        const nextClassrooms = Array.from(uniqueClassrooms.values());
-        setTeacherAssignments(pairs);
-        setClassrooms(nextClassrooms);
-        setSelectedClassId((prev) => {
-          if (prev && nextClassrooms.some((c) => c.id === prev)) return prev;
-          if (initialFilters.classroomId && nextClassrooms.some((c) => c.id === initialFilters.classroomId)) {
-            return initialFilters.classroomId;
-          }
-          return nextClassrooms[0]?.id;
+    for (const c of roleClassrooms) {
+      if (!c?.classroomId || !c?.className) continue;
+      uniqueClassrooms.set(String(c.classroomId), {
+        id: String(c.classroomId),
+        name: String(c.className),
+      });
+
+      for (const s of c.subjects ?? []) {
+        if (!s?.subjectId || !s?.subjectName) continue;
+        pairs.push({
+          classroomId: String(c.classroomId),
+          className: String(c.className),
+          subjectId: String(s.subjectId),
+          subjectName: String(s.subjectName),
         });
-      })
-      .catch(() => toast.error("Failed to load your assignments"))
-      .finally(() => setClassroomsLoading(false));
-  }, [initialFilters.classroomId, isAdmin, user?.id, user?.roleData?.classrooms]);
+      }
+    }
+
+    const nextClassrooms = Array.from(uniqueClassrooms.values());
+    setTeacherAssignments(pairs);
+    setClassrooms(nextClassrooms);
+    setSelectedClassId((prev) => {
+      if (prev && nextClassrooms.some((c) => c.id === prev)) return prev;
+      if (initialFilters.classroomId && nextClassrooms.some((c) => c.id === initialFilters.classroomId)) {
+        return initialFilters.classroomId;
+      }
+      return nextClassrooms[0]?.id;
+    });
+  })
+  .catch(() => toast.error("Failed to load your assignments"))
+  .finally(() => setClassroomsLoading(false));
+  }, [initialFilters.classroomId, isAdmin, user?.id, user?.roleData]);
 
   useEffect(() => {
     if (!selectedClassId) {
@@ -410,8 +416,8 @@ const TopicQuestionList = () => {
   }, [selectedClassId, selectedSubjectId, selectedSubtopic, selectedTopicId]);
 
   return (
-    <div className="p-3 sm:p-5 font-poppins">
-      <div className="rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
+    <div className="sm:p-5 font-poppins">
+      <div className="lg:rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
         <TitleBar title="question" hasVertical hasBackIcons onBack={() => navigate(-1)} />
 
         <div className="p-3 sm:p-5 lg:p-7 space-y-4 sm:space-y-5">

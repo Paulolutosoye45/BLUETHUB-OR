@@ -1,12 +1,13 @@
 
 // import { Button } from "@bluethub/ui-kit"
 import AssessmentSelectSubject from "./assessment-select-subject"
-import { useNavigate } from "react-router-dom"
-import { EllipsisVertical } from "lucide-react"
+import { useNavigate, useOutletContext } from "react-router-dom"
+import { EllipsisVertical, Menu } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 const Assessment = () => {
   const navigate = useNavigate()
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -22,19 +23,14 @@ const Assessment = () => {
   }, [])
 
   return (
-    <div className="p-3 sm:p-4 lg:p-6 font-poppins">
-      <div className="backdrop-blur-sm rounded-2xl border border-white/20  overflow-hidden">
+    <div className="sm:p-4 lg:p-6 font-poppins">
+      <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20  overflow-hidden">
         {/* <TitleBar title="" hasVertical /> */}
-        <div className={`bg-linear-to-r from-chestnut to-chestnut/90 px-4 sm:px-6 py-4 sm:py-5 rounded-t-lg flex items-center justify-between`}>
+        <div className={`bg-linear-to-r from-chestnut to-chestnut/90 px-4 sm:px-6 py-4 sm:py-5 lg:rounded-t-lg flex items-center justify-between`}>
 
           {/* Left side — back arrow + title + chevron */}
           <div className="flex items-center gap-2.5">
-            {/* <button
-                        // onClick={onBack}
-                        className="text-white hover:text-white transition-colors"
-                    >
-                        <ArrowLeft size={18} />
-                    </button> */}
+            <Menu className="lg:hidden  w-5 h-5 text-white" onClick={openMobileNav} />
             <h2 className="font-semibold font-poppins text-lg text-white leading-none">
               question
             </h2>
@@ -55,7 +51,7 @@ const Assessment = () => {
                   { label: "View Existing Questions", link: '/teacher/assessment/questionlist' },
                   { label: "Extract Question", link: '/teacher/assessment/upload-scan' },
                   { label: "Type Question", link: '/teacher/assessment/createQuiz' },
-                  { label: "Pending Job Status", link: '/teacher/assessment/My-Uploads' },
+                  { label: "Pending Job Status", link: '/teacher/assessments/My-Uploads' },
                 ].map((item) => (
                   <button
                     key={item.label}
@@ -74,7 +70,7 @@ const Assessment = () => {
 
         </div>
 
-        <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-white/70 backdrop-blur-sm">
+        <div className="flex-1 p-3 sm:p-6 lg:p-8 bg-white/70 backdrop-blur-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6" >
             <div>
               <h1 className="text-[22px] sm:text-[26px] font-bold text-[#1A1C5E] m-0 tracking-[-0.3px]">

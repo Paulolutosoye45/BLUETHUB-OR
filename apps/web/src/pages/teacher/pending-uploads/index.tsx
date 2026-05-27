@@ -9,9 +9,8 @@
  */
 
 import { useEffect, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import {
-  ChevronLeft,
   Upload,
   Loader2,
   CheckCircle2,
@@ -27,6 +26,7 @@ import {
   ChevronRight,
   Play,
   XCircle,
+  Menu,
 } from "lucide-react";
 import { Button } from "@bluethub/ui-kit";
 import { cn } from "@/lib/utils";
@@ -335,6 +335,7 @@ function SessionCard({
 // ── Main Page Component ──────────────────────────────────────────────────────
 
 const PendingUploads = () => {
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const [sessions, setSessions] = useState<SessionUploadStats[]>([]);
@@ -594,10 +595,9 @@ const PendingUploads = () => {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => navigate(-1)}
                 className="p-2 -ml-2 rounded-xl hover:bg-gray-100 transition-colors"
-              >
-                <ChevronLeft className="w-5 h-5 text-gray-600" />
+              >  
+                <Menu className="lg:hidden  w-5 h-5 text-gray-600" onClick={openMobileNav} />
               </button>
               <div>
                 <h1 className="text-lg font-semibold text-gray-900">Pending Uploads</h1>

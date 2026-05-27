@@ -1,9 +1,9 @@
-import { useAuthContext } from "@/contexts/auth-context";
+import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { authService } from "@/services/auth";
 import { schoolService } from "@/services/school";
 import { cn } from "@/lib/utils";
-import { BookOpen, ChevronDown, ChevronRight, Layers, Loader2, PlusIcon } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { BookOpen, ChevronDown, ChevronRight, Layers, Loader2, Menu, PlusIcon } from "lucide-react";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -86,24 +86,29 @@ function TopicRow({ topic }: { topic: Topic }) {
 
 const MySyllabus = () => {
     const navigate = useNavigate();
+    const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
     const { user, isLoading: authLoading } = useAuthContext();
     const [fallbackClassrooms, setFallbackClassrooms] = useState<any[]>([]);
 
     // Collect unique subjects from the teacher's roleData (already in memory)
     const subjects = useMemo<SubjectItem[]>(() => {
-        const classrooms = user?.roleData?.classrooms?.length
-            ? user.roleData.classrooms
+        const roleData = user?.roleData;
+        const classrooms = roleData && isTeacherRoleData(roleData) && roleData.classrooms.length
+            ? roleData.classrooms
             : fallbackClassrooms;
+
         const seen = new Set<string>();
         const result: SubjectItem[] = [];
+
         for (const cls of classrooms) {
-            for (const s of cls.subjects ?? []) {
+            for (const s of cls.subjects) {
                 if (!seen.has(s.subjectId)) {
                     seen.add(s.subjectId);
                     result.push({ subjectId: s.subjectId, subjectName: s.subjectName });
                 }
             }
         }
+
         return result;
     }, [user]);
 
@@ -114,16 +119,23 @@ const MySyllabus = () => {
     const [hydratingUser, setHydratingUser] = useState(false);
 
     useEffect(() => {
-        if (authLoading || !user?.id || user?.roleData?.classrooms?.length || hydratingUser) return;
+        const roleData = user?.roleData;
+        const hasClassrooms = roleData && isTeacherRoleData(roleData) && roleData.classrooms.length > 0;
+
+        if (authLoading || !user?.id || hasClassrooms || hydratingUser) return;
 
         setHydratingUser(true);
         authService.getUserById(user.id)
             .then((response) => {
-                setFallbackClassrooms(response.data?.data?.roleData?.classrooms ?? []);
+                const fetchedRoleData = response.data?.data?.roleData;
+                const classrooms = fetchedRoleData && isTeacherRoleData(fetchedRoleData)
+                    ? fetchedRoleData.classrooms
+                    : [];
+                setFallbackClassrooms(classrooms);
             })
             .catch(() => setError("Failed to load your assigned subjects. Please try again."))
             .finally(() => setHydratingUser(false));
-    }, [authLoading, hydratingUser, user?.id, user?.roleData?.classrooms?.length]);
+    }, [authLoading, hydratingUser, user?.id, user?.roleData]);
 
     // Auto-select first subject on mount
     useEffect(() => {
@@ -171,12 +183,16 @@ const MySyllabus = () => {
     const selectedSubjectName = subjects.find((s) => s.subjectId === selectedSubjectId)?.subjectName ?? "";
 
     return (
-        <div className="p-3 font-poppins">
-            <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
+        <div className="md:p-3 font-poppins">
+            <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
 
                 {/* ── Top Nav ──────────────────────────────────────────────────── */}
                 <div className="flex items-center justify-between px-4 py-5 sticky top-0 z-30 bg-chestnut">
                     <div className="flex items-center gap-2.5">
+                        <Menu
+                            className="lg:hidden w-5 h-5 text-white cursor-pointer"
+                            onClick={openMobileNav}  // ✅ not onClick={() => openMobileNav()}
+                        />
                         <span className="text-white font-semibold text-sm">My Syllabus</span>
                     </div>
                     <button
@@ -201,31 +217,35 @@ const MySyllabus = () => {
                             <p className="text-sm text-[#A0A8C0]">No subjects assigned to your account.</p>
                         </div>
                     ) : (
-                        <div className="flex min-h-[500px]">
+                        <div className="flex flex-col md:flex-row min-h-[500px]">
 
                             {/* ── Subject Sidebar ─────────────────────────────── */}
-                            <div className="w-56 shrink-0 border-r border-[#E8E8E3] bg-[#F9F9FB] p-3 space-y-1">
+                            <div className="md:w-56 md:shrink-0 border-b md:border-b-0 md:border-r border-[#E8E8E3] bg-[#F9F9FB] p-3">
                                 <p className="text-[10px] uppercase tracking-widest text-[#A0A8C0] font-semibold px-2 pb-2">
                                     Subjects
                                 </p>
-                                {subjects.map((s) => (
-                                    <button
-                                        key={s.subjectId}
-                                        onClick={() => setSelectedSubjectId(s.subjectId)}
-                                        className={cn(
-                                            "w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
-                                            selectedSubjectId === s.subjectId
-                                                ? "bg-chestnut text-white shadow-sm"
-                                                : "text-[#3A3A4A] hover:bg-[#EFEFEF]"
-                                        )}
-                                    >
-                                        {s.subjectName}
-                                    </button>
-                                ))}
+                                {/* mobile: horizontal scroll row; md+: vertical stack */}
+                                <div className="flex gap-2 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0 md:space-y-1
+      [&::-webkit-scrollbar]:hidden">
+                                    {subjects.map((s) => (
+                                        <button
+                                            key={s.subjectId}
+                                            onClick={() => setSelectedSubjectId(s.subjectId)}
+                                            className={cn(
+                                                "shrink-0 text-left px-3 py-2 md:py-2.5 rounded-xl text-sm font-medium transition-all md:w-full",
+                                                selectedSubjectId === s.subjectId
+                                                    ? "bg-chestnut text-white shadow-sm"
+                                                    : "text-[#3A3A4A] hover:bg-[#EFEFEF]"
+                                            )}
+                                        >
+                                            {s.subjectName}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
                             {/* ── Curriculum Panel ────────────────────────────── */}
-                            <div className="flex-1 p-5 overflow-y-auto">
+                            <div className="flex-1 p-4 md:p-5 overflow-y-auto">
 
                                 {/* Header */}
                                 <div className="mb-5">
@@ -270,7 +290,7 @@ const MySyllabus = () => {
                                     </>
                                 )}
 
-                                {/* Empty state before any fetch */}
+                                {/* Empty state */}
                                 {!loading && !error && !curriculum && (
                                     <div className="flex flex-col items-center justify-center py-16 gap-2">
                                         <BookOpen size={36} className="text-[#D0D4E8]" />
