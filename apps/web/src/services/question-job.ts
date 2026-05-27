@@ -3,6 +3,7 @@ import { API, type TResponse } from ".";
 
 
 const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
+const QUESTION_BACKEND_BASE = "https://techhubschmanagement.onrender.com";
 
 // ── Request types ───────────────────────────────────────────────────────────
 export type JobQuestionType = "Objective" | "Theory" | "TrueFalse";
@@ -265,4 +266,72 @@ getJobPreview: (jobId: string) =>
       `api/questions/jobs/${jobId}/questions`,
       { headers }
     ),
+
+  // POST api/question-jobs/jobs/{jobId}/confirm
+  confirmJobQuestions: async (jobId: string) => {
+    try {
+      return await API.post<TResponse<unknown>>(
+        `${QUESTION_BACKEND_BASE}/api/questionjob/jobs/${jobId}/confirm`,
+        {},
+        { headers },
+      );
+    } catch {
+      try {
+        return await API.post<TResponse<unknown>>(
+        `api/questionjob/jobs/${jobId}/confirm`,
+        {},
+        { headers },
+      );
+      } catch {
+      try {
+        return await API.post<TResponse<unknown>>(
+          `api/question-jobs/jobs/${jobId}/confirm`,
+          {},
+          { headers },
+        );
+      } catch {
+        // Fallback for alternate route prefix style.
+        return API.post<TResponse<unknown>>(
+          `api/questions/jobs/${jobId}/confirm`,
+          {},
+          { headers },
+        );
+      }
+      }
+    }
+  },
+
+  // Semantic alias used after creating uploaded questions.
+  // Backend marks the job as processed via the confirm endpoint.
+  updateJobStatusProcessed: async (jobId: string) => {
+    try {
+      return await API.post<TResponse<unknown>>(
+        `${QUESTION_BACKEND_BASE}/api/questionjob/jobs/${jobId}/confirm`,
+        {},
+        { headers },
+      );
+    } catch {
+      try {
+        return await API.post<TResponse<unknown>>(
+        `api/questionjob/jobs/${jobId}/confirm`,
+        {},
+        { headers },
+      );
+      } catch {
+      try {
+        return await API.post<TResponse<unknown>>(
+          `api/question-jobs/jobs/${jobId}/confirm`,
+          {},
+          { headers },
+        );
+      } catch {
+        return API.post<TResponse<unknown>>(
+          `api/questions/jobs/${jobId}/confirm`,
+          {},
+          { headers },
+        );
+      }
+      }
+    }
+  },
 };
