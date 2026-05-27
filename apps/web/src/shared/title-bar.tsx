@@ -1,6 +1,6 @@
 import { Button } from "@bluethub/ui-kit";
 import { ArrowLeft, ChevronRight, EllipsisVertical, Menu } from "lucide-react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Link, } from "react-router-dom";
 
 interface TitleBarProps {
     title: string;
@@ -29,7 +29,6 @@ const TitleBar = ({
     linkBtnLink,
     hasMenu,
 }: TitleBarProps) => {
-    const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
     const isEdit = type === "normal";
 
     const bgClass = isEdit

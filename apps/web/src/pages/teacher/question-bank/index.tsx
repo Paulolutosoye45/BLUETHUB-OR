@@ -4,9 +4,8 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router-dom";
 import {
-  ChevronLeft,
   Upload,
   Loader2,
   CheckCircle2,
@@ -256,7 +255,6 @@ function EmptyState({ onUpload }: { onUpload: () => void }) {
 // ── Main Page Component ──────────────────────────────────────────────────────
 
 const QuestionBankScan = () => {
-  const navigate = useNavigate();
   const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const [jobs, setJobs] = useState<JobListItem[]>([]);
   const [quota, setQuota] = useState<ScanQuotaResponseData | null>(null);
