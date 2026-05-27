@@ -29,7 +29,7 @@ const OTHER_LINKS: NavItem[] = [
 function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
   // Replace with real teacher data from context/hook
   const initials = "JS"; // e.g. from teacher profile
-  const name = "Mrs. Adaeze Funmi";
+  const name = "Adaeze Funmi";
   const role = "Class Teacher";
   const classLabel = "JSS 2A";
   const subject = "Basic Science · Biology";
@@ -103,15 +103,13 @@ function NavItem({
           <img
             src={link.icons}
             alt={link.name}
-            className={`w-[18px] h-[18px] shrink-0 object-contain transition-all ${
-              isActive ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
-            }`}
+            className={`w-[18px] h-[18px] shrink-0 object-contain transition-all ${isActive ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
+              }`}
           />
           {!isCollapsed && (
             <span
-              className={`text-sm font-medium truncate ${
-                isActive ? "text-white" : "text-[#292382]"
-              }`}
+              className={`text-sm font-medium truncate ${isActive ? "text-white" : "text-[#292382]"
+                }`}
             >
               {link.name}
             </span>
@@ -132,7 +130,7 @@ export interface NavContentProps {
 
 export const NavContent = ({
   isCollapsed,
-//   setIsCollapsed,
+  //   setIsCollapsed,
   onNavigate,
   onLogout,
 }: NavContentProps) => {
@@ -181,8 +179,8 @@ export const NavContent = ({
                   isLogout
                     ? "hover:bg-red-50"
                     : isActive
-                    ? "bg-[#292382] text-white"
-                    : "text-[#292382] hover:bg-[#29238210]",
+                      ? "bg-[#292382] text-white"
+                      : "text-[#292382] hover:bg-[#29238210]",
                   isCollapsed ? "justify-center" : "",
                 ].join(" ")
               }
@@ -192,19 +190,17 @@ export const NavContent = ({
                   <img
                     src={link.icons}
                     alt={link.name}
-                    className={`w-[18px] h-[18px] shrink-0 object-contain ${
-                      isLogout
+                    className={`w-[18px] h-[18px] shrink-0 object-contain ${isLogout
                         ? "opacity-80"
                         : isActive
-                        ? "brightness-0 invert"
-                        : "opacity-60 group-hover:opacity-100"
-                    }`}
+                          ? "brightness-0 invert"
+                          : "opacity-60 group-hover:opacity-100"
+                      }`}
                   />
                   {!isCollapsed && (
                     <span
-                      className={`text-sm font-medium ${
-                        isLogout ? "text-red-500" : isActive ? "text-white" : "text-[#292382]"
-                      }`}
+                      className={`text-sm font-medium ${isLogout ? "text-red-500" : isActive ? "text-white" : "text-[#292382]"
+                        }`}
                     >
                       {link.name}
                     </span>
@@ -257,9 +253,8 @@ const TeacherSidebar = () => {
     >
       {/* Header: logo + collapse toggle */}
       <div
-        className={`flex items-center px-4 py-4 border-b border-[#29238210] shrink-0 ${
-          isCollapsed ? "justify-center" : "justify-between"
-        }`}
+        className={`flex items-center px-4 py-4 border-b border-[#29238210] shrink-0 ${isCollapsed ? "justify-center" : "justify-between"
+          }`}
       >
         {!isCollapsed && (
           <img src={bluethub} alt="Bluethub" className="h-6 shrink-0" />
@@ -304,81 +299,81 @@ interface IMobileTeacherNav {
 }
 
 export const MobileTeacherNav = ({ isOpen, setIsOpen }: IMobileTeacherNav) => {
-    const navigate = useNavigate();
-    const { logout } = useAuthContext();
-    const drawerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { logout } = useAuthContext();
+  const drawerRef = useRef<HTMLDivElement>(null);
 
-    const handleLogout = () => {
-        logout();
-        navigate("/");
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+    setIsOpen(false);
+  };
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
         setIsOpen(false);
+      }
     };
+    if (isOpen) document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [isOpen]);
 
-    // Close on outside click
-    useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
-                setIsOpen(false);
-            }
-        };
-        if (isOpen) document.addEventListener("mousedown", handler);
-        return () => document.removeEventListener("mousedown", handler);
-    }, [isOpen]);
+  // Lock body scroll when open
+  useEffect(() => {
+    document.body.style.overflow = isOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
 
-    // Lock body scroll when open
-    useEffect(() => {
-        document.body.style.overflow = isOpen ? "hidden" : "";
-        return () => { document.body.style.overflow = ""; };
-    }, [isOpen]);
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        aria-hidden="true"
+        className={[
+          "lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] transition-opacity duration-300",
+          isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
+        ].join(" ")}
+      />
 
-    return (
-        <>
-            {/* Backdrop */}
-            <div
-                aria-hidden="true"
-                className={[
-                    "lg:hidden fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] transition-opacity duration-300",
-                    isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none",
-                ].join(" ")}
-            />
+      {/* Drawer */}
+      <div
+        ref={drawerRef}
+        className={[
+          "lg:hidden fixed top-0 left-0 z-50 h-full w-[272px] bg-white flex flex-col shadow-xl transition-transform duration-300 ease-in-out",
+          isOpen ? "translate-x-0" : "-translate-x-full",
+        ].join(" ")}
+      >
+        {/* Header: logo + close */}
+        <div className="flex items-center justify-between px-4 py-4 border-b border-[#29238210] shrink-0">
+          <img src={bluethub} alt="Bluethub" className="h-6" />
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#29238210] text-[#292382] transition-colors"
+            aria-label="Close navigation"
+          >
+            <X size={18} />
+          </button>
+        </div>
 
-            {/* Drawer */}
-            <div
-                ref={drawerRef}
-                className={[
-                    "lg:hidden fixed top-0 left-0 z-50 h-full w-[272px] bg-white flex flex-col shadow-xl transition-transform duration-300 ease-in-out",
-                    isOpen ? "translate-x-0" : "-translate-x-full",
-                ].join(" ")}
-            >
-                {/* Header: logo + close */}
-                <div className="flex items-center justify-between px-4 py-4 border-b border-[#29238210] shrink-0">
-                    <img src={bluethub} alt="Bluethub" className="h-6" />
-                    <button
-                        type="button"
-                        onClick={() => setIsOpen(false)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#29238210] text-[#292382] transition-colors"
-                        aria-label="Close navigation"
-                    >
-                        <X size={18} />
-                    </button>
-                </div>
-
-                {/* Scrollable nav — reuses exact same NavContent as desktop */}
-                <div
-                    className="flex-1 overflow-y-auto py-4
+        {/* Scrollable nav — reuses exact same NavContent as desktop */}
+        <div
+          className="flex-1 overflow-y-auto py-4
             [&::-webkit-scrollbar]:w-1
             [&::-webkit-scrollbar-track]:bg-transparent
             [&::-webkit-scrollbar-thumb]:rounded-full
             [&::-webkit-scrollbar-thumb]:bg-[#29238230]"
-                >
-                    <NavContent
-                        isCollapsed={false}
-                        setIsCollapsed={() => { }}
-                        onNavigate={() => setIsOpen(false)}
-                        onLogout={handleLogout}
-                    />
-                </div>
-            </div>
-        </>
-    );
+        >
+          <NavContent
+            isCollapsed={false}
+            setIsCollapsed={() => { }}
+            onNavigate={() => setIsOpen(false)}
+            onLogout={handleLogout}
+          />
+        </div>
+      </div>
+    </>
+  );
 }

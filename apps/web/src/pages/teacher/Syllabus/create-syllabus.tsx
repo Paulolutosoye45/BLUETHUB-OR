@@ -9,7 +9,7 @@ import { useEffect, useState } from "react"
 import { schoolService } from "@/services/school"
 import { AxiosError } from "axios"
 import { toast } from "@bluethub/ui-kit"
-import { useAuthContext } from "@/contexts/auth-context"
+import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context"
 import { cn } from "@/lib/utils"
 
 interface SubjectItem { id: string; name: string; }
@@ -260,17 +260,24 @@ const CreateSyllabus = () => {
                         subjects: [],
                     })));
                 })
-                .catch(() => {});
+                .catch(() => { });
         } else {
-            const classroomsData: any[] = user.roleData?.classrooms ?? [];
-            setClasses(classroomsData.map((c: any) => ({
-                id: String(c.classroomId),
-                name: String(c.className),
-                subjects: (c.subjects ?? []).map((s: any) => ({
-                    id: String(s.subjectId),
-                    name: String(s.subjectName),
-                })),
-            })));
+            const roleData = user.roleData;
+            if (roleData && isTeacherRoleData(roleData)) {
+                setClasses(
+                    roleData.classrooms.map((c) => ({
+                        id: c.classroomId,
+                        name: c.className,
+                        subjects: c.subjects.map((s) => ({
+                            id: s.subjectId,
+                            name: s.subjectName,
+                        })),
+                    }))
+                );
+            } else {
+                setClasses([]);
+            }
+
         }
     }, [isAdmin, user?.id, user?.roleData]);
 
@@ -315,7 +322,7 @@ const CreateSyllabus = () => {
                     })));
                 }
             })
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => setLoadingCurriculum(false));
     }, [selectedSubject]);
 

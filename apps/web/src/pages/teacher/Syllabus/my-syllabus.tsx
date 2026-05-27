@@ -1,4 +1,4 @@
-import { useAuthContext } from "@/contexts/auth-context";
+import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { authService } from "@/services/auth";
 import { schoolService } from "@/services/school";
 import { cn } from "@/lib/utils";
@@ -91,19 +91,23 @@ const MySyllabus = () => {
 
     // Collect unique subjects from the teacher's roleData (already in memory)
     const subjects = useMemo<SubjectItem[]>(() => {
-        const classrooms = user?.roleData?.classrooms?.length
-            ? user.roleData.classrooms
+        const roleData = user?.roleData;
+        const classrooms = roleData && isTeacherRoleData(roleData) && roleData.classrooms.length
+            ? roleData.classrooms
             : fallbackClassrooms;
+
         const seen = new Set<string>();
         const result: SubjectItem[] = [];
+
         for (const cls of classrooms) {
-            for (const s of cls.subjects ?? []) {
+            for (const s of cls.subjects) {
                 if (!seen.has(s.subjectId)) {
                     seen.add(s.subjectId);
                     result.push({ subjectId: s.subjectId, subjectName: s.subjectName });
                 }
             }
         }
+
         return result;
     }, [user]);
 
@@ -114,16 +118,23 @@ const MySyllabus = () => {
     const [hydratingUser, setHydratingUser] = useState(false);
 
     useEffect(() => {
-        if (authLoading || !user?.id || user?.roleData?.classrooms?.length || hydratingUser) return;
+        const roleData = user?.roleData;
+        const hasClassrooms = roleData && isTeacherRoleData(roleData) && roleData.classrooms.length > 0;
+
+        if (authLoading || !user?.id || hasClassrooms || hydratingUser) return;
 
         setHydratingUser(true);
         authService.getUserById(user.id)
             .then((response) => {
-                setFallbackClassrooms(response.data?.data?.roleData?.classrooms ?? []);
+                const fetchedRoleData = response.data?.data?.roleData;
+                const classrooms = fetchedRoleData && isTeacherRoleData(fetchedRoleData)
+                    ? fetchedRoleData.classrooms
+                    : [];
+                setFallbackClassrooms(classrooms);
             })
             .catch(() => setError("Failed to load your assigned subjects. Please try again."))
             .finally(() => setHydratingUser(false));
-    }, [authLoading, hydratingUser, user?.id, user?.roleData?.classrooms?.length]);
+    }, [authLoading, hydratingUser, user?.id, user?.roleData]);
 
     // Auto-select first subject on mount
     useEffect(() => {
