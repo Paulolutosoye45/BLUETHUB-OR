@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useOutletContext } from "react-router-dom";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Loader2, Plus, Star, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
 import katex from "katex";
 import "katex/dist/katex.min.css";
@@ -8,12 +7,14 @@ import TitleBar from "@/shared/title-bar";
 import { Button, Dialog, DialogContent, DialogTitle } from "@bluethub/ui-kit";
 import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { schoolService } from "@/services/school";
+import { questionService, type CreateOptionPayload } from "@/services/question";
 import {
   questionJobService,
   type ExtractedQuestionDto,
   type JobStatusItem,
   type JobStatusesSummary,
 } from "@/services/question-job";
+import { useOutletContext } from "react-router-dom";
 
 type SelectItem = { id: string; name: string };
 type QuestionContentPart = {
@@ -66,15 +67,17 @@ const QUESTION_TYPE_CHOICES = [
 
 const isOptionQuestionType = (questionType: number) => questionType === 1 || questionType === 4;
 
-const escapeHtml = (value: string) =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
 
 const stripHtml = (value: string) => value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+const sanitizePlainTextInput = (value: string) => stripHtml(value).replace(/\s+/g, " ").trim();
+
+const sanitizeQuestionTextForSave = (value: string) =>
+  value
+    .replace(/<[^>]+>/g, "")
+    .replace(/\r\n/g, "\n")
+    .trim();
 
 const nextOptionLabel = (index: number) => String.fromCharCode(65 + index);
 
@@ -178,29 +181,157 @@ const questionRichnessScore = (q: UploadedQuestion) => {
   return score;
 };
 
+const normalizeOptionText = (option: UploadedOption) =>
+  sanitizePlainTextInput(option.optionText ?? option.plainText ?? stripHtml(option.html ?? "") ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
+const normalizeOptionsSignature = (q: UploadedQuestion) =>
+  (q.options ?? [])
+    .map((option) => `${(option.optionLabel ?? option.label ?? "").toLowerCase()}:${normalizeOptionText(option)}`)
+    .join("|");
+
 const dedupeQuestions = (questions: UploadedQuestion[]) => {
-  const byId = new Map<string, UploadedQuestion>();
-  const bySignature = new Map<string, UploadedQuestion>();
+  const kept: UploadedQuestion[] = [];
+  const keyToIndex = new Map<string, number>();
 
   const chooseBetter = (a: UploadedQuestion, b: UploadedQuestion) =>
     questionRichnessScore(a) >= questionRichnessScore(b) ? a : b;
 
   questions.forEach((q) => {
-    const keyById = q.id || "";
-    const normalized = normalizeQuestionText(q);
-    const keyBySig = `${q.questionNumber ?? ""}|${normalized.slice(0, 180)}`;
+    const normalizedText = normalizeQuestionText(q);
+    const optionsSig = normalizeOptionsSignature(q);
+    const keys = [
+      q.id ? `id:${q.id}` : "",
+      `sig:${q.questionType}|${normalizedText.slice(0, 260)}|${optionsSig}`,
+      normalizedText ? `text:${normalizedText.slice(0, 260)}` : "",
+    ].filter(Boolean);
 
-    if (keyById) {
-      const prevById = byId.get(keyById);
-      byId.set(keyById, prevById ? chooseBetter(prevById, q) : q);
+    const existingIndex = keys
+      .map((key) => keyToIndex.get(key))
+      .find((index) => index !== undefined);
+
+    if (existingIndex === undefined) {
+      const nextIndex = kept.length;
+      kept.push(q);
+      keys.forEach((key) => keyToIndex.set(key, nextIndex));
       return;
     }
 
-    const prev = bySignature.get(keyBySig);
-    bySignature.set(keyBySig, prev ? chooseBetter(prev, q) : q);
+    const better = chooseBetter(kept[existingIndex], q);
+    kept[existingIndex] = better;
+    keys.forEach((key) => keyToIndex.set(key, existingIndex));
   });
 
-  return [...byId.values(), ...bySignature.values()];
+  return kept;
+};
+
+const renderDifficultyStars = (difficulty: number) => {
+  const clamped = Math.min(4, Math.max(1, Number.isFinite(difficulty) ? Math.round(difficulty) : 1));
+  return (
+    <span className="inline-flex items-center gap-1">
+      {Array.from({ length: 4 }).map((_, index) => {
+        const active = index < clamped;
+        return (
+          <Star
+            key={`${difficulty}-${index}`}
+            className={`h-3.5 w-3.5 ${active ? "fill-amber-400 text-amber-500" : "text-slate-300"}`}
+          />
+        );
+      })}
+    </span>
+  );
+};
+
+const DifficultyPicker = ({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) => {
+  const clamped = Math.min(4, Math.max(1, Number.isFinite(value) ? Math.round(value) : 1));
+  return (
+    <div className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 h-10">
+      {Array.from({ length: 4 }).map((_, index) => {
+        const starValue = index + 1;
+        const active = starValue <= clamped;
+        return (
+          <button
+            key={`difficulty-${starValue}`}
+            type="button"
+            onClick={() => onChange(starValue)}
+            className="inline-flex items-center justify-center"
+            title={`Set difficulty ${starValue}`}
+          >
+            <Star
+              className={`h-4 w-4 ${active ? "fill-amber-400 text-amber-500" : "text-slate-300"}`}
+            />
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
+const buildConfirmEndpointCandidates = (jobId: string) => {
+  const base = (import.meta.env.VITE_API_BASE_URL || "https://techhubschmanagement.onrender.com").replace(/\/$/, "");
+  return [
+    `${base}/api/questionjob/jobs/${jobId}/confirm`,
+    `${base}/api/question-jobs/jobs/${jobId}/confirm`,
+    `${base}/api/questions/jobs/${jobId}/confirm`,
+  ];
+};
+
+const confirmProcessedJobDirect = async (jobId: string) => {
+  const jwt = localStorage.getItem("token");
+  const tenant = import.meta.env.VITE_DEFAULT_TENANT;
+  const endpoints = buildConfirmEndpointCandidates(jobId);
+
+  let lastError = "";
+
+  for (const endpoint of endpoints) {
+    try {
+      console.info("[MyUploads] Calling confirm endpoint", endpoint);
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
+          ...(tenant ? { "X-Tenant-ID": tenant } : {}),
+        },
+        body: "{}",
+      });
+
+      let payload: any = null;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = null;
+      }
+
+      const responseCode = String(payload?.responseCode ?? payload?.data?.responseCode ?? "").toLowerCase();
+      const status = String(payload?.status ?? payload?.data?.status ?? "").toLowerCase();
+      const okByPayload = responseCode === "successful" || status === "successful";
+
+      if (response.ok && (okByPayload || payload == null)) {
+        console.info("[MyUploads] Confirm endpoint succeeded", endpoint);
+        return;
+      }
+
+      lastError =
+        payload?.responseMessage ??
+        payload?.data?.responseMessage ??
+        `${response.status} ${response.statusText}`;
+    } catch (error) {
+      const err = error as { message?: string };
+      lastError = err?.message ?? "Unknown network error";
+    }
+  }
+
+  throw new Error(lastError || "Failed to update job status to processed.");
 };
 
 const statusPillClass = (status: JobStatusItem["status"]) => {
@@ -229,12 +360,12 @@ const SummaryCard = ({
     tone === "completed"
       ? "bg-emerald-50 border-emerald-200 text-emerald-700"
       : tone === "failed"
-      ? "bg-red-50 border-red-200 text-red-700"
-      : tone === "processing"
-      ? "bg-amber-50 border-amber-200 text-amber-700"
-      : tone === "pending"
-      ? "bg-sky-50 border-sky-200 text-sky-700"
-      : "bg-white border-slate-200 text-slate-700";
+        ? "bg-red-50 border-red-200 text-red-700"
+        : tone === "processing"
+          ? "bg-amber-50 border-amber-200 text-amber-700"
+          : tone === "pending"
+            ? "bg-sky-50 border-sky-200 text-sky-700"
+            : "bg-white border-slate-200 text-slate-700";
 
   return (
     <div className={`rounded-xl border px-4 py-3 ${toneClass}`}>
@@ -274,6 +405,9 @@ const MyUploads = () => {
   const [previewImageBounds, setPreviewImageBounds] = useState<ImageBound[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isSavingEditedQuestions, setIsSavingEditedQuestions] = useState(false);
+  const [previewScanSessionId, setPreviewScanSessionId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const toEditableQuestion = (question: UploadedQuestion, index: number): EditableQuestion => {
     const parts = parseContentParts(question.contentParts);
@@ -291,20 +425,21 @@ const MyUploads = () => {
     const mappedOptions = (question.options ?? []).map((option, optionIndex) => ({
       id: crypto.randomUUID(),
       label: option.optionLabel ?? option.label ?? nextOptionLabel(optionIndex),
-      text:
+      text: sanitizePlainTextInput(
         option.optionText ??
         option.plainText ??
         stripHtml(option.html ?? "") ??
         "",
+      ),
       isCorrect: !!option.isCorrect,
     }));
 
     const options =
       question.questionType === 4
         ? [
-            { id: crypto.randomUUID(), label: "A", text: "True", isCorrect: mappedOptions[0]?.isCorrect ?? false },
-            { id: crypto.randomUUID(), label: "B", text: "False", isCorrect: mappedOptions[1]?.isCorrect ?? false },
-          ]
+          { id: crypto.randomUUID(), label: "A", text: "True", isCorrect: mappedOptions[0]?.isCorrect ?? false },
+          { id: crypto.randomUUID(), label: "B", text: "False", isCorrect: mappedOptions[1]?.isCorrect ?? false },
+        ]
         : mappedOptions;
 
     return {
@@ -380,7 +515,7 @@ const MyUploads = () => {
         return {
           ...question,
           options: question.options.map((option) =>
-            option.id === optionId ? { ...option, text } : option,
+            option.id === optionId ? { ...option, text: sanitizePlainTextInput(text) } : option,
           ),
         };
       }),
@@ -473,7 +608,212 @@ const MyUploads = () => {
     });
   };
 
-const classrooms = useMemo<SelectItem[]>(() => {
+  const buildOptionsPayload = (question: EditableQuestion): CreateOptionPayload[] => {
+    if (!isOptionQuestionType(question.questionType)) return [];
+    return question.options.map((option, index) => ({
+      optionLabel: option.label || nextOptionLabel(index),
+      optionText: sanitizePlainTextInput(option.text),
+      isCorrect: !!option.isCorrect,
+      orderIndex: index + 1,
+    }));
+  };
+
+  const validateQuestionForSave = (question: EditableQuestion, index: number): string | null => {
+    if (!sanitizePlainTextInput(question.questionText)) {
+      return `Question ${index + 1}: question text is required.`;
+    }
+
+    if ((question.marksAllocation ?? 0) <= 0) {
+      return `Question ${index + 1}: marks must be greater than zero.`;
+    }
+
+    if (isOptionQuestionType(question.questionType)) {
+      const nonEmptyOptions = question.options.filter((option) => sanitizePlainTextInput(option.text));
+      if (nonEmptyOptions.length < 2) {
+        return `Question ${index + 1}: add at least 2 options.`;
+      }
+
+      const correctCount = nonEmptyOptions.filter((option) => option.isCorrect).length;
+      if (correctCount !== 1) {
+        return `Question ${index + 1}: select exactly one correct answer.`;
+      }
+    }
+
+    return null;
+  };
+
+  const normalizeName = (value?: string | null) => (value ?? "").trim().toLowerCase();
+
+  const resolveTopicIdByName = (name?: string | null) => {
+    const target = normalizeName(name);
+    if (!target) return "";
+    const found = topics.find((topic) => normalizeName(topic.name) === target);
+    return found?.id ?? "";
+  };
+
+  const resolveSubTopicIdByName = (name?: string | null) => {
+    const target = normalizeName(name);
+    if (!target) return "";
+
+    for (const topic of topicsData) {
+      const nested = (topic?.SubTopics ?? topic?.subTopics ?? []) as any[];
+      const found = nested.find((sub) => normalizeName(String(sub?.Name ?? sub?.name ?? sub?.subTopicName ?? "")) === target);
+      if (found) {
+        return String(found?.Id ?? found?.id ?? found?.subTopicId ?? "");
+      }
+    }
+
+    const foundFlat = subTopics.find((sub) => normalizeName(sub.name) === target);
+    return foundFlat?.id ?? "";
+  };
+
+  const handleSaveEditedQuestions = async () => {
+    setSaveError(null);
+
+    if (!previewJob) {
+      const message = "No active upload job selected.";
+      setSaveError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!classroomId) {
+      const message = "Select a classroom before saving.";
+      setSaveError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!subjectId) {
+      const message = "Select a subject before saving.";
+      setSaveError(message);
+      toast.error(message);
+      return;
+    }
+
+    const resolvedTopicId = topicId || resolveTopicIdByName(previewJob.topicName);
+    const resolvedSubTopicId =
+      subTopicId ||
+      resolveSubTopicIdByName(previewJob.subTopicName) ||
+      resolveSubTopicIdByName(editableQuestions[0]?.subTopicName);
+
+    if (!resolvedSubTopicId || resolvedSubTopicId === EMPTY_GUID) {
+      const message = "Could not resolve sub-topic for this job. Select a sub-topic, then save again.";
+      setSaveError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (editableQuestions.length === 0) {
+      const message = "No questions to save.";
+      setSaveError(message);
+      toast.error(message);
+      return;
+    }
+
+    for (let i = 0; i < editableQuestions.length; i++) {
+      const validationError = validateQuestionForSave(editableQuestions[i], i);
+      if (validationError) {
+        setSaveError(validationError);
+        toast.error(validationError);
+        return;
+      }
+    }
+
+    const selectedTopicName = topics.find((topic) => topic.id === resolvedTopicId)?.name ?? previewJob.topicName ?? "";
+
+    setIsSavingEditedQuestions(true);
+    let successfulSaves = 0;
+
+    try {
+      for (let index = 0; index < editableQuestions.length; index++) {
+        const question = editableQuestions[index];
+        const plainText = sanitizeQuestionTextForSave(question.questionText);
+        const firstImageUrl = parseContentParts(question.contentParts)
+          .find((part) => part.type === "image" && typeof part.value === "string" && /^https?:\/\//i.test(part.value ?? ""))
+          ?.value;
+
+        const payload = {
+          clientId: `upload-${previewJob.jobId}-${question.localId}`,
+          originDevice: "web",
+          createdAtDevice: new Date().toISOString(),
+          subjectId,
+          topicId: resolvedTopicId || null,
+          topic: [selectedTopicName, question.topicName, previewJob.topicName]
+            .map((value) => (value ?? "").trim())
+            .find((value) => value.length > 0) ?? "General",
+          subTopic: resolvedSubTopicId,
+          classroomId,
+          title: plainText || `Question ${index + 1}`,
+          textContent: plainText,
+          questionType: question.questionType,
+          difficultyLevel: Math.max(1, Math.min(4, Number(question.difficultyLevel) || 1)),
+          marksAllocation: Math.max(1, Math.min(4, Number(question.marksAllocation || question.difficultyLevel) || 1)),
+          options: buildOptionsPayload(question),
+          boardSessionId: null,
+          scanSessionId: previewScanSessionId,
+          isScanned: true,
+          extractedQuestionIndex: (question.questionNumber ?? index + 1) - 1,
+          aiConfidenceScore: null,
+          imageUrl: typeof firstImageUrl === "string" ? firstImageUrl : null,
+        };
+
+        const response = await questionService.createQuestion(payload);
+        const rawResponse = response.data as any;
+        const nested = rawResponse?.data ?? {};
+        const responseCode = String(rawResponse?.responseCode ?? nested?.responseCode ?? "").toLowerCase();
+        const responseStatus = String(rawResponse?.status ?? nested?.status ?? "").toLowerCase();
+        const isDuplicate = !!(rawResponse?.isDuplicate ?? nested?.isDuplicate);
+        const hasQuestionId = !!(rawResponse?.questionId ?? nested?.questionId);
+        const isSuccessful =
+          responseStatus === "successful" ||
+          responseCode === "successful" ||
+          hasQuestionId ||
+          isDuplicate;
+
+        if (isSuccessful) {
+          successfulSaves += 1;
+        } else {
+          throw new Error(rawResponse?.responseMessage ?? nested?.responseMessage ?? "Create question failed");
+        }
+      }
+
+      if (successfulSaves !== editableQuestions.length) {
+        toast.error("Some questions could not be saved. Please retry.");
+        return;
+      }
+
+      const savedJobId = previewJob.jobId;
+      // Update backend job status before finalizing UI success flow.
+      console.info("[MyUploads] Confirming processed job", savedJobId);
+      await confirmProcessedJobDirect(savedJobId);
+
+      console.info("[MyUploads] Job status updated", savedJobId);
+
+      // Finalize UI after both create and confirm succeed.
+      setJobs((prev) => prev.filter((job) => job.jobId !== savedJobId));
+      setIsEditMode(false);
+      setPreviewJob(null);
+      setSaveError(null);
+      toast.success("Questions saved and job processed.");
+
+      void fetchStatuses();
+
+      // Force a full page refresh so processed jobs are reloaded from server state.
+      setTimeout(() => {
+        window.location.reload();
+      }, 250);
+    } catch (error) {
+      const err = error as { response?: { data?: { responseMessage?: string } }; message?: string };
+      const message = err?.response?.data?.responseMessage ?? err?.message ?? "Failed to save edited questions.";
+      setSaveError(message);
+      toast.error(message);
+    } finally {
+      setIsSavingEditedQuestions(false);
+    }
+  };
+
+ const classrooms = useMemo<SelectItem[]>(() => {
   const roleData = user?.roleData;
   if (!roleData || !isTeacherRoleData(roleData)) return [];
   return roleData.classrooms.map((c) => ({
@@ -482,17 +822,17 @@ const classrooms = useMemo<SelectItem[]>(() => {
   }));
 }, [user?.roleData]);
 
-const subjects = useMemo<SelectItem[]>(() => {
-  const roleData = user?.roleData;
-  if (!roleData || !isTeacherRoleData(roleData)) return [];
-  const selectedClassroom = roleData.classrooms.find(
-    (c) => String(c.classroomId) === classroomId
-  );
-  return (selectedClassroom?.subjects ?? []).map((s) => ({
-    id: String(s.subjectId),
-    name: String(s.subjectName),
-  }));
-}, [user?.roleData, classroomId]);
+  const subjects = useMemo<SelectItem[]>(() => {
+    const roleData = user?.roleData;
+    if (!roleData || !isTeacherRoleData(roleData)) return [];
+    const selectedClassroom = roleData.classrooms.find(
+      (c) => String(c.classroomId) === classroomId
+    );
+    return (selectedClassroom?.subjects ?? []).map((s) => ({
+      id: String(s.subjectId),
+      name: String(s.subjectName),
+    }));
+  }, [user?.roleData, classroomId]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -622,6 +962,8 @@ const subjects = useMemo<SelectItem[]>(() => {
     setPreviewJob(job);
     setEditableQuestions([]);
     setPreviewImageBounds([]);
+    setPreviewScanSessionId(null);
+    setSaveError(null);
     setIsEditMode(false);
     setPreviewLoading(true);
 
@@ -633,9 +975,11 @@ const subjects = useMemo<SelectItem[]>(() => {
       const deduped = dedupeQuestions(questions);
       setEditableQuestions(deduped.map(toEditableQuestion));
       setPreviewImageBounds((payload?.imageBounds ?? []) as ImageBound[]);
+      setPreviewScanSessionId((payload?.scanSessionId ?? payload?.scanSession?.id ?? null) as string | null);
     } catch {
       setEditableQuestions([]);
       setPreviewImageBounds([]);
+      setPreviewScanSessionId(null);
       toast.error("Failed to load questions for this upload job");
     } finally {
       setPreviewLoading(false);
@@ -680,7 +1024,7 @@ const subjects = useMemo<SelectItem[]>(() => {
   return (
     <div className=" sm:p-5 font-poppins">
       <div className="lg:rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
-        <TitleBar title="My Uploads" hasVertical  hasMenu={openMobileNav} />
+        <TitleBar title="My Uploads" hasVertical hasMenu={openMobileNav} />
 
         <div className="p-3 sm:p-5 lg:p-7 space-y-5">
           <div className="rounded-2xl bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff] border border-[#f3dccb] p-4 sm:p-5">
@@ -764,53 +1108,54 @@ const subjects = useMemo<SelectItem[]>(() => {
                 const canViewQuestions = job.status === "Completed";
 
                 return (
-                <article
-                  key={job.jobId}
-                  className="px-4 py-3 sm:py-4"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">
-                        {job.topicName} • {job.subTopicName}
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Type: {job.questionType} • Extracted: {job.extractedCount} • Attempts: {job.attemptCount}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">Created: {job.createdAt}</p>
-                      {job.completedAt && (
-                        <p className="text-xs text-slate-400">Completed: {job.completedAt}</p>
-                      )}
-                      {job.failureReason && (
-                        <p className="text-xs text-red-600 mt-1">Reason: {job.failureReason}</p>
-                      )}
-                    </div>
+                  <article
+                    key={job.jobId}
+                    className="px-4 py-3 sm:py-4"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">
+                          {job.topicName} • {job.subTopicName}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Type: {job.questionType} • Extracted: {job.extractedCount} • Attempts: {job.attemptCount}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">Created: {job.createdAt}</p>
+                        {job.completedAt && (
+                          <p className="text-xs text-slate-400">Completed: {job.completedAt}</p>
+                        )}
+                        {job.failureReason && (
+                          <p className="text-xs text-red-600 mt-1">Reason: {job.failureReason}</p>
+                        )}
+                      </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${statusPillClass(job.status)}`}>
-                        {job.status}
-                      </span>
-                      <Button
-                        type="button"
-                        onClick={() => void handleOpenJobPreview(job)}
-                        disabled={!canViewQuestions}
-                        className="h-8 rounded-lg bg-chestnut hover:bg-chestnut/90 text-white text-xs font-semibold px-3 disabled:bg-slate-200 disabled:text-slate-500"
-                      >
-                        View Questions
-                      </Button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${statusPillClass(job.status)}`}>
+                          {job.status}
+                        </span>
+                        <Button
+                          type="button"
+                          onClick={() => void handleOpenJobPreview(job)}
+                          disabled={!canViewQuestions}
+                          className="h-8 rounded-lg bg-chestnut hover:bg-chestnut/90 text-white text-xs font-semibold px-3 disabled:bg-slate-200 disabled:text-slate-500"
+                        >
+                          View Questions
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                  {!canViewQuestions && (
-                    <p className="text-[11px] text-slate-400 mt-2">
-                      Questions can be viewed after this job is completed.
-                    </p>
-                  )}
-                </article>
-              )})}
+                    {!canViewQuestions && (
+                      <p className="text-[11px] text-slate-400 mt-2">
+                        Questions can be viewed after this job is completed.
+                      </p>
+                    )}
+                  </article>
+                )
+              })}
             </div>
           </div>
 
           <Dialog open={!!previewJob} onOpenChange={(open) => !open && setPreviewJob(null)}>
-            <DialogContent className="max-w-3xl rounded-2xl p-0 overflow-hidden">
+            <DialogContent className="max-w-3xl rounded-2xl p-0 overflow-hidden w-[90%] lg:w-full">
               <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff]">
                 <DialogTitle className="text-base font-semibold text-slate-800">Uploaded Job Questions</DialogTitle>
                 {previewJob && (
@@ -835,7 +1180,11 @@ const subjects = useMemo<SelectItem[]>(() => {
                 )}
 
                 {!previewLoading && editableQuestions.length > 0 && (
-                  <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    {saveError && (
+                      <p className="text-xs text-rose-600 font-medium">{saveError}</p>
+                    )}
+                    <div className="flex items-center justify-between gap-3">
                     <p className="text-xs text-slate-600 font-medium">
                       {editableQuestions.length} question{editableQuestions.length !== 1 ? "s" : ""}
                     </p>
@@ -843,9 +1192,9 @@ const subjects = useMemo<SelectItem[]>(() => {
                       <Button
                         type="button"
                         onClick={() => setIsEditMode((prev) => !prev)}
-                        className="h-8 rounded-lg border border-slate-300 bg-white text-slate-700 px-3 text-xs font-semibold"
+                        className={`h-8 rounded-lg border px-3 text-xs font-semibold ${isEditMode ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-slate-300 bg-white text-slate-700"}`}
                       >
-                        {isEditMode ? "Preview" : "Edit"}
+                        {isEditMode ? "Done Editing" : "Edit Questions"}
                       </Button>
                       {isEditMode && (
                         <Button
@@ -857,17 +1206,75 @@ const subjects = useMemo<SelectItem[]>(() => {
                           Add Question
                         </Button>
                       )}
+                      {isEditMode && (
+                        <Button
+                          type="button"
+                          onClick={() => void handleSaveEditedQuestions()}
+                          disabled={isSavingEditedQuestions}
+                          className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3 text-xs font-semibold disabled:bg-slate-300 disabled:text-slate-500"
+                        >
+                          {isSavingEditedQuestions ? (
+                            <span className="inline-flex items-center gap-1">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              Saving...
+                            </span>
+                          ) : (
+                            "Save"
+                          )}
+                        </Button>
+                      )}
+                    </div>
                     </div>
                   </div>
                 )}
 
                 {!previewLoading && editableQuestions.map((question, index) => (
-                  <article key={question.localId} className="rounded-xl border border-slate-200 p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="text-sm font-semibold text-slate-800 leading-6 w-full">
-                        <p>{question.questionNumber ?? index + 1}.</p>
+                  <article key={question.localId} className="rounded-xl border border-slate-200 p-4  space-y-3">
+                    <div className="flex items-center justify-between md:hidden">
+                           <p className="text-sm font-semibold text-slate-800 leading-6 shrink-0 md:hidden">
+                        {question.questionNumber ?? index + 1}.
+                      </p>
+                    <div className="flex items-center md:hidden gap-2 shrink-0">
+                      <span className="rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold px-2 py-1">
+                        {question.questionTypeName || `Type ${question.questionType}`}
+                      </span>
+                      {isEditMode && (
+                        <button
+                          type="button"
+                          onClick={() => removeQuestion(question.localId)}
+                          className="h-8 w-8 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50"
+                          title="Remove question"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                        </button>
+                      )}
+                    </div>
+                    </div>
 
-                        {!isEditMode && !!question.questionHtml?.trim() ? (
+
+                    <div className="">
+                      <div className="text-sm font-semibold text-slate-800 leading-6 w-full">
+                        <div className="hidden md:flex items-center justify-between  ">
+                          <p className="hidden md:block">{question.questionNumber ?? index + 1}.</p>
+                          <div className="hidden md:flex items-center gap-2 shrink-0">
+                            <span className="rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold px-2 py-1">
+                              {question.questionTypeName || `Type ${question.questionType}`}
+                            </span>
+                            {isEditMode && (
+                              <button
+                                type="button"
+                                onClick={() => removeQuestion(question.localId)}
+                                className="h-8 w-8 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50"
+                                title="Remove question"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+
+                        {!isEditMode && !!question.questionHtml?.trim() && parseContentParts(question.contentParts).length > 0 ? (
                           <div
                             className="mt-1 prose prose-sm max-w-none text-slate-700"
                             dangerouslySetInnerHTML={{
@@ -880,7 +1287,9 @@ const subjects = useMemo<SelectItem[]>(() => {
                           />
                         ) : !isEditMode ? (
                           <div className="mt-1 space-y-2 text-slate-700 font-normal">
-                            {parseContentParts(question.contentParts).map((part, partIndex) => {
+                            {parseContentParts(question.contentParts).length === 0 ? (
+                              <p>{question.questionText || stripHtml(question.questionHtml || "")}</p>
+                            ) : parseContentParts(question.contentParts).map((part, partIndex) => {
                               const key = `${question.id}-${partIndex}`;
                               if (part.type === "latex") {
                                 const isBlock = part.display === "block";
@@ -918,59 +1327,48 @@ const subjects = useMemo<SelectItem[]>(() => {
                           </div>
                         ) : (
                           <div className="space-y-3 mt-2">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                              <select
-                                value={question.questionType}
-                                onChange={(e) => updateQuestionType(question.localId, Number(e.target.value))}
-                                className="h-10 rounded-lg border border-slate-200 px-3 text-sm"
-                              >
-                                {QUESTION_TYPE_CHOICES.map((choice) => (
-                                  <option key={choice.value} value={choice.value}>{choice.label}</option>
-                                ))}
-                              </select>
+                            <div>
 
-                              <input
-                                type="number"
-                                min={1}
-                                value={question.difficultyLevel}
-                                onChange={(e) =>
+                              <div className="grid w-full grid-cols-1 sm:grid-cols-3 gap-3">
+                                <select
+                                  value={question.questionType}
+                                  onChange={(e) => updateQuestionType(question.localId, Number(e.target.value))}
+                                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                >
+                                  {QUESTION_TYPE_CHOICES.map((choice) => (
+                                    <option key={choice.value} value={choice.value}>{choice.label}</option>
+                                  ))}
+                                </select>
+
+                              <DifficultyPicker
+                                value={question.marksAllocation || question.difficultyLevel}
+                                onChange={(nextDifficulty) =>
                                   updateQuestion(question.localId, {
-                                    difficultyLevel: Math.max(1, Number(e.target.value) || 1),
+                                    difficultyLevel: Math.max(1, Math.min(4, nextDifficulty)),
+                                    marksAllocation: Math.max(1, Math.min(4, nextDifficulty)),
                                   })
                                 }
-                                className="h-10 rounded-lg border border-slate-200 px-3 text-sm"
-                                placeholder="Difficulty"
-                              />
-
-                              <input
-                                type="number"
-                                min={1}
-                                value={question.marksAllocation}
-                                onChange={(e) =>
-                                  updateQuestion(question.localId, {
-                                    marksAllocation: Math.max(1, Number(e.target.value) || 1),
-                                  })
-                                }
-                                className="h-10 rounded-lg border border-slate-200 px-3 text-sm"
-                                placeholder="Marks"
                               />
                             </div>
 
                             <textarea
                               rows={4}
                               value={question.questionText}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                const safeText = sanitizePlainTextInput(e.target.value);
                                 updateQuestion(question.localId, {
-                                  questionText: e.target.value,
-                                  questionHtml: `<div class='th-question'><div class='th-block'>${escapeHtml(e.target.value)}</div></div>`,
-                                })
-                              }
+                                  questionText: safeText,
+                                  // Keep edited content as plain text; do not store KaTeX-rendered/HTML question markup.
+                                  questionHtml: "",
+                                  contentParts: [],
+                                });
+                              }}
                               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
                               placeholder="Edit question text"
                             />
 
                             {isOptionQuestionType(question.questionType) && (
-                              <div className="space-y-2 rounded-lg border border-slate-200 p-3 bg-slate-50/60">
+                              <div className="space-y-2 rounded-lg border border-slate-200 p-2 md:p-3 bg-slate-50/60">
                                 <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Options</p>
 
                                 {question.options.map((option) => (
@@ -978,26 +1376,31 @@ const subjects = useMemo<SelectItem[]>(() => {
                                     <button
                                       type="button"
                                       onClick={() => setCorrectOption(question.localId, option.id)}
-                                      className={`h-8 w-8 rounded-full border text-xs font-bold ${option.isCorrect ? "bg-emerald-500 border-emerald-500 text-white" : "bg-white border-slate-300 text-slate-500"}`}
+                                      className={`flex items-center justify-center shrink-0 rounded-full border text-xs font-bold h-7 w-7 sm:h-8 sm:w-8 aspect-square ${option.isCorrect
+                                        ? "bg-emerald-500 border-emerald-500 text-white"
+                                        : "bg-white border-slate-300 text-slate-500"
+                                        }`}
                                       title="Mark as correct"
                                     >
                                       {option.label}
                                     </button>
+
                                     <input
                                       type="text"
                                       value={option.text}
                                       onChange={(e) => updateOption(question.localId, option.id, e.target.value)}
-                                      className="h-9 flex-1 rounded-lg border border-slate-200 px-3 text-sm"
+                                      className="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 px-3 text-sm"
                                       placeholder={`Option ${option.label}`}
                                     />
+
                                     {question.questionType !== 4 && question.options.length > 2 && (
                                       <button
                                         type="button"
                                         onClick={() => removeOption(question.localId, option.id)}
-                                        className="h-8 w-8 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50"
+                                        className="flex items-center justify-center shrink-0 h-7 w-7 sm:h-8 sm:w-8 aspect-square rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50"
                                         title="Remove option"
                                       >
-                                        <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                                        <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                                       </button>
                                     )}
                                   </div>
@@ -1018,29 +1421,13 @@ const subjects = useMemo<SelectItem[]>(() => {
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span className="rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold px-2 py-1">
-                          {question.questionTypeName || `Type ${question.questionType}`}
-                        </span>
-                        {isEditMode && (
-                          <button
-                            type="button"
-                            onClick={() => removeQuestion(question.localId)}
-                            className="h-8 w-8 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50"
-                            title="Remove question"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                          </button>
-                        )}
-                      </div>
+
                     </div>
 
                     <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                      <span className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600">
-                        Difficulty: {question.difficultyLevel}
-                      </span>
-                      <span className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600">
-                        Marks: {question.marksAllocation}
+                      <span className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600 inline-flex items-center gap-1.5">
+                        Marks: {renderDifficultyStars(question.marksAllocation || question.difficultyLevel)}
+                        <span className="text-slate-500">({question.marksAllocation || question.difficultyLevel})</span>
                       </span>
                       <span className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600">
                         Status: {question.statusName || question.status}
@@ -1063,7 +1450,24 @@ const subjects = useMemo<SelectItem[]>(() => {
                   </article>
                 ))}
 
-                <div className="pt-2 flex justify-end">
+                <div className="pt-2 flex justify-end gap-2">
+                  {isEditMode && editableQuestions.length > 0 && (
+                    <Button
+                      type="button"
+                      onClick={() => void handleSaveEditedQuestions()}
+                      disabled={isSavingEditedQuestions}
+                      className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 disabled:bg-slate-300 disabled:text-slate-500"
+                    >
+                      {isSavingEditedQuestions ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Saving...
+                        </span>
+                      ) : (
+                        "Save"
+                      )}
+                    </Button>
+                  )}
                   <Button
                     type="button"
                     onClick={() => setPreviewJob(null)}

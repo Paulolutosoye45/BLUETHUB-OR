@@ -24,7 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   questionService,
@@ -106,9 +106,24 @@ const createDraft = (): QuestionDraft => ({
   isPublished: false,
 });
 
-const getCreatedQuestionId = (res: unknown): string | null => {
-  const data = (res as { data?: { questionId?: string; id?: string } } | undefined)?.data;
-  return data?.questionId ?? data?.id ?? null;
+const getCreateQuestionMeta = (res: unknown) => {
+  const raw = (res as any) ?? {};
+  const data = raw?.data ?? {};
+  const questionId = raw?.questionId ?? raw?.id ?? data?.questionId ?? data?.id ?? null;
+  const isDuplicate = !!(raw?.isDuplicate ?? data?.isDuplicate);
+  const status = String(raw?.status ?? data?.status ?? "").toLowerCase();
+  const responseCode = String(raw?.responseCode ?? data?.responseCode ?? "").toLowerCase();
+  const responseMessage = raw?.responseMessage ?? data?.responseMessage ?? "";
+  const isSuccessful = status === "successful" || responseCode === "successful" || !!questionId || isDuplicate;
+
+  return {
+    questionId,
+    isDuplicate,
+    status,
+    responseCode,
+    responseMessage,
+    isSuccessful,
+  };
 };
 
 // ── SelectDropdown ─────────────────────────────────────────────────────────
@@ -613,6 +628,7 @@ const QuestionCard = ({
 const CreateQuizQuestion = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuthContext();
+  const navigate = useNavigate();
   const isAdmin = ADMIN_ROLES.includes(user?.roleName ?? "");
 
   // ── Multi-draft state ───────────────────────────────────────────────────
@@ -655,6 +671,14 @@ const CreateQuizQuestion = () => {
   const effectiveSubjectId = selectedSubjectId ?? "";
   const effectiveTopicId = selectedTopicId ?? (isAdmin ? adminTopicId || null : topicIdParam || null);
   const effectiveTopic = selectedTopicName ?? (isAdmin ? adminTopic : topicParam);
+  const resolvedTopicName =
+    (effectiveTopic ||
+      selectedTopicName ||
+      topics.find((t) => t.id === effectiveTopicId)?.name ||
+      topicParam ||
+      adminTopic ||
+      "")
+      .trim();
   const effectiveSubTopic = selectedSubTopicId ?? (isAdmin ? adminSubTopic || EMPTY_GUID : subTopicParam);
   const hasSubTopicContext = !!effectiveSubTopic && effectiveSubTopic !== EMPTY_GUID;
 
@@ -872,6 +896,11 @@ const CreateQuizQuestion = () => {
       return;
     }
 
+    if (!resolvedTopicName) {
+      toast.error("Please select a topic.");
+      return;
+    }
+
     setBoardSubmitting(true);
     try {
       const res = await questionService.createQuestion({
@@ -880,7 +909,7 @@ const CreateQuizQuestion = () => {
         createdAtDevice: new Date().toISOString(),
         subjectId: effectiveSubjectId,
         topicId: effectiveTopicId,
-        topic: effectiveTopic || undefined,
+        topic: resolvedTopicName,
         subTopic: effectiveSubTopic,
         title: result.questionText || "Board Question",
         textContent: result.questionText || "",
@@ -896,15 +925,13 @@ const CreateQuizQuestion = () => {
         classroomId: selectedClassId ?? null,
       });
 
-      const createdQuestionId = getCreatedQuestionId(res.data);
-      if (!createdQuestionId) {
-        throw new Error("Question created but no questionId returned from API.");
+      const meta = getCreateQuestionMeta(res.data);
+      if (!meta.isSuccessful) {
+        throw new Error(meta.responseMessage || "Question creation failed.");
       }
 
-      await questionService.publishQuestion(createdQuestionId);
-
-      const duplicate = res.data?.data?.isDuplicate;
-      if (!duplicate) toast.success("Board question published.");
+      const duplicate = meta.isDuplicate;
+      if (!duplicate) toast.success("Board question saved.");
 
       // Reset drafts after successful board-question publish.
       setDrafts([createDraft()]);
@@ -997,6 +1024,11 @@ const CreateQuizQuestion = () => {
       return;
     }
 
+    if (!resolvedTopicName) {
+      toast.error("Please select a topic.");
+      return;
+    }
+
     const pending = drafts.filter((d) => !d.isPublished);
 
     // Validate all drafts upfront
@@ -1008,7 +1040,8 @@ const CreateQuizQuestion = () => {
     setIsPublishingAll(true);
     setPublishProgress({ done: 0, total: pending.length });
 
-    let successCount = 0;
+    let successfulSaves = 0;
+    const failedQuestionNumbers: number[] = [];
 
     for (let i = 0; i < pending.length; i++) {
       const draft = pending[i];
@@ -1022,6 +1055,7 @@ const CreateQuizQuestion = () => {
             imageUrl = await uploadImage(draft.imageFile);
           } catch {
             toast.error(`Q${drafts.indexOf(draft) + 1}: Image upload failed — question skipped.`);
+            failedQuestionNumbers.push(drafts.indexOf(draft) + 1);
             updateDraft(draft.id, { isSubmitting: false });
             setPublishProgress({ done: i + 1, total: pending.length });
             continue;
@@ -1034,7 +1068,7 @@ const CreateQuizQuestion = () => {
           createdAtDevice: new Date().toISOString(),
           subjectId: effectiveSubjectId,
           topicId: effectiveTopicId,
-          topic: effectiveTopic || undefined,
+          topic: resolvedTopicName,
           subTopic: effectiveSubTopic,
           title: draft.question.trim() || "Image Question",
           textContent: draft.question.trim(),
@@ -1053,18 +1087,23 @@ const CreateQuizQuestion = () => {
           imageUrl,
         });
 
-        const createdQuestionId = getCreatedQuestionId(res.data);
-        if (!createdQuestionId) {
-          throw new Error(`Q${drafts.indexOf(draft) + 1}: Question created but no questionId returned from API.`);
+        const meta = getCreateQuestionMeta(res.data);
+        if (!meta.isSuccessful) {
+          throw new Error(
+            `Q${drafts.indexOf(draft) + 1}: ${meta.responseMessage || "Question creation failed."}`,
+          );
         }
 
-        await questionService.publishQuestion(createdQuestionId);
-
-        const duplicate = res.data?.data?.isDuplicate;
+        const duplicate = meta.isDuplicate;
         updateDraft(draft.id, { isPublished: true, isSubmitting: false });
-        if (!duplicate) successCount++;
+        // Count both new and duplicate responses as successful saves.
+        successfulSaves++;
+        if (duplicate) {
+          toast.success(`Q${drafts.indexOf(draft) + 1}: already existed on server (linked successfully).`);
+        }
       } catch (err) {
         const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
+        failedQuestionNumbers.push(drafts.indexOf(draft) + 1);
         toast.error(
           `Q${drafts.indexOf(draft) + 1}: ${e?.response?.data?.responseMessage ?? e?.message ?? "Failed"}`
         );
@@ -1077,13 +1116,28 @@ const CreateQuizQuestion = () => {
     setIsPublishingAll(false);
     setPublishProgress(null);
 
-    if (successCount > 0) {
+    const failedCount = pending.length - successfulSaves;
+
+    if (successfulSaves > 0) {
       // Remove published items from the list and keep only pending/failed drafts.
       setDrafts((prev) => {
         const remaining = prev.filter((d) => !d.isPublished);
         return remaining.length > 0 ? remaining : [createDraft()];
       });
-      toast.success("Published successfully");
+    }
+
+    if (successfulSaves > 0 && failedCount === 0) {
+      toast.success("Questions created successfully");
+    } else if (successfulSaves > 0 && failedCount > 0) {
+      toast.success(`${successfulSaves} question${successfulSaves !== 1 ? "s" : ""} saved successfully.`);
+      const failedList = failedQuestionNumbers.length > 0
+        ? ` (Q${failedQuestionNumbers.join(", Q")})`
+        : "";
+      toast.error(
+        `${failedCount} question${failedCount !== 1 ? "s were" : " was"} not saved successfully${failedList}. Data for failed question${failedCount !== 1 ? "s has" : " has"} been kept.`,
+      );
+    } else {
+      toast.error("No question was saved successfully. Please fix and retry.");
     }
   };
 
@@ -1100,9 +1154,9 @@ const CreateQuizQuestion = () => {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="p-3 sm:p-6 font-poppins">
-      <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
-        <TitleBar title="question" hasVertical hasBackIcons />
+    <div className=" sm:p-6 font-poppins">
+      <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
+        <TitleBar title="question" hasVertical hasBackIcons onBack={() => navigate(-1)} />
 
         <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-white/70 backdrop-blur-sm">
 

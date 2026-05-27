@@ -104,7 +104,7 @@ const router = createBrowserRouter([
     },
     {
         path: "teacher/board",
-        element: <ClassRoom />,
+        element: <TeacherProtectedRoute><ClassRoom /></TeacherProtectedRoute>,
     },
 
     // ── Dev routes (no auth) ─────────────────────────────────────────────────

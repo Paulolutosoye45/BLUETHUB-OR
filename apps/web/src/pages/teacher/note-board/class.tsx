@@ -306,7 +306,7 @@ const Class = () => {
         strokeWidth?: number;
     }) => {
         const startTime = strokeTimesRef.current.start;
-        const endTime   = strokeTimesRef.current.end;
+        const endTime = strokeTimesRef.current.end;
         // Timestamp = wall clock minus total paused time
         // This keeps strokes aligned with audio after pause/resume
         const totalPausedMs = parseInt(localStorage.getItem('totalPausedMs') || '0', 10);
@@ -316,14 +316,14 @@ const Class = () => {
         const base64Data = btoa(String.fromCharCode(...compressed));
 
         const compressedShape = {
-            id:           shape.id,
-            sessionId:    sessionIdRef,
-            data:         base64Data,
-            color:        shape.stroke || shape.fillColor || "#df4b26",
-            width:        shape.strokeWidth || 2,
-            type:         shape.type,
+            id: shape.id,
+            sessionId: sessionIdRef,
+            data: base64Data,
+            color: shape.stroke || shape.fillColor || "#df4b26",
+            width: shape.strokeWidth || 2,
+            type: shape.type,
             timestamp,
-            duration:     0,
+            duration: 0,
             currentBoard,
             startTime,
             endTime,
@@ -335,11 +335,11 @@ const Class = () => {
             // Send to session.worker for upload batching
             if (isRecording) {
                 sendShape({
-                    id:           shape.id,
-                    shape:        shape as Record<string, unknown>,
-                    color:        shape.stroke || shape.fillColor || "#df4b26",
-                    strokeWidth:  shape.strokeWidth || 2,
-                    shapeType:    shape.type,
+                    id: shape.id,
+                    shape: shape as Record<string, unknown>,
+                    color: shape.stroke || shape.fillColor || "#df4b26",
+                    strokeWidth: shape.strokeWidth || 2,
+                    shapeType: shape.type,
                     currentBoard,
                     startTime,
                     endTime,
@@ -368,22 +368,22 @@ const Class = () => {
         // This keeps strokes aligned with audio after pause/resume
         const totalPausedMs = parseInt(localStorage.getItem('totalPausedMs') || '0', 10);
         const timestamp = Date.now() - totalPausedMs;
-        const duration  = Math.max(0, strokeTimesRef.current.endElapsedMs - strokeTimesRef.current.startElapsedMs);
+        const duration = Math.max(0, strokeTimesRef.current.endElapsedMs - strokeTimesRef.current.startElapsedMs);
         const startTime = strokeTimesRef.current.start;
-        const endTime   = strokeTimesRef.current.end;
+        const endTime = strokeTimesRef.current.end;
         // Always use sessionIdRef if available (needed for both recording and draft continuation)
-        const strokeId  = sessionIdRef || null;
+        const strokeId = sessionIdRef || null;
 
-        const smoothed  = getBezierPoints(updatedStroke);
+        const smoothed = getBezierPoints(updatedStroke);
         const compressed = await gzipCompress(JSON.stringify(smoothed));
         const base64Stroke = btoa(String.fromCharCode(...compressed));
 
         const newStroke = {
             type,
-            id:        crypto.randomUUID(),
-            points:    smoothed,
-            color:     type === "eraser" ? "#000" : selectedFillColor || "#df4b26",
-            width:     type === "eraser" ? 30 : 2,
+            id: crypto.randomUUID(),
+            points: smoothed,
+            color: type === "eraser" ? "#000" : selectedFillColor || "#df4b26",
+            width: type === "eraser" ? 30 : 2,
             timestamp,
             duration,
             startTime,
@@ -391,11 +391,11 @@ const Class = () => {
         };
 
         const compressedStroke = {
-            id:           newStroke.id,
-            sessionId:    strokeId,
-            data:         base64Stroke,
-            color:        newStroke.color,
-            width:        newStroke.width,
+            id: newStroke.id,
+            sessionId: strokeId,
+            data: base64Stroke,
+            color: newStroke.color,
+            width: newStroke.width,
             type,
             timestamp,
             duration,
@@ -414,11 +414,11 @@ const Class = () => {
             // Send to session.worker for upload batching
             if (isRecording) {
                 sendStroke({
-                    id:           newStroke.id,
-                    rawPoints:    smoothed,
-                    color:        newStroke.color,
-                    width:        newStroke.width,
-                    strokeType:   type,
+                    id: newStroke.id,
+                    rawPoints: smoothed,
+                    color: newStroke.color,
+                    width: newStroke.width,
+                    strokeType: type,
                     currentBoard,
                     startTime,
                     endTime,
@@ -440,7 +440,7 @@ const Class = () => {
 
         isDrawing.current = true;
         shapeStartPos.current = pos;
-        strokeTimesRef.current.start      = timer.timerDisplay;
+        strokeTimesRef.current.start = timer.timerDisplay;
         strokeTimesRef.current.startElapsedMs = Math.round(timerElapsedSeconds * 1000);
 
         switch (actions) {
@@ -582,7 +582,7 @@ const Class = () => {
         if (pauseTime || !timerRunning) return;
         if (!isDrawing.current) return;
         isDrawing.current = false;
-        strokeTimesRef.current.end      = timer.timerDisplay;
+        strokeTimesRef.current.end = timer.timerDisplay;
         strokeTimesRef.current.endElapsedMs = Math.round(timerElapsedSeconds * 1000);
 
         switch (actions) {
@@ -714,20 +714,45 @@ const Class = () => {
     }, [boardW, boardH]);
 
     return (
-        <div className="h-[90vh] max-h-[94vh] flex bg-slate-50">
-            {/* Left Sidebar - Tools */}
-            <div className="relative z-40 shrink-0 flex flex-col items-center justify-between py-3 px-1.5">
-                <ClassMenu />
-                <ClassBottom />
+        <>
+            {/* ── Force landscape on mobile ───────────────────────── */}
+            <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-4 bg-slate-900 text-white md:hidden landscape:hidden">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="animate-spin-slow opacity-80"
+                >
+                    <rect x="4" y="2" width="16" height="20" rx="2" />
+                    <path d="M12 18h.01" />
+                </svg>
+                <p className="text-base font-semibold tracking-wide">Rotate your device</p>
+                <p className="text-sm text-slate-400 text-center px-8">
+                    This whiteboard requires landscape mode to use.
+                </p>
             </div>
 
-            {/* Main Board Area */}
-            <div
-                ref={parentRef}
-                className="flex-1 h-full relative overflow-hidden my-2 mr-2"
-            >
-                {/* Board Container with shadow and rounded corners */}
-                <div className="
+            {/* ── Main whiteboard ─────────────────────────────────── */}
+            <div className="h-[90vh] max-h-[94vh] flex bg-slate-50">
+                {/* Left Sidebar - Tools */}
+                <div className="relative z-40 shrink-0 flex flex-col items-center justify-between py-3 px-1.5">
+                    <ClassMenu />
+                    <ClassBottom />
+                </div>
+
+                {/* Main Board Area */}
+                <div
+                    ref={parentRef}
+                    className="flex-1 h-full relative overflow-hidden my-2 mr-2"
+                >
+                    {/* Board Container with shadow and rounded corners */}
+                    <div className="
                     absolute inset-0
                     bg-white
                     rounded-xl
@@ -735,226 +760,227 @@ const Class = () => {
                     border border-gray-200
                     overflow-hidden
                 ">
-                    <Stage
-                        width={boardW}
-                        height={boardH}
-                        style={{ cursor: getCursor(actions ?? "") }}
-                        onMouseDown={handleMouseDown}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={handleMouseUp}
-                        onTouchStart={handleTouchStart}
-                        onTouchMove={handleTouchMove}
-                        onTouchEnd={handleTouchEnd}
-                    >
-                        <Layer>
-                            {/* Board background */}
-                            <Rect
-                                x={0}
-                                y={0}
-                                width={boardW}
-                                height={boardH}
-                                fill="#ffffff"
-                                onClick={() => trRef.current && trRef.current.nodes([])}
-                            />
+                        <Stage
+                            width={boardW}
+                            height={boardH}
+                            style={{ cursor: getCursor(actions ?? "") }}
+                            onMouseDown={handleMouseDown}
+                            onMouseMove={handleMouseMove}
+                            onMouseUp={handleMouseUp}
+                            onTouchStart={handleTouchStart}
+                            onTouchMove={handleTouchMove}
+                            onTouchEnd={handleTouchEnd}
+                        >
+                            <Layer>
+                                {/* Board background */}
+                                <Rect
+                                    x={0}
+                                    y={0}
+                                    width={boardW}
+                                    height={boardH}
+                                    fill="#ffffff"
+                                    onClick={() => trRef.current && trRef.current.nodes([])}
+                                />
 
-                            {/* Subtle grid pattern for visual guidance */}
-                            <Line
-                                points={[40, 0, 40, boardH]}
-                                stroke="#E5E7EB"
-                                strokeWidth={1}
-                                opacity={0.5}
-                                listening={false}
-                            />
-                            <Line
-                                points={[boardW - 40, 0, boardW - 40, boardH]}
-                                stroke="#E5E7EB"
-                                strokeWidth={1}
-                                opacity={0.5}
-                                listening={false}
-                            />
+                                {/* Subtle grid pattern for visual guidance */}
+                                <Line
+                                    points={[40, 0, 40, boardH]}
+                                    stroke="#E5E7EB"
+                                    strokeWidth={1}
+                                    opacity={0.5}
+                                    listening={false}
+                                />
+                                <Line
+                                    points={[boardW - 40, 0, boardW - 40, boardH]}
+                                    stroke="#E5E7EB"
+                                    strokeWidth={1}
+                                    opacity={0.5}
+                                    listening={false}
+                                />
 
-                        {strokes.map((s) => (
-                            <Line
-                                key={s.id}
-                                points={s.points}
-                                stroke={s.color}
-                                strokeWidth={s.type === "eraser" ? 30 : 5}
-                                lineCap="round"
-                                lineJoin="round"
-                                tension={0.5}
-                                opacity={0.9}
-                                draggable={isDraggable}
-                                onClick={onClick}
-                                globalCompositeOperation={
-                                    s.type === "eraser" ? "destination-out" : "source-over"
-                                }
-                                dragBoundFunc={boardClamp}
-                            />
-                        ))}
+                                {strokes.map((s) => (
+                                    <Line
+                                        key={s.id}
+                                        points={s.points}
+                                        stroke={s.color}
+                                        strokeWidth={s.type === "eraser" ? 30 : 5}
+                                        lineCap="round"
+                                        lineJoin="round"
+                                        tension={0.5}
+                                        opacity={0.9}
+                                        draggable={isDraggable}
+                                        onClick={onClick}
+                                        globalCompositeOperation={
+                                            s.type === "eraser" ? "destination-out" : "source-over"
+                                        }
+                                        dragBoundFunc={boardClamp}
+                                    />
+                                ))}
 
-                        {currentStroke.length > 0 && (
-                            <Line
-                                points={currentStroke}
-                                stroke={actions === ACTIONS.ERASER ? "#fff" : selectedFillColor || "#df4b26"}
-                                strokeWidth={actions === ACTIONS.ERASER ? 30 : 5}
-                                lineCap="round"
-                                lineJoin="round"
-                                opacity={1}
-                                tension={0.5}
-                                globalCompositeOperation={
-                                    actions === ACTIONS.ERASER ? "destination-out" : "source-over"
-                                }
-                            />
-                        )}
+                                {currentStroke.length > 0 && (
+                                    <Line
+                                        points={currentStroke}
+                                        stroke={actions === ACTIONS.ERASER ? "#fff" : selectedFillColor || "#df4b26"}
+                                        strokeWidth={actions === ACTIONS.ERASER ? 30 : 5}
+                                        lineCap="round"
+                                        lineJoin="round"
+                                        opacity={1}
+                                        tension={0.5}
+                                        globalCompositeOperation={
+                                            actions === ACTIONS.ERASER ? "destination-out" : "source-over"
+                                        }
+                                    />
+                                )}
 
-                        {rectangles.map((rectangle) => (
-                            <Rect
-                                key={rectangle.id}
-                                x={rectangle.x}
-                                y={rectangle.y}
-                                height={rectangle.height}
-                                width={rectangle.width}
-                                fill={rectangle.fillColor}
-                                stroke={strokeColor}
-                                strokeWidth={2}
-                                draggable={isDraggable}
-                                onClick={onClick}
-                                onDblClick={onDblClick}
-                                // ✅ FIX 3: Use precomputed function from memo
-                                dragBoundFunc={rectBoundFuncs[rectangle.id]}
-                                onDragEnd={(e) => {
-                                    const node = e.target;
-                                    const clamped = clampRect(
-                                        { ...rectangle, x: node.x(), y: node.y() },
-                                        boardW,
-                                        boardH
-                                    );
-                                    node.position({ x: clamped.x, y: clamped.y });
-                                    setRectangles(prev =>
-                                        prev.map(r => r.id === rectangle.id ? { ...r, x: clamped.x, y: clamped.y } : r)
-                                    );
-                                }}
-                            />
-                        ))}
+                                {rectangles.map((rectangle) => (
+                                    <Rect
+                                        key={rectangle.id}
+                                        x={rectangle.x}
+                                        y={rectangle.y}
+                                        height={rectangle.height}
+                                        width={rectangle.width}
+                                        fill={rectangle.fillColor}
+                                        stroke={strokeColor}
+                                        strokeWidth={2}
+                                        draggable={isDraggable}
+                                        onClick={onClick}
+                                        onDblClick={onDblClick}
+                                        // ✅ FIX 3: Use precomputed function from memo
+                                        dragBoundFunc={rectBoundFuncs[rectangle.id]}
+                                        onDragEnd={(e) => {
+                                            const node = e.target;
+                                            const clamped = clampRect(
+                                                { ...rectangle, x: node.x(), y: node.y() },
+                                                boardW,
+                                                boardH
+                                            );
+                                            node.position({ x: clamped.x, y: clamped.y });
+                                            setRectangles(prev =>
+                                                prev.map(r => r.id === rectangle.id ? { ...r, x: clamped.x, y: clamped.y } : r)
+                                            );
+                                        }}
+                                    />
+                                ))}
 
-                        {circles.map((circle) => (
-                            <Circle
-                                key={circle.id}
-                                x={circle.x}
-                                y={circle.y}
-                                radius={circle.radius}
-                                fill={circle.fillColor}
-                                stroke={strokeColor}
-                                strokeWidth={2}
-                                draggable={isDraggable}
-                                onClick={onClick}
-                                onDblClick={onDblClick}
-                                // ✅ FIX 3: Use precomputed function from memo
-                                dragBoundFunc={circleBoundFuncs[circle.id]}
-                                onDragEnd={(e) => {
-                                    const node = e.target;
-                                    const clamped = clampCircle(
-                                        { ...circle, x: node.x(), y: node.y() },
-                                        boardW,
-                                        boardH
-                                    );
-                                    node.position({ x: clamped.x, y: clamped.y });
-                                    setCircles(prev =>
-                                        prev.map(c => c.id === circle.id ? { ...c, x: clamped.x, y: clamped.y } : c)
-                                    );
-                                }}
-                            />
-                        ))}
+                                {circles.map((circle) => (
+                                    <Circle
+                                        key={circle.id}
+                                        x={circle.x}
+                                        y={circle.y}
+                                        radius={circle.radius}
+                                        fill={circle.fillColor}
+                                        stroke={strokeColor}
+                                        strokeWidth={2}
+                                        draggable={isDraggable}
+                                        onClick={onClick}
+                                        onDblClick={onDblClick}
+                                        // ✅ FIX 3: Use precomputed function from memo
+                                        dragBoundFunc={circleBoundFuncs[circle.id]}
+                                        onDragEnd={(e) => {
+                                            const node = e.target;
+                                            const clamped = clampCircle(
+                                                { ...circle, x: node.x(), y: node.y() },
+                                                boardW,
+                                                boardH
+                                            );
+                                            node.position({ x: clamped.x, y: clamped.y });
+                                            setCircles(prev =>
+                                                prev.map(c => c.id === circle.id ? { ...c, x: clamped.x, y: clamped.y } : c)
+                                            );
+                                        }}
+                                    />
+                                ))}
 
-                        {triangles.map((triangle) => (
-                            <RegularPolygon
-                                key={triangle.id}
-                                id={triangle.id}
-                                x={triangle.x}
-                                y={triangle.y}
-                                sides={3}
-                                radius={triangle.size}
-                                fill={triangle.fillColor}
-                                stroke={strokeColor}
-                                strokeWidth={2}
-                                draggable={isDraggable}
-                                onClick={onClick}
-                                onDblClick={onDblClick}
-                                // ✅ FIX 3: Use precomputed function from memo
-                                dragBoundFunc={triangleBoundFuncs[triangle.id]}
-                                onDragEnd={(e) => {
-                                    const node = e.target;
-                                    const clamped = clampTriangle(
-                                        { ...triangle, x: node.x(), y: node.y() },
-                                        boardW,
-                                        boardH
-                                    );
-                                    node.position({ x: clamped.x, y: clamped.y });
-                                    setTriangles(prev =>
-                                        prev.map(t => t.id === triangle.id ? { ...t, x: clamped.x, y: clamped.y } : t)
-                                    );
-                                }}
-                            />
-                        ))}
+                                {triangles.map((triangle) => (
+                                    <RegularPolygon
+                                        key={triangle.id}
+                                        id={triangle.id}
+                                        x={triangle.x}
+                                        y={triangle.y}
+                                        sides={3}
+                                        radius={triangle.size}
+                                        fill={triangle.fillColor}
+                                        stroke={strokeColor}
+                                        strokeWidth={2}
+                                        draggable={isDraggable}
+                                        onClick={onClick}
+                                        onDblClick={onDblClick}
+                                        // ✅ FIX 3: Use precomputed function from memo
+                                        dragBoundFunc={triangleBoundFuncs[triangle.id]}
+                                        onDragEnd={(e) => {
+                                            const node = e.target;
+                                            const clamped = clampTriangle(
+                                                { ...triangle, x: node.x(), y: node.y() },
+                                                boardW,
+                                                boardH
+                                            );
+                                            node.position({ x: clamped.x, y: clamped.y });
+                                            setTriangles(prev =>
+                                                prev.map(t => t.id === triangle.id ? { ...t, x: clamped.x, y: clamped.y } : t)
+                                            );
+                                        }}
+                                    />
+                                ))}
 
-                        {arrows.map((arrow) => (
-                            <Arrow
-                                key={arrow.id}
-                                points={arrow.points}
-                                stroke={arrow.stroke}
-                                strokeWidth={2}
-                                fill={arrow.fillColor}
-                                draggable={isDraggable}
-                                onClick={onClick}
-                                onDblClick={onDblClick}
-                                dragBoundFunc={boardClamp}
-                            />
-                        ))}
+                                {arrows.map((arrow) => (
+                                    <Arrow
+                                        key={arrow.id}
+                                        points={arrow.points}
+                                        stroke={arrow.stroke}
+                                        strokeWidth={2}
+                                        fill={arrow.fillColor}
+                                        draggable={isDraggable}
+                                        onClick={onClick}
+                                        onDblClick={onDblClick}
+                                        dragBoundFunc={boardClamp}
+                                    />
+                                ))}
 
-                        {straightLines.map((line) => (
-                            <Line
-                                key={line.id}
-                                id={line.id}
-                                points={line.points}
-                                stroke={line.stroke}
-                                strokeWidth={line.strokeWidth || 3}
-                                lineCap="round"
-                                lineJoin="round"
-                                draggable={isDraggable}
-                                onClick={onClick}
-                                onDblClick={onDblClick}
-                                dragBoundFunc={boardClamp}
-                            />
-                        ))}
+                                {straightLines.map((line) => (
+                                    <Line
+                                        key={line.id}
+                                        id={line.id}
+                                        points={line.points}
+                                        stroke={line.stroke}
+                                        strokeWidth={line.strokeWidth || 3}
+                                        lineCap="round"
+                                        lineJoin="round"
+                                        draggable={isDraggable}
+                                        onClick={onClick}
+                                        onDblClick={onDblClick}
+                                        dragBoundFunc={boardClamp}
+                                    />
+                                ))}
 
 
-                        <Transformer
-                            ref={trRef}
-                            rotateEnabled={false}
-                            enabledAnchors={[
-                                "top-left", "top-right",
-                                "bottom-left", "bottom-right",
-                                "top-center", "bottom-center",
-                                "middle-left", "middle-right",
-                            ]}
-                            borderStroke="#2563EB"
-                            borderStrokeWidth={1.5}
-                            borderDash={[6, 4]}
-                            anchorFill="#FFFFFF"
-                            anchorStroke="#2563EB"
-                            anchorStrokeWidth={1.5}
-                            anchorSize={8}
-                            anchorCornerRadius={4}
-                            padding={6}
-                            boundBoxFunc={transformerBoundBox}
-                        />
-                    </Layer>
-                </Stage>
+                                <Transformer
+                                    ref={trRef}
+                                    rotateEnabled={false}
+                                    enabledAnchors={[
+                                        "top-left", "top-right",
+                                        "bottom-left", "bottom-right",
+                                        "top-center", "bottom-center",
+                                        "middle-left", "middle-right",
+                                    ]}
+                                    borderStroke="#2563EB"
+                                    borderStrokeWidth={1.5}
+                                    borderDash={[6, 4]}
+                                    anchorFill="#FFFFFF"
+                                    anchorStroke="#2563EB"
+                                    anchorStrokeWidth={1.5}
+                                    anchorSize={8}
+                                    anchorCornerRadius={4}
+                                    padding={6}
+                                    boundBoxFunc={transformerBoundBox}
+                                />
+                            </Layer>
+                        </Stage>
 
-                <MediaFrame />
+                        <MediaFrame />
+                    </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 };
 

@@ -1,0 +1,72 @@
+﻿
+> build
+> turbo run build
+
+ÔÇó Packages in scope: @bluethub/eslint-config, @bluethub/landing, @bluethub/typescript-config, @bluethub/ui-kit, @bluethub/web
+ÔÇó Running build in 5 packages
+ÔÇó Remote caching disabled
+@bluethub/landing:build: cache hit, replaying logs 506fb430d5212d30
+@bluethub/landing:build: [2J[m[2;1H> @bluethub/landing@0.0.0 build C:\Users\hp\Desktop\TechHub
+@bluethub/landing:build: FE-V2\BLUETHUB-OR\apps\landing
+@bluethub/landing:build: > tsc -b && vite build[6;1H]0;C:\Windows\system32\cmd.exe[?25h[36mvite v7.3.1 [32mbuilding client environment for production...
+@bluethub/landing:build: [m[Ktransforming (1) src\main.tsx
+@bluethub/landing:build: [K[29C
+@bluethub/landing:build: transforming (2) index.html
+@bluethub/landing:build: [K[27C
+@bluethub/landing:build: transforming (4) ..\..\node_modules\.pnpm\react@19.2.0
+@bluethub/landing:build: [K[54C
+@bluethub/landing:build: transforming (7) commonjsHelpers.js
+@bluethub/landing:build: [K[35C
+@bluethub/landing:build: transforming (15) src\App.tsx
+@bluethub/landing:build: [K[29C
+@bluethub/landing:build: transforming (20) ..\..\node_modules\.pnpm\scheduler@0
+@bluethub/landing:build: [K[54C
+@bluethub/landing:build: transforming (24) ..\..\node_modules\.pnpm\react-dom@1
+@bluethub/landing:build: [K[54C
+@bluethub/landing:build: transforming (25) ..\..\node_modules\.pnpm\react-dom@1
+@bluethub/landing:build: [K[54C
+@bluethub/landing:build: [32mÔ£ô[m 32 modules transformed.
+@bluethub/landing:build: [K[K[23C
+@bluethub/landing:build: [Kcomputing gzip size (0)...
+@bluethub/landing:build: [K[26C
+@bluethub/landing:build: computing gzip size (1)...
+@bluethub/landing:build: computing gzip size (2)...[K
+@bluethub/landing:build: [K[26C
+@bluethub/landing:build: computing gzip size (3)...
+@bluethub/landing:build: [K[26C
+@bluethub/landing:build: computing gzip size (4)...
+@bluethub/landing:build: [Kdist/[32mindex.html[17X[1m[97m[17C  0.47 kB[m Ôöé gzip:  0.30 kB
+@bluethub/landing:build: dist/[32massets/react-CHdo91hT.svg  [1m[97m  4.13 kB[m Ôöé gzip:  2.05 kB
+@bluethub/landing:build: dist/[35massets/index-DHg4UuSp.css  [1m[97m 20.72 kB[m Ôöé gzip:  5.99 kB
+@bluethub/landing:build: dist/[36massets/index-BR-lSHgj.js   [1m[97m193.91 kB[m Ôöé gzip: 60.94 kB
+@bluethub/landing:build: [32mÔ£ô built in 10.59s
+@bluethub/landing:build: [m
+@bluethub/web:build: cache miss, executing b939c8bc87440a54
+@bluethub/web:build: 
+@bluethub/web:build: > @bluethub/web@0.0.0 build C:\Users\hp\Desktop\TechHubFE-V2\BLUETHUB-OR\apps\web
+@bluethub/web:build: > tsc -b && vite build
+@bluethub/web:build: 
+@bluethub/web:build: src/workers/stroke-upload.worker.ts(161,18): error TS2352: Conversion of type 'CompressedStroke[]' to type 'StrokePayload[]' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+@bluethub/web:build:   Property 'strokeType' is missing in type 'CompressedStroke' but required in type 'StrokePayload'.
+@bluethub/web:build: src/workers/stroke-upload.worker.ts(180,75): error TS2339: Property 'type' does not exist on type 'never'.
+@bluethub/web:build: ÔÇëELIFECYCLEÔÇë Command failed with exit code 2.
+node.exe : @bluethub/web:build: ERROR: command finished with error: command 
+(C:\Users\hp\Desktop\TechHubFE-V2\BLUETHUB-OR\apps\web) 
+C:\Users\hp\AppData\Roaming\npm\pnpm.cmd run build exited (2)
+At C:\Program Files\nodejs\npm.ps1:29 char:3
++   & $NODE_EXE $NPM_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (@bluethub/web:b...uild exited (2) 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+@bluethub/web#build: command 
+(C:\Users\hp\Desktop\TechHubFE-V2\BLUETHUB-OR\apps\web) 
+C:\Users\hp\AppData\Roaming\npm\pnpm.cmd run build exited (2)
+
+ Tasks:    1 successful, 2 total
+Cached:    1 cached, 2 total
+  Time:    45.296s 
+Failed:    @bluethub/web#build
+
+ ERROR  run failed: command  exited (2)

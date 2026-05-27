@@ -1480,11 +1480,11 @@ const SubmitLesson = () => {
                 {formValid && hasUploadErrors && "Fix or remove failed uploads"}
                 {formValid && !hasPendingUploads && !hasUploadErrors && "Ready to submit for approval"}
               </p>
-              {DEBUG_SUBMIT_LESSON && (
+              {/* {DEBUG_SUBMIT_LESSON && (
                 <p className="text-[11px] text-amber-600">
                   debug: modal={String(showQuizModal)} canSubmit={String(canSubmit)} formValid={String(formValid)} pending={String(hasPendingUploads)} errors={String(hasUploadErrors)}
                 </p>
-              )}
+              )} */}
               <div className="flex gap-3">
                 <Button
                   variant="outline"
