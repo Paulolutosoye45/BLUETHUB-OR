@@ -1,6 +1,6 @@
 import Pen from "@/assets/svg/pen.svg?react";
 import lecturer from "@/assets/jpeg/lecturer.jpg";
-import { BiDotsVerticalRounded, BiSolidBell } from "react-icons/bi";
+import { BiDotsVerticalRounded } from "react-icons/bi";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@bluethub/ui-kit";
 import {
@@ -16,7 +16,6 @@ import {
 const Participants = () => {
     return (
         <div className="flex space-x-7">
-            <BiSolidBell className="text-chestnut text-2xl" />
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <BiDotsVerticalRounded className="text-chestnut text-2xl cursor-pointer" />

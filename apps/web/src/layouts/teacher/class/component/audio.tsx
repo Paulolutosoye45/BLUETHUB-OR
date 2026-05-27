@@ -6,7 +6,7 @@ import { useSession } from "@/contexts/session-context";
 import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import toast from "react-hot-toast";
-import { Clock, MicOff } from "lucide-react";
+import { MicOff } from "lucide-react";
 
 const MIC_MUTE_REMINDER_INTERVAL = 5000; // 5 seconds
 
@@ -16,7 +16,6 @@ const Audio = () => {
 
   const classEnded = useSelector((state: RootState) => state.action.classEnded);
   const pauseTime = useSelector((state: RootState) => state.action.pauseTime);
-  const timerDisplay = useSelector((state: RootState) => state.action.timerDisplay);
   const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
 
   // Class hasn't started yet if no time has elapsed
@@ -96,12 +95,6 @@ const Audio = () => {
 
   return (
     <div className="relative flex items-center justify-center">
-      <div className="pointer-events-none absolute -top-32 left-1/2 z-30 flex -translate-x-1/2 items-center gap-1 rounded-full border border-slate-200 bg-white/95 px-2 py-1 shadow-sm">
-        <Clock className="size-3.5 text-slate-500" />
-        <div className="font-mono text-xs font-semibold text-slate-700">
-          {timerDisplay}
-        </div>
-      </div>
 
       <Button
         onClick={handleMic}

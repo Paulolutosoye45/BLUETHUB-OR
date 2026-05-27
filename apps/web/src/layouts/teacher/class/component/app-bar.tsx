@@ -55,6 +55,7 @@ const AppBar = () => {
 
                 {/* Board Selector */}
                 <BoardSelector />
+                
 
                 {/* Participants */}
                 <Participants />

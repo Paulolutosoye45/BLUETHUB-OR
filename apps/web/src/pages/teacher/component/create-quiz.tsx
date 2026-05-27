@@ -24,7 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   questionService,
@@ -613,6 +613,7 @@ const QuestionCard = ({
 const CreateQuizQuestion = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuthContext();
+  const navigate = useNavigate();
   const isAdmin = ADMIN_ROLES.includes(user?.roleName ?? "");
 
   // ── Multi-draft state ───────────────────────────────────────────────────
@@ -1100,9 +1101,9 @@ const CreateQuizQuestion = () => {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="p-3 sm:p-6 font-poppins">
-      <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
-        <TitleBar title="question" hasVertical hasBackIcons />
+    <div className=" sm:p-6 font-poppins">
+      <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
+        <TitleBar title="question" hasVertical hasBackIcons onBack={() => navigate(-1)} />
 
         <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-white/70 backdrop-blur-sm">
 
