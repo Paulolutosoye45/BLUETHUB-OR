@@ -18,7 +18,7 @@
 import { API } from './index';
 // import { X_Tenant_ID } from '@/utils/tenant';
 
-const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
+import { X_Tenant_ID } from "@/utils/tenant";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

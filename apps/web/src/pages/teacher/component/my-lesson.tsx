@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import {
   ChevronRight,
   EllipsisVertical,
@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight as ChevronR,
   Play,
+  Menu,
 } from "lucide-react";
 import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@bluethub/ui-kit";
 import { lessonService, type LessonItem, type LessonSummary, type LessonForClassDto, type LessonMediaDto } from "@/services/lesson";
@@ -22,10 +23,10 @@ import toast from "react-hot-toast";
 
 const STATUS_FILTERS = [
   { label: "All lessons", value: "" },
-  { label: "Pending",     value: "PendingApproval" },
-  { label: "Approved",    value: "Approved" },
-  { label: "Rejected",    value: "Rejected" },
-  { label: "Published",   value: "Published" },
+  { label: "Pending", value: "PendingApproval" },
+  { label: "Approved", value: "Approved" },
+  { label: "Rejected", value: "Rejected" },
+  { label: "Published", value: "Published" },
 ] as const;
 
 type FilterValue = (typeof STATUS_FILTERS)[number]["value"];
@@ -49,11 +50,11 @@ function normaliseStatus(raw: string): "Pending" | "Approved" | "Rejected" {
 }
 
 const STATUS_STYLE: Record<string, { dot: string; text: string; border: string; badge: string }> = {
-  PendingApproval: { dot: "bg-orange-400",  text: "text-orange-500", border: "border-l-orange-300", badge: "bg-orange-50 text-orange-500" },
-  Approved:        { dot: "bg-green-500",   text: "text-green-600",  border: "border-l-green-400",  badge: "bg-green-50 text-green-600"  },
-  Rejected:        { dot: "bg-red-500",     text: "text-red-500",    border: "border-l-red-400",    badge: "bg-red-50 text-red-500"      },
-  Published:       { dot: "bg-blue-500",    text: "text-blue-600",   border: "border-l-blue-400",   badge: "bg-blue-50 text-blue-600"    },
-  Draft:           { dot: "bg-gray-400",    text: "text-gray-500",   border: "border-l-gray-300",   badge: "bg-gray-100 text-gray-500"   },
+  PendingApproval: { dot: "bg-orange-400", text: "text-orange-500", border: "border-l-orange-300", badge: "bg-orange-50 text-orange-500" },
+  Approved: { dot: "bg-green-500", text: "text-green-600", border: "border-l-green-400", badge: "bg-green-50 text-green-600" },
+  Rejected: { dot: "bg-red-500", text: "text-red-500", border: "border-l-red-400", badge: "bg-red-50 text-red-500" },
+  Published: { dot: "bg-blue-500", text: "text-blue-600", border: "border-l-blue-400", badge: "bg-blue-50 text-blue-600" },
+  Draft: { dot: "bg-gray-400", text: "text-gray-500", border: "border-l-gray-300", badge: "bg-gray-100 text-gray-500" },
 };
 const DEFAULT_STYLE = STATUS_STYLE.PendingApproval;
 
@@ -65,25 +66,25 @@ function statusLabel(raw: string): string {
 function toRLesson(lesson: LessonItem, teacherName: string): RLesson {
   const norm = normaliseStatus(lesson.status);
   return {
-    title:    lesson.subTopic || "—",
-    teacher:  teacherName,
-    subject:  "—",
-    class:    "—",
-    term:     "—",
+    title: lesson.subTopic || "—",
+    teacher: teacherName,
+    subject: "—",
+    class: "—",
+    term: "—",
     submittedOn: formatDate(lesson.createdAt),
-    status:   norm,
-    objectives:  lesson.aim,
+    status: norm,
+    objectives: lesson.aim,
     lessonNotes: lesson.description,
-    approvedBy:  lesson.approvedBy ? "Head Teacher" : undefined,
-    approvedAt:  formatDate(lesson.approvedAt),
+    approvedBy: lesson.approvedBy ? "Head Teacher" : undefined,
+    approvedAt: formatDate(lesson.approvedAt),
     rejectionReason: lesson.rejectionReason ?? undefined,
     timeline: [
       { label: "Lesson submitted", date: formatDate(lesson.createdAt), done: true },
       ...(norm === "Approved"
-        ? [{ label: "Approved",  date: formatDate(lesson.approvedAt), done: true }]
+        ? [{ label: "Approved", date: formatDate(lesson.approvedAt), done: true }]
         : norm === "Rejected"
-        ? [{ label: "Rejected",  date: formatDate(lesson.modifiedAt), done: false }]
-        : [{ label: "Pending Review", date: "", done: false }]
+          ? [{ label: "Rejected", date: formatDate(lesson.modifiedAt), done: false }]
+          : [{ label: "Pending Review", date: "", done: false }]
       ),
     ],
   };
@@ -100,9 +101,8 @@ interface StatCardProps {
 }
 function StatCard({ count, label, sub, subColor = "text-gray-400", highlight }: StatCardProps) {
   return (
-    <div className={`rounded-2xl p-5 transition hover:shadow-md ${
-      highlight ? "bg-chestnut border border-chestnut" : "bg-white border border-[#D9D9D9]"
-    }`}>
+    <div className={`rounded-2xl p-5 transition hover:shadow-md ${highlight ? "bg-chestnut border border-chestnut" : "bg-white border border-[#D9D9D9]"
+      }`}>
       <p className={`font-bold text-3xl leading-none tracking-tight text-center w-full ${highlight ? "text-white" : "text-[#0F0F0E]"}`}>
         {count}
       </p>
@@ -117,6 +117,7 @@ function StatCard({ count, label, sub, subColor = "text-gray-400", highlight }: 
 const MyLesson = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const teacherName = user ? `${user.firstName} ${user.lastName}`.trim() : "Teacher";
 
   // ── Filter + pagination state ──
@@ -165,11 +166,11 @@ const MyLesson = () => {
 
         setLessons(items);
         setSummary({
-          total:          sum?.total          ?? sum?.Total          ?? 0,
+          total: sum?.total ?? sum?.Total ?? 0,
           pendingApproval: sum?.pendingApproval ?? sum?.PendingApproval ?? 0,
-          approved:       sum?.approved       ?? sum?.Approved       ?? 0,
-          rejected:       sum?.rejected       ?? sum?.Rejected       ?? 0,
-          published:      sum?.published      ?? sum?.Published      ?? 0,
+          approved: sum?.approved ?? sum?.Approved ?? 0,
+          rejected: sum?.rejected ?? sum?.Rejected ?? 0,
+          published: sum?.published ?? sum?.Published ?? 0,
         });
         setTotalCount(total);
         setTotalPages(pages);
@@ -236,8 +237,8 @@ const MyLesson = () => {
     const meta = lessonMetaById[lesson.id];
     const parts = [
       meta?.subjectName ?? lesson.subjectName,
-      meta?.topicName  ?? lesson.topicName,
-      meta?.subTopic   ?? lesson.subTopicName ?? lesson.subTopic,
+      meta?.topicName ?? lesson.topicName,
+      meta?.subTopic ?? lesson.subTopicName ?? lesson.subTopic,
     ]
       .map((v) => (typeof v === "string" ? v.trim() : ""))
       .filter((v) => v.length > 0);
@@ -289,14 +290,15 @@ const MyLesson = () => {
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="p-3 min-h-screen">
-        <div className="rounded-t-2xl overflow-hidden shadow-lg">
+      <div className="md:p-3 min-h-screen">
+        <div className="lg:rounded-t-2xl overflow-hidden shadow-lg">
 
           {/* Header bar */}
           <div className="flex items-center justify-between px-4 sm:px-6 py-5 bg-chestnut">
             <h3 className="flex items-center gap-2 text-white font-semibold text-sm">
-              <span className="text-white/60">Teaching</span>
-              <ChevronRight size={16} />
+              <span className="text-white/60 hidden lg:inline">Teaching</span>
+              <Menu className="lg:hidden  w-5 h-5 text-white" onClick={openMobileNav} />
+              <ChevronRight size={16} className="hidden lg:inline" />
               <span>My Lessons</span>
             </h3>
             <button className="text-white p-1 rounded hover:bg-white/10 transition">
@@ -325,13 +327,13 @@ const MyLesson = () => {
             </div>
 
             {/* Stat cards */}
-            <div className={`grid gap-3 ${summary.published > 0 ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-2 sm:grid-cols-4"}`}>
-              <StatCard highlight count={summary.total}           label="Total submissions"   sub="+this term" />
-              <StatCard          count={summary.pendingApproval} label="Pending review"       sub="Processing"   subColor="text-orange-400" />
-              <StatCard          count={summary.approved}         label="Approved"             sub="Completed"    subColor="text-green-500"  />
-              <StatCard          count={summary.rejected}         label="Rejected"             sub="Needs revision" subColor="text-red-500" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              <StatCard highlight count={summary.total} label="Total submissions" sub="+this term" />
+              <StatCard count={summary.pendingApproval} label="Pending review" sub="Processing" subColor="text-orange-400" />
+              <StatCard count={summary.approved} label="Approved" sub="Completed" subColor="text-green-500" />
+              <StatCard count={summary.rejected} label="Rejected" sub="Needs revision" subColor="text-red-500" />
               {summary.published > 0 && (
-                <StatCard        count={summary.published}        label="Published"            sub="Live"         subColor="text-blue-500"  />
+                <StatCard count={summary.published} label="Published" sub="Live" subColor="text-blue-500" />
               )}
             </div>
 
@@ -341,11 +343,10 @@ const MyLesson = () => {
                 <button
                   key={f.value}
                   onClick={() => handleFilterChange(f.value)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                    activeFilter === f.value
+                  className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${activeFilter === f.value
                       ? "bg-chestnut text-white shadow-sm"
                       : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                  }`}
+                    }`}
                 >
                   {f.label}
                 </button>
@@ -433,10 +434,9 @@ const MyLesson = () => {
                                           onClick={() => handleStartClassWithChecks(lesson)}
                                           disabled={isChecking}
                                           className={`flex items-center gap-1.5 text-white text-xs font-semibold
-                                            px-3 py-1.5 rounded-lg transition-all shadow-sm ${
-                                              isChecking
-                                                ? "bg-gray-300 cursor-not-allowed"
-                                                : "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
+                                            px-3 py-1.5 rounded-lg transition-all shadow-sm ${isChecking
+                                              ? "bg-gray-300 cursor-not-allowed"
+                                              : "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
                                             }`}
                                         >
                                           {isChecking ? (
@@ -502,11 +502,10 @@ const MyLesson = () => {
                                   <button
                                     onClick={() => handleStartClassWithChecks(lesson)}
                                     disabled={isChecking}
-                                    className={`flex items-center gap-1 text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg ${
-                                      isChecking
+                                    className={`flex items-center gap-1 text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg ${isChecking
                                         ? "bg-gray-300 cursor-not-allowed"
                                         : "bg-gradient-to-r from-emerald-500 to-emerald-600"
-                                    }`}
+                                      }`}
                                   >
                                     {isChecking ? (
                                       <Loader2 size={10} className="animate-spin" />
@@ -516,7 +515,7 @@ const MyLesson = () => {
                                     {isChecking ? "…" : "Start"}
                                   </button>
                                 );
-                                })()}
+                              })()}
                               <button
                                 onClick={() => setReviewLesson(toRLesson(lesson, teacherName))}
                                 className="border border-[#E8E8E3] text-[#0F0F0E] text-xs font-medium px-3 py-1.5
@@ -553,9 +552,8 @@ const MyLesson = () => {
                           <button
                             key={p}
                             onClick={() => setPage(p)}
-                            className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-colors ${
-                              p === page ? "bg-chestnut text-white" : "border border-gray-200 text-gray-500 hover:border-chestnut/40"
-                            }`}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-semibold transition-colors ${p === page ? "bg-chestnut text-white" : "border border-gray-200 text-gray-500 hover:border-chestnut/40"
+                              }`}
                           >
                             {p}
                           </button>

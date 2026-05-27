@@ -410,8 +410,8 @@ const TopicQuestionList = () => {
   }, [selectedClassId, selectedSubjectId, selectedSubtopic, selectedTopicId]);
 
   return (
-    <div className="p-3 sm:p-5 font-poppins">
-      <div className="rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
+    <div className="sm:p-5 font-poppins">
+      <div className="lg:rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
         <TitleBar title="question" hasVertical hasBackIcons onBack={() => navigate(-1)} />
 
         <div className="p-3 sm:p-5 lg:p-7 space-y-4 sm:space-y-5">

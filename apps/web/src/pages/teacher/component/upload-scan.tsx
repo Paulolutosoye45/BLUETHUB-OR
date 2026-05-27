@@ -348,7 +348,7 @@ const UploadScan = () => {
                 Upload Another
               </button>
               <button
-                onClick={() => navigate("/teacher/assessment/My-Uploads")}
+                onClick={() => navigate("/teacher/assessments/My-Uploads")}
                 className="px-5 py-2.5 rounded-lg bg-chestnut text-white text-sm font-semibold hover:bg-chestnut/90 transition-colors"
               >
                 Check Processing Status →

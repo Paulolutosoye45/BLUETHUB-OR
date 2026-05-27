@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+
 import { NavLink, useNavigate } from "react-router-dom";
 
 import bluethub from "@/assets/png/bluethub.png";
@@ -14,6 +14,7 @@ import dashboardIcon from "@/assets/svg/element-4.svg";
 import messageIcon from "@/assets/svg/message.svg";
 import calendarIcon from "@/assets/svg/calendar.svg";
 import { X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 const MAIN_LINKS: NavItem[] = [
   { name: "Dashboard", icons: dashboardIcon, path: "/teacher" },
@@ -234,15 +235,16 @@ const TeacherSidebar = () => {
     });
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate("/");
-  };
 
   const handleSetCollapsed = (v: boolean) => {
     setIsCollapsed(v);
     localData.save("navVNextT", v);
   };
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
 
   return (
     <aside

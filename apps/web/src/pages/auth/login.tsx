@@ -87,7 +87,7 @@ function Login() {
 
     const hashedPassword = await Hashing(data.password);
 
-    const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
+    const X_Tenant_ID = (import.meta.env.VITE_TENANT_ID as string) || "green";
     const payload = {
       username: data.userName,
       hashPassword: hashedPassword,

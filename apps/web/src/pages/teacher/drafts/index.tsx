@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { getAllSessions, cleanupEntireSession } from "@/utils/db";
 import type { LocalSession } from "@/utils/constant";
 import {
@@ -22,6 +22,7 @@ import {
   GraduationCap,
   Timer,
   CalendarClock,
+  Menu,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -132,6 +133,7 @@ function getDraftTitle(session: DraftSession): string {
 
 export default function DraftLessons() {
   const navigate = useNavigate();
+    const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const [sessions, setSessions] = useState<DraftSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -216,14 +218,17 @@ export default function DraftLessons() {
       <div className="border-b border-gray-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-                My Drafts
-              </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Continue recording or upload your saved lessons
-              </p>
-            </div>
+          <div>
+  <div className="flex items-center gap-3">
+    <Menu className="lg:hidden w-5 h-5 text-black cursor-pointer" onClick={openMobileNav} />
+    <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+      My Drafts
+    </h1>
+  </div>
+  <p className="mt-1 text-sm text-gray-500">
+    Continue recording or upload your saved lessons
+  </p>
+</div>
             <div className="flex items-center gap-3">
               <span className="rounded-full bg-blue-100 px-4 py-1.5 text-sm font-semibold text-chestnut">
                 {sessions.length} {sessions.length === 1 ? "draft" : "drafts"}
@@ -244,18 +249,18 @@ export default function DraftLessons() {
               />
             </div>
             <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-gray-400" />
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              >
-                <option value="all">All Status</option>
-                <option value="draft">Drafts</option>
-                <option value="completed">Ready to Upload</option>
-                <option value="failed">Failed</option>
-              </select>
-            </div>
+  <Filter className="h-4 w-4 text-gray-400 shrink-0" />
+  <select
+    value={filterStatus}
+    onChange={(e) => setFilterStatus(e.target.value)}
+    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+  >
+    <option value="all">All Status</option>
+    <option value="draft">Drafts</option>
+    <option value="completed">Ready to Upload</option>
+    <option value="failed">Failed</option>
+  </select>
+</div>
           </div>
         </div>
       </div>

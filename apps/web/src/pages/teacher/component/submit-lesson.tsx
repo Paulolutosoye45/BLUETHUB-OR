@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
 import {
   Check,
@@ -24,6 +24,7 @@ import {
   FolderOpen,
   Clock,
   Timer,
+  Menu,
 } from "lucide-react";
 import {
   Button,
@@ -521,6 +522,7 @@ function SetQuestionsModal({
 const SubmitLesson = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const isAdminRole = user?.roleName === "Administrator" || user?.roleName === "SuperAdministrator" || user?.roleName === "HeadTeacher";
   const DEBUG_SUBMIT_LESSON = true;
 
@@ -1045,6 +1047,7 @@ const SubmitLesson = () => {
 
   // ── Render ──
   return (
+    
     <>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
         {/* Header */}
@@ -1053,10 +1056,9 @@ const SubmitLesson = () => {
             <div className="flex items-center justify-between h-16">
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => navigate(-1)}
                   className="p-2 -ml-2 rounded-xl hover:bg-gray-100 transition-colors"
                 >
-                  <ChevronLeft className="w-5 h-5 text-gray-600" />
+                  <Menu className="lg:hidden  w-5 h-5 text-gray-600" onClick={openMobileNav} />
                 </button>
                 <div>
                   <h1 className="text-lg font-semibold text-gray-900">Submit Lesson</h1>
@@ -1121,7 +1123,7 @@ const SubmitLesson = () => {
         )}
 
         {/* Main Content */}
-        <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-32 sm:pb-8">
+        <main className="max-w-3xl mx-auto px-2 sm:px-6 lg:px-8 py-6 pb-32 sm:pb-8">
           <div className="space-y-6">
             {/* Step 1: Class & Topic */}
             <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -1221,19 +1223,19 @@ const SubmitLesson = () => {
               </div>
             </section>
 
-            {/* Schedule & Duration */}
-            <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-gray-100">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-sky-500 text-white">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h2 className="font-semibold text-gray-900">Schedule & Duration</h2>
-                    <p className="text-xs text-gray-500">Optional — set when and how long the class runs</p>
+              {/* Schedule & Duration */}
+              <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="lg:px-5 py-4 px-4 bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-sky-500 text-white">
+                      <Clock className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h2 className="font-semibold text-gray-900">Schedule & Duration</h2>
+                      <p className="text-xs text-gray-500">Optional — set when and how long the class runs</p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
               <div className="p-5">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

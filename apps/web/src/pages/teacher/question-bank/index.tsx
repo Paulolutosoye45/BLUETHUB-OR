@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import {
   ChevronLeft,
   Upload,
@@ -20,6 +20,7 @@ import {
   XCircle,
   ScanLine,
   Plus,
+  Menu,
 } from "lucide-react";
 import { Button } from "@bluethub/ui-kit";
 import { cn } from "@/lib/utils";
@@ -256,6 +257,7 @@ function EmptyState({ onUpload }: { onUpload: () => void }) {
 
 const QuestionBankScan = () => {
   const navigate = useNavigate();
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const [jobs, setJobs] = useState<JobListItem[]>([]);
   const [quota, setQuota] = useState<ScanQuotaResponseData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -383,10 +385,12 @@ const QuestionBankScan = () => {
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate(-1)}
-              className="w-9 h-9 -ml-1 rounded-full flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 transition-colors"
+              className="w-9 h-9 -ml-1 rounded-full flex items-center justify-center hover:bg-gray-100 active:bg-gray-200 transition-colors lg:hidden"
             >
-              <ChevronLeft className="w-5 h-5 text-gray-700" />
+              <Menu
+            className="lg:hidden w-5 h-5 text-black cursor-pointer"
+            onClick={openMobileNav}  // ✅ not onClick={() => openMobileNav()}
+          />
             </button>
             <h1 className="text-lg sm:text-xl font-bold text-gray-900">Question Bank</h1>
           </div>
