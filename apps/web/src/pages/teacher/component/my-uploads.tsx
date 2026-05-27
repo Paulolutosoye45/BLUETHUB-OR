@@ -813,14 +813,14 @@ const MyUploads = () => {
     }
   };
 
- const classrooms = useMemo<SelectItem[]>(() => {
-  const roleData = user?.roleData;
-  if (!roleData || !isTeacherRoleData(roleData)) return [];
-  return roleData.classrooms.map((c) => ({
-    id: String(c.classroomId),
-    name: String(c.className),
-  }));
-}, [user?.roleData]);
+  const classrooms = useMemo<SelectItem[]>(() => {
+    const roleData = user?.roleData;
+    if (!roleData || !isTeacherRoleData(roleData)) return [];
+    return roleData.classrooms.map((c) => ({
+      id: String(c.classroomId),
+      name: String(c.className),
+    }));
+  }, [user?.roleData]);
 
   const subjects = useMemo<SelectItem[]>(() => {
     const roleData = user?.roleData;
@@ -1185,45 +1185,45 @@ const MyUploads = () => {
                       <p className="text-xs text-rose-600 font-medium">{saveError}</p>
                     )}
                     <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs text-slate-600 font-medium">
-                      {editableQuestions.length} question{editableQuestions.length !== 1 ? "s" : ""}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        onClick={() => setIsEditMode((prev) => !prev)}
-                        className={`h-8 rounded-lg border px-3 text-xs font-semibold ${isEditMode ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-slate-300 bg-white text-slate-700"}`}
-                      >
-                        {isEditMode ? "Done Editing" : "Edit Questions"}
-                      </Button>
-                      {isEditMode && (
+                      <p className="text-xs text-slate-600 font-medium">
+                        {editableQuestions.length} question{editableQuestions.length !== 1 ? "s" : ""}
+                      </p>
+                      <div className="flex items-center gap-2">
                         <Button
                           type="button"
-                          onClick={addQuestion}
-                          className="h-8 rounded-lg bg-chestnut hover:bg-chestnut/90 text-white px-3 text-xs font-semibold"
+                          onClick={() => setIsEditMode((prev) => !prev)}
+                          className={`h-8 rounded-lg border px-3 text-xs font-semibold ${isEditMode ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-slate-300 bg-white text-slate-700"}`}
                         >
-                          <Plus className="w-3.5 h-3.5 mr-1" />
-                          Add Question
+                          {isEditMode ? "Done Editing" : "Edit Questions"}
                         </Button>
-                      )}
-                      {isEditMode && (
-                        <Button
-                          type="button"
-                          onClick={() => void handleSaveEditedQuestions()}
-                          disabled={isSavingEditedQuestions}
-                          className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3 text-xs font-semibold disabled:bg-slate-300 disabled:text-slate-500"
-                        >
-                          {isSavingEditedQuestions ? (
-                            <span className="inline-flex items-center gap-1">
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              Saving...
-                            </span>
-                          ) : (
-                            "Save"
-                          )}
-                        </Button>
-                      )}
-                    </div>
+                        {isEditMode && (
+                          <Button
+                            type="button"
+                            onClick={addQuestion}
+                            className="h-8 rounded-lg bg-chestnut hover:bg-chestnut/90 text-white px-3 text-xs font-semibold"
+                          >
+                            <Plus className="w-3.5 h-3.5 mr-1" />
+                            Add Question
+                          </Button>
+                        )}
+                        {isEditMode && (
+                          <Button
+                            type="button"
+                            onClick={() => void handleSaveEditedQuestions()}
+                            disabled={isSavingEditedQuestions}
+                            className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3 text-xs font-semibold disabled:bg-slate-300 disabled:text-slate-500"
+                          >
+                            {isSavingEditedQuestions ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                Saving...
+                              </span>
+                            ) : (
+                              "Save"
+                            )}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1231,24 +1231,24 @@ const MyUploads = () => {
                 {!previewLoading && editableQuestions.map((question, index) => (
                   <article key={question.localId} className="rounded-xl border border-slate-200 p-4  space-y-3">
                     <div className="flex items-center justify-between md:hidden">
-                           <p className="text-sm font-semibold text-slate-800 leading-6 shrink-0 md:hidden">
+                      <p className="text-sm font-semibold text-slate-800 leading-6 shrink-0 md:hidden">
                         {question.questionNumber ?? index + 1}.
                       </p>
-                    <div className="flex items-center md:hidden gap-2 shrink-0">
-                      <span className="rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold px-2 py-1">
-                        {question.questionTypeName || `Type ${question.questionType}`}
-                      </span>
-                      {isEditMode && (
-                        <button
-                          type="button"
-                          onClick={() => removeQuestion(question.localId)}
-                          className="h-8 w-8 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50"
-                          title="Remove question"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 mx-auto" />
-                        </button>
-                      )}
-                    </div>
+                      <div className="flex items-center md:hidden gap-2 shrink-0">
+                        <span className="rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold px-2 py-1">
+                          {question.questionTypeName || `Type ${question.questionType}`}
+                        </span>
+                        {isEditMode && (
+                          <button
+                            type="button"
+                            onClick={() => removeQuestion(question.localId)}
+                            className="h-8 w-8 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50"
+                            title="Remove question"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                          </button>
+                        )}
+                      </div>
                     </div>
 
 
@@ -1340,15 +1340,16 @@ const MyUploads = () => {
                                   ))}
                                 </select>
 
-                              <DifficultyPicker
-                                value={question.marksAllocation || question.difficultyLevel}
-                                onChange={(nextDifficulty) =>
-                                  updateQuestion(question.localId, {
-                                    difficultyLevel: Math.max(1, Math.min(4, nextDifficulty)),
-                                    marksAllocation: Math.max(1, Math.min(4, nextDifficulty)),
-                                  })
-                                }
-                              />
+                                <DifficultyPicker
+                                  value={question.marksAllocation || question.difficultyLevel}
+                                  onChange={(nextDifficulty) =>
+                                    updateQuestion(question.localId, {
+                                      difficultyLevel: Math.max(1, Math.min(4, nextDifficulty)),
+                                      marksAllocation: Math.max(1, Math.min(4, nextDifficulty)),
+                                    })
+                                  }
+                                />
+                              </div>
                             </div>
 
                             <textarea
