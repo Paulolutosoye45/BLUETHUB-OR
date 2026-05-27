@@ -234,7 +234,7 @@ const router = createBrowserRouter([
             { path: "assessment/questionlist/subtopic", element: <SubtopicQuestionList /> },
             { path: "assessment/upload-scan", element: <UploadScan /> },
             { path: "assessment/review", element: <ReviewQuestion /> },
-            { path: "assessment/My-Uploads", element: <MyUploads /> },
+            { path: "assessments/My-Uploads", element: <MyUploads /> },
             {
                 path: 'recorded-class',
                 element: <RecordedLayout />,

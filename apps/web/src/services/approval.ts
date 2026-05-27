@@ -1,8 +1,8 @@
 import { token } from "@/utils";
-// import { X_Tenant_ID } from "@/utils/tenant";
+
 import { API, type TResponse } from ".";
 
-const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
+import { X_Tenant_ID } from "@/utils/tenant";
 
 export interface ApprovalPayload {
   Title?: string;

@@ -72,7 +72,7 @@ export const TACADEMICLINKS = [
   {
     icons: AssignmentIcon,
     name: "Pending Job Status",
-    path: "/teacher/assessment/My-Uploads",
+    path: "/teacher/assessments/My-Uploads",
   },
   {
     icons: QuizzesIcon,

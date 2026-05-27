@@ -6,7 +6,6 @@ export interface RLesson {
     teacher: string;
     subject: string;
     class: string;
-    term: string;
     submittedOn: string;
     status: "Pending" | "Approved" | "Rejected";
     objectives?: string;
@@ -79,7 +78,7 @@ export const ReviewModal = ({ open, onOpenChange, lesson }: ReviewModalProps) =>
                     <div className="flex-1 min-w-0">
                         <h2 className="text-[#0F0F0E] font-semibold text-sm leading-tight">{lesson.title}</h2>
                         <p className="text-[#A8A8A4] text-[11px] mt-0.5">
-                            {lesson.teacher} · {lesson.subject} · {lesson.class} · {lesson.term}
+                            {lesson.teacher} · {lesson.subject} · {lesson.class} ·
                         </p>
                     </div>
                 </div>
@@ -91,7 +90,7 @@ export const ReviewModal = ({ open, onOpenChange, lesson }: ReviewModalProps) =>
                             { label: "Subject", value: lesson.subject },
                             { label: "Class", value: lesson.class },
                             { label: "Submitted On", value: lesson.submittedOn },
-                            { label: "Term", value: lesson.term },
+
                         ].map(({ label, value }) => (
                             <div key={label}>
                                 <p className="text-[#A8A8A4] text-[11px] font-normal">{label}</p>
@@ -146,10 +145,10 @@ export const ReviewModal = ({ open, onOpenChange, lesson }: ReviewModalProps) =>
                                 <div key={i} className="flex items-start gap-2.5">
                                     <div className="flex flex-col items-center">
                                         <span className={`w-2.5 h-2.5 rounded-full mt-0.5 shrink-0 ${t.done
-                                                ? "bg-green-500"
-                                                : t.label === "Rejected"
-                                                    ? "bg-red-500"
-                                                    : "bg-orange-400"
+                                            ? "bg-green-500"
+                                            : t.label === "Rejected"
+                                                ? "bg-red-500"
+                                                : "bg-orange-400"
                                             }`} />
                                         {i < lesson.timeline.length - 1 && (
                                             <div className="w-px h-6 bg-gray-200 mt-1" />

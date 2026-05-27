@@ -1,8 +1,7 @@
 import { token } from "@/utils";
 import axios, { type AxiosInstance } from "axios";
-// import { X_Tenant_ID } from "@/utils/tenant";
 
-const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
+const X_Tenant_ID = (import.meta.env.VITE_TENANT_ID as string) || "green";
 
 export const API: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,

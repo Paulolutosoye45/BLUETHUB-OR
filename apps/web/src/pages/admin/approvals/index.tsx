@@ -11,10 +11,12 @@ import {
   AlertCircle,
   User,
   GraduationCap,
+  Menu,
 } from "lucide-react";
 import { Button } from "@bluethub/ui-kit";
 import toast from "react-hot-toast";
 import { approvalService, type Approval, type ApprovalPayload } from "@/services/approval";
+import { useOutletContext } from "react-router-dom";
 
 type Tab = "pending" | "responded";
 
@@ -236,6 +238,7 @@ const ApprovalCard = ({
 };
 
 const ApprovalsPage = () => {
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [loading, setLoading] = useState(true);
   const [responding, setResponding] = useState<string | null>(null);
@@ -285,17 +288,24 @@ const ApprovalsPage = () => {
   const shown = activeTab === "pending" ? pending : responded;
 
   return (
-    <div className="p-6 font-poppins">
-      <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
+    <div className="lg:p-6 font-poppins">
+      <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-4 bg-chestnut">
-          <div>
-            <p className="text-white font-semibold text-sm">Approvals</p>
-            <p className="text-white/60 text-[10px]">
-              Review and respond to pending requests
-            </p>
+          <div className="flex items-center gap-4">
+            <Menu
+              className="lg:hidden w-5 h-5 text-white cursor-pointer"
+              onClick={openMobileNav}  // ✅ not onClick={() => openMobileNav()}
+            />
+            <div>
+              <p className="text-white font-semibold text-sm">Approvals</p>
+              <p className="text-white/60 text-[10px]">
+                Review and respond to pending requests
+              </p>
+            </div>
           </div>
+
           <button
             onClick={fetchApprovals}
             disabled={loading}
@@ -306,7 +316,7 @@ const ApprovalsPage = () => {
         </div>
 
         {/* Body */}
-        <div className="bg-white/70 backdrop-blur-sm p-6">
+        <div className="bg-white/70 backdrop-blur-sm  p-3 lg:p-6">
           <div className="max-w-3xl mx-auto">
 
             {/* Stats */}
@@ -329,11 +339,10 @@ const ApprovalsPage = () => {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-medium capitalize transition-all ${
-                    activeTab === tab
+                  className={`px-4 py-1.5 rounded-lg text-xs font-medium capitalize transition-all ${activeTab === tab
                       ? "bg-white text-gray-900 shadow-sm"
                       : "text-gray-500 hover:text-gray-700"
-                  }`}
+                    }`}
                 >
                   {tab} ({tab === "pending" ? pending.length : responded.length})
                 </button>
