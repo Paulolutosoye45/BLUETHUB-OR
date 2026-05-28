@@ -100,25 +100,25 @@ const UploadScan = () => {
   const [submittedJobId, setSubmittedJobId] = useState<string | null>(null);
 
   const classrooms = useMemo<Classroom[]>(() => {
-  const roleData = user?.roleData;
-  if (!roleData || !isTeacherRoleData(roleData)) return [];
-  return roleData.classrooms.map((item) => ({
-    id: String(item.classroomId),
-    name: String(item.className),
-  }));
-}, [user?.roleData]);
+    const roleData = user?.roleData;
+    if (!roleData || !isTeacherRoleData(roleData)) return [];
+    return roleData.classrooms.map((item) => ({
+      id: String(item.classroomId),
+      name: String(item.className),
+    }));
+  }, [user?.roleData]);
 
-const subjects = useMemo<Subject[]>(() => {
-  const roleData = user?.roleData;
-  if (!roleData || !isTeacherRoleData(roleData)) return [];
-  const selectedClassroom = roleData.classrooms.find(
-    (item) => String(item.classroomId) === classroomId
-  );
-  return (selectedClassroom?.subjects ?? []).map((item) => ({
-    id: String(item.subjectId),
-    name: String(item.subjectName),
-  }));
-}, [user?.roleData, classroomId]);
+  const subjects = useMemo<Subject[]>(() => {
+    const roleData = user?.roleData;
+    if (!roleData || !isTeacherRoleData(roleData)) return [];
+    const selectedClassroom = roleData.classrooms.find(
+      (item) => String(item.classroomId) === classroomId
+    );
+    return (selectedClassroom?.subjects ?? []).map((item) => ({
+      id: String(item.subjectId),
+      name: String(item.subjectName),
+    }));
+  }, [user?.roleData, classroomId]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -332,12 +332,12 @@ const subjects = useMemo<Subject[]>(() => {
   // ── Success state ────────────────────────────────────────────────────────
   if (submittedJobId) {
     return (
-      <div className="p-6 font-poppins">
-        <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
+      <div className="md:p-3 lg:p-6 font-poppins ">
+        <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
           <TitleBar title="Upload and scan" hasVertical hasBackIcons />
-          <div className="p-8 bg-white/70 backdrop-blur-sm flex flex-col items-center gap-6 text-center">
+          <div className="p-3 md:p-6 lg:p-8 bg-white/70 h-[70vh] lg:h-auto backdrop-blur-sm flex flex-col items-center gap-6 text-center">
             <CheckCircle2 className="w-16 h-16 text-emerald-500" />
-            <div>
+            <div> 
               <h2 className="text-xl font-bold text-slate-800">Request Accepted</h2>
               <p className="text-sm text-slate-500 mt-1">Your request is being processed at the moment.</p>
               <p className="text-sm text-slate-500 mt-1">A background process will pick it from the database and update the status when processing is complete.</p>
@@ -364,9 +364,9 @@ const subjects = useMemo<Subject[]>(() => {
   }
 
   return (
-    <div className="p-6 font-poppins">
-      <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
-        <TitleBar title="Upload and scan" hasVertical hasBackIcons />
+    <div className="lg:p-6 md:p-3 font-poppins">
+      <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
+        <TitleBar title="Upload and scan" hasVertical hasBackIcons onBack={() => navigate(-1)} />
 
         <div className="p-6 sm:p-8 bg-white/70 backdrop-blur-sm">
           <div className="mb-6">
@@ -488,11 +488,10 @@ const subjects = useMemo<Subject[]>(() => {
                       key={t}
                       type="button"
                       onClick={() => setQuestionType(t)}
-                      className={`flex-1 py-2 rounded-lg text-xs font-semibold border-2 transition-all cursor-pointer ${
-                        questionType === t
+                      className={`flex-1 py-2 rounded-lg text-xs font-semibold border-2 transition-all cursor-pointer ${questionType === t
                           ? "border-indigo-500 bg-indigo-50 text-indigo-700"
                           : "border-slate-200 text-slate-500 hover:border-slate-300"
-                      }`}
+                        }`}
                     >
                       {t === "TrueFalse" ? "True/False" : t}
                     </button>

@@ -716,9 +716,9 @@ const Class = () => {
     return (
         <>
             {/* ── Main whiteboard ─────────────────────────────────── */}
-            <div className="h-[90vh] max-h-[94vh] flex bg-slate-50">
+            <div className="h-[90vh] max-h-[94vh] flex  bg-slate-50">
                 {/* Left Sidebar - Tools */}
-                <div className="relative z-40 shrink-0 flex flex-col items-center justify-between py-3 px-1.5">
+                <div className="hidden relative z-40 shrink-0 md:flex flex-col  gap-2 md:justify-between py-3 px-1.5">
                     <ClassMenu />
                     <ClassBottom />
                 </div>
@@ -726,15 +726,15 @@ const Class = () => {
                 {/* Main Board Area */}
                 <div
                     ref={parentRef}
-                    className="flex-1 h-full relative overflow-hidden my-2 mr-2"
+                    className="w-full md:flex-1 h-full relative overflow-hidden my-2 md:mr-2"
                 >
                     {/* Board Container with shadow and rounded corners */}
                     <div className="
                     absolute inset-0
                     bg-white
-                    rounded-xl
-                    shadow-lg
-                    border border-gray-200
+                    md:rounded-xl
+                    md:shadow-lg
+                    md:border border-gray-200
                     overflow-hidden
                 ">
                         <Stage
@@ -955,6 +955,10 @@ const Class = () => {
 
                         <MediaFrame />
                     </div>
+                </div>
+
+                <div className="md:hidden absolute left-0 top-[37%] -translate-y-1/2 z-40 flex flex-col items-center gap-2 py-3 px-1.5">
+                    <ClassMenu />
                 </div>
             </div>
         </>
