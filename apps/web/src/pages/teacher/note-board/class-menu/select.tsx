@@ -16,11 +16,13 @@ import type { RootState } from "@/store";
 const Select = () => {
   const dispatch = useDispatch();
   const actionSelect = useSelector((state: RootState) => state.action.value);
-
+  const disabled = true
   return (
-    <div className={`flex items-center justify-center py-2 cursor-pointer hover:bg-forestBlue ${actionSelect == 'SELECT' ? "bg-forestBlue " : ""}`}>
+    <div className={`flex items-center justify-center py-2 cursor-pointer hover:bg-forestBlue
+    ${disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : "cursor-pointer hover:bg-forestBlue"}
+     ${actionSelect == 'SELECT' ? "bg-forestBlue " : ""}`}>
       <Tooltip>
-        <TooltipTrigger asChild>
+        <TooltipTrigger asChild disabled={disabled}>
           <Button
             onClick={() => dispatch(onSetAction("SELECT"))}
             variant="ghost"

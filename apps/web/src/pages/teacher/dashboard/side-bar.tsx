@@ -4,7 +4,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import bluethub from "@/assets/png/bluethub.png";
 import arrowMenu from "@/assets/svg/arrow_menu_close.svg";
 import arrowMenuOpen from "@/assets/svg/arrow_menu_open.svg";
-import { useAuthContext } from "@/contexts/auth-context";
+import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { TACADEMICLINKS } from "@/shared/constant";
 import { localData } from "@/utils";
 import type { NavItem } from "@/pages/admin/side-bar";
@@ -28,12 +28,32 @@ const OTHER_LINKS: NavItem[] = [
 ];
 
 function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
-  // Replace with real teacher data from context/hook
-  const initials = "JS"; // e.g. from teacher profile
-  const name = "Adaeze Funmi";
-  const role = "Class Teacher";
-  const classLabel = "JSS 2A";
-  const subject = "Basic Science · Biology";
+  const { user } = useAuthContext()
+  const name = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Teacher Name";
+  const role = `${user?.roleName || "Teacher"}`;
+  const roleData = user?.roleData;
+  const classroom = (roleData && isTeacherRoleData(roleData))
+    ? roleData.classrooms[0]
+    : undefined;
+  const className = classroom?.className;
+  const subjects = classroom?.subjects;
+  const subjectNames = subjects?.map((s) => s.subjectName).join(" · ");
+  const subject = subjectNames ? `${subjectNames}` : className ?? "";
+  const classLabel = className ? ` ${className}` : "No class assigned";
+
+  const getInitials = (name?: string) => {
+    if (!name) return "";
+    return name
+      .trim()
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0].toUpperCase())
+      .join("");
+  };
+
+  // Usage
+  const initials = getInitials(user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : "WA"); // "Mrs. Adaeze Funmi" → "MA"
 
   if (isCollapsed) {
     return (
@@ -192,10 +212,10 @@ export const NavContent = ({
                     src={link.icons}
                     alt={link.name}
                     className={`w-[18px] h-[18px] shrink-0 object-contain ${isLogout
-                        ? "opacity-80"
-                        : isActive
-                          ? "brightness-0 invert"
-                          : "opacity-60 group-hover:opacity-100"
+                      ? "opacity-80"
+                      : isActive
+                        ? "brightness-0 invert"
+                        : "opacity-60 group-hover:opacity-100"
                       }`}
                   />
                   {!isCollapsed && (

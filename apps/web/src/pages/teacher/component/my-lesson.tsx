@@ -68,9 +68,8 @@ function toRLesson(lesson: LessonItem, teacherName: string): RLesson {
   return {
     title: lesson.subTopic || "—",
     teacher: teacherName,
-    subject: "—",
-    class: "—",
-    term: "—",
+    subject: lesson.subjectName || "—",
+    class: lesson.className || "—",
     submittedOn: formatDate(lesson.createdAt),
     status: norm,
     objectives: lesson.aim,

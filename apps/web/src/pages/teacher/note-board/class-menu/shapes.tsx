@@ -51,10 +51,14 @@ const Shapes = () => {
         (shape) => shape.shapeName.toLowerCase() === actionSelect?.toLowerCase()
     );
 
+    const disabled = true
+
     return (
-        <div className={` font-poppins flex items-center justify-center py-2 cursor-pointer hover:bg-forestBlue ${isShapeSelected ? "bg-forestBlue " : ""}`}>
+        <div className={` font-poppins flex items-center justify-center py-2 cursor-pointer hover:bg-forestBlue
+        ${disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : "cursor-pointer hover:bg-forestBlue"}
+         ${isShapeSelected ? "bg-forestBlue " : ""}`}>
             <Popover>
-                <PopoverTrigger asChild>
+                <PopoverTrigger asChild disabled={disabled}>
                     <div className="bg-none">
                         <Tooltip>
                             <TooltipTrigger asChild>
