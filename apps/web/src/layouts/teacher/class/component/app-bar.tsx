@@ -1,4 +1,4 @@
-import Participants from "@/pages/teacher/note-board/app-bar/participants";
+// import Participants from "@/pages/teacher/note-board/app-bar/participants";
 import Topic from "@/pages/teacher/note-board/app-bar/topic";
 import Time from "@/pages/teacher/note-board/app-bar/time";
 import { Menu, PlayCircle } from "lucide-react";
