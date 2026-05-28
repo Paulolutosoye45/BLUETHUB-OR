@@ -1189,13 +1189,15 @@ const MyUploads = () => {
                         {editableQuestions.length} question{editableQuestions.length !== 1 ? "s" : ""}
                       </p>
                       <div className="flex items-center gap-2">
+                        {!isEditMode && (
                         <Button
                           type="button"
                           onClick={() => setIsEditMode((prev) => !prev)}
                           className={`h-8 rounded-lg border px-3 text-xs font-semibold ${isEditMode ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-slate-300 bg-white text-slate-700"}`}
                         >
-                          {isEditMode ? "Done Editing" : "Edit Questions"}
+                          Edit Questions
                         </Button>
+                        )}
                         {isEditMode && (
                           <Button
                             type="button"

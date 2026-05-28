@@ -71,12 +71,12 @@ const ClassBottom = () => {
     return (
         <div className="
             relative z-50 pointer-events-auto
-            flex flex-col items-center gap-2
+            flex flex-row md:flex-col items-center gap-2
             p-2.5
             rounded-xl
             bg-white/95 backdrop-blur-md
-            border border-gray-200
-            shadow-lg
+            md:border md:border-gray-200
+            md:shadow-lg
         ">
             {/* Main Control Button */}
             <Button
@@ -103,13 +103,13 @@ const ClassBottom = () => {
             </Button>
 
             {/* Divider */}
-            <div className="w-8 h-px bg-gray-200" />
+            {/* <div className="w-8 h-px bg-gray-200" /> */}
 
             {/* End Class Button */}
             <EndClass />
 
             {/* Divider */}
-            <div className="w-8 h-px bg-gray-200" />
+            {/* <div className="w-8 h-px bg-gray-200" /> */}
 
             {/* Audio Control */}
             <Audio />
