@@ -78,7 +78,7 @@ export const ReviewModal = ({ open, onOpenChange, lesson }: ReviewModalProps) =>
                     <div className="flex-1 min-w-0">
                         <h2 className="text-[#0F0F0E] font-semibold text-sm leading-tight">{lesson.title}</h2>
                         <p className="text-[#A8A8A4] text-[11px] mt-0.5">
-                            {lesson.teacher} · {lesson.subject} · {lesson.class} ·
+                            {lesson.teacher} · {lesson.subject}  ·
                         </p>
                     </div>
                 </div>

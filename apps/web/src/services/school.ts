@@ -141,8 +141,8 @@ export const schoolService = {
   },
 
   addSubTopicsToTopic: (topicId: string, subTopics: string[]) => {
-    return API.post(`/api/topic/subtopics/add`, 
-      { TopicId: topicId, SubTopics: subTopics },
+    return API.post(`/api/School/subtopics/add`, 
+      { topicId: topicId, subTopics: subTopics },
       {
         headers: {
           "X-Tenant-ID": X_Tenant_ID,
