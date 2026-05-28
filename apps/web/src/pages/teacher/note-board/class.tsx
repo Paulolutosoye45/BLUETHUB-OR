@@ -715,29 +715,6 @@ const Class = () => {
 
     return (
         <>
-            {/* ── Force landscape on mobile ───────────────────────── */}
-            <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-4 bg-slate-900 text-white md:hidden landscape:hidden">
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="48"
-                    height="48"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="animate-spin-slow opacity-80"
-                >
-                    <rect x="4" y="2" width="16" height="20" rx="2" />
-                    <path d="M12 18h.01" />
-                </svg>
-                <p className="text-base font-semibold tracking-wide">Rotate your device</p>
-                <p className="text-sm text-slate-400 text-center px-8">
-                    This whiteboard requires landscape mode to use.
-                </p>
-            </div>
-
             {/* ── Main whiteboard ─────────────────────────────────── */}
             <div className="h-[90vh] max-h-[94vh] flex bg-slate-50">
                 {/* Left Sidebar - Tools */}
