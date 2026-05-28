@@ -43,7 +43,7 @@ const AppBar = () => {
                             <span className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Paused</span>
                         </div>
                     )}
-                    <div className="min-w-0 ">
+                    <div className="min-w-0 hidden lg:inline-flex ">
                         <Topic />
                     </div>
                 </div>
