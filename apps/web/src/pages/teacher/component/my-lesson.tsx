@@ -66,7 +66,7 @@ function statusLabel(raw: string): string {
 function toRLesson(lesson: LessonItem, teacherName: string): RLesson {
   const norm = normaliseStatus(lesson.status);
   return {
-    title: lesson.subTopic || "—",
+    title: lesson.topicName || "—",
     teacher: teacherName,
     subject: lesson.subjectName || "—",
     class: lesson.className || "—",
