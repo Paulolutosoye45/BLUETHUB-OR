@@ -33,7 +33,7 @@ const Student = () => {
   }, []);
 
   if (loading) return (
-  <div className="p-6 space-y-6">
+  <div className="lg:p-6 p-3 space-y-6">
     {/* Header */}
     <div className="flex items-center justify-between">
       <div className="h-7 w-44 rounded-md bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]" />
