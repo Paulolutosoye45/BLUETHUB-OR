@@ -188,7 +188,8 @@ export interface IEditUserRequest {
 
 export interface IAssignTeacherToClassroomRequest {
   teacherId: string;
-  classroomId: string;
+  classroomId?: string;
+  classroomIds?: string[];
   isPrimary?: boolean;
 }
 
@@ -269,6 +270,7 @@ export const authService = {
     return API.post<TResponse<unknown>>(endpoints.assignTeacherToClassroom, {
       teacherId: data.teacherId,
       classroomId: data.classroomId,
+      classroomIds: data.classroomIds ?? [],
       isPrimary: data.isPrimary ?? false,
     });
   },

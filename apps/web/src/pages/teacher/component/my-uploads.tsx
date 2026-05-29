@@ -1,19 +1,189 @@
-import React, { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import toast from "react-hot-toast";
 import { AxiosError } from "axios";
 import {
-  CheckCircle2, Clock, Loader2, RefreshCw, XCircle, Eye, ChevronRight, X,
+  CheckCircle2, Loader2, Plus, Trash2, X,
 } from "lucide-react";
 import {
   questionJobService,
   type JobSummaryDto,
+  type JobPreviewResponseData,
   type QuestionPreviewResponse,
   type OptionPreviewDto,
 } from "@/services/question-job";
+import { questionService, type CreateOptionPayload } from "@/services/question";
+import { schoolService } from "@/services/school";
+import { useAuthContext, isTeacherRoleData } from "@/contexts/auth-context";
+import { Button, Dialog, DialogContent, DialogTitle } from "@bluethub/ui-kit";
 import TitleBar from "@/shared/title-bar";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface SelectItem { id: string; name: string; }
+
+interface ContentPart {
+  type: "text" | "latex" | "image";
+  value?: string;
+  display?: "block" | "inline";
+}
+
+interface EditableOption {
+  id: string;
+  label: string;
+  text: string;
+  isCorrect: boolean;
+}
+
+interface EditableQuestion {
+  localId: string;
+  id: string;
+  questionNumber: number;
+  questionType: number;
+  questionTypeName: string;
+  questionHtml: string;
+  questionText: string;
+  contentParts: ContentPart[];
+  hasLatex: boolean;
+  hasImages: boolean;
+  hasMedia: boolean;
+  correctAnswer: string | null;
+  difficultyLevel: number;
+  marksAllocation: number;
+  status: number;
+  statusName: string;
+  subTopicName?: string;
+  topicName?: string;
+  creationDate: string;
+  options: EditableOption[];
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
+
+const QUESTION_TYPE_CHOICES = [
+  { value: 1, label: "Multiple Choice" },
+  { value: 2, label: "Short Answer" },
+  { value: 3, label: "Essay" },
+  { value: 4, label: "True / False" },
+];
+
+const DIFFICULTY_LABELS: Record<number, string> = { 1: "Easy", 2: "Medium", 3: "Hard", 4: "Expert" };
+
+// ── Utilities ──────────────────────────────────────────────────────────────────
+const stripHtml = (html: string) => html.replace(/<[^>]*>/g, "").trim();
+
+const nextOptionLabel = (index: number) => String.fromCharCode(65 + index);
+
+const sanitizePlainTextInput = (text: string) =>
+  text.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+
+const sanitizeQuestionTextForSave = (text: string) =>
+  text.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+
+const isOptionQuestionType = (questionType: number) => questionType === 1 || questionType === 4;
+
+const parseContentParts = (parts: unknown): ContentPart[] => {
+  if (!Array.isArray(parts)) return [];
+  return (parts as Record<string, unknown>[]).map((part) => ({
+    type: (part?.type as ContentPart["type"]) ?? "text",
+    value: String(part?.value ?? part?.text ?? ""),
+    display: part?.display as ContentPart["display"],
+  }));
+};
+
+const renderLatex = (expr: string, displayMode: boolean) => {
+  try { return katex.renderToString(expr, { displayMode, throwOnError: false }); }
+  catch { return expr; }
+};
+
+const renderHtmlWithEnhancements = (
+  html: string,
+  _parts: ContentPart[],
+  _bounds: Map<string, DOMRect> | null,
+) => html;
+
+const getQuestionTypeName = (type: number) => {
+  switch (type) {
+    case 1: return "MultipleChoice";
+    case 2: return "ShortAnswer";
+    case 3: return "Essay";
+    case 4: return "TrueFalse";
+    default: return "Unknown";
+  }
+};
+
+const statusPillClass = (status: string) => {
+  switch (status) {
+    case "Completed":          return "bg-emerald-50 text-emerald-600 border-emerald-200";
+    case "Failed":             return "bg-red-50 text-red-500 border-red-200";
+    case "Processing":         return "bg-blue-50 text-blue-600 border-blue-200";
+    case "PartiallyCompleted": return "bg-amber-50 text-amber-600 border-amber-200";
+    default:                   return "bg-slate-50 text-slate-500 border-slate-200";
+  }
+};
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
+const FilterSelect = ({
+  label, value, options, placeholder, onChange, disabled, loading,
+}: {
+  label: string;
+  value: string;
+  options: SelectItem[];
+  placeholder?: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  loading?: boolean;
+}) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-xs font-semibold text-slate-500">{label}</label>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled || loading}
+      className="h-9 rounded-lg border border-slate-200 px-3 text-sm disabled:opacity-50 bg-white"
+    >
+      <option value="">{loading ? "Loading…" : placeholder ?? `Select ${label}`}</option>
+      {options.map((opt) => (
+        <option key={opt.id} value={opt.id}>{opt.name}</option>
+      ))}
+    </select>
+  </div>
+);
+
+const SummaryCard = ({
+  label, value, tone,
+}: {
+  label: string;
+  value: number;
+  tone: "default" | "pending" | "processing" | "completed" | "failed";
+}) => {
+  const cls = {
+    default:    "bg-slate-50 text-slate-600 border-slate-200",
+    pending:    "bg-amber-50 text-amber-600 border-amber-200",
+    processing: "bg-blue-50 text-blue-600 border-blue-200",
+    completed:  "bg-emerald-50 text-emerald-600 border-emerald-200",
+    failed:     "bg-red-50 text-red-500 border-red-200",
+  }[tone];
+  return (
+    <div className={`rounded-xl border p-3 flex flex-col gap-1 ${cls}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-widest opacity-70">{label}</p>
+      <p className="text-2xl font-bold">{value}</p>
+    </div>
+  );
+};
+
+const DifficultyPicker = ({ value, onChange }: { value: number; onChange: (v: number) => void }) => (
+  <select
+    value={value}
+    onChange={(e) => onChange(Number(e.target.value))}
+    className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+  >
+    {[1, 2, 3, 4].map((d) => (
+      <option key={d} value={d}>{DIFFICULTY_LABELS[d]} ({d} mark{d !== 1 ? "s" : ""})</option>
+    ))}
+  </select>
+);
 
 // ── KaTeX renderer ──────────────────────────────────────────────────────────
 const renderKatex = (html: string): string => {
@@ -48,23 +218,6 @@ const RenderedHtml = ({ html, hasLatex, className = "" }: { html: string; hasLat
       className={`prose prose-sm max-w-none ${className}`}
       dangerouslySetInnerHTML={{ __html: processed }}
     />
-  );
-};
-
-// ── Status badge ─────────────────────────────────────────────────────────────
-const StatusBadge = ({ status }: { status: JobSummaryDto["status"] }) => {
-  const map: Record<string, { icon: React.ReactElement; cls: string }> = {
-    Pending:             { icon: <Clock size={12} />,        cls: "bg-amber-50 text-amber-600 border-amber-200" },
-    Processing:          { icon: <Loader2 size={12} className="animate-spin" />, cls: "bg-blue-50 text-blue-600 border-blue-200" },
-    Completed:           { icon: <CheckCircle2 size={12} />, cls: "bg-emerald-50 text-emerald-600 border-emerald-200" },
-    PartiallyCompleted:  { icon: <CheckCircle2 size={12} />, cls: "bg-amber-50 text-amber-600 border-amber-200" },
-    Failed:              { icon: <XCircle size={12} />,      cls: "bg-red-50 text-red-500 border-red-200" },
-  };
-  const { icon, cls } = map[status] ?? map.Pending;
-  return (
-    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${cls}`}>
-      {icon} {status}
-    </span>
   );
 };
 
@@ -158,136 +311,106 @@ const PreviewModal = ({
   </div>
 );
 
-// ── Job row ──────────────────────────────────────────────────────────────────
-const JobRow = ({
-  job,
-  onPreview,
-  onRetry,
-  retrying,
-}: {
-  job: JobSummaryDto;
-  onPreview: () => void;
-  onRetry: () => void;
-  retrying: boolean;
-}) => {
-  const toneClass =
-    tone === "completed"
-      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-      : tone === "failed"
-        ? "bg-red-50 border-red-200 text-red-700"
-        : tone === "processing"
-          ? "bg-amber-50 border-amber-200 text-amber-700"
-          : tone === "pending"
-            ? "bg-sky-50 border-sky-200 text-sky-700"
-            : "bg-white border-slate-200 text-slate-700";
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 px-4 py-3.5 flex items-center gap-3 hover:border-slate-300 transition-colors">
-      {/* Status icon */}
-      <div className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${
-        job.status === "Completed" ? "bg-emerald-50" :
-        job.status === "Failed" ? "bg-red-50" :
-        job.status === "Processing" ? "bg-blue-50" : "bg-amber-50"
-      }`}>
-        {job.status === "Completed"  && <CheckCircle2 size={18} className="text-emerald-500" />}
-        {job.status === "Failed"     && <XCircle      size={18} className="text-red-400" />}
-        {job.status === "Processing" && <Loader2      size={18} className="text-blue-500 animate-spin" />}
-        {job.status === "Pending"    && <Clock        size={18} className="text-amber-500" />}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap">
-          <StatusBadge status={job.status} />
-          <span className="text-xs text-slate-400 font-medium">{job.questionType}</span>
-          <span className="text-xs text-slate-300">·</span>
-          <span className="text-xs text-slate-400">{createdAt}</span>
-        </div>
-        {job.status === "Failed" && job.failureReason && (
-          <p className="text-[11px] text-red-400 mt-0.5 truncate">{job.failureReason}</p>
-        )}
-        <p className="text-[10px] text-slate-300 font-mono mt-0.5 truncate">{job.jobId}</p>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-2 shrink-0">
-        {job.status === "Completed" && (
-          <button
-            onClick={onPreview}
-            className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 px-2.5 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors cursor-pointer"
-          >
-            <Eye size={13} /> Preview
-          </button>
-        )}
-        {job.status === "Failed" && (
-          <button
-            onClick={onRetry}
-            disabled={retrying}
-            className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 hover:text-amber-700 px-2.5 py-1.5 rounded-lg hover:bg-amber-50 transition-colors cursor-pointer disabled:opacity-50"
-          >
-            {retrying ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
-            Retry
-          </button>
-        )}
-      </div>
-    </div>
-  );
-};
-
 // ── Main component ─────────────────────────────────────────────────────────
 const MyUploads = () => {
-  const navigate = useNavigate();
+  const { user, isLoading: authLoading } = useAuthContext();
   const [jobs, setJobs] = useState<JobSummaryDto[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [counts, setCounts] = useState({ total: 0, pending: 0, completed: 0, failed: 0 });
-  const [search, setSearch] = useState("");
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [summary, setSummary] = useState({ total: 0, pending: 0, processing: 0, completed: 0, failed: 0 });
   const [preview, setPreview] = useState<QuestionPreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSavingEditedQuestions, setIsSavingEditedQuestions] = useState(false);
   const [previewScanSessionId, setPreviewScanSessionId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [editableQuestions, setEditableQuestions] = useState<EditableQuestion[]>([]);
+  const [previewJob, setPreviewJob] = useState<JobSummaryDto | null>(null);
+  const [previewImageBounds] = useState<Map<string, DOMRect> | null>(null);
+  const [classroomId, setClassroomId] = useState("");
+  const [subjectId, setSubjectId] = useState("");
+  const [topicId, setTopicId] = useState("");
+  const [subTopicId, setSubTopicId] = useState("");
+  const [topics, setTopics] = useState<SelectItem[]>([]);
+  const [topicsData, setTopicsData] = useState<any[]>([]);
+  const [subTopics, setSubTopics] = useState<SelectItem[]>([]);
+  const [loadingTopics, setLoadingTopics] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const toEditableQuestion = (question: UploadedQuestion, index: number): EditableQuestion => {
-    const parts = parseContentParts(question.contentParts);
-    const fromParts = parts
-      .filter((part) => part.type === "text" || part.type === "latex")
-      .map((part) => {
-        if (part.type === "latex") return `$${part.value ?? ""}$`;
-        return part.value ?? "";
-      })
-      .join("")
-      .trim();
+  const fetchJobs = async (silent = false) => {
+    if (!silent) setLoadingJobs(true);
+    try {
+      const { data } = await questionJobService.getMyJobs();
+      const jobList = Array.isArray(data.jobs) ? data.jobs : [];
+      setJobs(jobList);
+      setSummary({
+        total: data.totalCount ?? jobList.length,
+        pending: data.pendingCount ?? 0,
+        processing: jobList.filter((j) => j.status === "Processing").length,
+        completed: data.completedCount ?? 0,
+        failed: data.failedCount ?? 0,
+      });
+    } catch {
+      toast.error("Failed to load jobs");
+    } finally {
+      if (!silent) setLoadingJobs(false);
+    }
+  };
 
-    const questionText = fromParts || stripHtml(question.questionHtml || "") || "";
+  const fetchStatuses = () => fetchJobs(true);
 
-    const mappedOptions = (question.options ?? []).map((option, optionIndex) => ({
-      id: crypto.randomUUID(),
-      label: option.optionLabel ?? option.label ?? nextOptionLabel(optionIndex),
-      text: sanitizePlainTextInput(
-        option.optionText ??
-        option.plainText ??
-        stripHtml(option.html ?? "") ??
-        "",
-      ),
-      isCorrect: !!option.isCorrect,
-    }));
+  const confirmProcessedJobDirect = async (jobId: string) => {
+    try {
+      await questionJobService.confirmJob(jobId);
+    } catch (err) {
+      console.warn("[MyUploads] confirmJob failed (non-critical):", err);
+    }
+  };
 
-    const options =
-      question.questionType === 4
-        ? [
-          { id: crypto.randomUUID(), label: "A", text: "True", isCorrect: mappedOptions[0]?.isCorrect ?? false },
-          { id: crypto.randomUUID(), label: "B", text: "False", isCorrect: mappedOptions[1]?.isCorrect ?? false },
-        ]
-        : mappedOptions;
-
-    return {
-      ...question,
-      localId: crypto.randomUUID(),
-      questionNumber: question.questionNumber ?? index + 1,
-      questionText,
-      options,
-    };
+  const handleOpenJobPreview = async (job: JobSummaryDto) => {
+    setPreviewJob(job);
+    setIsEditMode(false);
+    setEditableQuestions([]);
+    setPreviewLoading(true);
+    try {
+      const { data } = await questionJobService.getJobPreview(job.jobId);
+      const jobData = (data.data ?? data) as unknown as JobPreviewResponseData;
+      const rawQuestions = jobData?.questions ?? [];
+      setPreviewScanSessionId(jobData?.scanSessionId ?? null);
+      const mapped: EditableQuestion[] = rawQuestions.map((q, index) => ({
+        localId: crypto.randomUUID(),
+        id: "",
+        questionNumber: index + 1,
+        questionType: q.questionType ?? 1,
+        questionTypeName: getQuestionTypeName(q.questionType ?? 1),
+        questionHtml: "",
+        questionText: q.textContent ?? q.title ?? "",
+        contentParts: [],
+        hasLatex: false,
+        hasImages: false,
+        hasMedia: false,
+        correctAnswer: null,
+        difficultyLevel: q.difficultyLevel ?? 1,
+        marksAllocation: q.marksAllocation ?? 1,
+        status: 1,
+        statusName: "Draft",
+        subTopicName: job.subTopicName ?? "",
+        topicName: job.topicName ?? "",
+        creationDate: new Date().toISOString(),
+        options: (q.options ?? []).map((opt, i) => ({
+          id: crypto.randomUUID(),
+          label: nextOptionLabel(i),
+          text: opt.optionText ?? "",
+          isCorrect: opt.isCorrect ?? false,
+        })),
+      }));
+      setEditableQuestions(mapped);
+    } catch (err) {
+      const e = err as AxiosError<{ responseMessage?: string }>;
+      toast.error(e.response?.data?.responseMessage ?? "Failed to load job questions");
+      setPreviewJob(null);
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   const renumberQuestions = (questions: EditableQuestion[]) =>
@@ -623,13 +746,11 @@ const MyUploads = () => {
       }
 
       const savedJobId = previewJob.jobId;
-      // Update backend job status before finalizing UI success flow.
       console.info("[MyUploads] Confirming processed job", savedJobId);
       await confirmProcessedJobDirect(savedJobId);
 
       console.info("[MyUploads] Job status updated", savedJobId);
 
-      // Finalize UI after both create and confirm succeed.
       setJobs((prev) => prev.filter((job) => job.jobId !== savedJobId));
       setIsEditMode(false);
       setPreviewJob(null);
@@ -638,7 +759,6 @@ const MyUploads = () => {
 
       void fetchStatuses();
 
-      // Force a full page refresh so processed jobs are reloaded from server state.
       setTimeout(() => {
         window.location.reload();
       }, 250);
@@ -687,42 +807,44 @@ const MyUploads = () => {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [jobs]);
 
-  const handlePreview = async (job: JobSummaryDto) => {
-    setPreviewLoading(true);
-    try {
-      const { data } = await questionJobService.getJobPreview(job.jobId);
-      setPreview((data.data ?? data) as unknown as QuestionPreviewResponse);
-    } catch (err) {
-      const e = err as AxiosError<{ responseMessage?: string }>;
-      toast.error(e.response?.data?.responseMessage ?? "Failed to load preview");
-    } finally {
-      setPreviewLoading(false);
+  useEffect(() => {
+    if (!subjectId || !classroomId) {
+      setTopics([]);
+      setTopicsData([]);
+      setSubTopics([]);
+      setTopicId("");
+      setSubTopicId("");
+      return;
     }
-  };
+    setLoadingTopics(true);
+    schoolService.getTopicsWithSubTopics(subjectId, classroomId)
+      .then(({ data }) => {
+        const raw = (data as any)?.data ?? data ?? [];
+        const list = Array.isArray(raw) ? raw : [];
+        setTopicsData(list);
+        setTopics(list.map((t: any) => ({
+          id: String(t?.id ?? t?.topicId ?? ""),
+          name: String(t?.name ?? t?.topicName ?? ""),
+        })));
+      })
+      .catch(() => {})
+      .finally(() => setLoadingTopics(false));
+  }, [subjectId, classroomId]);
 
-  const handleRetry = async (jobId: string) => {
-    setRetryingId(jobId);
-    try {
-      await questionJobService.retryJob(jobId);
-      toast.success("Job queued for retry");
-      fetchJobs(true);
-    } catch {
-      toast.error("Retry failed");
-    } finally {
-      setRetryingId(null);
-    }
-  };
-
-  const filtered = jobs.filter(j =>
-    j.questionType.toLowerCase().includes(search.toLowerCase()) ||
-    j.status.toLowerCase().includes(search.toLowerCase()) ||
-    j.jobId.includes(search)
-  );
+  useEffect(() => {
+    if (!topicId) { setSubTopics([]); return; }
+    const topic = topicsData.find((t: any) => String(t?.id ?? t?.topicId ?? "") === topicId);
+    const nested = ((topic?.SubTopics ?? topic?.subTopics ?? []) as any[]).map((sub: any) => ({
+      id: String(sub?.Id ?? sub?.id ?? sub?.subTopicId ?? ""),
+      name: String(sub?.Name ?? sub?.name ?? sub?.subTopicName ?? ""),
+    }));
+    setSubTopics(nested);
+  }, [topicId, topicsData]);
 
   return (
     <div className=" sm:p-5 font-poppins">
       <div className="lg:rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
-        <TitleBar title="My Uploads" hasVertical hasMenu={openMobileNav} />
+        <TitleBar title="My Uploads" hasVertical />
 
         <div className="p-3 sm:p-5 lg:p-7 space-y-5">
           <div className="rounded-2xl bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff] border border-[#f3dccb] p-4 sm:p-5">
@@ -1059,7 +1181,6 @@ const MyUploads = () => {
                                 const safeText = sanitizePlainTextInput(e.target.value);
                                 updateQuestion(question.localId, {
                                   questionText: safeText,
-                                  // Keep edited content as plain text; do not store KaTeX-rendered/HTML question markup.
                                   questionHtml: "",
                                   contentParts: [],
                                 });
@@ -1122,21 +1243,29 @@ const MyUploads = () => {
                           </div>
                         )}
                       </div>
-
                     </div>
 
-      {/* Preview loading overlay */}
-      {previewLoading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl px-8 py-6 flex items-center gap-3 shadow-xl">
-            <Loader2 size={20} className="animate-spin text-indigo-500" />
-            <span className="text-sm font-semibold text-slate-700">Loading preview…</span>
-          </div>
-        </div>
-      )}
+                  </article>
+                ))}
 
-      {/* Preview modal */}
-      {preview && <PreviewModal preview={preview} onClose={() => setPreview(null)} />}
+                {/* Preview loading overlay */}
+                {previewLoading && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl px-8 py-6 flex items-center gap-3 shadow-xl">
+                      <Loader2 size={20} className="animate-spin text-indigo-500" />
+                      <span className="text-sm font-semibold text-slate-700">Loading preview…</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Preview modal */}
+                {preview && <PreviewModal preview={preview} onClose={() => setPreview(null)} />}
+              </div>
+            </DialogContent>
+          </Dialog>
+
+        </div>
+      </div>
     </div>
   );
 };
