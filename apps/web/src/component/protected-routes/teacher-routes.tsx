@@ -12,7 +12,11 @@ const TeacherProtectedRoute = ({ children }: { children: ReactNode }) => {
     </div>
   </div>
   if (!isAuthenticated || !user) return <Navigate to="/auth" replace />;
-  if (user.roleName !== "HeadTeacher" && user.roleName !== "SubjectTeacher") return <Navigate to="/auth" replace />;
+  if (
+    user.roleName !== "HeadTeacher" &&
+    user.roleName !== "SubjectTeacher" &&
+    user.roleName !== "ClassTeacher"
+  ) return <Navigate to="/auth" replace />;
 
   return <>{children}</>;
 };

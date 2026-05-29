@@ -20,7 +20,6 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import type { RootState } from '@/store';
 import { setIsRecording, setSessionIdRef } from '@/store/class-action-slice';
-import { getParsedToken } from '@/utils/decode';
 import toast from 'react-hot-toast';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -374,19 +373,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           const activeLesson = JSON.parse(activeLessonStr);
           const schoolInfo = schoolInfoStr ? JSON.parse(schoolInfoStr) : {};
 
-          // Build teacher identity from current auth token (authoritative for active account)
-          const parsedToken = getParsedToken(localStorage.getItem('token') || '');
-          const teacherId = parsedToken?.id || '';
-          const teacherName = `${parsedToken?.firstName || ''} ${parsedToken?.lastName || ''}`.trim() || parsedToken?.username || 'Unknown Teacher';
-          const teacherEmail = parsedToken?.email || '';
+          // Get user from localStorage (set by AuthContext)
+          const userStr = localStorage.getItem('user');
+          const user = userStr ? JSON.parse(userStr) : { id: '', displayName: '', email: '' };
 
           metadata = {
             lessonId: activeLesson.lesson?.id || `lesson_${sid}`,
             schoolId: schoolInfo.id || 'unknown',
             teacher: {
-              id: teacherId,
-              name: teacherName,
-              email: teacherEmail,
+              id: user.id || '',
+              name: user.displayName || user.firstName || 'Unknown Teacher',
+              email: user.email || '',
             },
             lesson: {
               topic: activeLesson.lesson?.topic || 'Untitled',

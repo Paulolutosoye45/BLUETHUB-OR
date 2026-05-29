@@ -102,6 +102,7 @@ const endpoints = {
   login: "/api/User/login",
   createUser: "api/User/createUser",
   editUser: "api/User/editUser",
+  assignTeacherToClassroom: "api/User/AssignTeacherToClassroom",
   getStudents: "api/User/GetStudents",
   updatePassword: "api/User/updatePassword",
   updatePasswordNewUser: "api/User/update-password/newUser",
@@ -168,17 +169,27 @@ export interface IcreateUserRequest {
   removeClassroom?: string[];
 }
 
-interface IEditUserRequest {
+export interface IEditUserRequest {
   id: string;
   firstName: string;
   lastName: string;
   emailAddress: string;
   hashPassword: string;
-  isActive: true;
-  hasAccess: true;
-  roleId: 0;
+  isActive: boolean;
+  hasAccess: boolean;
+  roleId: number;
   profileImage: string;
   guardianName: string;
+  userClassroomsId?: string[];
+  userSubjects?: string[];
+  removeSubjects?: string[];
+  removeClassroom?: string[];
+}
+
+export interface IAssignTeacherToClassroomRequest {
+  teacherId: string;
+  classroomId: string;
+  isPrimary?: boolean;
 }
 
 export interface IupdatePasswordRequest {
@@ -254,6 +265,14 @@ export const authService = {
     return API.post<TResponse<unknown>>(endpoints.editUser, data);
   },
 
+  assignTeacherToClassroom: (data: IAssignTeacherToClassroomRequest) => {
+    return API.post<TResponse<unknown>>(endpoints.assignTeacherToClassroom, {
+      teacherId: data.teacherId,
+      classroomId: data.classroomId,
+      isPrimary: data.isPrimary ?? false,
+    });
+  },
+
   getStudents: (
     params: GetStudentsParams = { pageNumber: 1, pageSize: 50 },
   ) => {
@@ -325,7 +344,7 @@ export const authService = {
 
   getUserByRole: (roleId: number) => {
     return API.get(endpoints.getUserByRole, {
-      params: { roleId },
+      params: { roleId, pageNumber: 1, pageSize: 50 },
       headers: {
         "X-Tenant-ID":  X_Tenant_ID,
       },

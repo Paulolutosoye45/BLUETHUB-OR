@@ -7,6 +7,7 @@ import { useSelector } from "react-redux";
 import type { RootState } from "@/store";
 import { TopNavDrawer } from "@/pages/teacher/note-board/app-bar/top-drawer";
 import { useState } from "react";
+import ClassBottom from "./class-bottom";
 
 const AppBar = () => {
     const [drawerOpen, setDrawerOpen] = useState(false);
@@ -25,6 +26,10 @@ const AppBar = () => {
                 >
                     <Menu size={18} className="text-gray-600" />
                 </button>
+                <div className="md:hidden">
+                    
+                <ClassBottom />
+                </div>
 
                 {/* Left — always visible */}
                 <div className="flex items-center gap-2 sm:gap-4 min-w-0">
@@ -43,7 +48,7 @@ const AppBar = () => {
                             <span className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Paused</span>
                         </div>
                     )}
-                    <div className="min-w-0 ">
+                    <div className="min-w-0 hidden md:inline-flex ">
                         <Topic />
                     </div>
                 </div>

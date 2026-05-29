@@ -41,6 +41,7 @@ import {
   type CloudinarySignature,
   type MediaFilePayload,
   type DraftLessonPayload,
+  type SubmitLessonPayload,
 } from "@/services/lesson";
 import { schoolService } from "@/services/school";
 import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
@@ -1016,7 +1017,7 @@ const SubmitLesson = () => {
     try {
       const mediaFiles = buildMediaPayload();
 
-      await lessonService.submitLesson({
+      const payload: SubmitLessonPayload = {
         classroomId, subjectId, topicId,
         subTopicId,
         subTopic: subTopicValue.trim(),
@@ -1026,8 +1027,10 @@ const SubmitLesson = () => {
         accessDate: buildAccessDate(),
         accessTime: buildAccessTime(),
         durationMinutes: durationMinutes ? Number(durationMinutes) : null,
-        ...(quizId ? { quizId } : { quizId: null }),
-      });
+        quizId,
+      };
+
+      await lessonService.submitLesson(payload);
       if (user?.id) localData.remove(draftKey(user.id));
       debugLog("Lesson submitted successfully");
       toast.success("Lesson submitted for approval");

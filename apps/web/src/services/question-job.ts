@@ -1,79 +1,18 @@
 import { API, type TResponse } from ".";
+import { X_Tenant_ID } from "./school";
 
-
-
-import { X_Tenant_ID } from "@/utils/tenant";
-
-const QUESTION_BACKEND_BASE =
-  (import.meta.env.VITE_API_BASE_URL || "https://techhubschmanagement.onrender.com").replace(/\/$/, "");
+// ── Enums ───────────────────────────────────────────────────────────────────
+export const JobStatusEnum = {
+  Pending: "Pending",
+  Processing: "Processing",
+  Completed: "Completed",
+  PartiallyCompleted: "PartiallyCompleted",
+  Failed: "Failed",
+} as const;
+export type JobStatusEnum = (typeof JobStatusEnum)[keyof typeof JobStatusEnum];
 
 // ── Request types ───────────────────────────────────────────────────────────
 export type JobQuestionType = "Objective" | "Theory" | "TrueFalse";
-
-export const JobStatusEnum = {
-  Pending: 1,
-  Processing: 2,
-  Completed: 3,
-  Failed: 4,
-  PartiallyCompleted: 5,
-} as const;
-export type JobStatusEnum = typeof JobStatusEnum[keyof typeof JobStatusEnum];
-
-export interface JobListItem {
-  jobId: string;
-  fileName: string;
-  fileType: string;
-  status: JobStatusEnum;
-  statusText: string;
-  questionsExtracted?: number;
-  createdAt: string;
-  completedAt?: string;
-  subjectId: string;
-  subjectName?: string;
-}
-
-export interface MyJobsResponseData {
-  jobs: JobListItem[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
-}
-
-export interface ExtractedQuestionPreview {
-  index: number;
-  title: string;
-  textContent?: string;
-  questionType: number;
-  difficultyLevel: number;
-  marksAllocation: number;
-  topic?: string;
-  subTopic?: string;
-  options: Array<{
-    optionLabel: string;
-    optionText: string;
-    isCorrect: boolean;
-    orderIndex: number;
-  }>;
-  aiConfidenceScore: number;
-  imageRegion?: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    pageNumber?: number;
-  };
-}
-
-
-export interface JobPreviewResponseData {
-  jobId: string;
-  scanSessionId: string;
-  fileName: string;
-  fileUrl: string;
-  questions: ExtractedQuestionPreview[];
-  totalExtracted: number;
-  processingTime: number;
-}
 
 // ── Response types ──────────────────────────────────────────────────────────
 export interface SubmitJobResponse {
@@ -86,11 +25,23 @@ export interface SubmitJobResponse {
 export interface JobSummaryDto {
   jobId: string;
   questionType: JobQuestionType;
-  status: "Pending" | "Processing" | "Completed" | "Failed";
+  status: JobStatusEnum;
   questionId: string | null;
   failureReason: string;
   createdAt: string;
   completedAt: string;
+}
+
+export interface JobListItem {
+  jobId: string;
+  fileName: string;
+  fileType: "pdf" | "image";
+  subjectName: string;
+  questionsExtracted?: number;
+  status: JobStatusEnum;
+  createdAt: string;
+  completedAt?: string | null;
+  failureReason?: string | null;
 }
 
 export interface JobListResponse {
@@ -116,6 +67,25 @@ export interface OptionPreviewDto {
   orderIndex: number;
 }
 
+export interface ExtractedQuestionPreview {
+  title: string;
+  textContent?: string;
+  questionType: number;
+  difficultyLevel: number;
+  marksAllocation: number;
+  aiConfidenceScore: number;
+  options: OptionPreviewDto[];
+}
+
+export interface JobPreviewResponseData {
+  scanSessionId: string;
+  fileUrl?: string;
+  jobId: string;
+  questions: ExtractedQuestionPreview[];
+  totalCount: number;
+  status: string;
+}
+
 export interface QuestionPreviewResponse {
   questionId: string;
   jobId: string;
@@ -132,208 +102,48 @@ export interface QuestionPreviewResponse {
   responseCode: string;
 }
 
-export interface SubmitScanJobPayload {
-  subjectId: string;
-  classroomId?: string;
-  fileUrl: string;
-  filePublicId: string;
-  fileName: string;
-  fileType: "image" | "pdf";
-  pageCount?: number;
-}
-
-// ── Questions by Job types ──────────────────────────────────────────────────
-export interface QuestionOptionDto {
-  optionLabel: string;
-  optionText: string;
-  isCorrect: boolean;
-}
-
-export interface ExtractedQuestionDto {
-  id: string;
-  questionType: number;
-  questionTypeName: string;
-  questionHtml: string;
-  contentParts: unknown;
-  hasLatex: boolean;
-  hasMedia: boolean;
-  correctAnswer: string | null;
-  difficultyLevel: number;
-  marksAllocation: number;
-  status: number;
-  statusName: string;
-  subTopicName: string;
-  topicName: string;
-  creationDate: string;
-  options: QuestionOptionDto[];
-}
-
-export interface QuestionsByJobResponse {
-  jobId: string;
-  questionType: JobQuestionType;
-  totalQuestions: number;
-  questions: ExtractedQuestionDto[];
-}
-
-
-export interface SubmitJobResponseData {
-  jobId: string;
-  status: JobStatusEnum;
-  estimatedCompletionTime?: string;
-  queuePosition?: number;
-}
-
-export interface JobStatusesSummary {
-  total: number;
-  pending: number;
-  processing: number;
-  completed: number;
-  failed: number;
-}
-
-export interface JobStatusItem {
-  jobId: string;
-  status: "Pending" | "Processing" | "Completed" | "Failed";
-  questionType: JobQuestionType;
-  extractedCount: number;
-  failureReason: string | null;
-  attemptCount: number;
-  createdAt: string;
-  completedAt: string | null;
-  subTopicName: string;
-  topicName: string;
-}
-
-export interface JobStatusesResponseData {
-  summary: JobStatusesSummary;
-  jobs: JobStatusItem[];
-}
 const headers = { "X-Tenant-ID": X_Tenant_ID };
 
 export const questionJobService = {
-
-   // ── SUBMIT SCAN JOB ────────────────────────────────────────────────────────
-  submitScanJob: (payload: SubmitScanJobPayload) =>
-    API.post<TResponse<SubmitJobResponseData>>(
-      "api/question-jobs/submit",
-      payload,
-      { headers }
-    ),
-
   // POST api/questionjob/submit — multipart/form-data
   submitJob: (formData: FormData) =>
     API.post<TResponse<SubmitJobResponse>>("api/questionjob/submit", formData, {
       headers: { ...headers, "Content-Type": "multipart/form-data" },
     }),
 
-  // GET api/questionjob/my-jobs
-  getMyJobs: () =>
-    API.get<JobListResponse>("api/questionjob/my-jobs", { headers }),
-
-  // GET api/questionjob/jobs/status
-  getJobStatuses: (params: {
-    classroomId: string;
+  // Alias used by scan-upload-modal
+  submitScanJob: (payload: {
     subjectId: string;
-    topicId?: string;
-    subTopicId?: string;
-  }) =>
-    API.get<TResponse<JobStatusesResponseData>>("api/questionjob/jobs/status", {
+    fileUrl: string;
+    filePublicId: string;
+    fileName: string;
+    fileType: "image" | "pdf";
+  }) => {
+    const formData = new FormData();
+    Object.entries(payload).forEach(([k, v]) => formData.append(k, v));
+    return API.post<TResponse<SubmitJobResponse>>("api/questionjob/submit", formData, {
+      headers: { ...headers, "Content-Type": "multipart/form-data" },
+    });
+  },
+
+  // GET api/questionjob/my-jobs
+  getMyJobs: (params?: { pageSize?: number; page?: number }) =>
+    API.get<JobListResponse>("api/questionjob/my-jobs", {
       headers,
       params,
     }),
 
   // GET api/questionjob/{jobId}/preview
-  // Fix the service return type
-getJobPreview: (jobId: string) =>
-  API.get<TResponse<JobPreviewResponseData>>(
-    `api/questionjob/${jobId}/preview`,
-    { headers }
-  ),
+  getJobPreview: (jobId: string) =>
+    API.get<TResponse<JobPreviewResponseData>>(
+      `api/questionjob/${jobId}/preview`,
+      { headers }
+    ),
 
   // POST api/questionjob/{jobId}/retry
-  retryJob: (jobId: string) =>
-    API.post<TResponse<unknown>>(`api/questionjob/${jobId}/retry`, {}, { headers }),
-
-  // ── CANCEL JOB ─────────────────────────────────────────────────────────────
-  cancelJob: (jobId: string) =>
-    API.post<TResponse<null>>(
-      `api/question-jobs/${jobId}/cancel`,
-      {},
-      { headers }
-    ),
-
-  // GET api/questionjob/jobs/{jobId}/questions
-  getQuestionsByJobId: (jobId: string) =>
-    API.get<TResponse<QuestionsByJobResponse>>(
-      `api/questions/jobs/${jobId}/questions`,
-      { headers }
-    ),
-
-  // POST api/question-jobs/jobs/{jobId}/confirm
-  confirmJobQuestions: async (jobId: string) => {
-    try {
-      return await API.post<TResponse<unknown>>(
-        `${QUESTION_BACKEND_BASE}/api/questionjob/jobs/${jobId}/confirm`,
-        {},
-        { headers },
-      );
-    } catch {
-      try {
-        return await API.post<TResponse<unknown>>(
-        `api/questionjob/jobs/${jobId}/confirm`,
-        {},
-        { headers },
-      );
-      } catch {
-      try {
-        return await API.post<TResponse<unknown>>(
-          `api/question-jobs/jobs/${jobId}/confirm`,
-          {},
-          { headers },
-        );
-      } catch {
-        // Fallback for alternate route prefix style.
-        return API.post<TResponse<unknown>>(
-          `api/questions/jobs/${jobId}/confirm`,
-          {},
-          { headers },
-        );
-      }
-      }
-    }
-  },
-
-  // Semantic alias used after creating uploaded questions.
-  // Backend marks the job as processed via the confirm endpoint.
-  updateJobStatusProcessed: async (jobId: string) => {
-    try {
-      return await API.post<TResponse<unknown>>(
-        `${QUESTION_BACKEND_BASE}/api/questionjob/jobs/${jobId}/confirm`,
-        {},
-        { headers },
-      );
-    } catch {
-      try {
-        return await API.post<TResponse<unknown>>(
-        `api/questionjob/jobs/${jobId}/confirm`,
-        {},
-        { headers },
-      );
-      } catch {
-      try {
-        return await API.post<TResponse<unknown>>(
-          `api/question-jobs/jobs/${jobId}/confirm`,
-          {},
-          { headers },
-        );
-      } catch {
-        return API.post<TResponse<unknown>>(
-          `api/questions/jobs/${jobId}/confirm`,
-          {},
-          { headers },
-        );
-      }
-      }
-    }
+  retryJob: (arg: string | { jobId: string }) => {
+    const jobId = typeof arg === "string" ? arg : arg.jobId;
+    return API.post<TResponse<unknown>>(`api/questionjob/${jobId}/retry`, {}, { headers });
   },
 };
+

@@ -24,7 +24,11 @@ const AdminProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/auth" replace />;
 }
 
-  if (user.roleName !== "SuperAdministrator" && user.roleName !== "Administrator") {
+  if (
+    user.roleName !== "SuperAdministrator" &&
+    user.roleName !== "Administrator" &&
+    user.roleName !== "Admin"
+  ) {
     return <Navigate to="/auth" replace />; // ✅ back to /auth, not /unauthorized
   }
 

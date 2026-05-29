@@ -107,7 +107,7 @@ const Activity = () => {
         {cardData.map((card) => (
           <div
             key={card.label}
-            className="bg-white rounded-[13px] border border-[#D9D9D9] px-5 py-4 min-w-55 max-w-55 snap-start shrink-0 transition hover:shadow-md"
+            className="bg-white rounded-[13px] border border-[#D9D9D9] px-5 py-4 md:min-w-55 md:max-w-55 snap-start shrink-0 transition hover:shadow-md"
           >
             <div className="h-9 w-9 bg-[#EEF1FB] rounded-[9px] flex items-center justify-center">
               {card.icon}

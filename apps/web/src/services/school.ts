@@ -1,8 +1,9 @@
 import { token } from "@/utils";
-
 import { API, type TResponse } from ".";
+import { getSubdomain } from "@/utils/subdomain";
 
-import { X_Tenant_ID } from "@/utils/tenant";
+export const X_Tenant_ID = import.meta.env.VITE_DEFAULT_TENANT
+export const tenantId = getSubdomain();
 
 export const endpoints = {
   createSchool: "/api/School/createSchool",
@@ -57,7 +58,7 @@ export const schoolService = {
     return API.post<TResponse<unknown>>(endpoints.registerSubject, data, {
       headers: {
         Authorization: `Bearer ${token.getToken()}`,
-        "X-Tenant-ID":  X_Tenant_ID ,
+        "X-Tenant-ID": tenantId || X_Tenant_ID ,
       },
     });
   },
@@ -69,7 +70,7 @@ export const schoolService = {
       {
         params: { schoolId },
         headers: {
-          "X-Tenant-ID":  X_Tenant_ID,
+          "X-Tenant-ID": tenantId || X_Tenant_ID,
         },
       },
     );
@@ -78,7 +79,7 @@ export const schoolService = {
   getAllSubject: () => {
     return API.get(endpoints.getAllSubjects, {
         headers: {
-            "X-Tenant-ID":  X_Tenant_ID,
+            "X-Tenant-ID": tenantId || X_Tenant_ID,
         },
     });
 },
@@ -87,16 +88,17 @@ export const schoolService = {
   createClassRoom: (data: ICreateSchool) => {
     return API.post(endpoints.createSchoolClass, data, {
       headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
+        "X-Tenant-ID": tenantId || X_Tenant_ID,
         "Authorization": `Bearer ${token.getToken()}`
       },
     });
   },
 
-  getAllClassRooms: () => {
+  getAllClassRooms: (params?: { pageNumber?: number; pageSize?: number }) => {
     return API.get(endpoints.getAllClassrooms, {
+      params,
       headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
+        "X-Tenant-ID": tenantId || X_Tenant_ID,
         "Authorization": `Bearer ${token.getToken()}`
       },
     });
@@ -105,7 +107,7 @@ export const schoolService = {
   getSubjectsByClassroomId: (classroomId: string) => {
     return API.get(endpoints.getSubjectsByClassroom, {
       params: { classroomId },
-      headers: { "X-Tenant-ID":  X_Tenant_ID },
+      headers: { "X-Tenant-ID": tenantId || X_Tenant_ID },
     });
   },
 
@@ -132,7 +134,7 @@ export const schoolService = {
   },
 
   getSubjectCurriculum: (subjectId: string) => {
-    return API.get(`/api/School/subjects/${subjectId}/curriculum`, {
+    return API.get(`/api/School/subject/${subjectId}/curriculum`, {
       headers: {
         "X-Tenant-ID": X_Tenant_ID,
         Authorization: `Bearer ${token.getToken()}`,
@@ -141,8 +143,8 @@ export const schoolService = {
   },
 
   addSubTopicsToTopic: (topicId: string, subTopics: string[]) => {
-    return API.post(`/api/topic/subtopics/add`, 
-      { TopicId: topicId, SubTopics: subTopics },
+    return API.post(`/api/School/subtopics/add`, 
+      { topicId: topicId, subTopics: subTopics },
       {
         headers: {
           "X-Tenant-ID": X_Tenant_ID,
