@@ -8,6 +8,8 @@ import { clearSelectedImage } from "@/store/class-action-slice";
 import { useSession } from "@/contexts/session-context";
 import PdfScrollViewer from "@/component/pdf-scroll-viewer";
 
+const LESSON_MEDIA_CACHE = "bluethub-lesson-media";
+
 const getFileExtension = (nameOrUrl?: string): string => {
   if (!nameOrUrl) return '';
   try {
@@ -61,22 +63,54 @@ const MediaFrame = () => {
     ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(mediaUrl)}`
     : null;
 
+  const cacheBlobUrlRef = React.useRef<string | null>(null);
+
   // Load media URL from cache when selectedImage changes
   useEffect(() => {
     const loadMedia = async () => {
       if (selectedImage && selectedImage.id) {
         setIsLoading(true);
         try {
-          if (selectedImage.type === 'pdf') {
-            // Use direct URL for PDFs to avoid stale/corrupt IndexedDB blob issues.
+          // Office documents need a public URL for Office Online embed.
+          if (isOfficeDoc) {
             setMediaUrl(selectedImage.url);
             return;
           }
-          const url = await getImage(selectedImage.id);
-          setMediaUrl(url);
+
+          if (selectedImage.type !== 'pdf') {
+            const idbUrl = await getImage(selectedImage.id);
+            if (idbUrl) {
+              setMediaUrl(idbUrl);
+              return;
+            }
+          }
+
+          if (typeof window !== "undefined" && "caches" in window) {
+            const cache = await caches.open(LESSON_MEDIA_CACHE);
+            let response = await cache.match(selectedImage.url);
+
+            if (!response) {
+              const fetched = await fetch(selectedImage.url, { mode: "cors" });
+              if (fetched.ok) {
+                await cache.put(selectedImage.url, fetched.clone());
+                response = fetched;
+              }
+            }
+
+            if (response) {
+              const blob = await response.blob();
+              const objectUrl = URL.createObjectURL(blob);
+              cacheBlobUrlRef.current = objectUrl;
+              setMediaUrl(objectUrl);
+              return;
+            }
+          }
+
+          // Last resort fallback to source URL.
+          setMediaUrl(selectedImage.url);
         } catch (error) {
           console.error("Failed to load media", error);
-          setMediaUrl(null);
+          setMediaUrl(selectedImage.url || null);
         } finally {
           setIsLoading(false);
         }
@@ -86,8 +120,14 @@ const MediaFrame = () => {
 
       setIsVideoEventReady(false);
     };
+
+    if (cacheBlobUrlRef.current) {
+      URL.revokeObjectURL(cacheBlobUrlRef.current);
+      cacheBlobUrlRef.current = null;
+    }
+
     loadMedia();
-  }, [selectedImage]);
+  }, [selectedImage, isOfficeDoc]);
 
   useEffect(() => {
     if (selectedImage?.type !== 'video') return;
@@ -99,6 +139,11 @@ const MediaFrame = () => {
     return () => {
       if (scrollTimerRef.current) {
         clearTimeout(scrollTimerRef.current);
+      }
+
+      if (cacheBlobUrlRef.current) {
+        URL.revokeObjectURL(cacheBlobUrlRef.current);
+        cacheBlobUrlRef.current = null;
       }
     };
   }, []);

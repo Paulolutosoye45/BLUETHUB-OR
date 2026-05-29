@@ -13,6 +13,8 @@ import { useGlobalTimer } from '@/hooks/useGlobalTimer';
 import { useSession } from '@/contexts/session-context';
 // import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 
+const LESSON_MEDIA_CACHE = "bluethub-lesson-media";
+
 const getRecordingElapsedMs = (timerElapsedSeconds: number): number => {
   const recordingStartTimerMs = parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10);
   return Math.max(0, Math.round(timerElapsedSeconds * 1000) - recordingStartTimerMs);
@@ -92,7 +94,21 @@ const Media = () => {
         await Promise.all(
           loadedImages.map(async (media) => {
             if (media.type === "pdf") {
-              // PDFs are loaded directly from public URL in the board frame.
+              // PDFs can be rendered from source URL, but still warm Cache API if available.
+              if (typeof window !== "undefined" && "caches" in window) {
+                try {
+                  const cache = await caches.open(LESSON_MEDIA_CACHE);
+                  const existing = await cache.match(media.url);
+                  if (!existing) {
+                    const response = await fetch(media.url, { mode: "cors" });
+                    if (response.ok) {
+                      await cache.put(media.url, response.clone());
+                    }
+                  }
+                } catch {
+                  // Ignore cache API errors for PDF warmup.
+                }
+              }
               cached.add(media.id);
               return;
             }
@@ -108,11 +124,31 @@ const Media = () => {
               // Already cached with matching source — just mark it
               cached.add(media.id);
             } else {
-              // Not cached — fetch and store silently
+              // Not in IDB — fetch and store silently
               try {
                 await fetchImageAsBlob(media.url, media.id, media.type, media.name);
                 cached.add(media.id);
               } catch {
+                // IDB write/fetch can fail in some browsers/CORS paths; use Cache API fallback.
+                try {
+                  if (typeof window !== "undefined" && "caches" in window) {
+                    const cache = await caches.open(LESSON_MEDIA_CACHE);
+                    let response = await cache.match(media.url);
+                    if (!response) {
+                      const fetched = await fetch(media.url, { mode: "cors" });
+                      if (fetched.ok) {
+                        await cache.put(media.url, fetched.clone());
+                        response = fetched;
+                      }
+                    }
+                    if (response) {
+                      cached.add(media.id);
+                      return;
+                    }
+                  }
+                } catch {
+                  // Ignore and keep unavailable state.
+                }
                 console.warn(`Failed to pre-cache: ${media.name}`);
               }
             }
