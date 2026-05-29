@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { authService, type IcreateUserRequest } from "@/services/auth";
 import { Hashing, localData } from "@/utils";
 import type { Tuser } from "@/utils/decode";
 import { regUserSchema, UserRole, type RegisterFormData } from "@/utils/validate";
@@ -9,7 +10,7 @@ import { format } from "date-fns";
 import { Upload, User, Camera, Mail, Loader2, Info, CalendarIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const SubjectTeacher = () => {
   const [fileName, setFileName] = useState<string | null>(null);
@@ -17,8 +18,15 @@ const SubjectTeacher = () => {
   const [loading, setLoading] = useState<boolean>(false)
   const [user, setUser] = useState<Tuser | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
+  const location = useLocation();
   const navigate = useNavigate()
+  const isClassTeacherRegistration = location.pathname.includes("/class-teacher");
+  const isAdminRegistration = location.pathname.includes("/admin-user");
+  const selectedTeacherRole = isClassTeacherRegistration ? UserRole.ClassTeacher : UserRole.SubjectTeacher;
+  const isEdit = (location.state as any)?.isEdit ?? false;
+  const editUserData = (location.state as any)?.editUser ?? null;
 
 
   // Load user from localStorage when component mounts
@@ -67,6 +75,7 @@ const SubjectTeacher = () => {
     handleSubmit,
     setValue,
     watch,
+    reset,
     control,
     formState: { errors },
   } = useForm({ resolver: yupResolver(regUserSchema) });
@@ -77,19 +86,34 @@ const SubjectTeacher = () => {
 
   // Auto-generate username whenever firstName or lastName changes
   useEffect(() => {
+    if (isEdit) return; // skip auto-generation in edit mode
     if (firstName || lastName) {
       const generated = `${firstName ?? ''}.${lastName ?? ''}`.toLowerCase().trim();
       setValue("username", generated);
       setValue("password", generated);
     }
-  }, [firstName, lastName, setValue]);
+  }, [firstName, lastName, setValue, isEdit]);
+
+  // Pre-fill form when in edit mode
+  useEffect(() => {
+    if (isEdit && editUserData) {
+      reset({
+        firstName: editUserData.firstName ?? "",
+        lastName: editUserData.lastName ?? "",
+        middleName: "",
+        email: editUserData.emailAddress ?? "",
+        username: editUserData.userName ?? "",
+        password: editUserData.userName ?? "",
+        dateOfBirth: editUserData.dob ? new Date(editUserData.dob) : undefined,
+      });
+    }
+  }, [isEdit, editUserData, reset]);
 
   const handleRegister = async (data: RegisterFormData) => {
     if (!user?.schoolId && !user?.id) return
 
-    let role = UserRole.SubjectTeacher;
     const hashPassword = await Hashing(data.password);
-    const payload = {
+    const payload: IcreateUserRequest = {
       createdby: user?.id,
       firstName: data.firstName,
       lastName: data.lastName,
@@ -100,14 +124,45 @@ const SubjectTeacher = () => {
       userName: data.username,
       schoolId: user?.schoolId,
       dob: format(new Date(data.dateOfBirth!), 'yyyy-MM-dd'),
-      role
+      role: isAdminRegistration ? UserRole.Admin : selectedTeacherRole,
     }
     try {
       setErrorMsg("")
+      setSuccessMsg("")
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 3000));
-       localData.save("th_t", payload)
-      navigate('/admin/registration/teacher/assign-role')
+      if (isEdit && editUserData) {
+        await authService.editUser({
+          id: editUserData.id,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          emailAddress: data.email ?? "",
+          hashPassword,
+          isActive: true,
+          hasAccess: true,
+          roleId: editUserData.roleId ?? 0,
+          profileImage: "",
+          guardianName: "",
+        });
+        setSuccessMsg("User updated successfully.");
+      } else if (isAdminRegistration) {
+        await authService.createUser(payload);
+        reset({
+          firstName: "",
+          lastName: "",
+          middleName: "",
+          username: "",
+          email: "",
+          dateOfBirth: undefined,
+          password: "",
+        });
+        setFileName(null);
+        setDragActive(false);
+        setSuccessMsg("User created successfully.");
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        localData.save("th_t", payload)
+        navigate('/admin/registration/teacher/assign-role')
+      }
     } catch (error) {
       const msg =
         error instanceof AxiosError
@@ -115,6 +170,7 @@ const SubjectTeacher = () => {
           error.response?.data?.message ??
           error.message
           : (error as Error).message;
+      setSuccessMsg("");
       setErrorMsg(msg);
     } finally {
       setLoading(false);
@@ -135,7 +191,11 @@ const SubjectTeacher = () => {
             </div>
             <div>
               <h2 className="font-bold text-xl text-white">
-                Teacher's Details
+                {isAdminRegistration
+                  ? "Admin Details"
+                  : isClassTeacherRegistration
+                    ? "Class Teacher Details"
+                    : "Subject Teacher Details"}
               </h2>
               <p className="text-white/80 text-sm">
                 Fill in the required information
@@ -362,6 +422,15 @@ const SubjectTeacher = () => {
               >
                 <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
                 <span>{errorMsg}</span>
+              </div>
+            )}
+            {!errorMsg && successMsg && (
+              <div
+                role="status"
+                className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg px-4 py-3 text-sm mb-5"
+              >
+                <Info className="w-4 h-4 mt-0.5 shrink-0 text-emerald-600" />
+                <span>{successMsg}</span>
               </div>
             )}
             <Button

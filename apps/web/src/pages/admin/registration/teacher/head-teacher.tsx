@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { Upload, User, Camera, Mail, Loader2, Info, CalendarIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const HeadTeacher = () => {
   const [fileName, setFileName] = useState<string | null>(null);
@@ -20,6 +20,9 @@ const HeadTeacher = () => {
   const [errorMsg, setErrorMsg] = useState("");
 
   const navigate = useNavigate()
+  const location = useLocation();
+  const isEdit = (location.state as any)?.isEdit ?? false;
+  const editUserData = (location.state as any)?.editUser ?? null;
 
 
   // Load user from localStorage when component mounts
@@ -68,6 +71,7 @@ const HeadTeacher = () => {
     handleSubmit,
     setValue,
     watch,
+    reset,
     control,
     formState: { errors },
   } = useForm({ resolver: yupResolver(regUserSchema) });
@@ -78,12 +82,28 @@ const HeadTeacher = () => {
 
   // Auto-generate username whenever firstName or lastName changes
   useEffect(() => {
+    if (isEdit) return;
     if (firstName || lastName) {
       const generated = `${firstName ?? ''}.${lastName ?? ''}`.toLowerCase().trim();
       setValue("username", generated);
       setValue("password", generated);
     }
-  }, [firstName, lastName, setValue]);
+  }, [firstName, lastName, setValue, isEdit]);
+
+  // Pre-fill form when in edit mode
+  useEffect(() => {
+    if (isEdit && editUserData) {
+      reset({
+        firstName: editUserData.firstName ?? "",
+        lastName: editUserData.lastName ?? "",
+        middleName: "",
+        email: editUserData.emailAddress ?? "",
+        username: editUserData.userName ?? "",
+        password: editUserData.userName ?? "",
+        dateOfBirth: editUserData.dob ? new Date(editUserData.dob) : undefined,
+      });
+    }
+  }, [isEdit, editUserData, reset]);
 
   const handleRegister = async (data: RegisterFormData) => {
     if (!user?.schoolId && !user?.id) return
@@ -106,8 +126,24 @@ const HeadTeacher = () => {
     try {
       setErrorMsg("")
       setLoading(true);
-      await authService.createUser(payload);
-      navigate("/admin")
+      if (isEdit && editUserData) {
+        await authService.editUser({
+          id: editUserData.id,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          emailAddress: data.email ?? "",
+          hashPassword,
+          isActive: true,
+          hasAccess: true,
+          roleId: editUserData.roleId ?? 0,
+          profileImage: "",
+          guardianName: "",
+        });
+        navigate("/admin");
+      } else {
+        await authService.createUser(payload);
+        navigate("/admin");
+      }
     } catch (error) {
       const msg =
         error instanceof AxiosError

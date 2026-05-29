@@ -38,7 +38,7 @@ interface LineManager {
 }
 
 
-const ROLE_OPTIONS = ["Class Teacher", "Subject Teacher"];
+const ROLE_OPTIONS = ["Class Teacher", "Subject Teacher", "Admin"];
 
 const RegisterTeacherRole = () => {
     const [, setPhoto] = useState<File | null>(null);

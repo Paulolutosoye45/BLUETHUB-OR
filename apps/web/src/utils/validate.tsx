@@ -101,8 +101,10 @@ export const UserRole = {
   Student: 0,
   HeadTeacher: 1,
   Administrator: 2,
+  Admin: 2,
   SuperAdministrator: 3,
   SubjectTeacher: 4,
+  ClassTeacher: 5,
 } as const;
 
 export type UserRoleType = (typeof UserRole)[keyof typeof UserRole];
@@ -113,6 +115,7 @@ export const UserRoleLabels: Record<UserRoleType, string> = {
   [UserRole.Administrator]: "Administrator",
   [UserRole.SuperAdministrator]: "Super Administrator",
   [UserRole.SubjectTeacher]: "Subject Teacher",
+  [UserRole.ClassTeacher]: "Class Teacher",
 };
 
 

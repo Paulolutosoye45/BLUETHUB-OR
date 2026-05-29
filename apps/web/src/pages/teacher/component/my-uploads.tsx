@@ -1,360 +1,174 @@
-import { useEffect, useMemo, useState } from "react";
-import { Loader2, Plus, Star, Trash2 } from "lucide-react";
-import toast from "react-hot-toast";
+import React, { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import katex from "katex";
 import "katex/dist/katex.min.css";
-import TitleBar from "@/shared/title-bar";
-import { Button, Dialog, DialogContent, DialogTitle } from "@bluethub/ui-kit";
-import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
-import { schoolService } from "@/services/school";
-import { questionService, type CreateOptionPayload } from "@/services/question";
+import toast from "react-hot-toast";
+import { AxiosError } from "axios";
+import {
+  CheckCircle2, Clock, Loader2, RefreshCw, XCircle, Eye, ChevronRight, X,
+} from "lucide-react";
 import {
   questionJobService,
-  type ExtractedQuestionDto,
-  type JobStatusItem,
-  type JobStatusesSummary,
+  type JobSummaryDto,
+  type QuestionPreviewResponse,
+  type OptionPreviewDto,
 } from "@/services/question-job";
-import { useOutletContext } from "react-router-dom";
+import TitleBar from "@/shared/title-bar";
 
-type SelectItem = { id: string; name: string };
-type QuestionContentPart = {
-  type?: string;
-  value?: string;
-  display?: string;
-};
-
-type UploadedOption = {
-  optionLabel?: string;
-  optionText?: string;
-  label?: string;
-  plainText?: string;
-  html?: string;
-  contentParts?: unknown;
-  isCorrect?: boolean;
-  orderIndex?: number;
-};
-
-type UploadedQuestion = Omit<ExtractedQuestionDto, "options"> & {
-  questionNumber?: number;
-  hasLatex?: boolean;
-  hasImages?: boolean;
-  options?: UploadedOption[];
-};
-
-type ImageBound = {
-  key: string;
-};
-
-type EditableOption = {
-  id: string;
-  label: string;
-  text: string;
-  isCorrect: boolean;
-};
-
-type EditableQuestion = Omit<UploadedQuestion, "options"> & {
-  localId: string;
-  questionText: string;
-  options: EditableOption[];
-};
-
-const QUESTION_TYPE_CHOICES = [
-  { value: 1, label: "Multiple Choice" },
-  { value: 2, label: "Short Answer" },
-  { value: 3, label: "Essay" },
-  { value: 4, label: "True/False" },
-] as const;
-
-const isOptionQuestionType = (questionType: number) => questionType === 1 || questionType === 4;
-
-const EMPTY_GUID = "00000000-0000-0000-0000-000000000000";
-
-const stripHtml = (value: string) => value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-
-const sanitizePlainTextInput = (value: string) => stripHtml(value).replace(/\s+/g, " ").trim();
-
-const sanitizeQuestionTextForSave = (value: string) =>
-  value
-    .replace(/<[^>]+>/g, "")
-    .replace(/\r\n/g, "\n")
-    .trim();
-
-const nextOptionLabel = (index: number) => String.fromCharCode(65 + index);
-
-const parseContentParts = (contentParts: unknown): QuestionContentPart[] => {
-  if (Array.isArray(contentParts)) {
-    return contentParts as QuestionContentPart[];
-  }
-
-  if (typeof contentParts === "string") {
-    try {
-      const parsed = JSON.parse(contentParts);
-      return Array.isArray(parsed) ? (parsed as QuestionContentPart[]) : [];
-    } catch {
-      return [];
-    }
-  }
-
-  return [];
-};
-
-const renderLatex = (value: string, displayMode = false) => {
-  try {
-    return katex.renderToString(value, {
-      throwOnError: false,
-      displayMode,
-      strict: "ignore",
+// ── KaTeX renderer ──────────────────────────────────────────────────────────
+const renderKatex = (html: string): string => {
+  // Replace block math: $$...$$ or \[...\]
+  let out = html
+    .replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => {
+      try { return katex.renderToString(expr, { displayMode: true, throwOnError: false }); }
+      catch { return _; }
+    })
+    .replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => {
+      try { return katex.renderToString(expr, { displayMode: true, throwOnError: false }); }
+      catch { return _; }
     });
-  } catch {
-    return value;
-  }
-};
-
-const deriveImageKeyFromUrl = (url: string): string => {
-  const file = url.split("/").pop() ?? "";
-  return file.replace(/\.[a-zA-Z0-9]+$/, "");
-};
-
-const latexInlineSpanRegex = /<span[^>]*class=['\"][^'\"]*th-math-inline[^'\"]*['\"][^>]*>\\\(([\s\S]*?)\\\)<\/span>/g;
-const imagePlaceholderRegex = /\{\{image:([^}]+)\}\}/g;
-
-const buildImageMap = (parts: QuestionContentPart[], imageBounds: ImageBound[]) => {
-  const map = new Map<string, string>();
-
-  parts
-    .filter((part) => part.type === "image" && typeof part.value === "string" && /^https?:\/\//i.test(part.value))
-    .forEach((part) => {
-      const url = part.value as string;
-      const key = deriveImageKeyFromUrl(url);
-      if (!map.has(key)) map.set(key, url);
+  // Replace inline math: $...$ or \(...\)
+  out = out
+    .replace(/\$([^$\n]+?)\$/g, (_, expr) => {
+      try { return katex.renderToString(expr, { displayMode: false, throwOnError: false }); }
+      catch { return _; }
+    })
+    .replace(/\\\((.+?)\\\)/g, (_, expr) => {
+      try { return katex.renderToString(expr, { displayMode: false, throwOnError: false }); }
+      catch { return _; }
     });
-
-  imageBounds.forEach((bound) => {
-    if (map.has(bound.key)) return;
-    const matched = Array.from(map.entries()).find(([k]) => k.includes(bound.key) || bound.key.includes(k));
-    if (matched) map.set(bound.key, matched[1]);
-  });
-
-  return map;
+  return out;
 };
 
-const renderHtmlWithEnhancements = (
-  html: string,
-  parts: QuestionContentPart[],
-  imageBounds: ImageBound[],
-) => {
-  const imageMap = buildImageMap(parts, imageBounds);
-
-  const withMath = html.replace(latexInlineSpanRegex, (_match, expr: string) =>
-    renderLatex(expr, false),
-  );
-
-  const withImages = withMath.replace(imagePlaceholderRegex, (_match, key: string) => {
-    const url = imageMap.get(key.trim());
-    if (!url) {
-      return `<span class="text-xs italic text-slate-400">[Image: ${key}]</span>`;
-    }
-    return `<img src="${url}" alt="${key}" class="my-3 rounded-lg border border-slate-200 max-h-64 w-auto" />`;
-  });
-
-  return withImages;
-};
-
-const normalizeQuestionText = (q: UploadedQuestion) => {
-  const raw = q.questionHtml || "";
-  return raw
-    .replace(/<[^>]+>/g, " ")
-    .replace(/\\\(|\\\)|\{\{image:[^}]+\}\}/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-};
-
-const questionRichnessScore = (q: UploadedQuestion) => {
-  let score = 0;
-  if (q.hasLatex) score += 3;
-  if (q.hasImages) score += 2;
-  if (parseContentParts(q.contentParts).some((p) => p.type === "latex")) score += 3;
-  if (parseContentParts(q.contentParts).some((p) => p.type === "image")) score += 2;
-  if ((q.questionHtml || "").includes("th-math-inline")) score += 2;
-  score += (q.questionHtml || "").length / 1000;
-  return score;
-};
-
-const normalizeOptionText = (option: UploadedOption) =>
-  sanitizePlainTextInput(option.optionText ?? option.plainText ?? stripHtml(option.html ?? "") ?? "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-
-const normalizeOptionsSignature = (q: UploadedQuestion) =>
-  (q.options ?? [])
-    .map((option) => `${(option.optionLabel ?? option.label ?? "").toLowerCase()}:${normalizeOptionText(option)}`)
-    .join("|");
-
-const dedupeQuestions = (questions: UploadedQuestion[]) => {
-  const kept: UploadedQuestion[] = [];
-  const keyToIndex = new Map<string, number>();
-
-  const chooseBetter = (a: UploadedQuestion, b: UploadedQuestion) =>
-    questionRichnessScore(a) >= questionRichnessScore(b) ? a : b;
-
-  questions.forEach((q) => {
-    const normalizedText = normalizeQuestionText(q);
-    const optionsSig = normalizeOptionsSignature(q);
-    const keys = [
-      q.id ? `id:${q.id}` : "",
-      `sig:${q.questionType}|${normalizedText.slice(0, 260)}|${optionsSig}`,
-      normalizedText ? `text:${normalizedText.slice(0, 260)}` : "",
-    ].filter(Boolean);
-
-    const existingIndex = keys
-      .map((key) => keyToIndex.get(key))
-      .find((index) => index !== undefined);
-
-    if (existingIndex === undefined) {
-      const nextIndex = kept.length;
-      kept.push(q);
-      keys.forEach((key) => keyToIndex.set(key, nextIndex));
-      return;
-    }
-
-    const better = chooseBetter(kept[existingIndex], q);
-    kept[existingIndex] = better;
-    keys.forEach((key) => keyToIndex.set(key, existingIndex));
-  });
-
-  return kept;
-};
-
-const renderDifficultyStars = (difficulty: number) => {
-  const clamped = Math.min(4, Math.max(1, Number.isFinite(difficulty) ? Math.round(difficulty) : 1));
+// ── RenderedHtml ─────────────────────────────────────────────────────────────
+const RenderedHtml = ({ html, hasLatex, className = "" }: { html: string; hasLatex: boolean; className?: string }) => {
+  const processed = hasLatex ? renderKatex(html) : html;
   return (
-    <span className="inline-flex items-center gap-1">
-      {Array.from({ length: 4 }).map((_, index) => {
-        const active = index < clamped;
-        return (
-          <Star
-            key={`${difficulty}-${index}`}
-            className={`h-3.5 w-3.5 ${active ? "fill-amber-400 text-amber-500" : "text-slate-300"}`}
-          />
-        );
-      })}
+    <div
+      className={`prose prose-sm max-w-none ${className}`}
+      dangerouslySetInnerHTML={{ __html: processed }}
+    />
+  );
+};
+
+// ── Status badge ─────────────────────────────────────────────────────────────
+const StatusBadge = ({ status }: { status: JobSummaryDto["status"] }) => {
+  const map: Record<string, { icon: React.ReactElement; cls: string }> = {
+    Pending:             { icon: <Clock size={12} />,        cls: "bg-amber-50 text-amber-600 border-amber-200" },
+    Processing:          { icon: <Loader2 size={12} className="animate-spin" />, cls: "bg-blue-50 text-blue-600 border-blue-200" },
+    Completed:           { icon: <CheckCircle2 size={12} />, cls: "bg-emerald-50 text-emerald-600 border-emerald-200" },
+    PartiallyCompleted:  { icon: <CheckCircle2 size={12} />, cls: "bg-amber-50 text-amber-600 border-amber-200" },
+    Failed:              { icon: <XCircle size={12} />,      cls: "bg-red-50 text-red-500 border-red-200" },
+  };
+  const { icon, cls } = map[status] ?? map.Pending;
+  return (
+    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${cls}`}>
+      {icon} {status}
     </span>
   );
 };
 
-const DifficultyPicker = ({
-  value,
-  onChange,
+// ── Preview Modal ─────────────────────────────────────────────────────────────
+const PreviewModal = ({
+  preview,
+  onClose,
 }: {
-  value: number;
-  onChange: (value: number) => void;
-}) => {
-  const clamped = Math.min(4, Math.max(1, Number.isFinite(value) ? Math.round(value) : 1));
-  return (
-    <div className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 h-10">
-      {Array.from({ length: 4 }).map((_, index) => {
-        const starValue = index + 1;
-        const active = starValue <= clamped;
-        return (
-          <button
-            key={`difficulty-${starValue}`}
-            type="button"
-            onClick={() => onChange(starValue)}
-            className="inline-flex items-center justify-center"
-            title={`Set difficulty ${starValue}`}
-          >
-            <Star
-              className={`h-4 w-4 ${active ? "fill-amber-400 text-amber-500" : "text-slate-300"}`}
-            />
-          </button>
-        );
-      })}
+  preview: QuestionPreviewResponse;
+  onClose: () => void;
+}) => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      {/* Modal header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <CheckCircle2 size={18} className="text-emerald-500" />
+          <div>
+            <h3 className="font-semibold text-slate-800 text-sm">Question Preview</h3>
+            <p className="text-[11px] text-slate-400">
+              {preview.questionType} · {preview.marksAllocation} mark{preview.marksAllocation !== 1 ? "s" : ""}
+              {preview.difficultyLevel ? ` · ${preview.difficultyLevel}` : ""}
+            </p>
+          </div>
+        </div>
+        <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center cursor-pointer transition-colors">
+          <X size={16} className="text-slate-500" />
+        </button>
+      </div>
+
+      {/* Modal body */}
+      <div className="overflow-y-auto flex-1 p-5 flex flex-col gap-5">
+        {/* Question HTML */}
+        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Question</p>
+          <RenderedHtml
+            html={preview.questionHtml}
+            hasLatex={preview.hasLatex}
+            className="text-slate-800"
+          />
+        </div>
+
+        {/* Options (Objective only) */}
+        {preview.options && preview.options.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Options</p>
+            {preview.options
+              .sort((a, b) => a.orderIndex - b.orderIndex)
+              .map((opt: OptionPreviewDto) => (
+                <div
+                  key={opt.id}
+                  className={`flex items-start gap-3 rounded-xl border px-4 py-3 ${
+                    opt.isCorrect
+                      ? "border-emerald-400 bg-emerald-50"
+                      : "border-slate-200 bg-white"
+                  }`}
+                >
+                  <span
+                    className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold mt-0.5 ${
+                      opt.isCorrect ? "bg-emerald-500 text-white" : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {opt.optionLabel}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <RenderedHtml
+                      html={opt.optionHtml || opt.optionText}
+                      hasLatex={opt.hasLatex}
+                      className="text-slate-700"
+                    />
+                  </div>
+                  {opt.isCorrect && (
+                    <CheckCircle2 size={15} className="text-emerald-500 shrink-0 mt-0.5" />
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+
+      {/* Modal footer */}
+      <div className="px-5 py-4 border-t border-slate-100 shrink-0 flex justify-end">
+        <button
+          onClick={onClose}
+          className="px-5 py-2.5 rounded-lg bg-chestnut text-white text-sm font-semibold hover:bg-chestnut/90 transition-colors cursor-pointer"
+        >
+          Close
+        </button>
+      </div>
     </div>
-  );
-};
+  </div>
+);
 
-const buildConfirmEndpointCandidates = (jobId: string) => {
-  const base = (import.meta.env.VITE_API_BASE_URL || "https://techhubschmanagement.onrender.com").replace(/\/$/, "");
-  return [
-    `${base}/api/questionjob/jobs/${jobId}/confirm`,
-    `${base}/api/question-jobs/jobs/${jobId}/confirm`,
-    `${base}/api/questions/jobs/${jobId}/confirm`,
-  ];
-};
-
-const confirmProcessedJobDirect = async (jobId: string) => {
-  const jwt = localStorage.getItem("token");
-  const tenant = import.meta.env.VITE_DEFAULT_TENANT;
-  const endpoints = buildConfirmEndpointCandidates(jobId);
-
-  let lastError = "";
-
-  for (const endpoint of endpoints) {
-    try {
-      console.info("[MyUploads] Calling confirm endpoint", endpoint);
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(jwt ? { Authorization: `Bearer ${jwt}` } : {}),
-          ...(tenant ? { "X-Tenant-ID": tenant } : {}),
-        },
-        body: "{}",
-      });
-
-      let payload: any = null;
-      try {
-        payload = await response.json();
-      } catch {
-        payload = null;
-      }
-
-      const responseCode = String(payload?.responseCode ?? payload?.data?.responseCode ?? "").toLowerCase();
-      const status = String(payload?.status ?? payload?.data?.status ?? "").toLowerCase();
-      const okByPayload = responseCode === "successful" || status === "successful";
-
-      if (response.ok && (okByPayload || payload == null)) {
-        console.info("[MyUploads] Confirm endpoint succeeded", endpoint);
-        return;
-      }
-
-      lastError =
-        payload?.responseMessage ??
-        payload?.data?.responseMessage ??
-        `${response.status} ${response.statusText}`;
-    } catch (error) {
-      const err = error as { message?: string };
-      lastError = err?.message ?? "Unknown network error";
-    }
-  }
-
-  throw new Error(lastError || "Failed to update job status to processed.");
-};
-
-const statusPillClass = (status: JobStatusItem["status"]) => {
-  switch (status) {
-    case "Completed":
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    case "Failed":
-      return "bg-red-50 text-red-700 border-red-200";
-    case "Processing":
-      return "bg-amber-50 text-amber-700 border-amber-200";
-    default:
-      return "bg-slate-100 text-slate-700 border-slate-200";
-  }
-};
-
-const SummaryCard = ({
-  label,
-  value,
-  tone,
+// ── Job row ──────────────────────────────────────────────────────────────────
+const JobRow = ({
+  job,
+  onPreview,
+  onRetry,
+  retrying,
 }: {
-  label: string;
-  value: number;
-  tone: "default" | "pending" | "processing" | "completed" | "failed";
+  job: JobSummaryDto;
+  onPreview: () => void;
+  onRetry: () => void;
+  retrying: boolean;
 }) => {
   const toneClass =
     tone === "completed"
@@ -368,41 +182,66 @@ const SummaryCard = ({
             : "bg-white border-slate-200 text-slate-700";
 
   return (
-    <div className={`rounded-xl border px-4 py-3 ${toneClass}`}>
-      <p className="text-xs font-medium uppercase tracking-wide opacity-80">{label}</p>
-      <p className="text-2xl font-bold mt-1">{value}</p>
+    <div className="bg-white rounded-xl border border-slate-200 px-4 py-3.5 flex items-center gap-3 hover:border-slate-300 transition-colors">
+      {/* Status icon */}
+      <div className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${
+        job.status === "Completed" ? "bg-emerald-50" :
+        job.status === "Failed" ? "bg-red-50" :
+        job.status === "Processing" ? "bg-blue-50" : "bg-amber-50"
+      }`}>
+        {job.status === "Completed"  && <CheckCircle2 size={18} className="text-emerald-500" />}
+        {job.status === "Failed"     && <XCircle      size={18} className="text-red-400" />}
+        {job.status === "Processing" && <Loader2      size={18} className="text-blue-500 animate-spin" />}
+        {job.status === "Pending"    && <Clock        size={18} className="text-amber-500" />}
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <StatusBadge status={job.status} />
+          <span className="text-xs text-slate-400 font-medium">{job.questionType}</span>
+          <span className="text-xs text-slate-300">·</span>
+          <span className="text-xs text-slate-400">{createdAt}</span>
+        </div>
+        {job.status === "Failed" && job.failureReason && (
+          <p className="text-[11px] text-red-400 mt-0.5 truncate">{job.failureReason}</p>
+        )}
+        <p className="text-[10px] text-slate-300 font-mono mt-0.5 truncate">{job.jobId}</p>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-2 shrink-0">
+        {job.status === "Completed" && (
+          <button
+            onClick={onPreview}
+            className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-700 px-2.5 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors cursor-pointer"
+          >
+            <Eye size={13} /> Preview
+          </button>
+        )}
+        {job.status === "Failed" && (
+          <button
+            onClick={onRetry}
+            disabled={retrying}
+            className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 hover:text-amber-700 px-2.5 py-1.5 rounded-lg hover:bg-amber-50 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {retrying ? <Loader2 size={13} className="animate-spin" /> : <RefreshCw size={13} />}
+            Retry
+          </button>
+        )}
+      </div>
     </div>
   );
 };
 
+// ── Main component ─────────────────────────────────────────────────────────
 const MyUploads = () => {
-  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
-
-  const { user, isLoading: authLoading, refreshUser } = useAuthContext();
-
-  const [classroomId, setClassroomId] = useState("");
-  const [subjectId, setSubjectId] = useState("");
-  const [topicId, setTopicId] = useState("");
-  const [subTopicId, setSubTopicId] = useState("");
-
-  const [topics, setTopics] = useState<SelectItem[]>([]);
-  const [subTopics, setSubTopics] = useState<SelectItem[]>([]);
-  const [topicsData, setTopicsData] = useState<any[]>([]);
-
-  const [loadingTopics, setLoadingTopics] = useState(false);
-  const [loadingJobs, setLoadingJobs] = useState(false);
-
-  const [summary, setSummary] = useState<JobStatusesSummary>({
-    total: 0,
-    pending: 0,
-    processing: 0,
-    completed: 0,
-    failed: 0,
-  });
-  const [jobs, setJobs] = useState<JobStatusItem[]>([]);
-  const [previewJob, setPreviewJob] = useState<JobStatusItem | null>(null);
-  const [editableQuestions, setEditableQuestions] = useState<EditableQuestion[]>([]);
-  const [previewImageBounds, setPreviewImageBounds] = useState<ImageBound[]>([]);
+  const navigate = useNavigate();
+  const [jobs, setJobs] = useState<JobSummaryDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState({ total: 0, pending: 0, completed: 0, failed: 0 });
+  const [search, setSearch] = useState("");
+  const [preview, setPreview] = useState<QuestionPreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSavingEditedQuestions, setIsSavingEditedQuestions] = useState(false);
@@ -835,190 +674,49 @@ const MyUploads = () => {
   }, [user?.roleData, classroomId]);
 
   useEffect(() => {
-    if (!authLoading) {
-      void refreshUser();
-    }
-  }, [authLoading]);
+    fetchJobs();
+  }, []);
 
   useEffect(() => {
-    if (classroomId && !classrooms.some((c) => c.id === classroomId)) {
-      setClassroomId("");
-      setSubjectId("");
-      setTopicId("");
-      setSubTopicId("");
-      setTopics([]);
-      setSubTopics([]);
-      setTopicsData([]);
+    const hasPending = jobs.some(j => j.status === "Pending" || j.status === "Processing");
+    if (hasPending) {
+      pollRef.current = setInterval(() => fetchJobs(true), 8000);
+    } else {
+      if (pollRef.current) clearInterval(pollRef.current);
     }
-  }, [classroomId, classrooms]);
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [jobs]);
 
-  useEffect(() => {
-    if (subjectId && !subjects.some((s) => s.id === subjectId)) {
-      setSubjectId("");
-      setTopicId("");
-      setSubTopicId("");
-      setTopics([]);
-      setSubTopics([]);
-      setTopicsData([]);
-    }
-  }, [subjectId, subjects]);
-
-  useEffect(() => {
-    if (!subjectId) {
-      setTopics([]);
-      setSubTopics([]);
-      setTopicsData([]);
-      return;
-    }
-
-    setLoadingTopics(true);
-    setTopicId("");
-    setSubTopicId("");
-    setTopics([]);
-    setSubTopics([]);
-    setTopicsData([]);
-
-    schoolService
-      .getSubjectCurriculum(subjectId)
-      .then((res) => {
-        const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
-        const nextTopics: any[] = raw.Topics ?? raw.topics ?? [];
-
-        setTopicsData(nextTopics);
-        setTopics(
-          nextTopics.map((t: any) => ({
-            id: String(t.Id ?? t.id ?? t.topicId ?? ""),
-            name: String(t.Name ?? t.name ?? t.topicName ?? ""),
-          }))
-        );
-      })
-      .catch(() => {
-        setTopics([]);
-        toast.error("Could not load topics");
-      })
-      .finally(() => setLoadingTopics(false));
-  }, [subjectId]);
-
-  useEffect(() => {
-    if (!topicId) {
-      setSubTopics([]);
-      return;
-    }
-
-    const matched = topicsData.find(
-      (t: any) => String(t.Id ?? t.id ?? t.topicId) === topicId
-    );
-
-    const nextSubTopics: SelectItem[] = (matched?.SubTopics ?? matched?.subTopics ?? []).map((s: any) => ({
-      id: String(s.Id ?? s.id ?? s.subTopicId ?? ""),
-      name: String(s.Name ?? s.name ?? s.subTopicName ?? ""),
-    }));
-
-    setSubTopicId("");
-    setSubTopics(nextSubTopics);
-  }, [topicId, topicsData]);
-
-  const fetchStatuses = async () => {
-    if (!classroomId || !subjectId) {
-      setSummary({ total: 0, pending: 0, processing: 0, completed: 0, failed: 0 });
-      setJobs([]);
-      return;
-    }
-
-    setLoadingJobs(true);
-    try {
-      const { data } = await questionJobService.getJobStatuses({
-        classroomId,
-        subjectId,
-        topicId: topicId || undefined,
-        subTopicId: subTopicId || undefined,
-      });
-
-      const payload = (data as any)?.data ?? {};
-      setSummary(
-        payload.summary ?? {
-          total: 0,
-          pending: 0,
-          processing: 0,
-          completed: 0,
-          failed: 0,
-        }
-      );
-      setJobs(payload.jobs ?? []);
-    } catch {
-      setSummary({ total: 0, pending: 0, processing: 0, completed: 0, failed: 0 });
-      setJobs([]);
-      toast.error("Failed to load upload statuses");
-    } finally {
-      setLoadingJobs(false);
-    }
-  };
-
-  useEffect(() => {
-    void fetchStatuses();
-  }, [classroomId, subjectId, topicId, subTopicId]);
-
-  const handleOpenJobPreview = async (job: JobStatusItem) => {
-    setPreviewJob(job);
-    setEditableQuestions([]);
-    setPreviewImageBounds([]);
-    setPreviewScanSessionId(null);
-    setSaveError(null);
-    setIsEditMode(false);
+  const handlePreview = async (job: JobSummaryDto) => {
     setPreviewLoading(true);
-
     try {
-      const { data } = await questionJobService.getQuestionsByJobId(job.jobId);
-      const raw = data as any;
-      const payload = raw?.data ?? raw?.dat ?? raw;
-      const questions = (payload?.questions ?? []) as UploadedQuestion[];
-      const deduped = dedupeQuestions(questions);
-      setEditableQuestions(deduped.map(toEditableQuestion));
-      setPreviewImageBounds((payload?.imageBounds ?? []) as ImageBound[]);
-      setPreviewScanSessionId((payload?.scanSessionId ?? payload?.scanSession?.id ?? null) as string | null);
-    } catch {
-      setEditableQuestions([]);
-      setPreviewImageBounds([]);
-      setPreviewScanSessionId(null);
-      toast.error("Failed to load questions for this upload job");
+      const { data } = await questionJobService.getJobPreview(job.jobId);
+      setPreview((data.data ?? data) as unknown as QuestionPreviewResponse);
+    } catch (err) {
+      const e = err as AxiosError<{ responseMessage?: string }>;
+      toast.error(e.response?.data?.responseMessage ?? "Failed to load preview");
     } finally {
       setPreviewLoading(false);
     }
   };
 
-  const FilterSelect = ({
-    label,
-    value,
-    options,
-    placeholder,
-    onChange,
-    disabled,
-    loading,
-  }: {
-    label: string;
-    value: string;
-    options: SelectItem[];
-    placeholder: string;
-    onChange: (value: string) => void;
-    disabled?: boolean;
-    loading?: boolean;
-  }) => (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">{label}</label>
-      <select
-        value={value}
-        disabled={disabled || loading}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-chestnut/15 focus:border-chestnut disabled:opacity-50"
-      >
-        <option value="">{loading ? "Loading..." : placeholder}</option>
-        {options.map((item) => (
-          <option key={item.id} value={item.id}>
-            {item.name}
-          </option>
-        ))}
-      </select>
-    </div>
+  const handleRetry = async (jobId: string) => {
+    setRetryingId(jobId);
+    try {
+      await questionJobService.retryJob(jobId);
+      toast.success("Job queued for retry");
+      fetchJobs(true);
+    } catch {
+      toast.error("Retry failed");
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
+  const filtered = jobs.filter(j =>
+    j.questionType.toLowerCase().includes(search.toLowerCase()) ||
+    j.status.toLowerCase().includes(search.toLowerCase()) ||
+    j.jobId.includes(search)
   );
 
   return (
@@ -1427,63 +1125,18 @@ const MyUploads = () => {
 
                     </div>
 
-                    <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                      <span className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600 inline-flex items-center gap-1.5">
-                        Marks: {renderDifficultyStars(question.marksAllocation || question.difficultyLevel)}
-                        <span className="text-slate-500">({question.marksAllocation || question.difficultyLevel})</span>
-                      </span>
-                      <span className="rounded-full border border-slate-200 px-2.5 py-1 text-slate-600">
-                        Status: {question.statusName || question.status}
-                      </span>
-                    </div>
-
-                    {!isEditMode && question.options?.length > 0 && (
-                      <div className="mt-3 space-y-1">
-                        {question.options.map((option) => (
-                          <div key={`${question.localId}-${option.id}`} className="text-xs text-slate-600">
-                            <span className="font-semibold mr-1">{option.label}.</span>
-                            <span>{option.text}</span>
-                            {option.isCorrect && (
-                              <span className="ml-2 text-emerald-600 font-semibold">(Correct)</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </article>
-                ))}
-
-                <div className="pt-2 flex justify-end gap-2">
-                  {isEditMode && editableQuestions.length > 0 && (
-                    <Button
-                      type="button"
-                      onClick={() => void handleSaveEditedQuestions()}
-                      disabled={isSavingEditedQuestions}
-                      className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 disabled:bg-slate-300 disabled:text-slate-500"
-                    >
-                      {isSavingEditedQuestions ? (
-                        <span className="inline-flex items-center gap-1">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Saving...
-                        </span>
-                      ) : (
-                        "Save"
-                      )}
-                    </Button>
-                  )}
-                  <Button
-                    type="button"
-                    onClick={() => setPreviewJob(null)}
-                    className="h-10 rounded-xl bg-chestnut hover:bg-chestnut/90 text-white px-4"
-                  >
-                    Close
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+      {/* Preview loading overlay */}
+      {previewLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl px-8 py-6 flex items-center gap-3 shadow-xl">
+            <Loader2 size={20} className="animate-spin text-indigo-500" />
+            <span className="text-sm font-semibold text-slate-700">Loading preview…</span>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Preview modal */}
+      {preview && <PreviewModal preview={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 };
