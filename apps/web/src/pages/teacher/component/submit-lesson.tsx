@@ -37,6 +37,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   lessonService,
+  LessonMediaType,
   resolveMediaType,
   type CloudinarySignature,
   type MediaFilePayload,
@@ -184,6 +185,7 @@ function uploadToCloudinary(
     fd.append("timestamp", String(sig.timestamp));
     fd.append("signature", sig.signature);
     fd.append("folder", sig.folder);
+    if (sig.uploadPreset) fd.append("upload_preset", sig.uploadPreset);
 
     const xhr = new XMLHttpRequest();
     xhr.upload.onprogress = (e) => {
@@ -204,7 +206,7 @@ function uploadToCloudinary(
       }
     };
     xhr.onerror = () => reject(new Error("Network error — check your connection"));
-    xhr.open("POST", `https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`);
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${sig.cloudName}/${sig.resourceType}/upload`);
     xhr.send(fd);
   });
 }
@@ -829,22 +831,32 @@ const SubmitLesson = () => {
 
     setUploadFiles((p) => [...p, ...incoming]);
 
-    let sig: CloudinarySignature;
-    try {
-      const r = await lessonService.getUploadSignature();
-      sig = (r.data as any).data as CloudinarySignature;
-    } catch {
-      const uids = new Set(incoming.map((f) => f.uid));
-      setUploadFiles((p) =>
-        p.map((f) => uids.has(f.uid) ? { ...f, status: "error", error: "Could not get upload credentials" } : f)
-      );
-      toast.error("Could not get upload credentials");
-      return;
-    }
+    const signatures = new Map<number, CloudinarySignature>();
+    let hadCredentialFailure = false;
 
-    await runConcurrent(incoming, UPLOAD_CONCURRENCY, ({ uid, file }) =>
-      runUpload(uid, file!, sig)
-    );
+    await runConcurrent(incoming, UPLOAD_CONCURRENCY, async ({ uid, file }) => {
+      if (!file) return;
+      const mediaType = resolveMediaType(file.type) as typeof LessonMediaType[keyof typeof LessonMediaType];
+
+      try {
+        let sig = signatures.get(mediaType);
+        if (!sig) {
+          const r = await lessonService.getUploadSignature(mediaType);
+          sig = (r.data as any).data as CloudinarySignature;
+          signatures.set(mediaType, sig);
+        }
+        await runUpload(uid, file, sig);
+      } catch {
+        hadCredentialFailure = true;
+        setUploadFiles((p) =>
+          p.map((f) => f.uid === uid ? { ...f, status: "error", error: "Could not get upload credentials" } : f)
+        );
+      }
+    });
+
+    if (hadCredentialFailure) {
+      toast.error("Some files could not get upload credentials");
+    }
   }, [runUpload]);
 
   const handleRetry = useCallback(async (uid: string) => {
@@ -852,7 +864,8 @@ const SubmitLesson = () => {
     if (!entry?.file) return;
     let sig: CloudinarySignature;
     try {
-      const r = await lessonService.getUploadSignature();
+      const mediaType = resolveMediaType(entry.file.type) as typeof LessonMediaType[keyof typeof LessonMediaType];
+      const r = await lessonService.getUploadSignature(mediaType);
       sig = (r.data as any).data as CloudinarySignature;
     } catch {
       toast.error("Could not get upload credentials");
