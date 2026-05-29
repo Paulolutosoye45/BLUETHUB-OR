@@ -106,7 +106,7 @@ const MediaFrame = () => {
             return;
           }
 
-          if (selectedImage.type !== 'pdf') {
+          if (isImage || isVideo) {
             const idbUrl = await getImage(selectedImage.id);
             if (idbUrl) {
               setMediaUrl(idbUrl);
