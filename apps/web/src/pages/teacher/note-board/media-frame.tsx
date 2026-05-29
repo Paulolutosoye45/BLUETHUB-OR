@@ -6,7 +6,7 @@ import { useState, useEffect } from "react";
 import * as React from "react";
 import { clearSelectedImage } from "@/store/class-action-slice";
 import { useSession } from "@/contexts/session-context";
-import PdfScrollViewer from "@/component/pdf-scroll-viewer";
+import { fetchMediaWithAuthFallback } from "@/utils/blob";
 
 const LESSON_MEDIA_CACHE = "bluethub-lesson-media";
 
@@ -49,9 +49,8 @@ const MediaFrame = () => {
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isVideoEventReady, setIsVideoEventReady] = useState(false);
-  const scrollTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const dispatch = useDispatch();
-  const { sendMediaHide, sendPdfPage, sendMediaScroll, sendMediaPlayback } = useSession();
+  const { sendMediaHide, sendMediaPlayback } = useSession();
   const frameSize = getFrameSizeByType(selectedImage?.type);
   const fileExt = getFileExtension(selectedImage?.name) || getFileExtension(selectedImage?.url);
   const normalizedType = (selectedImage?.type ?? '').toLowerCase();
@@ -71,6 +70,36 @@ const MediaFrame = () => {
       if (selectedImage && selectedImage.id) {
         setIsLoading(true);
         try {
+          if (selectedImage.type === 'pdf') {
+            if (typeof window !== "undefined" && "caches" in window) {
+              try {
+                const cache = await caches.open(LESSON_MEDIA_CACHE);
+                let response = await cache.match(selectedImage.url);
+
+                if (!response) {
+                  const fetched = await fetchMediaWithAuthFallback(selectedImage.url);
+                  if (fetched.ok) {
+                    await cache.put(selectedImage.url, fetched.clone());
+                    response = fetched;
+                  }
+                }
+
+                if (response) {
+                  const blob = await response.blob();
+                  const objectUrl = URL.createObjectURL(blob);
+                  cacheBlobUrlRef.current = objectUrl;
+                  setMediaUrl(objectUrl);
+                  return;
+                }
+              } catch {
+                // Fall through to direct URL fallback.
+              }
+            }
+
+            setMediaUrl(selectedImage.url);
+            return;
+          }
+
           // Office documents need a public URL for Office Online embed.
           if (isOfficeDoc) {
             setMediaUrl(selectedImage.url);
@@ -90,7 +119,7 @@ const MediaFrame = () => {
             let response = await cache.match(selectedImage.url);
 
             if (!response) {
-              const fetched = await fetch(selectedImage.url, { mode: "cors" });
+              const fetched = await fetchMediaWithAuthFallback(selectedImage.url);
               if (fetched.ok) {
                 await cache.put(selectedImage.url, fetched.clone());
                 response = fetched;
@@ -137,10 +166,6 @@ const MediaFrame = () => {
 
   useEffect(() => {
     return () => {
-      if (scrollTimerRef.current) {
-        clearTimeout(scrollTimerRef.current);
-      }
-
       if (cacheBlobUrlRef.current) {
         URL.revokeObjectURL(cacheBlobUrlRef.current);
         cacheBlobUrlRef.current = null;
@@ -159,16 +184,6 @@ const MediaFrame = () => {
       </div>
     );
   }
-
-  const handlePdfScrollRatio = (ratio: number) => {
-    if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
-    scrollTimerRef.current = setTimeout(() => {
-      if (selectedImage?.id) {
-        const elapsedMs = getRecordingElapsedMs(timerElapsedSeconds);
-        sendMediaScroll(selectedImage.id, Math.max(0, Math.min(1, ratio)), timerDisplay, elapsedMs);
-      }
-    }, 200);
-  };
 
   return (
     <div className={`pointer-events-none absolute inset-0 z-40 flex justify-center p-2 sm:p-4 ${isPdf ? 'items-start' : 'items-center'}`}>
@@ -192,17 +207,26 @@ const MediaFrame = () => {
         {/* Content */}
         <div className={`flex-1 bg-gray-50 relative ${isPdf ? 'overflow-y-auto' : 'overflow-hidden'}`}>
           {isPdf && mediaUrl ? (
-            <PdfScrollViewer
-              fileUrl={mediaUrl}
-              mode="live"
-              preferIframe={false}
-              onPageChange={(page) => {
-                if (!selectedImage?.id) return;
-                const elapsedMs = getRecordingElapsedMs(timerElapsedSeconds);
-                sendPdfPage(selectedImage.id, page, timerDisplay, elapsedMs);
-              }}
-              onScrollRatioChange={handlePdfScrollRatio}
-            />
+            <div className="h-full w-full bg-white">
+              <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
+                <p className="text-xs text-slate-500">PDF document</p>
+                <a
+                  href={mediaUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-medium text-blue-600 hover:underline"
+                >
+                  Open in new tab
+                </a>
+              </div>
+              <div className="h-[calc(100%-37px)] w-full">
+                <iframe
+                  src={`${mediaUrl}#toolbar=0&navpanes=0&view=FitH`}
+                  title={selectedImage.name}
+                  className="h-full w-full border-0"
+                />
+              </div>
+            </div>
           ) : isOfficeDoc && officeViewerUrl ? (
             <iframe
               src={officeViewerUrl}

@@ -204,10 +204,10 @@ async function uploadToCloudinary(
   formData.append('signature', config.signature);
   formData.append('folder', config.folder);
   formData.append('public_id', publicId);
-  formData.append('resource_type', 'video'); // Cloudinary uses 'video' for audio
+  if (config.uploadPreset) formData.append('upload_preset', config.uploadPreset);
 
   const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${config.cloudName}/video/upload`,
+    `https://api.cloudinary.com/v1_1/${config.cloudName}/${config.resourceType}/upload`,
     { method: 'POST', body: formData }
   );
 

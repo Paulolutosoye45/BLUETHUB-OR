@@ -22,7 +22,7 @@ const PAGE_CHUNK = 3;
 export default function PdfScrollViewer({
   fileUrl,
   mode,
-  preferIframe: _preferIframe,
+  preferIframe = false,
   className,
   controlledPage,
   controlledScrollRatio,
@@ -135,9 +135,9 @@ export default function PdfScrollViewer({
     setNumPages(0);
     setRenderedPages(0);
     setPageAspectRatio(null);
-    setUseIframeFallback(false);
+    setUseIframeFallback(preferIframe);
     lastPageRef.current = 1;
-  }, [fileUrl]);
+  }, [fileUrl, preferIframe]);
 
   useEffect(() => {
     if (!isReplay) return;
@@ -167,11 +167,30 @@ export default function PdfScrollViewer({
   if (useIframeFallback) {
     return (
       <div className={`h-full w-full bg-white ${className ?? ''}`}>
-        <iframe
-          src={fallbackSrc}
-          title="PDF Viewer"
-          className="h-full w-full border-0"
-        />
+        <div className="flex items-center justify-between border-b border-slate-200 px-3 py-2">
+          <p className="text-xs text-slate-500">Using PDF fallback viewer</p>
+          <a
+            href={fileUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs font-medium text-blue-600 hover:underline"
+          >
+            Open in new tab
+          </a>
+        </div>
+        <div className="h-[calc(100%-37px)] w-full">
+          <object
+            data={fileUrl}
+            type="application/pdf"
+            className="h-full w-full"
+          >
+            <iframe
+              src={fallbackSrc}
+              title="PDF Viewer"
+              className="h-full w-full border-0"
+            />
+          </object>
+        </div>
       </div>
     );
   }

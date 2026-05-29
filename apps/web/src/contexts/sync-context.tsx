@@ -59,11 +59,13 @@ export interface SyncContextValue {
 }
 
 export interface CloudinaryConfig {
+  resourceType: string;
   cloudName: string;
   apiKey: string;
   signature: string;
   timestamp: number;
   folder: string;
+  uploadPreset?: string | null;
 }
 
 // ── Worker Message Types ──────────────────────────────────────────────────────

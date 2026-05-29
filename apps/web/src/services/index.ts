@@ -8,10 +8,16 @@ export const API = axios.create({
 });
 
 API.interceptors.request.use((config) => {
-  const jwt = token.getToken();
-  if (jwt) {
-    config.headers.Authorization = `Bearer ${jwt}`;
+  const url = config.url ?? "";
+  const isExternal = /^https?:\/\//i.test(url);
+
+  if (!isExternal) {
+    const jwt = token.getToken();
+    if (jwt) {
+      config.headers.Authorization = `Bearer ${jwt}`;
+    }
   }
+
   return config;
 });
 

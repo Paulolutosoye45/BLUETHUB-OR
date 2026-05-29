@@ -32,7 +32,7 @@ import {
   type CreateOptionPayload,
 } from "@/services/question";
 import { schoolService } from "@/services/school";
-import { lessonService } from "@/services/lesson";
+import { lessonService, LessonMediaType } from "@/services/lesson";
 import { useAuthContext } from "@/contexts/auth-context";
 import { authService } from "@/services/auth";
 
@@ -989,7 +989,7 @@ const CreateQuizQuestion = () => {
 
   // ── Cloudinary image upload ─────────────────────────────────────────────
   const uploadImage = async (file: File): Promise<string> => {
-    const { data } = await lessonService.getUploadSignature();
+    const { data } = await lessonService.getUploadSignature(LessonMediaType.Image);
     const sig = data.data;
     const form = new FormData();
     form.append("file", file);
@@ -997,8 +997,9 @@ const CreateQuizQuestion = () => {
     form.append("timestamp", String(sig.timestamp));
     form.append("signature", sig.signature);
     form.append("folder", sig.folder);
+    if (sig.uploadPreset) form.append("upload_preset", sig.uploadPreset);
     const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${sig.cloudName}/image/upload`,
+      `https://api.cloudinary.com/v1_1/${sig.cloudName}/${sig.resourceType}/upload`,
       { method: "POST", body: form }
     );
     if (!res.ok) throw new Error("Image upload failed");
