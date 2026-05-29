@@ -82,14 +82,14 @@ const TeacherEditProfile = () => {
   const [allClassrooms, setAllClassrooms] = useState<SchoolClassroomDto[]>([]);
   const [loadingClassrooms, setLoadingClassrooms] = useState(false);
   const [selectedClassroomId, setSelectedClassroomId] = useState("");
+  const [selectedClassroomIds, setSelectedClassroomIds] = useState<string[]>([]);
 
   // ── derived ───────────────────────────────────────────────────────────────
   const isAdmin = useMemo(() => userData?.roleId === ADMIN_ROLE_ID, [userData]);
   const isSubjectTeacher = useMemo(() => userData?.roleId === 4, [userData]);
-  const isClassOrHeadTeacher = useMemo(
-    () => userData?.roleId === 1 || userData?.roleId === 5,
-    [userData],
-  );
+  const isClassTeacher = useMemo(() => userData?.roleId === 1, [userData]);
+  const isHeadTeacher = useMemo(() => userData?.roleId === 5, [userData]);
+  const isClassOrHeadTeacher = isClassTeacher || isHeadTeacher;
 
   const pageTitle = useMemo(() => {
     if (userData?.roleName) return `Edit ${userData.roleName}`;
@@ -123,6 +123,7 @@ const TeacherEditProfile = () => {
         if (existingClassrooms.length > 0) {
           setSelectedClassroomId(existingClassrooms[0].classroomId);
         }
+        setSelectedClassroomIds(existingClassrooms.map((c) => c.classroomId));
       } catch (err: any) {
         setErrorMsg(
           err?.response?.data?.responseMessage ??
@@ -229,11 +230,13 @@ const TeacherEditProfile = () => {
     setAssignMsg({ type: "", text: "" });
 
     if (isClassOrHeadTeacher) {
-      if (!selectedClassroomId) {
-        setAssignMsg({
-          type: "error",
-          text: "Please select a classroom.",
-        });
+      if (isClassTeacher && !selectedClassroomId) {
+        setAssignMsg({ type: "error", text: "Please select a classroom." });
+        setSavingAssign(false);
+        return;
+      }
+      if (isHeadTeacher && selectedClassroomIds.length === 0) {
+        setAssignMsg({ type: "error", text: "Please select at least one classroom." });
         setSavingAssign(false);
         return;
       }
@@ -241,17 +244,24 @@ const TeacherEditProfile = () => {
       try {
         await authService.assignTeacherToClassroom({
           teacherId: userData.id,
-          classroomId: selectedClassroomId,
-          isPrimary: false,
+          ...(isClassTeacher
+            ? { classroomId: selectedClassroomId }
+            : { classroomIds: selectedClassroomIds }),
+          isPrimary: isHeadTeacher,
         });
         setAssignMsg({
           type: "success",
           text: "Classroom assignment updated successfully.",
         });
 
-        const selected = allClassrooms.find((c) => c.id === selectedClassroomId);
-        if (selected) {
-          setKeptClassrooms([{ classroomId: selected.id, className: selected.name }]);
+        if (isClassTeacher) {
+          const selected = allClassrooms.find((c) => c.id === selectedClassroomId);
+          if (selected) {
+            setKeptClassrooms([{ classroomId: selected.id, className: selected.name }]);
+          }
+        } else {
+          const selected = allClassrooms.filter((c) => selectedClassroomIds.includes(c.id));
+          setKeptClassrooms(selected.map((c) => ({ classroomId: c.id, className: c.name })));
         }
       } catch (err: any) {
         setAssignMsg({
@@ -495,25 +505,68 @@ const TeacherEditProfile = () => {
                 <div className="px-5 py-5 space-y-3">
                   {isClassOrHeadTeacher && (
                     <div className="space-y-2">
-                      <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                        Select one classroom and save. This updates the active assignment.
-                      </p>
-                      <div>
-                        <Label className="text-sm font-medium text-chestnut">Classroom</Label>
-                        <select
-                          className="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-sm text-slate-700 bg-white"
-                          value={selectedClassroomId}
-                          onChange={(e) => setSelectedClassroomId(e.target.value)}
-                          disabled={loadingClassrooms}
-                        >
-                          <option value="">Select classroom</option>
-                          {allClassrooms.map((cls) => (
-                            <option key={cls.id} value={cls.id}>
-                              {cls.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      {isClassTeacher && (
+                        <>
+                          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                            Select one classroom for this class teacher.
+                          </p>
+                          <div>
+                            <Label className="text-sm font-medium text-chestnut">Classroom</Label>
+                            <select
+                              className="mt-1 h-10 w-full rounded-md border border-slate-200 px-3 text-sm text-slate-700 bg-white"
+                              value={selectedClassroomId}
+                              onChange={(e) => setSelectedClassroomId(e.target.value)}
+                              disabled={loadingClassrooms}
+                            >
+                              <option value="">Select classroom</option>
+                              {allClassrooms.map((cls) => (
+                                <option key={cls.id} value={cls.id}>
+                                  {cls.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </>
+                      )}
+
+                      {isHeadTeacher && (
+                        <>
+                          <p className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                            Select one or more classrooms for this head teacher.
+                          </p>
+                          <div>
+                            <Label className="text-sm font-medium text-chestnut">Classrooms</Label>
+                            {loadingClassrooms ? (
+                              <div className="mt-2 flex items-center gap-2 text-sm text-slate-400">
+                                <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                              </div>
+                            ) : (
+                              <div className="mt-2 space-y-1 max-h-52 overflow-y-auto rounded-lg border border-slate-200 p-2">
+                                {allClassrooms.map((cls) => (
+                                  <label
+                                    key={cls.id}
+                                    className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50 cursor-pointer"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedClassroomIds.includes(cls.id)}
+                                      onChange={(e) =>
+                                        setSelectedClassroomIds((prev) =>
+                                          e.target.checked
+                                            ? [...prev, cls.id]
+                                            : prev.filter((id) => id !== cls.id),
+                                        )
+                                      }
+                                      className="accent-chestnut"
+                                    />
+                                    <span className="text-sm text-slate-700">{cls.name}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
 

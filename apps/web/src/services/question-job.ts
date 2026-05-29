@@ -30,6 +30,10 @@ export interface JobSummaryDto {
   failureReason: string;
   createdAt: string;
   completedAt: string;
+  topicName?: string;
+  subTopicName?: string;
+  extractedCount?: number;
+  attemptCount?: number;
 }
 
 export interface JobListItem {
@@ -145,5 +149,9 @@ export const questionJobService = {
     const jobId = typeof arg === "string" ? arg : arg.jobId;
     return API.post<TResponse<unknown>>(`api/questionjob/${jobId}/retry`, {}, { headers });
   },
+
+  // POST api/questionjob/{jobId}/confirm
+  confirmJob: (jobId: string) =>
+    API.post<TResponse<unknown>>(`api/questionjob/${jobId}/confirm`, {}, { headers }),
 };
 
