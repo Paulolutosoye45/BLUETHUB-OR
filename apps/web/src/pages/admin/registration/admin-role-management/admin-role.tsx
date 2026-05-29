@@ -1,6 +1,13 @@
-import { EllipsisVertical, FilterIcon } from "lucide-react";
+import { EllipsisVertical, FilterIcon, Menu, Plus } from "lucide-react";
 import { useState } from "react";
 import AssignRoleDialog from "./admin-role-dialog";
+import { useOutletContext } from "react-router-dom";
+import {Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow} from '@bluethub/ui-kit'
 
 const BRAND = "#292382";
 
@@ -108,7 +115,7 @@ const admins: Admin[] = [
   },
 ];
 
-const Toggle= ({ checked, onChange }: { checked: boolean; onChange: () => void } ) => (
+const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
   <button
     onClick={onChange}
     className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0"
@@ -121,16 +128,16 @@ const Toggle= ({ checked, onChange }: { checked: boolean; onChange: () => void }
   </button>
 );
 
-const StatusBadge = ({ status }:  {status: AdminStatus }) => {
+const StatusBadge = ({ status }: { status: AdminStatus }) => {
   const styles: Record<AdminStatus, { bg: string; text: string }> = {
-    Active:  { bg: "#22c55e", text: "#fff" },
+    Active: { bg: "#22c55e", text: "#fff" },
     Pending: { bg: "#f59e0b", text: "#fff" },
     Blocked: { bg: "#ef4444", text: "#fff" },
   };
   const s = styles[status];
   return (
     <span
-      className="px-3 py-1 rounded-full text-xs font-semibold"
+      className="inline-flex items-center px-2.5 sm:px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
       style={{ backgroundColor: s.bg, color: s.text }}
     >
       {status}
@@ -158,7 +165,8 @@ const AvatarPhoto = ({ admin }: { admin: Admin }) => {
   );
 };
 
-const AdminRole= () => {
+const AdminRole = () => {
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<Admin[]>(admins);
 
@@ -183,152 +191,216 @@ const AdminRole= () => {
   };
 
   return (
-     <div className="p-6 font-poppins">
-      <div className="backdrop-blur-sm rounded-2xl border border-white/20  overflow-hidden">
+    <div className="lg:p-6 font-poppins">
+      <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20  overflow-hidden">
 
-      {/* ── Top Nav ───────────────────────────────────────────────── */}
-      <div
-        className="flex items-center justify-between px-5 h-14 sticky top-0 z-30 bg-chestnut"
-      >
-        <span className="text-white font-semibold  text-base">Admin Role Management</span>
-        <div className="flex items-center gap-3">
-          {/* Assign Role button */}
-          <button
-            className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/50 text-white text-sm font-semibold hover:bg-white/10 transition-colors"
-          >
-            Assign Role
-          </button>
-          {/* Three-dot */}
-          <EllipsisVertical className="text-white"/>
-        </div>
-      </div>
+        <div className="flex items-center justify-between px-4 sm:px-5 h-14 sticky top-0 z-30 bg-chestnut">
 
-      {/* ── Page Body ─────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 p-8 bg-white/70 backdrop-blur-sm">
-
-        {/* Search + Department filter row */}
-        <div className="flex items-center gap-3">
-          {/* Search */}
-          <div className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
-            <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search by Admin name, email, or role ID......."
-              className="flex-1 text-sm text-gray-600 placeholder-gray-400 outline-none bg-transparent"
+          {/* Left: hamburger + title */}
+          <div className="flex items-center gap-2 min-w-0">
+            <Menu
+              className="lg:hidden shrink-0 text-white cursor-pointer"
+              onClick={openMobileNav}
             />
+            <span className="text-white font-semibold text-sm sm:text-base truncate">
+              Admin Role Management
+            </span>
           </div>
 
-          {/* All Department button */}
-          <button
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold bg-chestnut shrink-0"
-          >
-            <FilterIcon className="size-4"/>
-            All Department
-          </button>
+          {/* Right: actions */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <button className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/50 text-white text-sm font-semibold hover:bg-white/10 transition-colors">
+              Assign Role
+            </button>
+            {/* Assign Role — icon only on mobile */}
+            <button className="sm:hidden flex items-center justify-center w-8 h-8 rounded-full border border-white/50 text-white hover:bg-white/10 transition-colors">
+              <Plus size={16} />
+            </button>
+            <EllipsisVertical className="text-white cursor-pointer shrink-0" />
+          </div>
+
         </div>
 
-        {/* Stats cards */}
-        <div className="grid grid-cols-3 gap-4">
-          {[
-            { label: "Total Admins", value: totalAdmins },
-            { label: "Active Role",  value: activeRole  },
-            { label: "Blocked User", value: blockedUser },
-          ].map(({ label, value }) => (
-            <div
-              key={label}
-              className="bg-white border border-gray-200 rounded-2xl px-5 py-4"
-            >
-              <p className="text-sm  font-medium text-gray-500 mb-2">{label}</p>
-              <p className="text-base  font-medium  text-chestnut">{value}</p>
+        {/* ── Page Body ─────────────────────────────────────────────── */}
+        <div className="flex flex-col gap-4  p-4 lg:p-8 bg-white/70 backdrop-blur-sm">
+
+          {/* Search + Department filter row */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+
+            {/* Search */}
+            <div className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
+              <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by name, email, or role ID..."
+                className="flex-1 text-sm text-gray-600 placeholder-gray-400 outline-none bg-transparent"
+              />
             </div>
-          ))}
-        </div>
 
-        {/* Table card */}
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            {/* All Department button */}
+            <button className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold bg-chestnut shrink-0">
+              <FilterIcon className="size-4" />
+              <span>All Department</span>
+            </button>
 
-          {/* Table header */}
-          <div
-            className="grid px-5 py-3"
-            style={{
-              backgroundColor: BRAND,
-              gridTemplateColumns: "220px 1fr 1fr 1fr 90px 90px 90px",
-            }}
-          >
-            <span className="text-white  font-medium text-sm">Name & Contact</span>
-            <span className="text-white font-medium text-sm">Role Label</span>
-            <span className="text-white font-medium text-sm" />
-            <span className="text-white font-medium text-sm" />
-            <span className="text-white font-medium text-sm" />
-            <span className="text-white font-medium text-sm" />
-            <span className="text-white font-medium text-sm" />
           </div>
 
-          {/* Watermark area wrapper */}
-          <div className="relative overflow-hidden">
+          {/* Stats cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+            {[
+              { label: "Total Admins", value: totalAdmins },
+              { label: "Active Role", value: activeRole },
+              { label: "Blocked User", value: blockedUser },
+            ].map(({ label, value }) => (
+              <div
+                key={label}
+                className="bg-white border border-gray-200 rounded-2xl px-4 sm:px-5 py-3 sm:py-4 flex sm:flex-col items-center sm:items-start justify-between sm:justify-start gap-2"
+              >
+                <p className="text-sm font-medium text-gray-500">{label}</p>
+                <p className="text-base font-medium text-chestnut">{value}</p>
+              </div>
+            ))}
+          </div>
 
-            {/* Table rows */}
-            <div className="relative z-10 divide-y divide-gray-200">
-              {filteredRows.map((admin) => (
-                <div
-                  key={admin.id}
-                  className="grid items-center px-5 py-3 hover:bg-gray-50/60 transition-colors"
-                  style={{
-                    gridTemplateColumns: "220px 1fr 1fr 1fr 90px 90px 90px",
-                  }}
-                >
-                  {/* Name & Contact */}
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <AvatarPhoto admin={admin} />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-blck-b2 capitalize truncate">{admin.name}</p>
-                      <p className="text-xs text-blck-b2 truncate">{admin.email}</p>
-                    </div>
-                  </div>
+          {/* Table card */}
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
 
-                  {/* Role */}
-                  <span className="text-sm font-medium text-blck-b2 capitalize">{admin.role}</span>
+            {/* ── md+ Table (shadcn) ── */}
+            <div className="hidden p-2 lg:p-0 md:block overflow-x-auto">
+              <Table>
+                <TableHeader style={{ backgroundColor: BRAND }}>
+                  <TableRow className="hover:bg-transparent border-none">
+                    <TableHead className="text-white font-medium text-sm w-[220px]">Name & Contact</TableHead>
+                    <TableHead className="text-white font-medium text-sm">Role</TableHead>
+                    <TableHead className="text-white font-medium text-sm">Role Label 1</TableHead>
+                    <TableHead className="text-white font-medium text-sm">Role Label 2</TableHead>
+                    <TableHead className="text-white font-medium text-sm w-[80px]" />
+                    <TableHead className="text-white font-medium text-sm w-[130px]" />
+                    <TableHead className="text-white font-medium text-sm w-[100px]" />
+                  </TableRow>
+                </TableHeader>
 
-                  {/* Role Label 1 */}
-                  <span className="text-sm font-medium text-blck-b2 capitalize">{admin.roleLabel1}</span>
+                <TableBody>
+                  {filteredRows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="py-12 text-center text-sm text-gray-400">
+                        No admins found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredRows.map((admin) => (
+                      <TableRow
+                        key={admin.id}
+                        className="hover:bg-gray-50/60 transition-colors border-gray-200"
+                      >
+                        {/* Name & Contact */}
+                        <TableCell>
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <AvatarPhoto admin={admin} />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-blck-b2 capitalize truncate">{admin.name}</p>
+                              <p className="text-xs text-blck-b2 truncate">{admin.email}</p>
+                            </div>
+                          </div>
+                        </TableCell>
 
-                  {/* Role Label 2 */}
-                  <span className="text-sm font-medium text-blck-b2 capitalize">{admin.roleLabel2}</span>
+                        {/* Role */}
+                        <TableCell>
+                          <span className="text-sm font-medium text-blck-b2 capitalize whitespace-nowrap">
+                            {admin.role}
+                          </span>
+                        </TableCell>
 
-                  {/* Toggle */}
-                  <div>
-                    <Toggle
-                      checked={admin.toggled}
-                      onChange={() => toggleRow(admin.id)}
-                    />
-                  </div>
+                        {/* Role Label 1 */}
+                        <TableCell>
+                          <span className="text-sm font-medium text-blck-b2 capitalize whitespace-nowrap">
+                            {admin.roleLabel1}
+                          </span>
+                        </TableCell>
 
-                  {/* Status badge */}
-                  <div>
-                    <StatusBadge status={admin.status} />
-                  </div>
+                        {/* Role Label 2 */}
+                        <TableCell>
+                          <span className="text-sm font-medium text-blck-b2 capitalize whitespace-nowrap">
+                            {admin.roleLabel2}
+                          </span>
+                        </TableCell>
 
-                  {/* Edit button */}
-                  <div>
-                   <AssignRoleDialog/>
-                  </div>
-                </div>
-              ))}
+                        {/* Toggle */}
+                        <TableCell>
+                          <Toggle checked={admin.toggled} onChange={() => toggleRow(admin.id)} />
+                        </TableCell>
 
+                        {/* Status */}
+                        <TableCell>
+                          <div className="w-fit">
+                            <StatusBadge status={admin.status} />
+                          </div>
+                        </TableCell>
+
+                        {/* Edit */}
+                        <TableCell>
+                          <AssignRoleDialog />
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            {/* ── Mobile cards (unchanged) ── */}
+            <div className="md:hidden divide-y divide-gray-200">
               {filteredRows.length === 0 && (
                 <div className="py-12 text-center">
                   <p className="text-sm text-gray-400">No admins found</p>
                 </div>
               )}
+              {filteredRows.map((admin) => (
+                <div key={admin.id} className="px-4 py-3 hover:bg-gray-50/60 transition-colors">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <AvatarPhoto admin={admin} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-blck-b2 capitalize truncate">{admin.name}</p>
+                        <p className="text-xs text-blck-b2 truncate">{admin.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Toggle checked={admin.toggled} onChange={() => toggleRow(admin.id)} />
+                      <AssignRoleDialog />
+                    </div>
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                    {admin.role && (
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md capitalize">
+                        {admin.role}
+                      </span>
+                    )}
+                    {admin.roleLabel1 && (
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md capitalize">
+                        {admin.roleLabel1}
+                      </span>
+                    )}
+                    {admin.roleLabel2 && (
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md capitalize">
+                        {admin.roleLabel2}
+                      </span>
+                    )}
+                    <div className="w-fit">
+                      <StatusBadge status={admin.status} />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
+
           </div>
         </div>
       </div>
-    </div>
     </div>
   );
 };

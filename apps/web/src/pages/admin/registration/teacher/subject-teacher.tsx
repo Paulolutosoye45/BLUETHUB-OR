@@ -188,7 +188,7 @@ const SubjectTeacher = () => {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
               <User className="w-5 h-5 text-white hidden lg:inline" />
-              <ChevronLeft className="w-5 h-5 text-white" onClick={() => navigate(-1)} />
+              <ChevronLeft className="w-5 h-5 text-white lg:hidden" onClick={() => navigate(-1)} />
             </div>
             <div>
               <h2 className="font-bold text-sm md:text-xl text-white">

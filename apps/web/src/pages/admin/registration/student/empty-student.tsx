@@ -11,7 +11,7 @@ const EmptyStudent = () => {
 
     const school = localData.retrieve("schoolInfo") as schoolInfo
     return (
-        <div className="md:p-6 p-3 font-poppins">
+        <div className="md:p-6  font-poppins">
             <div className="backdrop-blur-sm lg:rounded-2xl border border-white/70  overflow-hidden">
                 <div
                     className="flex items-center justify-between px-5 h-12 sticky top-0 z-30 bg-chestnut">
@@ -59,7 +59,7 @@ const EmptyStudent = () => {
 
                         {/* Welcome pill */}
                         <div
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-4 bg-chestnut/18">
+                            className="flex items-center gap-1.5 md:px-3 px-2 py-2 sm:py-1.5 rounded-full mb-4 bg-chestnut/18">
                             {/* Person icon */}
                             <svg className="w-3.5 h-3.5 shrink-0 text-chestnut" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5.33 0-8 2.67-8 4v1h16v-1c0-1.33-2.67-4-8-4z" />

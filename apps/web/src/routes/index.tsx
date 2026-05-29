@@ -228,10 +228,10 @@ const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: 
-                <TeacherProtectedRoute>
-                    <TeacherDashboard />
-                </TeacherProtectedRoute>
+                element:
+                    <TeacherProtectedRoute>
+                        <TeacherDashboard />
+                    </TeacherProtectedRoute>
             },
             { path: "resume-class", element: <ResumeClass /> },
             { path: "class-info", element: <ClassInfo /> },
