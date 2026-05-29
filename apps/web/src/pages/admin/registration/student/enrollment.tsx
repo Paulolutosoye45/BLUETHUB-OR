@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { EllipsisVertical, Camera, Plus, CircleAlert, CalendarIcon, Loader2, Info, LayoutGrid } from "lucide-react";
+import { EllipsisVertical, Camera, Plus, CircleAlert, CalendarIcon, Loader2, Info, LayoutGrid, Menu } from "lucide-react";
 import { format } from "date-fns"
 import { Calendar, Input, Label, Popover, PopoverContent, PopoverTrigger } from "@bluethub/ui-kit";
 import { cn } from "@/lib/utils";
@@ -7,6 +7,7 @@ import { type IcreateUserRequest } from "@/services/auth";
 
 
 const Enrollment = () => {
+      const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
     // const [fileName, setFileName] = useState<string | null>(null);
     // const [dragActive, setDragActive] = useState(false);
     const [classDialogOpen, setClassDialogOpen] = useState(false);
@@ -127,15 +128,16 @@ const Enrollment = () => {
 
     return (
         <>
-            <div className="p-6 font-poppins">
-                <div className="backdrop-blur-sm rounded-2xl border border-white/70  overflow-hidden">
+            <div className="lg:p-6 font-poppins">
+                <div className="backdrop-blur-sm lg:rounded-2xl border border-white/70  overflow-hidden">
                     <div
                         className="flex items-center justify-between px-5 h-12 sticky top-0 z-30 bg-chestnut">
                         <div className="flex items-center gap-2.5">
-                            <LayoutGrid className="w-5 h-5 text-white" />
+                            <LayoutGrid className="w-5 h-5 text-white lg:inline hidden" />
+                            <Menu className="lg:hidden text-white" onClick={openMobileNav} />
                             <span className="text-white font-semibold text-sm">Register Subject</span>
                         </div>
-                        <EllipsisVertical />
+                        <EllipsisVertical className="text-white" />
                     </div>
 
                     {successfully ? (
@@ -186,7 +188,7 @@ const Enrollment = () => {
                                 />
                             </div>
 
-                            <form onSubmit={handleSubmit(handleRegister)} className="w-[766px] mx-auto space-y-2.5 mt-[50px]">
+                            <form onSubmit={handleSubmit(handleRegister)} className="lg:w-[766px] mx-auto space-y-2.5 mt-[50px]">
 
                                 {errorMsg && (
                                     <div
@@ -198,7 +200,7 @@ const Enrollment = () => {
                                     </div>
                                 )}
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label className="text-chestnut text-sm font-semibold">First Name</Label>
                                         <Input {...register("firstName")} placeholder="student name " className="relative ring-2 ring-chestnut/40 w-full font-medium border-0 px-4 py-2 text-base rounded-md shadow-sm placeholder:text-chestnut text-chestnut placeholder:font-normal outline-none" />
@@ -222,7 +224,7 @@ const Enrollment = () => {
                                     )}
                                 </div>
 
-                                <div className="grid grid-cols-2 items-center gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-4">
                                     <div className="space-y-2">
                                         <Label className="text-chestnut text-sm font-semibold">Username</Label>
                                         <Input readOnly
@@ -291,7 +293,7 @@ const Enrollment = () => {
                                     <button
                                         type="submit"
                                         disabled={loading}
-                                        className="flex items-center justify-center gap-2 text-white font-semibold text-sm px-8 py-3 rounded-md transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed mb-3 bg-chestnut"
+                                        className="flex items-center justify-center w-full md:w-auto gap-2 text-white font-semibold text-sm px-8 py-3 rounded-md transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed mb-3 bg-chestnut"
                                     >
                                         {loading ? (
                                             <>
@@ -338,7 +340,7 @@ export default Enrollment;
 
 import { motion } from "framer-motion";
 import ClassDialog from "./class-dialog";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { Controller, useForm, type Resolver } from "react-hook-form";
 import { studentFormSchema, UserRole, type StudentFormValues } from "@/utils/validate";

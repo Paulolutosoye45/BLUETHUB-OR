@@ -344,7 +344,7 @@ const TeacherEditProfile = () => {
       <div className="max-w-3xl mx-auto space-y-5">
         {/* header */}
         <div className="rounded-2xl bg-chestnut px-6 py-4 text-white">
-          <h1 className="text-lg sm:text-xl font-semibold">{pageTitle}</h1>
+          <h1 className="text-xs   sm:text-xl font-semibold">{pageTitle}</h1>
           <p className="mt-0.5 text-xs sm:text-sm text-white/80">
             Update profile details or manage assignments below.
           </p>
