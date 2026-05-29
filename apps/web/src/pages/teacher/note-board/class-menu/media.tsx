@@ -6,7 +6,7 @@ import { onSetAction, setSelectedImage } from "@/store/class-action-slice";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, useRef, useState } from "react";
 import type { IActiveMedia, IMedia } from '@/utils/constant';
-import { fetchImageAsBlob } from '@/utils/blob';
+import { fetchImageAsBlob, fetchMediaWithAuthFallback } from '@/utils/blob';
 import { deleteImage, getImage, getImageSourceUrl } from '@/services/class-media';
 import type { RootState } from '@/store';
 import { useGlobalTimer } from '@/hooks/useGlobalTimer';
@@ -100,7 +100,7 @@ const Media = () => {
                   const cache = await caches.open(LESSON_MEDIA_CACHE);
                   const existing = await cache.match(media.url);
                   if (!existing) {
-                    const response = await fetch(media.url, { mode: "cors" });
+                    const response = await fetchMediaWithAuthFallback(media.url);
                     if (response.ok) {
                       await cache.put(media.url, response.clone());
                     }
@@ -135,7 +135,7 @@ const Media = () => {
                     const cache = await caches.open(LESSON_MEDIA_CACHE);
                     let response = await cache.match(media.url);
                     if (!response) {
-                      const fetched = await fetch(media.url, { mode: "cors" });
+                      const fetched = await fetchMediaWithAuthFallback(media.url);
                       if (fetched.ok) {
                         await cache.put(media.url, fetched.clone());
                         response = fetched;

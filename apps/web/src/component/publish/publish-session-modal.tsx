@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Upload, Pause, Play, AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { useSyncContext, useSyncStatus } from '@/contexts/sync-context';
-import { lessonService } from '@/services/lesson';
+import { lessonService, LessonMediaType } from '@/services/lesson';
 
 interface PublishSessionModalProps {
   sessionId: string;
@@ -41,7 +41,7 @@ export function PublishSessionModal({
 
     setLoadingSignature(true);
     try {
-      const signatureRes = await lessonService.getUploadSignature();
+      const signatureRes = await lessonService.getUploadSignature(LessonMediaType.Audio);
       if (!signatureRes.data.data) {
         throw new Error('Failed to get upload signature');
       }

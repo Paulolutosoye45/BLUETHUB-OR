@@ -5,11 +5,13 @@ import type { IActions, CompressedStroke, SessionManifest } from "@/utils/consta
 import { X_Tenant_ID } from "@/utils/tenant";
 
 export interface CloudinarySignature {
+  resourceType: string;
   signature: string;
   apiKey: string;
   cloudName: string;
   timestamp: number;
   folder: string;
+  uploadPreset?: string | null;
 }
 
 // Matches C# enum: Audio=1, Video=2, Document=3, Image=4
@@ -19,6 +21,7 @@ export const LessonMediaType = {
   Document: 3,
   Image: 4,
 } as const;
+export type LessonMediaTypeValue = typeof LessonMediaType[keyof typeof LessonMediaType];
 
 export function resolveMediaType(mimeType: string): number {
   if (mimeType.startsWith("audio/")) return LessonMediaType.Audio;
@@ -273,9 +276,10 @@ export const lessonService = {
       { headers: { "X-Tenant-ID": X_Tenant_ID } }
     ),
 
-  getUploadSignature: () =>
+  getUploadSignature: (mediaType: LessonMediaTypeValue) =>
     API.get<TResponse<CloudinarySignature>>("api/lessons/upload-signature", {
       headers: { "X-Tenant-ID": X_Tenant_ID },
+      params: { mediaType },
     }),
 
   submitLesson: (payload: SubmitLessonPayload) =>
