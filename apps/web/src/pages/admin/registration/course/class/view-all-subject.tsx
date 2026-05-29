@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
-import { EllipsisVertical, LayoutGrid, PlusIcon } from "lucide-react";
-import { Button , Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from "@bluethub/ui-kit";
-import { useNavigate } from "react-router-dom";
+import { EllipsisVertical, LayoutGrid, Menu, PlusIcon } from "lucide-react";
+import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@bluethub/ui-kit";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import EditSubjectModal from "./edit-subject-modal";
 import { AxiosError } from "axios";
 import { schoolService } from "@/services/school";
 import type { Subject } from "../main";
+import { localData } from "@/utils";
+import type { SchoolInfo } from "@/services";
 
 
 export type SchoolLevel = "Primary" | "JSS" | "SSS" | "All Levels";
@@ -22,11 +24,13 @@ export const levelBadge: Record<SchoolLevel, { bg: string; text: string }> = {
 export type FilterTab = "All" | "Primary" | "JSS" | "SSS";
 
 const ViewAllSubject = () => {
-    const navigate = useNavigate()
+    const navigate = useNavigate();
+    const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
+    const schoolInfo = localData.retrieve("schoolInfo") as SchoolInfo | null;
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<FilterTab>("All");
     const [subjects, setSubjects] = useState<Subject[]>([]);
-    const [, setLoading] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [, setErrorMsg] = useState("");
 
     const totalSubjects = subjects.length;
@@ -70,15 +74,16 @@ const ViewAllSubject = () => {
 
 
     return (
-        <div className="p-6 font-poppins">
-            <div className="backdrop-blur-sm rounded-2xl border border-white/20  overflow-hidden">
+        <div className="lg:p-6 font-poppins">
+            <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20  overflow-hidden">
 
                 {/* ── Top Nav ──────────────────────────────────────────────────── */}
                 <div
                     className="flex items-center justify-between px-4 py-5 sticky top-0 z-30 bg-chestnut"
                 >
                     <div className="flex items-center gap-2.5">
-                        <LayoutGrid className="w-6 h-6 text-white" />
+                        <LayoutGrid className="w-6 h-6 text-white hidden lg:inline-flex" />
+                        <Menu className="lg:hidden text-white" onClick={openMobileNav} />
                         <span className="text-white font-semibold text-sm">View All Subject</span>
                     </div>
                     <button className="text-white">
@@ -87,22 +92,22 @@ const ViewAllSubject = () => {
                 </div>
 
                 {/* ── White card ───────────────────────────────────────────────── */}
-                <div className="flex-1 p-8 bg-white/70 backdrop-blur-sm">
-                    <div className="space-7-20">
+                <div className="flex-1 lg:p-8 p-4 bg-white/70 backdrop-blur-sm">
+                    <div className="space-y-20">
 
                         {/* Page header row */}
                         <div className="flex items-start justify-between mb-4">
                             <div>
-                                <h1 className="text-xl font-bold text-blck-b2 leading-tight">
+                                <h1 className="sm:text-xl text-base font-medium  lg:font-bold text-blck-b2 leading-tight">
                                     Subject Registry
                                 </h1>
-                                <p className="text-sm text-[#A0A8C0]  mt-0.5">
-                                    All subjects registered to Greenfield College — Primary to Secondary
+                                <p className="text-xs sm:text-sm text-[#A0A8C0]  mt-0.5">
+                                    All subjects registered to {schoolInfo?.schoolName || "Your School"} — Primary to Secondary
                                 </p>
                             </div>
                             <Button
                                 onClick={() => navigate('/admin/registration/courses/new')}
-                                className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white text-xs font-semibold  bg-chestnut shrink-0 transition-opacity hover:opacity-90"
+                                className="flex items-center gap-1.5 px-3.5 py-2 rounded-md text-white text-xs font-semibold  bg-chestnut shrink-0 transition-opacity hover:opacity-90"
                             >
                                 <PlusIcon />
                                 Add Subject
@@ -110,11 +115,11 @@ const ViewAllSubject = () => {
                         </div>
 
                         {/* Stats row */}
-                        <div className="grid grid-cols-3 gap-3 mb-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                             {[
                                 {
                                     icon: (
-                                        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-5 h-5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                                 d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                                         </svg>
@@ -124,7 +129,7 @@ const ViewAllSubject = () => {
                                 },
                                 {
                                     icon: (
-                                        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-5 h-5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                                         </svg>
@@ -134,7 +139,7 @@ const ViewAllSubject = () => {
                                 },
                                 {
                                     icon: (
-                                        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-5 h-5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                                 d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                                         </svg>
@@ -148,16 +153,18 @@ const ViewAllSubject = () => {
                                     className="flex items-center gap-3 bg-gray-50 border border-[#E2E5F0] rounded-xl px-4 py-3"
                                 >
                                     {icon}
-                                    <div>
+                                    <div className="min-w-0">
                                         <p className="text-xl font-bold text-[#12122A] leading-none">{value}</p>
-                                        <p className="text-sm text-[#3A3A3ABF] mt-0.5">{label}</p>
+                                        <p className="text-xs sm:text-sm text-[#3A3A3ABF] mt-0.5 truncate">{label}</p>
                                     </div>
                                 </div>
                             ))}
                         </div>
 
                         {/* Search + filter tabs */}
-                        <div className="flex items-center gap-3 mb-3">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mb-3">
+
+                            {/* Search */}
                             <div className="flex-1 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                                 <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -177,7 +184,7 @@ const ViewAllSubject = () => {
                                     <button
                                         key={tab}
                                         onClick={() => setFilter(tab)}
-                                        className="px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all"
+                                        className="flex-1 sm:flex-none px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all whitespace-nowrap"
                                         style={{
                                             backgroundColor: filter === tab ? "#292382" : "transparent",
                                             color: filter === tab ? "#fff" : "#6b7280",
@@ -187,9 +194,10 @@ const ViewAllSubject = () => {
                                     </button>
                                 ))}
                             </div>
+
                         </div>
 
-                        <div className="border border-gray-200 rounded-xl overflow-hidden">
+                        <div className="border border-gray-200 rounded-md md:rounded-xl overflow-hidden">
                             <Table>
                                 <TableHeader>
                                     <TableRow className="bg-gray-50/70 hover:bg-gray-50/70">
@@ -201,7 +209,25 @@ const ViewAllSubject = () => {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {visible.length === 0 ? (
+                                    {loading ? (
+                                        <>
+                                            {[...Array(5)].map((_, i) => (
+                                                <TableRow key={i}>
+                                                    {[...Array(5)].map((_, j) => (
+                                                        <TableCell key={j}>
+                                                            <div
+                                                                className="h-4 rounded bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]"
+                                                                style={{
+                                                                    width: j === 0 ? "40%" : j === 4 ? "60%" : "75%",
+                                                                    animationDelay: `${i * 80}ms`,
+                                                                }}
+                                                            />
+                                                        </TableCell>
+                                                    ))}
+                                                </TableRow>
+                                            ))}
+                                        </>
+                                    ) : visible.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={5} className="py-10 text-center text-xs text-gray-400">
                                                 No subjects found
@@ -241,7 +267,7 @@ const ViewAllSubject = () => {
                                                         </div>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <EditSubjectModal  />
+                                                        <EditSubjectModal />
                                                     </TableCell>
                                                 </TableRow>
                                             );

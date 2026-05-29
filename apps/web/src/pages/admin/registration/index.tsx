@@ -10,9 +10,11 @@ import {
   type AdminPermissionDto,
 } from "@/services/admin-permissions";
 import { useAuthContext } from "@/contexts/auth-context";
+import { useOutletContext } from "react-router-dom";
 
 const RegistrationAdmin = () => {
   const { user, isLoading: authLoading } = useAuthContext();
+    const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
 
   const [permissions, setPermissions] = useState<AdminPermissionDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -135,7 +137,7 @@ const RegistrationAdmin = () => {
   return (
     <div className="p-3 sm:p-5 lg:p-7 font-poppins">
       <div className="lg:rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
-        <TitleBar title="Admin Permissions" hasVertical />
+        <TitleBar title="Admin Permissions" hasVertical hasMenu={() => openMobileNav()} />
 
         <div className="p-3 sm:p-5 lg:p-7 space-y-5">
           {/* Header */}

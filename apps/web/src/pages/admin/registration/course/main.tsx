@@ -49,79 +49,63 @@ const CoursesMain = () => {
     fetchSubjects();
   }, []);
 
-  if (loading) return (
-    <div className="animate-shimmer p-6">
-        {/* Top bar skeleton */}
-        <div className="bg-chestnut px-5 py-3 flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-                <div className="w-5 h-5 bg-white/20 rounded" />
-                <div className="h-4 w-32 bg-white/20 rounded-md" />
-            </div>
-            <div className="w-5 h-5 bg-white/20 rounded" />
-        </div>
-
-        <div className="p-6 space-y-6 bg-student-chestnut">
-            {/* Title + button */}
-            <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                    <div className="h-6 w-44 bg-gray-200 rounded-md" />
-                    <div className="h-3 w-72 bg-gray-100 rounded-md" />
-                </div>
-                <div className="h-9 w-32 bg-gray-200 rounded-lg" />
-            </div>
-
-            {/* Stat cards */}
-            <div className="grid grid-cols-3 gap-4">
-                {[...Array(3)].map((_, i) => (
-                    <div key={i} className="border border-gray-100 rounded-xl p-4 flex items-center gap-3">
-                        <div className="w-8 h-8 bg-gray-100 rounded-lg shrink-0" />
-                        <div className="space-y-1.5">
-                            <div className="h-5 w-8 bg-gray-200 rounded" />
-                            <div className="h-3 w-24 bg-gray-100 rounded" />
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* Search + filter */}
-            <div className="flex items-center gap-3">
-                <div className="flex-1 h-10 bg-gray-100 rounded-lg" />
-                <div className="flex gap-2">
-                    {[...Array(4)].map((_, i) => (
-                        <div key={i} className="h-8 w-14 bg-gray-100 rounded-lg" />
-                    ))}
-                </div>
-            </div>
-
-            {/* Table header */}
-            <div className="border border-gray-100 rounded-xl overflow-hidden">
-                <div className="grid grid-cols-4 px-5 py-3 bg-gray-50 gap-4">
-                    {["w-4", "w-32", "w-20", "w-16"].map((w, i) => (
-                        <div key={i} className={`h-3 ${w} bg-gray-200 rounded`} />
-                    ))}
-                </div>
-
-                {/* Table rows */}
-                <div className="divide-y divide-gray-50">
-                    {[...Array(8)].map((_, i) => (
-                        <div
-                            key={i}
-                            className="grid grid-cols-4 px-5 py-4 gap-4 items-center"
-                            style={{ opacity: 1 - i * 0.08 }} // fade out towards bottom
-                        >
-                            <div className="h-3 w-5 bg-gray-100 rounded" />
-                            <div className="h-3.5 w-36 bg-gray-200 rounded" />
-                            <div className="h-6 w-16 bg-green-50 rounded-full" />
-                            <div className="flex items-center justify-between">
-                                <div className="h-3 w-14 bg-gray-100 rounded" />
-                                <div className="h-7 w-12 bg-gray-200 rounded-lg" />
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-        </div>
+ if (loading) return (
+  <div className="p-6 space-y-6">
+    {/* Header */}
+    <div className="flex items-center justify-between">
+      <div className="h-7 w-44 rounded-md bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]" />
+      <div className="h-9 w-36 rounded-lg bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]" />
     </div>
+
+    {/* Two column layout */}
+    <div className="flex gap-6">
+
+      {/* Major subjects column */}
+      <div className="flex-1 space-y-3">
+        {/* Column label */}
+        <div className="h-8 w-24 rounded-lg bg-gradient-to-r from-chestnut/20 via-chestnut/10 to-chestnut/20 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]" />
+
+        {/* Subject rows with staggered widths — feels like real text */}
+        {[88, 72, 95, 65, 80].map((w, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 px-3 py-2 rounded-md bg-gray-50 border border-gray-100"
+            style={{ animationDelay: `${i * 80}ms` }}
+          >
+            {/* Icon placeholder */}
+            <div className="h-5 w-5 rounded-full shrink-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]" />
+            {/* Text placeholder — varying widths look natural */}
+            <div
+              className="h-4 rounded bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]"
+              style={{ width: `${w}%` }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Divider */}
+      <div className="w-px bg-gray-200 self-stretch rounded-full" />
+
+      {/* Minor subjects column */}
+      <div className="flex-1 space-y-3">
+        <div className="h-8 w-24 rounded-lg bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]" />
+
+        {[75, 90, 60, 85, 70].map((w, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 px-3 py-2 rounded-md bg-gray-50 border border-gray-100"
+            style={{ animationDelay: `${i * 80 + 40}ms` }}
+          >
+            <div className="h-5 w-5 rounded-full shrink-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]" />
+            <div
+              className="h-4 rounded bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]"
+              style={{ width: `${w}%` }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
 );
 
   if (errorMsg) return (

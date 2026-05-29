@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import EmptyStudent from "./empty-student";
 
 const Student = () => {
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
   // const [subjects, setSubjects] = useState<any[]>([]);
   const [, setErrorMsg] = useState("");
 
@@ -33,36 +33,63 @@ const Student = () => {
   }, []);
 
   if (loading) return (
-    <div className="p-6 space-y-6 animate-pulse">
-      {/* Header skeleton */}
-      <div className="flex items-center justify-between">
-        <div className="h-7 w-40 bg-gray-200 rounded-md" />
-        <div className="h-9 w-32 bg-gray-200 rounded-lg" />
+  <div className="p-6 space-y-6">
+    {/* Header */}
+    <div className="flex items-center justify-between">
+      <div className="h-7 w-44 rounded-md bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]" />
+      <div className="h-9 w-36 rounded-lg bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]" />
+    </div>
+
+    {/* Two column layout */}
+    <div className="flex gap-6">
+
+      {/* Major subjects column */}
+      <div className="flex-1 space-y-3">
+        {/* Column label */}
+        <div className="h-8 w-24 rounded-lg bg-gradient-to-r from-chestnut/20 via-chestnut/10 to-chestnut/20 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]" />
+
+        {/* Subject rows with staggered widths — feels like real text */}
+        {[88, 72, 95, 65, 80].map((w, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 px-3 py-2 rounded-md bg-gray-50 border border-gray-100"
+            style={{ animationDelay: `${i * 80}ms` }}
+          >
+            {/* Icon placeholder */}
+            <div className="h-5 w-5 rounded-full shrink-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]" />
+            {/* Text placeholder — varying widths look natural */}
+            <div
+              className="h-4 rounded bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]"
+              style={{ width: `${w}%` }}
+            />
+          </div>
+        ))}
       </div>
 
-      {/* Two column subject list skeleton */}
-      <div className="flex gap-6">
-        {/* Major column */}
-        <div className="flex-1 space-y-3">
-          <div className="h-8 w-28 bg-chestnut/20 rounded-lg" />
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-9 w-full bg-gray-100 rounded-md" />
-          ))}
-        </div>
+      {/* Divider */}
+      <div className="w-px bg-gray-200 self-stretch rounded-full" />
 
-        {/* Divider */}
-        <div className="w-1 bg-gray-200 self-stretch rounded-full" />
+      {/* Minor subjects column */}
+      <div className="flex-1 space-y-3">
+        <div className="h-8 w-24 rounded-lg bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]" />
 
-        {/* Minor column */}
-        <div className="flex-1 space-y-3">
-          <div className="h-8 w-28 bg-gray-200 rounded-lg" />
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="h-9 w-full bg-gray-100 rounded-md" />
-          ))}
-        </div>
+        {[75, 90, 60, 85, 70].map((w, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 px-3 py-2 rounded-md bg-gray-50 border border-gray-100"
+            style={{ animationDelay: `${i * 80 + 40}ms` }}
+          >
+            <div className="h-5 w-5 rounded-full shrink-0 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]" />
+            <div
+              className="h-4 rounded bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]"
+              style={{ width: `${w}%` }}
+            />
+          </div>
+        ))}
       </div>
     </div>
-  );
+  </div>
+);
 
   // if (errorMsg) return (
   //   <div className="flex flex-col min-h-screen items-center justify-center py-16 px-6 text-center space-y-4">
