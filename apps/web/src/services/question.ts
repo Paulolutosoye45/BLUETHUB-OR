@@ -1,7 +1,5 @@
 import { API, type TResponse } from ".";
-
-
-import { X_Tenant_ID } from "@/utils/tenant";
+import { X_Tenant_ID } from "./school";
 
 export const QuestionTypeEnum = {
   MultipleChoice: 1,
@@ -21,19 +19,21 @@ export const DifficultyLevelEnum = {
   Expert: 4,
 } as const;
 
-export const QuestionStatusEnum =  {
-  Draft : 1,
-  Published : 2,
-  PendingReview : 3,
-  Archived : 4,
-} as const
+export const QuestionStatusEnum = {
+  Draft: 1,
+  Published: 2,
+  PendingReview: 3,
+  Archived: 4,
+} as const;
+export type QuestionStatusEnum = (typeof QuestionStatusEnum)[keyof typeof QuestionStatusEnum];
 
-export type ConflictResolutionEnum =  {
-  KeepLocal : 1,
-  KeepServer : 2,
-  KeepMerged : 3,
-  DiscardLocal : 4,
-} 
+export const ConflictResolutionEnum = {
+  KeepLocal: 1,
+  KeepServer: 2,
+  KeepMerged: 3,
+  DiscardLocal: 4,
+} as const;
+export type ConflictResolutionEnum = (typeof ConflictResolutionEnum)[keyof typeof ConflictResolutionEnum];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PAYLOADS (Request DTOs)
@@ -89,24 +89,6 @@ export interface UpdateQuestionPayload {
 export interface QuestionFilterPayload {
   page?: number;
   pageSize?: number;
-  classroomId?: string;
-  subjectId?: string;
-  topicId?: string;
-  subTopicId?: string;
-  questionType?: number;
-  difficultyLevel?: number;
-  status?: number;
-  searchText?: string;
-  includePendingReview?: boolean;
-  scanSessionId?: string;
-}
-
-export interface QuestionFilterPayloadV2 {
-  page?: number;
-  pageSize?: number;
-  subjectId?: string;
-  topicId?: string;
-  subTopicIds?: string[];
   questionType?: number;
   difficultyLevel?: number;
   status?: number;
@@ -227,7 +209,6 @@ export interface QuestionSummaryDto {
   topic?: string;
   topicName?: string;
   subTopicName?: string;
-  className?: string | null;
   subjectName?: string;
   questionType: number;
   questionTypeName?: string;
@@ -255,25 +236,7 @@ export interface QuestionListResponseData {
   hasMore: boolean;
 }
 
-export interface StatusSummaryDto {
-  draft: number;
-  published: number;
-  pendingReview: number;
-}
-
-export interface DifficultyBreakdownDto {
-  difficultyLevel: number;
-  difficultyLevelName: string;
-  questionCount: number;
-}
-
-export interface TypeBreakdownDto {
-  questionType: number;
-  questionTypeName: string;
-  questionCount: number;
-}
-
-export interface SubTopicSummaryDto {
+export interface SubTopicSummary {
   subTopicId: string;
   subTopicName: string;
   questionCount: number;
@@ -282,21 +245,27 @@ export interface SubTopicSummaryDto {
   pendingReviewCount: number;
 }
 
-export interface TopicSummaryDto {
+export interface TopicSummary {
   topicId: string;
   topicName: string;
   questionCount: number;
-  subTopics: SubTopicSummaryDto[];
+  subTopics: SubTopicSummary[];
 }
 
 export interface SubjectQuestionSummaryResponseData {
-  classroomId: string;
   subjectId: string;
+  subjectName?: string;
+  totalCount: number;
   totalQuestions: number;
-  statusSummary: StatusSummaryDto;
-  difficultyBreakdown: DifficultyBreakdownDto[];
-  typeBreakdown: TypeBreakdownDto[];
-  topics: TopicSummaryDto[];
+  statusSummary?: {
+    published: number;
+    draft: number;
+    pendingReview: number;
+    archived: number;
+  };
+  topics: TopicSummary[];
+  difficultyBreakdown?: { difficultyLevel: number; difficultyLevelName: string; questionCount: number }[];
+  typeBreakdown?: { questionType: number; questionTypeName: string; questionCount: number }[];
 }
 
 export interface PendingReviewResponseData {
@@ -340,35 +309,37 @@ export interface ConflictCheckResponseData {
 // SERVICE
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// const headers = { "X-Tenant-ID": X_Tenant_ID };dd
-
 export const questionService = {
   // ── CREATE ─────────────────────────────────────────────────────────────────
   createQuestion: (payload: CreateQuestionPayload) =>
     API.post<TResponse<CreateQuestionResponseData>>(
-      "https://techhubschmanagement.onrender.com/api/Questions/createquestions",
+      "api/Question/createquestions",
       payload,
       {
         headers: { "X-Tenant-ID": X_Tenant_ID },
       },
     ),
 
-  // ── PUBLISH ───────────────────────────────────────────────────────────────
-  publishQuestion: (questionId: string) =>
-    API.post<TResponse<unknown>>(
-      `api/questions/${questionId}/publish`,
-      {},
+  // ── QUERY ──────────────────────────────────────────────────────────────────
+  getQuestionsByClassroom: (
+    classroomId: string,
+    filter?: {
+      page?: number;
+      pageSize?: number;
+      subjectId?: string;
+      topicId?: string;
+      subTopicIds?: string[];
+      status?: number;
+      searchText?: string;
+    },
+  ) =>
+    API.get<TResponse<QuestionListResponseData>>(
+      `api/Question/classroom/${classroomId}/questions`,
       {
+        params: filter,
         headers: { "X-Tenant-ID": X_Tenant_ID },
       },
     ),
-
-  // ── LIST ─────────────────────────────────────────────────────────────────
-  getQuestions: (params: QuestionFilterPayload) =>
-    API.get<TResponse<QuestionListResponseData>>("api/questions", {
-      params,
-      headers: { "X-Tenant-ID": X_Tenant_ID },
-    }),
 
   getSubjectQuestionSummary: (
     classroomId: string,
@@ -376,18 +347,9 @@ export const questionService = {
     subTopicId?: string,
   ) =>
     API.get<TResponse<SubjectQuestionSummaryResponseData>>(
-      `api/questions/classroom/${classroomId}/subject/${subjectId}/summary`,
+      `api/Question/classroom/${classroomId}/subject/${subjectId}/summary`,
       {
         params: subTopicId ? { subTopicId } : undefined,
-        headers: { "X-Tenant-ID": X_Tenant_ID },
-      },
-    ),
-
-  getQuestionsByClassroom: (classroomId: string, payload: QuestionFilterPayloadV2) =>
-    API.post<TResponse<QuestionListResponseData>>(
-      `api/questions/classroom/${classroomId}/questions`,
-      payload,
-      {
         headers: { "X-Tenant-ID": X_Tenant_ID },
       },
     ),

@@ -29,6 +29,7 @@ import Teacherlayout from '@/pages/admin/registration/teacher/layout';
 import TeacherMain from '@/pages/admin/registration/teacher/main';
 import SubjectTeacher from '@/pages/admin/registration/teacher/subject-teacher';
 import HeadTeacher from '@/pages/admin/registration/teacher/head-teacher';
+import TeacherEditProfile from '@/pages/admin/registration/teacher/edit-profile';
 import EmailModal from '@/pages/admin/registration/teacher/email-modal';
 import ClassRegistration from '@/pages/admin/registration/course/class/class-registration';
 import StudentsLayout from '@/layouts/student';
@@ -54,6 +55,7 @@ import StudentProtectedRoute from '@/component/protected-routes/student-routes';
 import UploadScan from '@/pages/teacher/component/upload-scan';
 import ReviewQuestion from '@/pages/teacher/component/review-question';
 import MyUploads from '@/pages/teacher/component/my-uploads';
+import RegistrationAdmin from '@/pages/admin/registration';
 import AdminRole from '@/pages/admin/registration/admin-role-management/admin-role';
 import ViewAllSubject from '@/pages/admin/registration/course/class/view-all-subject';
 import RegisterTeacherRole from '@/pages/admin/registration/teacher/assign-role';
@@ -165,6 +167,10 @@ const router = createBrowserRouter([
                         element: <AdminRole />
                     },
                     {
+                        path: 'admin-permissions',
+                        element: <RegistrationAdmin />
+                    },
+                    {
                         path: "courses",
                         element: <CoursesMain />,
                     },
@@ -185,7 +191,11 @@ const router = createBrowserRouter([
                         children: [
                             { index: true, element: <TeacherMain /> },
                             { path: "teacher", element: <SubjectTeacher /> },
+                            { path: "class-teacher", element: <SubjectTeacher /> },
+                            { path: "admin-user", element: <SubjectTeacher /> },
                             { path: "head-teacher", element: <HeadTeacher /> },
+                            { path: ":rolePath/edit", element: <TeacherEditProfile /> },
+                            { path: "admin", element: <AdminRole /> },
                             {
                                 path: "email-verification",
                                 element: <EmailModal />,
