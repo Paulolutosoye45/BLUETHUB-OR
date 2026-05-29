@@ -328,7 +328,7 @@ const CreateSyllabus = () => {
 
     const addTopic = () => setTopics(prev => [
         ...prev,
-        { id: String(Date.now()), name: "", subTopics: [], isExisting: false, existingSubTopics: [] },
+        { id: crypto.randomUUID(), name: "", subTopics: [], isExisting: false, existingSubTopics: [] },
     ]);
 
     const updateTopicName = (idx: number, name: string) =>
@@ -355,7 +355,7 @@ const CreateSyllabus = () => {
             return;
         }
 
-        const existingWithNew = topics.filter(t => t.isExisting && t.subTopics.length > 0);
+        const existingWithNew = topics.filter(t => !t.isExisting && t.subTopics.length > 0);
         const newTopics = topics.filter(t => !t.isExisting && t.name.trim());
 
         if (existingWithNew.length === 0 && newTopics.length === 0) {
@@ -369,7 +369,7 @@ const CreateSyllabus = () => {
 
             for (const t of existingWithNew) {
                 ops.push(
-                    schoolService.addSubTopicsToTopic(t.existingTopicId!, t.subTopics)
+                    schoolService.addSubTopicsToTopic(t.id, t.subTopics)
                 );
             }
 
@@ -399,6 +399,9 @@ const CreateSyllabus = () => {
         }
     };
 
+
+    console.log("Rendered with topics:", topics);
+    console.log("Rendered with selected class:", selectedClass);
     const totalExistingSubTopics = topics.reduce((s, t) => s + t.existingSubTopics.length, 0);
     const totalNewSubTopics = topics.reduce((s, t) => s + t.subTopics.length, 0);
     const newTopicsCount = topics.filter(t => !t.isExisting).length;
@@ -406,7 +409,7 @@ const CreateSyllabus = () => {
 
     const canSubmit = !!selectedClass && !!selectedSubject && !loadingCurriculum && (
         topics.some(t => !t.isExisting && t.name.trim()) ||
-        topics.some(t => t.isExisting && t.subTopics.length > 0)
+        topics.some(t => !t.isExisting && t.subTopics.length > 0)
     );
 
     return (

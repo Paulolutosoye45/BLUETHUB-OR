@@ -33,9 +33,9 @@ const Time = () => {
   return (
     <div className="flex items-center gap-4">
       {/* Elapsed Time */}
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200">
+      <div className=" hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-200">
         <Timer className="w-4 h-4 text-blue-600" />
-        <div className="flex flex-col">
+        <div className="flex flex-col ">
           <span className="text-[10px] font-medium text-blue-400 uppercase tracking-wide leading-none">
             Elapsed
           </span>

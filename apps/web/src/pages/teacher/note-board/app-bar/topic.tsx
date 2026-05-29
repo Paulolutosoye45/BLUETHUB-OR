@@ -86,7 +86,7 @@ const Topic = () => {
   );
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-col md:flex-row md:items-center gap-4">
       {/* Subject & Class Badge */}
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
@@ -100,11 +100,11 @@ const Topic = () => {
       </div>
 
       {/* Topic & Subtopic */}
-      <div className="flex items-center gap-2">
+      <div className="flex  items-center gap-2">
         <div className="w-px h-6 bg-gray-200" />
-        <div className="flex flex-col">
-          <h2 className="font-poppins font-semibold text-base text-gray-800 max-w-xs truncate leading-tight">
-            {topic}
+        <div className="flex flex-col truncate leading-tight">
+          <h2 className="font-poppins font-semibold text-sm md:text-base text-gray-800 max-w-xs truncate leading-tight">
+            {topic} 
           </h2>
           {subTopic && (
             <span className="text-xs text-gray-500 max-w-xs truncate leading-tight">

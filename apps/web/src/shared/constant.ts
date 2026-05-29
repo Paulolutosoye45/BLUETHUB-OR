@@ -10,7 +10,7 @@ import AssignmentIcon from "@/assets/svg/assignment.svg";
 import registrationIcon from "@/assets/svg/registration.svg";
 import libraryIcon from "@/assets/svg/library.svg";
 // import teacherIcon from "@/assets/svg/teacher.svg";
-import MonitorPlayIcon from "@/assets/svg/monitor_play.svg";
+// import MonitorPlayIcon from "@/assets/svg/monitor_play.svg";
 import UploadIcon from "@/assets/svg/upload.svg";
 import BookTextIcon from "@/assets/svg/jam_book.svg";
 import PlayIcon from "@/assets/svg/play.svg";
@@ -33,11 +33,11 @@ export const TACADEMICLINKS = [
     name: "Class",
     path: "/teacher/class",
   },
-  {
-    icons: MonitorPlayIcon,
-    name: "Recorded Class ",
-    path: "/teacher/recorded-class",
-  },
+  // {
+  //   icons: MonitorPlayIcon,
+  //   name: "Recorded Class ",
+  //   path: "/teacher/recorded-class",
+  // },
 
   {
     icons: UploadIcon,

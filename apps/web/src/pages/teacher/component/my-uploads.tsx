@@ -170,9 +170,16 @@ const JobRow = ({
   onRetry: () => void;
   retrying: boolean;
 }) => {
-  const createdAt = job.createdAt
-    ? new Date(job.createdAt).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-    : "—";
+  const toneClass =
+    tone === "completed"
+      ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+      : tone === "failed"
+        ? "bg-red-50 border-red-200 text-red-700"
+        : tone === "processing"
+          ? "bg-amber-50 border-amber-200 text-amber-700"
+          : tone === "pending"
+            ? "bg-sky-50 border-sky-200 text-sky-700"
+            : "bg-white border-slate-200 text-slate-700";
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 px-4 py-3.5 flex items-center gap-3 hover:border-slate-300 transition-colors">
@@ -236,29 +243,436 @@ const MyUploads = () => {
   const [search, setSearch] = useState("");
   const [preview, setPreview] = useState<QuestionPreviewResponse | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isSavingEditedQuestions, setIsSavingEditedQuestions] = useState(false);
+  const [previewScanSessionId, setPreviewScanSessionId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const toEditableQuestion = (question: UploadedQuestion, index: number): EditableQuestion => {
+    const parts = parseContentParts(question.contentParts);
+    const fromParts = parts
+      .filter((part) => part.type === "text" || part.type === "latex")
+      .map((part) => {
+        if (part.type === "latex") return `$${part.value ?? ""}$`;
+        return part.value ?? "";
+      })
+      .join("")
+      .trim();
 
-  const fetchJobs = async (silent = false) => {
-    if (!silent) setLoading(true);
+    const questionText = fromParts || stripHtml(question.questionHtml || "") || "";
+
+    const mappedOptions = (question.options ?? []).map((option, optionIndex) => ({
+      id: crypto.randomUUID(),
+      label: option.optionLabel ?? option.label ?? nextOptionLabel(optionIndex),
+      text: sanitizePlainTextInput(
+        option.optionText ??
+        option.plainText ??
+        stripHtml(option.html ?? "") ??
+        "",
+      ),
+      isCorrect: !!option.isCorrect,
+    }));
+
+    const options =
+      question.questionType === 4
+        ? [
+          { id: crypto.randomUUID(), label: "A", text: "True", isCorrect: mappedOptions[0]?.isCorrect ?? false },
+          { id: crypto.randomUUID(), label: "B", text: "False", isCorrect: mappedOptions[1]?.isCorrect ?? false },
+        ]
+        : mappedOptions;
+
+    return {
+      ...question,
+      localId: crypto.randomUUID(),
+      questionNumber: question.questionNumber ?? index + 1,
+      questionText,
+      options,
+    };
+  };
+
+  const renumberQuestions = (questions: EditableQuestion[]) =>
+    questions.map((question, index) => ({
+      ...question,
+      questionNumber: index + 1,
+      options: question.options.map((option, optionIndex) => ({
+        ...option,
+        label: nextOptionLabel(optionIndex),
+      })),
+    }));
+
+  const updateQuestion = (localId: string, updates: Partial<EditableQuestion>) => {
+    setEditableQuestions((prev) =>
+      prev.map((question) => (question.localId === localId ? { ...question, ...updates } : question)),
+    );
+  };
+
+  const updateQuestionType = (localId: string, questionType: number) => {
+    setEditableQuestions((prev) =>
+      prev.map((question) => {
+        if (question.localId !== localId) return question;
+
+        if (questionType === 4) {
+          return {
+            ...question,
+            questionType,
+            questionTypeName: "TrueFalse",
+            options: [
+              { id: crypto.randomUUID(), label: "A", text: "True", isCorrect: question.options[0]?.isCorrect ?? false },
+              { id: crypto.randomUUID(), label: "B", text: "False", isCorrect: question.options[1]?.isCorrect ?? false },
+            ],
+          };
+        }
+
+        if (questionType === 1) {
+          const base = question.options.length >= 2 ? question.options : [
+            { id: crypto.randomUUID(), label: "A", text: "", isCorrect: false },
+            { id: crypto.randomUUID(), label: "B", text: "", isCorrect: false },
+          ];
+          return {
+            ...question,
+            questionType,
+            questionTypeName: "MultipleChoice",
+            options: base.map((option, index) => ({ ...option, label: nextOptionLabel(index) })),
+          };
+        }
+
+        return {
+          ...question,
+          questionType,
+          questionTypeName:
+            questionType === 2 ? "ShortAnswer" : questionType === 3 ? "Essay" : question.questionTypeName,
+          options: [],
+        };
+      }),
+    );
+  };
+
+  const updateOption = (localId: string, optionId: string, text: string) => {
+    setEditableQuestions((prev) =>
+      prev.map((question) => {
+        if (question.localId !== localId) return question;
+        return {
+          ...question,
+          options: question.options.map((option) =>
+            option.id === optionId ? { ...option, text: sanitizePlainTextInput(text) } : option,
+          ),
+        };
+      }),
+    );
+  };
+
+  const setCorrectOption = (localId: string, optionId: string) => {
+    setEditableQuestions((prev) =>
+      prev.map((question) => {
+        if (question.localId !== localId) return question;
+        return {
+          ...question,
+          options: question.options.map((option) => ({
+            ...option,
+            isCorrect: option.id === optionId,
+          })),
+        };
+      }),
+    );
+  };
+
+  const addOption = (localId: string) => {
+    setEditableQuestions((prev) =>
+      prev.map((question) => {
+        if (question.localId !== localId) return question;
+        const nextOptions = [
+          ...question.options,
+          {
+            id: crypto.randomUUID(),
+            label: nextOptionLabel(question.options.length),
+            text: "",
+            isCorrect: false,
+          },
+        ];
+        return { ...question, options: nextOptions };
+      }),
+    );
+  };
+
+  const removeOption = (localId: string, optionId: string) => {
+    setEditableQuestions((prev) =>
+      prev.map((question) => {
+        if (question.localId !== localId) return question;
+        const filtered = question.options.filter((option) => option.id !== optionId);
+        return {
+          ...question,
+          options: filtered.map((option, index) => ({ ...option, label: nextOptionLabel(index) })),
+        };
+      }),
+    );
+  };
+
+  const addQuestion = () => {
+    setEditableQuestions((prev) =>
+      renumberQuestions([
+        ...prev,
+        {
+          localId: crypto.randomUUID(),
+          id: "",
+          questionNumber: prev.length + 1,
+          questionType: 1,
+          questionTypeName: "MultipleChoice",
+          questionHtml: "",
+          questionText: "",
+          contentParts: [],
+          hasLatex: false,
+          hasImages: false,
+          hasMedia: false,
+          correctAnswer: null,
+          difficultyLevel: 1,
+          marksAllocation: 1,
+          status: 0,
+          statusName: "Draft",
+          subTopicName: prev[0]?.subTopicName ?? "",
+          topicName: prev[0]?.topicName ?? "",
+          creationDate: new Date().toISOString(),
+          options: [
+            { id: crypto.randomUUID(), label: "A", text: "", isCorrect: false },
+            { id: crypto.randomUUID(), label: "B", text: "", isCorrect: false },
+          ],
+        },
+      ]),
+    );
+  };
+
+  const removeQuestion = (localId: string) => {
+    setEditableQuestions((prev) => {
+      const next = prev.filter((question) => question.localId !== localId);
+      return renumberQuestions(next);
+    });
+  };
+
+  const buildOptionsPayload = (question: EditableQuestion): CreateOptionPayload[] => {
+    if (!isOptionQuestionType(question.questionType)) return [];
+    return question.options.map((option, index) => ({
+      optionLabel: option.label || nextOptionLabel(index),
+      optionText: sanitizePlainTextInput(option.text),
+      isCorrect: !!option.isCorrect,
+      orderIndex: index + 1,
+    }));
+  };
+
+  const validateQuestionForSave = (question: EditableQuestion, index: number): string | null => {
+    if (!sanitizePlainTextInput(question.questionText)) {
+      return `Question ${index + 1}: question text is required.`;
+    }
+
+    if ((question.marksAllocation ?? 0) <= 0) {
+      return `Question ${index + 1}: marks must be greater than zero.`;
+    }
+
+    if (isOptionQuestionType(question.questionType)) {
+      const nonEmptyOptions = question.options.filter((option) => sanitizePlainTextInput(option.text));
+      if (nonEmptyOptions.length < 2) {
+        return `Question ${index + 1}: add at least 2 options.`;
+      }
+
+      const correctCount = nonEmptyOptions.filter((option) => option.isCorrect).length;
+      if (correctCount !== 1) {
+        return `Question ${index + 1}: select exactly one correct answer.`;
+      }
+    }
+
+    return null;
+  };
+
+  const normalizeName = (value?: string | null) => (value ?? "").trim().toLowerCase();
+
+  const resolveTopicIdByName = (name?: string | null) => {
+    const target = normalizeName(name);
+    if (!target) return "";
+    const found = topics.find((topic) => normalizeName(topic.name) === target);
+    return found?.id ?? "";
+  };
+
+  const resolveSubTopicIdByName = (name?: string | null) => {
+    const target = normalizeName(name);
+    if (!target) return "";
+
+    for (const topic of topicsData) {
+      const nested = (topic?.SubTopics ?? topic?.subTopics ?? []) as any[];
+      const found = nested.find((sub) => normalizeName(String(sub?.Name ?? sub?.name ?? sub?.subTopicName ?? "")) === target);
+      if (found) {
+        return String(found?.Id ?? found?.id ?? found?.subTopicId ?? "");
+      }
+    }
+
+    const foundFlat = subTopics.find((sub) => normalizeName(sub.name) === target);
+    return foundFlat?.id ?? "";
+  };
+
+  const handleSaveEditedQuestions = async () => {
+    setSaveError(null);
+
+    if (!previewJob) {
+      const message = "No active upload job selected.";
+      setSaveError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!classroomId) {
+      const message = "Select a classroom before saving.";
+      setSaveError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (!subjectId) {
+      const message = "Select a subject before saving.";
+      setSaveError(message);
+      toast.error(message);
+      return;
+    }
+
+    const resolvedTopicId = topicId || resolveTopicIdByName(previewJob.topicName);
+    const resolvedSubTopicId =
+      subTopicId ||
+      resolveSubTopicIdByName(previewJob.subTopicName) ||
+      resolveSubTopicIdByName(editableQuestions[0]?.subTopicName);
+
+    if (!resolvedSubTopicId || resolvedSubTopicId === EMPTY_GUID) {
+      const message = "Could not resolve sub-topic for this job. Select a sub-topic, then save again.";
+      setSaveError(message);
+      toast.error(message);
+      return;
+    }
+
+    if (editableQuestions.length === 0) {
+      const message = "No questions to save.";
+      setSaveError(message);
+      toast.error(message);
+      return;
+    }
+
+    for (let i = 0; i < editableQuestions.length; i++) {
+      const validationError = validateQuestionForSave(editableQuestions[i], i);
+      if (validationError) {
+        setSaveError(validationError);
+        toast.error(validationError);
+        return;
+      }
+    }
+
+    const selectedTopicName = topics.find((topic) => topic.id === resolvedTopicId)?.name ?? previewJob.topicName ?? "";
+
+    setIsSavingEditedQuestions(true);
+    let successfulSaves = 0;
+
     try {
-      const { data } = await questionJobService.getMyJobs();
-      setJobs(data.jobs ?? []);
-      setCounts({
-        total: data.totalCount,
-        pending: data.pendingCount,
-        completed: data.completedCount,
-        failed: data.failedCount,
-      });
-    } catch {
-      if (!silent) toast.error("Failed to load jobs");
+      for (let index = 0; index < editableQuestions.length; index++) {
+        const question = editableQuestions[index];
+        const plainText = sanitizeQuestionTextForSave(question.questionText);
+        const firstImageUrl = parseContentParts(question.contentParts)
+          .find((part) => part.type === "image" && typeof part.value === "string" && /^https?:\/\//i.test(part.value ?? ""))
+          ?.value;
+
+        const payload = {
+          clientId: `upload-${previewJob.jobId}-${question.localId}`,
+          originDevice: "web",
+          createdAtDevice: new Date().toISOString(),
+          subjectId,
+          topicId: resolvedTopicId || null,
+          topic: [selectedTopicName, question.topicName, previewJob.topicName]
+            .map((value) => (value ?? "").trim())
+            .find((value) => value.length > 0) ?? "General",
+          subTopic: resolvedSubTopicId,
+          classroomId,
+          title: plainText || `Question ${index + 1}`,
+          textContent: plainText,
+          questionType: question.questionType,
+          difficultyLevel: Math.max(1, Math.min(4, Number(question.difficultyLevel) || 1)),
+          marksAllocation: Math.max(1, Math.min(4, Number(question.marksAllocation || question.difficultyLevel) || 1)),
+          options: buildOptionsPayload(question),
+          boardSessionId: null,
+          scanSessionId: previewScanSessionId,
+          isScanned: true,
+          extractedQuestionIndex: (question.questionNumber ?? index + 1) - 1,
+          aiConfidenceScore: null,
+          imageUrl: typeof firstImageUrl === "string" ? firstImageUrl : null,
+        };
+
+        const response = await questionService.createQuestion(payload);
+        const rawResponse = response.data as any;
+        const nested = rawResponse?.data ?? {};
+        const responseCode = String(rawResponse?.responseCode ?? nested?.responseCode ?? "").toLowerCase();
+        const responseStatus = String(rawResponse?.status ?? nested?.status ?? "").toLowerCase();
+        const isDuplicate = !!(rawResponse?.isDuplicate ?? nested?.isDuplicate);
+        const hasQuestionId = !!(rawResponse?.questionId ?? nested?.questionId);
+        const isSuccessful =
+          responseStatus === "successful" ||
+          responseCode === "successful" ||
+          hasQuestionId ||
+          isDuplicate;
+
+        if (isSuccessful) {
+          successfulSaves += 1;
+        } else {
+          throw new Error(rawResponse?.responseMessage ?? nested?.responseMessage ?? "Create question failed");
+        }
+      }
+
+      if (successfulSaves !== editableQuestions.length) {
+        toast.error("Some questions could not be saved. Please retry.");
+        return;
+      }
+
+      const savedJobId = previewJob.jobId;
+      // Update backend job status before finalizing UI success flow.
+      console.info("[MyUploads] Confirming processed job", savedJobId);
+      await confirmProcessedJobDirect(savedJobId);
+
+      console.info("[MyUploads] Job status updated", savedJobId);
+
+      // Finalize UI after both create and confirm succeed.
+      setJobs((prev) => prev.filter((job) => job.jobId !== savedJobId));
+      setIsEditMode(false);
+      setPreviewJob(null);
+      setSaveError(null);
+      toast.success("Questions saved and job processed.");
+
+      void fetchStatuses();
+
+      // Force a full page refresh so processed jobs are reloaded from server state.
+      setTimeout(() => {
+        window.location.reload();
+      }, 250);
+    } catch (error) {
+      const err = error as { response?: { data?: { responseMessage?: string } }; message?: string };
+      const message = err?.response?.data?.responseMessage ?? err?.message ?? "Failed to save edited questions.";
+      setSaveError(message);
+      toast.error(message);
     } finally {
-      if (!silent) setLoading(false);
+      setIsSavingEditedQuestions(false);
     }
   };
 
-  // Poll every 8 seconds while pending/processing jobs exist
+  const classrooms = useMemo<SelectItem[]>(() => {
+    const roleData = user?.roleData;
+    if (!roleData || !isTeacherRoleData(roleData)) return [];
+    return roleData.classrooms.map((c) => ({
+      id: String(c.classroomId),
+      name: String(c.className),
+    }));
+  }, [user?.roleData]);
+
+  const subjects = useMemo<SelectItem[]>(() => {
+    const roleData = user?.roleData;
+    if (!roleData || !isTeacherRoleData(roleData)) return [];
+    const selectedClassroom = roleData.classrooms.find(
+      (c) => String(c.classroomId) === classroomId
+    );
+    return (selectedClassroom?.subjects ?? []).map((s) => ({
+      id: String(s.subjectId),
+      name: String(s.subjectName),
+    }));
+  }, [user?.roleData, classroomId]);
+
   useEffect(() => {
     fetchJobs();
   }, []);
@@ -306,105 +720,410 @@ const MyUploads = () => {
   );
 
   return (
-    <div className="p-3 sm:p-6 font-poppins">
-      <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
-        <TitleBar title="My Uploads" hasVertical hasBackIcons />
+    <div className=" sm:p-5 font-poppins">
+      <div className="lg:rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
+        <TitleBar title="My Uploads" hasVertical hasMenu={openMobileNav} />
 
-        <div className="p-4 sm:p-6 lg:p-8 bg-white/70 backdrop-blur-sm flex flex-col gap-5">
-
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-800">My Uploads</h1>
-              <p className="text-sm text-slate-500 mt-0.5">AI question extraction history</p>
-            </div>
-            <button
-              onClick={() => navigate("/teacher/assessment/upload-scan")}
-              className="self-start sm:self-auto flex items-center gap-2 px-4 py-2.5 rounded-lg bg-chestnut text-white text-sm font-semibold hover:bg-chestnut/90 transition-colors cursor-pointer"
-            >
-              + New Upload
-            </button>
+        <div className="p-3 sm:p-5 lg:p-7 space-y-5">
+          <div className="rounded-2xl bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff] border border-[#f3dccb] p-4 sm:p-5">
+            <h1 className="text-lg sm:text-xl font-bold text-chestnut leading-tight">Question Upload Status</h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Track pending, processing, completed and failed question extraction jobs.
+            </p>
           </div>
 
-          {/* Stats row */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: "Total",      value: counts.total,     color: "text-slate-700",   bg: "bg-slate-50"   },
-              { label: "Processing", value: counts.pending,   color: "text-amber-600",   bg: "bg-amber-50"   },
-              { label: "Completed",  value: counts.completed, color: "text-emerald-600", bg: "bg-emerald-50" },
-              { label: "Failed",     value: counts.failed,    color: "text-red-500",     bg: "bg-red-50"     },
-            ].map(s => (
-              <div key={s.label} className={`${s.bg} rounded-xl px-4 py-3 flex flex-col`}>
-                <span className={`text-2xl font-bold ${s.color}`}>{s.value}</span>
-                <span className="text-xs text-slate-500 font-medium mt-0.5">{s.label}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <FilterSelect
+              label="Classroom"
+              value={classroomId}
+              options={classrooms}
+              placeholder="Select classroom"
+              onChange={(v) => {
+                setClassroomId(v);
+                setSubjectId("");
+                setTopicId("");
+                setSubTopicId("");
+              }}
+              loading={authLoading}
+            />
+            <FilterSelect
+              label="Subject"
+              value={subjectId}
+              options={subjects}
+              placeholder={classroomId ? "Select subject" : "Select classroom first"}
+              onChange={(v) => {
+                setSubjectId(v);
+                setTopicId("");
+                setSubTopicId("");
+              }}
+              disabled={!classroomId}
+              loading={authLoading}
+            />
+            <FilterSelect
+              label="Topic"
+              value={topicId}
+              options={topics}
+              placeholder={subjectId ? "Select topic (optional)" : "Select subject first"}
+              onChange={(v) => {
+                setTopicId(v);
+                setSubTopicId("");
+              }}
+              disabled={!subjectId}
+              loading={loadingTopics}
+            />
+            <FilterSelect
+              label="Sub-topic"
+              value={subTopicId}
+              options={subTopics}
+              placeholder={topicId ? "Select sub-topic (optional)" : "Select topic first"}
+              onChange={setSubTopicId}
+              disabled={!topicId}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <SummaryCard label="Total" value={summary.total} tone="default" />
+            <SummaryCard label="Pending" value={summary.pending} tone="pending" />
+            <SummaryCard label="Processing" value={summary.processing} tone="processing" />
+            <SummaryCard label="Completed" value={summary.completed} tone="completed" />
+            <SummaryCard label="Failed" value={summary.failed} tone="failed" />
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-700">Jobs</h2>
+              {loadingJobs && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+            </div>
+
+            {!loadingJobs && jobs.length === 0 && (
+              <div className="px-4 py-10 text-center text-sm text-slate-400">
+                No upload jobs found for the selected filters.
               </div>
-            ))}
+            )}
+
+            <div className="divide-y divide-slate-100">
+              {jobs.map((job) => {
+                const canViewQuestions = job.status === "Completed";
+
+                return (
+                  <article
+                    key={job.jobId}
+                    className="px-4 py-3 sm:py-4"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">
+                          {job.topicName} • {job.subTopicName}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          Type: {job.questionType} • Extracted: {job.extractedCount} • Attempts: {job.attemptCount}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">Created: {job.createdAt}</p>
+                        {job.completedAt && (
+                          <p className="text-xs text-slate-400">Completed: {job.completedAt}</p>
+                        )}
+                        {job.failureReason && (
+                          <p className="text-xs text-red-600 mt-1">Reason: {job.failureReason}</p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border ${statusPillClass(job.status)}`}>
+                          {job.status}
+                        </span>
+                        <Button
+                          type="button"
+                          onClick={() => void handleOpenJobPreview(job)}
+                          disabled={!canViewQuestions}
+                          className="h-8 rounded-lg bg-chestnut hover:bg-chestnut/90 text-white text-xs font-semibold px-3 disabled:bg-slate-200 disabled:text-slate-500"
+                        >
+                          View Questions
+                        </Button>
+                      </div>
+                    </div>
+                    {!canViewQuestions && (
+                      <p className="text-[11px] text-slate-400 mt-2">
+                        Questions can be viewed after this job is completed.
+                      </p>
+                    )}
+                  </article>
+                )
+              })}
+            </div>
           </div>
 
-          {/* Search + Refresh */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
-              <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search by type, status or job ID…"
-                className="flex-1 text-sm text-slate-600 placeholder-slate-400 outline-none bg-transparent"
-              />
-            </div>
-            <button
-              onClick={() => fetchJobs()}
-              disabled={loading}
-              className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 cursor-pointer transition-colors"
-              title="Refresh"
-            >
-              <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-            </button>
-          </div>
+          <Dialog open={!!previewJob} onOpenChange={(open) => !open && setPreviewJob(null)}>
+            <DialogContent className="max-w-3xl rounded-2xl p-0 overflow-hidden w-[90%] lg:w-full">
+              <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff]">
+                <DialogTitle className="text-base font-semibold text-slate-800">Uploaded Job Questions</DialogTitle>
+                {previewJob && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    {previewJob.topicName} • {previewJob.subTopicName} • {previewJob.questionType}
+                  </p>
+                )}
+              </div>
 
-          {/* Job list */}
-          {loading ? (
-            <div className="flex items-center justify-center py-16 gap-3 text-slate-400">
-              <Loader2 size={22} className="animate-spin" />
-              <span className="text-sm">Loading jobs…</span>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-              <p className="text-slate-300 font-medium text-sm">
-                {search ? "No jobs match your search" : "No uploads yet"}
-              </p>
-              {!search && (
-                <button
-                  onClick={() => navigate("/teacher/assessment/upload-scan")}
-                  className="flex items-center gap-1.5 text-sm font-semibold text-chestnut hover:underline cursor-pointer"
-                >
-                  Upload your first question image <ChevronRight size={14} />
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2.5">
-              {filtered.map(job => (
-                <JobRow
-                  key={job.jobId}
-                  job={job}
-                  onPreview={() => handlePreview(job)}
-                  onRetry={() => handleRetry(job.jobId)}
-                  retrying={retryingId === job.jobId}
-                />
-              ))}
-              {counts.pending > 0 && (
-                <p className="text-[11px] text-slate-400 text-center mt-1">
-                  Refreshing automatically every 8 seconds while jobs are pending…
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+              <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
+                {previewLoading && (
+                  <div className="py-10 flex items-center justify-center text-slate-500 text-sm gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading questions...
+                  </div>
+                )}
+
+                {!previewLoading && editableQuestions.length === 0 && (
+                  <div className="py-10 text-center text-slate-400 text-sm">
+                    No questions returned for this job.
+                  </div>
+                )}
+
+                {!previewLoading && editableQuestions.length > 0 && (
+                  <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                    {saveError && (
+                      <p className="text-xs text-rose-600 font-medium">{saveError}</p>
+                    )}
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs text-slate-600 font-medium">
+                        {editableQuestions.length} question{editableQuestions.length !== 1 ? "s" : ""}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        {!isEditMode && (
+                        <Button
+                          type="button"
+                          onClick={() => setIsEditMode((prev) => !prev)}
+                          className={`h-8 rounded-lg border px-3 text-xs font-semibold ${isEditMode ? "border-emerald-300 bg-emerald-50 text-emerald-700" : "border-slate-300 bg-white text-slate-700"}`}
+                        >
+                          Edit Questions
+                        </Button>
+                        )}
+                        {isEditMode && (
+                          <Button
+                            type="button"
+                            onClick={addQuestion}
+                            className="h-8 rounded-lg bg-chestnut hover:bg-chestnut/90 text-white px-3 text-xs font-semibold"
+                          >
+                            <Plus className="w-3.5 h-3.5 mr-1" />
+                            Add Question
+                          </Button>
+                        )}
+                        {isEditMode && (
+                          <Button
+                            type="button"
+                            onClick={() => void handleSaveEditedQuestions()}
+                            disabled={isSavingEditedQuestions}
+                            className="h-8 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-3 text-xs font-semibold disabled:bg-slate-300 disabled:text-slate-500"
+                          >
+                            {isSavingEditedQuestions ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                Saving...
+                              </span>
+                            ) : (
+                              "Save"
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {!previewLoading && editableQuestions.map((question, index) => (
+                  <article key={question.localId} className="rounded-xl border border-slate-200 p-4  space-y-3">
+                    <div className="flex items-center justify-between md:hidden">
+                      <p className="text-sm font-semibold text-slate-800 leading-6 shrink-0 md:hidden">
+                        {question.questionNumber ?? index + 1}.
+                      </p>
+                      <div className="flex items-center md:hidden gap-2 shrink-0">
+                        <span className="rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold px-2 py-1">
+                          {question.questionTypeName || `Type ${question.questionType}`}
+                        </span>
+                        {isEditMode && (
+                          <button
+                            type="button"
+                            onClick={() => removeQuestion(question.localId)}
+                            className="h-8 w-8 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50"
+                            title="Remove question"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+
+                    <div className="">
+                      <div className="text-sm font-semibold text-slate-800 leading-6 w-full">
+                        <div className="hidden md:flex items-center justify-between  ">
+                          <p className="hidden md:block">{question.questionNumber ?? index + 1}.</p>
+                          <div className="hidden md:flex items-center gap-2 shrink-0">
+                            <span className="rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold px-2 py-1">
+                              {question.questionTypeName || `Type ${question.questionType}`}
+                            </span>
+                            {isEditMode && (
+                              <button
+                                type="button"
+                                onClick={() => removeQuestion(question.localId)}
+                                className="h-8 w-8 rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50"
+                                title="Remove question"
+                              >
+                                <Trash2 className="w-3.5 h-3.5 mx-auto" />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+
+                        {!isEditMode && !!question.questionHtml?.trim() && parseContentParts(question.contentParts).length > 0 ? (
+                          <div
+                            className="mt-1 prose prose-sm max-w-none text-slate-700"
+                            dangerouslySetInnerHTML={{
+                              __html: renderHtmlWithEnhancements(
+                                question.questionHtml,
+                                parseContentParts(question.contentParts),
+                                previewImageBounds,
+                              ),
+                            }}
+                          />
+                        ) : !isEditMode ? (
+                          <div className="mt-1 space-y-2 text-slate-700 font-normal">
+                            {parseContentParts(question.contentParts).length === 0 ? (
+                              <p>{question.questionText || stripHtml(question.questionHtml || "")}</p>
+                            ) : parseContentParts(question.contentParts).map((part, partIndex) => {
+                              const key = `${question.id}-${partIndex}`;
+                              if (part.type === "latex") {
+                                const isBlock = part.display === "block";
+                                return (
+                                  <span
+                                    key={key}
+                                    className={isBlock ? "block my-2" : "inline"}
+                                    dangerouslySetInnerHTML={{ __html: renderLatex(part.value ?? "", isBlock) }}
+                                  />
+                                );
+                              }
+
+                              if (part.type === "image") {
+                                const src = part.value ?? "";
+                                if (/^https?:\/\//i.test(src)) {
+                                  return (
+                                    <img
+                                      key={key}
+                                      src={src}
+                                      alt="Question visual"
+                                      className="my-2 rounded-lg border border-slate-200 max-h-64 w-auto"
+                                      loading="lazy"
+                                    />
+                                  );
+                                }
+                                return (
+                                  <p key={key} className="text-xs italic text-slate-500">
+                                    [Image placeholder: {part.value ?? "image"}]
+                                  </p>
+                                );
+                              }
+
+                              return <p key={key}>{part.value ?? ""}</p>;
+                            })}
+                          </div>
+                        ) : (
+                          <div className="space-y-3 mt-2">
+                            <div>
+
+                              <div className="grid w-full grid-cols-1 sm:grid-cols-3 gap-3">
+                                <select
+                                  value={question.questionType}
+                                  onChange={(e) => updateQuestionType(question.localId, Number(e.target.value))}
+                                  className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
+                                >
+                                  {QUESTION_TYPE_CHOICES.map((choice) => (
+                                    <option key={choice.value} value={choice.value}>{choice.label}</option>
+                                  ))}
+                                </select>
+
+                                <DifficultyPicker
+                                  value={question.marksAllocation || question.difficultyLevel}
+                                  onChange={(nextDifficulty) =>
+                                    updateQuestion(question.localId, {
+                                      difficultyLevel: Math.max(1, Math.min(4, nextDifficulty)),
+                                      marksAllocation: Math.max(1, Math.min(4, nextDifficulty)),
+                                    })
+                                  }
+                                />
+                              </div>
+                            </div>
+
+                            <textarea
+                              rows={4}
+                              value={question.questionText}
+                              onChange={(e) => {
+                                const safeText = sanitizePlainTextInput(e.target.value);
+                                updateQuestion(question.localId, {
+                                  questionText: safeText,
+                                  // Keep edited content as plain text; do not store KaTeX-rendered/HTML question markup.
+                                  questionHtml: "",
+                                  contentParts: [],
+                                });
+                              }}
+                              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                              placeholder="Edit question text"
+                            />
+
+                            {isOptionQuestionType(question.questionType) && (
+                              <div className="space-y-2 rounded-lg border border-slate-200 p-2 md:p-3 bg-slate-50/60">
+                                <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Options</p>
+
+                                {question.options.map((option) => (
+                                  <div key={option.id} className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => setCorrectOption(question.localId, option.id)}
+                                      className={`flex items-center justify-center shrink-0 rounded-full border text-xs font-bold h-7 w-7 sm:h-8 sm:w-8 aspect-square ${option.isCorrect
+                                        ? "bg-emerald-500 border-emerald-500 text-white"
+                                        : "bg-white border-slate-300 text-slate-500"
+                                        }`}
+                                      title="Mark as correct"
+                                    >
+                                      {option.label}
+                                    </button>
+
+                                    <input
+                                      type="text"
+                                      value={option.text}
+                                      onChange={(e) => updateOption(question.localId, option.id, e.target.value)}
+                                      className="h-9 flex-1 min-w-0 rounded-lg border border-slate-200 px-3 text-sm"
+                                      placeholder={`Option ${option.label}`}
+                                    />
+
+                                    {question.questionType !== 4 && question.options.length > 2 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => removeOption(question.localId, option.id)}
+                                        className="flex items-center justify-center shrink-0 h-7 w-7 sm:h-8 sm:w-8 aspect-square rounded-lg border border-rose-200 text-rose-500 hover:bg-rose-50"
+                                        title="Remove option"
+                                      >
+                                        <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+
+                                {question.questionType !== 4 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => addOption(question.localId)}
+                                    className="h-8 rounded-lg border border-slate-300 bg-white text-slate-600 px-3 text-xs font-semibold"
+                                  >
+                                    <Plus className="w-3.5 h-3.5 inline mr-1" />
+                                    Add Option
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
 
       {/* Preview loading overlay */}
       {previewLoading && (

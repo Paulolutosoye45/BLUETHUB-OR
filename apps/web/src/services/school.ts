@@ -143,11 +143,14 @@ export const schoolService = {
   },
 
   addSubTopicsToTopic: (topicId: string, subTopics: string[]) => {
-    return API.post<TResponse<unknown>>(`/api/School/topics/${topicId}/subtopics`, { subTopics }, {
-      headers: {
-        "X-Tenant-ID": X_Tenant_ID,
-        Authorization: `Bearer ${token.getToken()}`,
-      },
-    });
+    return API.post(`/api/School/subtopics/add`, 
+      { topicId: topicId, subTopics: subTopics },
+      {
+        headers: {
+          "X-Tenant-ID": X_Tenant_ID,
+          Authorization: `Bearer ${token.getToken()}`,
+        },
+      }
+    );
   },
 };
