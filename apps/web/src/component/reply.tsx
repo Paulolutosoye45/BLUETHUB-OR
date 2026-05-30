@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Stage, Layer, Line, Rect } from 'react-konva';
 // import type Konva from 'konva';
 import {
@@ -215,6 +215,32 @@ export default function Replay() {
     new Set(strokes.map((s) => s.currentBoard ?? 1)).size,
   );
 
+  // Keep replay scoped to one session to avoid cross-session mixing.
+  // We prefer the most recently updated audio session; if audio is absent,
+  // we fall back to the most recent stroke session.
+  const activeSessionId = useMemo(() => {
+    if (audioList.length > 0) {
+      const latestAudio = [...audioList].sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))[0];
+      if (latestAudio?.sessionId) return latestAudio.sessionId;
+    }
+
+    const strokeWithSession = strokesList
+      .filter((s) => typeof s.sessionId === 'string' && s.sessionId.length > 0)
+      .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+
+    return strokeWithSession[0]?.sessionId ?? null;
+  }, [audioList, strokesList]);
+
+  const sessionAudioList = useMemo(
+    () => (activeSessionId ? audioList.filter((a) => a.sessionId === activeSessionId) : audioList),
+    [audioList, activeSessionId]
+  );
+
+  const sessionStrokesList = useMemo(
+    () => (activeSessionId ? strokesList.filter((s) => s.sessionId === activeSessionId) : strokesList),
+    [strokesList, activeSessionId]
+  );
+
   // ── Refs ──────────────────────────────────────────────────────────────────
 
   // Fully decompressed strokes cached here before play() is ever called.
@@ -277,6 +303,7 @@ export default function Replay() {
   const stopRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const currentBlobUrlRef = useRef<string | null>(null);
+  const playedSessionMsRef = useRef<number>(0);
   const parentRef = useRef<HTMLDivElement>(null);
   // const __trRef = useRef<Konva.Transformer | null>(null);
   // const _rectRef = useRef(null);
@@ -410,13 +437,8 @@ export default function Replay() {
         // clamps them all to startMs = 0, so they all appear simultaneously
         // at the very start of replay.
         //
-        // Primary key: sessionId on each CompressedStroke matches the sessionId
-        // on the AudioBatch records. If there is no audio, fall back to showing
-        // all strokes (single-session assumption).
-        const targetSessionId = audioList.length > 0 ? audioList[0].sessionId : null;
-        const sessionStrokes = targetSessionId
-          ? strokesList.filter(s => s.sessionId === targetSessionId)
-          : strokesList;
+        // sessionStrokesList is already filtered to the latest active session.
+        const sessionStrokes = sessionStrokesList;
 
         const results = await Promise.allSettled(
           sessionStrokes.map(async (comp): Promise<Stroke> => {
@@ -457,7 +479,7 @@ export default function Replay() {
         setIsPreloading(false);
       }
     })();
-  }, [strokesList, audioList]);
+  }, [sessionStrokesList]);
 
   // ── Step 3: RAF sliding window — audio-driven ─────────────────────────────
   //
@@ -487,7 +509,7 @@ export default function Replay() {
     // Fallback 1: stored anchor from localStorage.
     // Fallback 2: timerDisplay string offset (coarsest, 1-second resolution).
     const stored = parseInt(localStorage.getItem('sessionStartWallMs') ?? '0', 10);
-    const sortedAudio = [...audioList].sort((a, b) => a.batchId - b.batchId);
+    const sortedAudio = [...sessionAudioList].sort((a, b) => a.batchId - b.batchId);
     const firstBatch  = sortedAudio[0];
     const reconstructed = firstBatch
       ? firstBatch.timestamp - (firstBatch.duration ?? 10) * 1000
@@ -679,7 +701,7 @@ export default function Replay() {
     };
 
     rafRef.current = requestAnimationFrame(frame);
-  }, [audioList]);
+  }, [sessionAudioList]);
 
   const stopRaf = useCallback(() => {
     if (rafRef.current !== null) {
@@ -697,25 +719,15 @@ export default function Replay() {
   const playAudioBatch = useCallback(async (
     batchIndex: number,
     sortedBatches: AudioBatch[],
-    sessionStartWallMs: number,
   ): Promise<void> => {
     if (batchIndex >= sortedBatches.length || stopRef.current) return;
 
     const batch = sortedBatches[batchIndex];
 
-    // Use the actual recorded timestamp to calculate when this batch starts in the session timeline.
-    // batch.timestamp = when the batch data was received (end of batch) minus paused time
-    // So batch start position = timestamp - sessionStartWallMs - duration
-    // This ensures audio and strokes (which also use timestamp - sessionStartWallMs) stay in sync.
-    const batchStartMs = sessionStartWallMs > 0 && batch.timestamp
-      ? batch.timestamp - sessionStartWallMs - (batch.duration ?? 10) * 1000
-      : sortedBatches.slice(0, batchIndex).reduce((sum, b) => sum + (b.duration ?? 10) * 1000, 0);
-
-    // Ensure batchStartMs is never negative
-    const safeBatchStartMs = Math.max(0, batchStartMs);
-
-    // ✅ Tell the RAF where in the session timeline we now are
-    batchStartMsRef.current = safeBatchStartMs;
+    // Drive board clock from actual played-audio continuity.
+    // This avoids timeline jumps during chunk handoff/load gaps.
+    const batchStartMs = Math.max(0, playedSessionMsRef.current);
+    batchStartMsRef.current = batchStartMs;
 
     if (currentBlobUrlRef.current) {
       URL.revokeObjectURL(currentBlobUrlRef.current);
@@ -735,11 +747,18 @@ export default function Replay() {
         audioRef.current?.removeEventListener('ended', onEnded);
         audioRef.current?.removeEventListener('error', onError);
       };
-      const onEnded = () => { cleanup(); resolve(); };
+      const onEnded = () => {
+        const playedMs = Math.max(0, (audioRef.current?.currentTime ?? batch.duration ?? 10) * 1000);
+        playedSessionMsRef.current = batchStartMs + playedMs;
+        cleanup();
+        resolve();
+      };
       const onError = () => {
         const err = audioRef.current?.error;
         const msg = err ? `code ${err.code}: ${err.message}` : 'unknown';
         console.error(`[Replay] batch ${batch.batchId} error: ${msg}, blob type: ${blobType}, size: ${batch.blob.size}`);
+        // Keep timeline monotonic even when one batch fails to decode.
+        playedSessionMsRef.current = batchStartMs + Math.max(0, (batch.duration ?? 10) * 1000);
         cleanup();
         // Don't reject on decode errors — move to next batch so remaining audio still plays
         resolve();
@@ -763,12 +782,13 @@ export default function Replay() {
 
     const readyStrokes = preloadedStrokesRef.current;
     const hasStrokes = readyStrokes.length > 0;
-    const hasAudio = audioList.length > 0;
+    const hasAudio = sessionAudioList.length > 0;
     const hasMedia = mediaTimelineRef.current.length > 0;
     if (!hasStrokes && !hasAudio && !hasMedia) return;
 
     stopRef.current = false;
     batchStartMsRef.current = 0;
+    playedSessionMsRef.current = 0;
     drawnMapRef.current = new Map();
     strokeCursorsRef.current = new Map();
     mediaEventIndexRef.current = 0;
@@ -788,24 +808,14 @@ export default function Replay() {
     setCurrentBatch(0);
     setIsPlaying(true);
 
-    const sortedAudio = [...audioList].sort((a, b) => a.batchId - b.batchId);
-
-    // Get sessionStartWallMs for audio batch positioning (same value used for stroke positioning)
-    // Priority: reconstructed from actual batch data > stored localStorage value
-    // This avoids stale localStorage anchors from previous sessions causing drift.
-    const stored = parseInt(localStorage.getItem('sessionStartWallMs') ?? '0', 10);
-    const firstBatch = sortedAudio[0];
-    const reconstructed = firstBatch
-      ? firstBatch.timestamp - (firstBatch.duration ?? 10) * 1000
-      : 0;
-    const sessionStartWallMs = reconstructed || stored || 0;
+    const sortedAudio = [...sessionAudioList].sort((a, b) => a.batchId - b.batchId);
 
     if (hasAudio && hasStrokes) {
       // Normal case: board slaved to audio clock
       startRaf(readyStrokes);
       for (let i = 0; i < sortedAudio.length; i++) {
         if (stopRef.current) break;
-        try { await playAudioBatch(i, sortedAudio, sessionStartWallMs); } catch (e) { console.error('[Replay] audio batch', i, 'failed:', e); }
+        try { await playAudioBatch(i, sortedAudio); } catch (e) { console.error('[Replay] audio batch', i, 'failed:', e); }
       }
       stopRaf();
 
@@ -816,7 +826,7 @@ export default function Replay() {
       }
       for (let i = 0; i < sortedAudio.length; i++) {
         if (stopRef.current) break;
-        try { await playAudioBatch(i, sortedAudio, sessionStartWallMs); } catch (e) { console.error('[Replay] audio batch', i, 'failed:', e); }
+        try { await playAudioBatch(i, sortedAudio); } catch (e) { console.error('[Replay] audio batch', i, 'failed:', e); }
       }
       if (hasMedia) {
         stopRaf();
@@ -864,6 +874,7 @@ export default function Replay() {
     stopRef.current = true;
     stopRaf();
     setIsPlaying(false);
+    playedSessionMsRef.current = 0;
     activeFrameRef.current = null;
     activePdfPageRef.current = undefined;
     activePdfScrollRatioRef.current = undefined;

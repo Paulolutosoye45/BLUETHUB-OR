@@ -59,10 +59,10 @@ type ToWorkerMsg =
   | { type: 'INIT'; sessionId: string; sessionStartMs: number; metadata?: SessionMetadata; }
   | { type: 'RAW_STROKE'; id: string; rawPoints: number[]; color: string; width: number;
       strokeType: 'stroke' | 'eraser'; currentBoard: number;
-      startTime: string; endTime: string; timestamp: number; }
+    startTime: string; endTime: string; timestamp: number; duration?: number; }
   | { type: 'RAW_SHAPE';  id: string; shape: Record<string, unknown>; color: string;
       strokeWidth: number; shapeType: string; currentBoard: number;
-      startTime: string; endTime: string; timestamp: number; }
+    startTime: string; endTime: string; timestamp: number; duration?: number; }
   | { type: 'AUDIO_CHUNK'; blob: Blob; batchIndex: number; duration: number; }
   | { type: 'MEDIA_SHOW'; mediaId: string; name: string; mediaType: string;
       url: string; timerDisplay: string; elapsedMs?: number; frameIndex?: 0 | 1; }
@@ -443,14 +443,14 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
 
     case 'RAW_STROKE': {
       const { id, rawPoints, color, width, strokeType, currentBoard,
-              startTime, endTime, timestamp } = msg;
+              startTime, endTime, timestamp, duration } = msg;
       try {
         const compressed = await gzipCompress(JSON.stringify(rawPoints));
         const base64     = toBase64(compressed);
         const stroke: CompressedStroke = {
           id, sessionId, data: base64, color, width,
           type: strokeType, currentBoard, timestamp,
-          duration: 0, startTime, endTime,
+          duration: duration ?? 0, startTime, endTime,
         };
         // Write immediately — replay sees it within ~10-20ms of drawing
         await writeStrokes([stroke]);
@@ -470,7 +470,7 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
 
     case 'RAW_SHAPE': {
       const { id, shape, color, strokeWidth, shapeType, currentBoard,
-              startTime, endTime, timestamp } = msg;
+              startTime, endTime, timestamp, duration } = msg;
       try {
         const compressed = await gzipCompress(JSON.stringify(shape));
         const base64     = toBase64(compressed);
@@ -480,6 +480,7 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
           currentBoard, timestamp, duration: 0,
           startTime, endTime,
         };
+        stroke.duration = duration ?? stroke.duration;
         // Write immediately
         await writeStrokes([stroke]);
         hasStrokesInBatch = true;

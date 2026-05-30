@@ -59,6 +59,7 @@ export interface StrokePayload {
   startTime:    string;
   endTime:      string;
   timestamp:    number;
+  duration?:    number;
 }
 
 export interface ShapePayload {
@@ -71,6 +72,7 @@ export interface ShapePayload {
   startTime:    string;
   endTime:      string;
   timestamp:    number;
+  duration?:    number;
 }
 
 export interface MediaEventPayload {
@@ -368,14 +370,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       try {
         const activeLessonStr = sessionStorage.getItem('activeLesson');
         const schoolInfoStr = localStorage.getItem('schoolInfo');
+        const userStr = localStorage.getItem('user');
+        const user = userStr ? JSON.parse(userStr) : { id: '', displayName: '', firstName: '', email: '' };
+        const schoolInfo = schoolInfoStr ? JSON.parse(schoolInfoStr) : {};
 
         if (activeLessonStr) {
           const activeLesson = JSON.parse(activeLessonStr);
-          const schoolInfo = schoolInfoStr ? JSON.parse(schoolInfoStr) : {};
-
-          // Get user from localStorage (set by AuthContext)
-          const userStr = localStorage.getItem('user');
-          const user = userStr ? JSON.parse(userStr) : { id: '', displayName: '', email: '' };
 
           metadata = {
             lessonId: activeLesson.lesson?.id || `lesson_${sid}`,
@@ -400,9 +400,56 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           };
 
           console.log('[SessionContext] Built metadata for session:', metadata.lessonId);
+        } else {
+          metadata = {
+            lessonId: `lesson_${sid}`,
+            schoolId: schoolInfo.id || 'unknown',
+            teacher: {
+              id: user.id || '',
+              name: user.displayName || user.firstName || 'Unknown Teacher',
+              email: user.email || '',
+            },
+            lesson: {
+              topic: 'Untitled',
+              subTopic: '',
+              aim: '',
+              subjectId: '',
+              subjectName: 'Subject',
+              classroomId: '',
+              className: 'Class',
+            },
+            deviceType: /mobile/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+            screenWidth: window.innerWidth,
+            screenHeight: window.innerHeight,
+          };
+
+          console.warn('[SessionContext] activeLesson missing; using fallback session metadata');
         }
       } catch (err) {
         console.warn('[SessionContext] Failed to build session metadata:', err);
+
+        // Last-resort fallback so worker can still persist sync architecture data.
+        metadata = {
+          lessonId: `lesson_${sid}`,
+          schoolId: 'unknown',
+          teacher: {
+            id: '',
+            name: 'Unknown Teacher',
+            email: '',
+          },
+          lesson: {
+            topic: 'Untitled',
+            subTopic: '',
+            aim: '',
+            subjectId: '',
+            subjectName: 'Subject',
+            classroomId: '',
+            className: 'Class',
+          },
+          deviceType: /mobile/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+          screenWidth: window.innerWidth,
+          screenHeight: window.innerHeight,
+        };
       }
 
       // Initialise worker with preliminary timestamp and metadata

@@ -55,7 +55,14 @@ const Class = () => {
     const parentRef = useRef<HTMLDivElement>(null);
     // startElapsedMs / endElapsedMs are captured from the active lesson timer.
     // This excludes paused time from replay timing.
-    const strokeTimesRef = useRef({ start: "", end: "", startElapsedMs: 0, endElapsedMs: 0 });
+    const strokeTimesRef = useRef({
+        start: "",
+        end: "",
+        startElapsedMs: 0,
+        endElapsedMs: 0,
+        startWallMs: 0,
+        endWallMs: 0,
+    });
     const rectRef = useRef(null);
     const isDrawing = useRef(false);
     const strokeColor = "#000";
@@ -198,7 +205,20 @@ const Class = () => {
             return;
         }
 
+        const clearBoardState = () => {
+            setStrokes([]);
+            setCurrentStroke([]);
+            setStraightLines([]);
+            setRectangles([]);
+            setCircles([]);
+            setArrows([]);
+            setTriangles([]);
+        };
+
         const loadBoardStrokes = async () => {
+            // Clear immediately so previous board content does not linger while loading.
+            clearBoardState();
+
             try {
                 // Use loadedSessionId (from draft continue) or sessionIdRef (from Redux)
                 const effectiveSessionId = loadedSessionId || sessionIdRef;
@@ -279,6 +299,8 @@ const Class = () => {
                 setTriangles(nextTriangles);
             } catch (err) {
                 console.error("❌ Failed to load board strokes:", err);
+                // Keep board consistent on load failure by showing empty state.
+                clearBoardState();
             }
         };
         loadBoardStrokes();
@@ -311,6 +333,8 @@ const Class = () => {
         // This keeps strokes aligned with audio after pause/resume
         const totalPausedMs = parseInt(localStorage.getItem('totalPausedMs') || '0', 10);
         const timestamp = Date.now() - totalPausedMs;
+        const wallDuration = Math.max(0, strokeTimesRef.current.endWallMs - strokeTimesRef.current.startWallMs);
+        const duration = Math.max(50, strokeTimesRef.current.endElapsedMs - strokeTimesRef.current.startElapsedMs, wallDuration);
 
         const compressed = await gzipCompress(JSON.stringify(shape));
         const base64Data = btoa(String.fromCharCode(...compressed));
@@ -323,7 +347,7 @@ const Class = () => {
             width: shape.strokeWidth || 2,
             type: shape.type,
             timestamp,
-            duration: 0,
+            duration,
             currentBoard,
             startTime,
             endTime,
@@ -344,6 +368,7 @@ const Class = () => {
                     startTime,
                     endTime,
                     timestamp,
+                    duration,
                 });
             }
         } catch (err) {
@@ -368,7 +393,8 @@ const Class = () => {
         // This keeps strokes aligned with audio after pause/resume
         const totalPausedMs = parseInt(localStorage.getItem('totalPausedMs') || '0', 10);
         const timestamp = Date.now() - totalPausedMs;
-        const duration = Math.max(0, strokeTimesRef.current.endElapsedMs - strokeTimesRef.current.startElapsedMs);
+        const wallDuration = Math.max(0, strokeTimesRef.current.endWallMs - strokeTimesRef.current.startWallMs);
+        const duration = Math.max(50, strokeTimesRef.current.endElapsedMs - strokeTimesRef.current.startElapsedMs, wallDuration);
         const startTime = strokeTimesRef.current.start;
         const endTime = strokeTimesRef.current.end;
         // Always use sessionIdRef if available (needed for both recording and draft continuation)
@@ -423,6 +449,7 @@ const Class = () => {
                     startTime,
                     endTime,
                     timestamp,
+                    duration,
                 });
             }
         } catch (err) {
@@ -442,6 +469,7 @@ const Class = () => {
         shapeStartPos.current = pos;
         strokeTimesRef.current.start = timer.timerDisplay;
         strokeTimesRef.current.startElapsedMs = Math.round(timerElapsedSeconds * 1000);
+        strokeTimesRef.current.startWallMs = Date.now();
 
         switch (actions) {
             case ACTIONS.PEN:
@@ -584,6 +612,7 @@ const Class = () => {
         isDrawing.current = false;
         strokeTimesRef.current.end = timer.timerDisplay;
         strokeTimesRef.current.endElapsedMs = Math.round(timerElapsedSeconds * 1000);
+        strokeTimesRef.current.endWallMs = Date.now();
 
         switch (actions) {
             case ACTIONS.PEN:
