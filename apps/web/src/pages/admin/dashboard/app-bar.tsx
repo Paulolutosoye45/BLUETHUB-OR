@@ -26,13 +26,13 @@ const AdminAppbar = () => {
 
   return (
     <>
-      <div className=" hidden w-full mx-auto border-0 bg-white rounded-lg md:flex h-[89px]  justify-between items-center  py-5  px-7">
+      <div className="hidden w-full mx-auto border-0 bg-white rounded-lg md:flex h-[89px]  justify-between items-center  py-5  px-7">
         <section>
           <h2 className="font-poppins font-medium text-[15px] leading-tight text-chestnut ">
             Hello, <span className="font-semibold capitalize ">{user?.firstName},</span> Welcome Back!
           </h2>
         </section>
-        <section className="flex justify-between gap-4 items-center">
+        <section className="flex justify-between gap-4 items-center md:hidden">
           <h2 className="font-semibold text-base leading-tight text-chestnut">
             {dayName},
             <span className="font-medium text-sm">
@@ -62,7 +62,7 @@ const AdminAppbar = () => {
           {schoolProfile?.schoolName && (
             <div className="hidden md:flex flex-col items-end">
               <span className="text-xs font-semibold text-gray-800 leading-tight">{schoolProfile.schoolName}</span>
-              <span className="text-[10px] text-gray-400">Administrator</span>
+              <span className="text-[10px] text-gray-400">{user?.roleName}</span>
             </div>
           )}
 

@@ -26,7 +26,7 @@ const AdminLayout = () => {
           [&::-webkit-scrollbar-thumb]:bg-gray-400"
       >
         <SchoolRef mode="wallpaper" className="min-h-full">
-          <div className="max-w-7xl mx-auto  md:p-4 lg:p-6 transition-all duration-300">
+          <div className="max-w-7xl mx-auto   lg:p-6 transition-all duration-300">
             <Outlet context={{ openMobileNav: () => setMobileNavOpen(true) }} />
           </div>
         </SchoolRef>

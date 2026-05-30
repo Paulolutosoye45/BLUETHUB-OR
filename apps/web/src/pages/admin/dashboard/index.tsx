@@ -8,13 +8,30 @@ import { RecentActivity } from "./component/recent-activity";
 import { PendingLessonApprovals } from "./component/pending-lesson-approvals";
 import { MobileNav } from "../side-bar";
 import { useState } from "react";
+import { useAuthContext } from "@/contexts/auth-context";
 
 const AdminDashboard = () => {
   const [isOpen, setIsOpen]= useState(false)
+  const { user } = useAuthContext()
+
+   const getInitials = (name?: string) => {
+    if (!name) return "";
+    return name
+      .trim()
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0].toUpperCase())
+      .join("");
+  };
+
+  // Usage
+  const initials = getInitials(user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : "WA"); 
+
   return (
     <div className="font-poppins w-full">
       <MobileNav isOpen={isOpen} setIsOpen={setIsOpen}/>
-      <div className="backdrop-blur-sm md:rounded-2xl border border-white/20 overflow-hidden">
+      <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
 
         {/* ── Top Nav ── */}
         <div className="flex items-center justify-between px-5 h-14 bg-chestnut">
@@ -25,7 +42,7 @@ const AdminDashboard = () => {
           <EllipsisVertical className="text-white hidden md:block" />
           <div className="flex gap-[3px] md:hidden items-center justify-between ">
              <div className="w-full h-full px-2.5 py-2 rounded-full flex items-center justify-center bg-[#FFFFFF80]">
-              <span className="text-white font-medium text-xs leading-5">Co</span>
+              <span className="text-white font-medium text-xs leading-5">{initials}</span>
              </div>
              <div className="w-full h-full p-2 rounded-full flex items-center justify-center bg-white">
               <Bell className="text-chestnut" />

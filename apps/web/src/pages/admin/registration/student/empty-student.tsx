@@ -11,7 +11,7 @@ const EmptyStudent = () => {
 
     const school = localData.retrieve("schoolInfo") as schoolInfo
     return (
-        <div className="md:p-6  font-poppins">
+        <div className="lg:p-6  font-poppins">
             <div className="backdrop-blur-sm lg:rounded-2xl border border-white/70  overflow-hidden">
                 <div
                     className="flex items-center justify-between px-5 h-12 sticky top-0 z-30 bg-chestnut">

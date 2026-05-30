@@ -100,17 +100,17 @@ export type TResponse<T> = {
 
 const endpoints = {
   login: "/api/User/login",
-  createUser: "api/User/createUser",
-  editUser: "api/User/editUser",
-  assignTeacherToClassroom: "api/User/AssignTeacherToClassroom",
-  getStudents: "api/User/GetStudents",
-  updatePassword: "api/User/updatePassword",
-  updatePasswordNewUser: "api/User/update-password/newUser",
-  getUserById: "api/User/GetUserById",
-  assignPermissions: "api/User/AssignPermissions",
-  getAdminPermissions: "api/User/GetAdminPermissions",
-  getAllAdminPermissions: "api/User/GetAllAdminPermissions",
-  revokePermissions: "api/User/RevokePermissions",
+  createUser: "/api/User/createUser",
+  editUser: "/api/User/editUser",
+  assignTeacherToClassroom: "/api/User/AssignTeacherToClassroom",
+  getStudents: "/api/User/GetStudents",
+  updatePassword: "/api/User/updatePassword",
+  updatePasswordNewUser: "/api/User/update-password/newUser",
+  getUserById: "/api/User/GetUserById",
+  assignPermissions: "/api/User/AssignPermissions",
+  getAdminPermissions: "/api/User/GetAdminPermissions",
+  getAllAdminPermissions: "/api/User/GetAllAdminPermissions",
+  revokePermissions: "/api/User/RevokePermissions",
   getTeacher: "/api/User/teachers",
   refreshToken: "/api/User/refresh-token",
   getUserByRole: "/api/User/GetUsersByRole",
@@ -316,19 +316,36 @@ export const authService = {
     });
   },
   assignPermissions: (data: IAssignPermissionsRequest) => {
-    return API.post<TResponse<unknown>>(endpoints.assignPermissions, data);
+    return API.post<TResponse<unknown>>(endpoints.assignPermissions, data, {
+       headers: {
+        "X-Tenant-ID":  X_Tenant_ID,
+      }});
   },
   getAdapterPermissions: (adminUserId: string) => {
     return API.get<TResponse<unknown>>(endpoints.getAdminPermissions, {
       params: { adminUserId },
+      
     });
   },
 
   getAllAdminPermissions: (data: IGetAdminPermissionsRequest) => {
     return API.get<TResponse<unknown>>(endpoints.getAdminPermissions, {
       params: data,
+       headers: {
+        "X-Tenant-ID":  X_Tenant_ID,
+      },
     });
   },
+
+  getAdminPermissions: (adminUserId: string) => {
+    return API.get(endpoints.getAdminPermissions, {
+      params: { adminUserId },
+      headers: {
+        "X-Tenant-ID":  X_Tenant_ID,
+      },
+    });
+  },
+
 
   revokePermissions: (adminUserId: string) => {
     return API.post<TResponse<unknown>>(endpoints.revokePermissions, {
