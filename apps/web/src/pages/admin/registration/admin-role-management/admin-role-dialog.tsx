@@ -1,7 +1,26 @@
-import { Button, Checkbox, Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@bluethub/ui-kit";
-import { AlertTriangle, BarChart2, BookOpen, CheckSquare, GraduationCap, PencilLine, School, UserCheck, UserPlus, Users,  } from "lucide-react";
-import { useState } from "react";
+import { authService } from "@/services/auth";
+import { Button, Checkbox, Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@bluethub/ui-kit";
+import { AxiosError } from "axios";
+import { AlertTriangle, BarChart2, BookOpen, CheckSquare, GraduationCap, Info, Loader2, PencilLine, School, UserCheck, UserPlus, Users, } from "lucide-react";
+import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
+
+interface Admin {
+    id: string;
+    firstName: string;
+    lastName: string;
+    userName: string;
+    emailAddress: string;
+    roleId: number;
+    roleName: string;
+    isActive: boolean,
+    hasAccess: boolean,
+    profileImage: string | null,
+    guardianName: string | null,
+    createdDate: string,
+    modifiedDate: string
+}
 
 
 interface RoleOption {
@@ -11,43 +30,118 @@ interface RoleOption {
     icon: React.ReactNode;
     color: string;
     checked?: boolean;
+    PermissionKey: number;
 }
 
 function Avatar({ initials, size = "md" }: { initials: string; size?: "sm" | "md" | "lg" }) {
     const sz = size === "lg" ? "w-10 h-10 text-sm" : size === "sm" ? "w-7 h-7 text-xs" : "w-9 h-9 text-xs";
     return (
-        <div className={`${sz} rounded-full bg-chestnut flex items-center justify-center text-white font-semibold shrink-0`}>
+        <div className={`${sz} uppercase rounded-full bg-chestnut flex items-center justify-center text-white font-semibold shrink-0`}>
             {initials}
         </div>
     );
 }
-
 const roleOptions: RoleOption[] = [
-    { id: "teacher", label: "Teacher", description: "Manage lessons, classes and student assessments", icon: <GraduationCap size={18} />, color: "text-blue-500", checked: true },
-    { id: "create_user", label: "Create User", description: "Manage user registration profile and full eco system", icon: <UserPlus size={18} />, color: "text-purple-500" },
-    { id: "create_classes", label: "Create Classes", description: "Manage user registration profile and full eco system", icon: <BookOpen size={18} />, color: "text-indigo-500" },
-    { id: "approve_classes", label: "Approve Classes", description: "Manage user registration profile and full eco system", icon: <CheckSquare size={18} />, color: "text-red-500" },
-    { id: "manage_teachers", label: "Manage Teachers", description: "Manage teacher subject and profile", icon: <UserCheck size={18} />, color: "text-blue-400" },
-    { id: "manage_students", label: "Manage Students", description: "Manage student Register, profiles and eco system", icon: <Users size={18} />, color: "text-red-400" },
-    { id: "view_reports", label: "View Reports", description: "View Student learner eval", icon: <BarChart2 size={18} />, color: "text-blue-500" },
-    { id: "manage_classroom", label: "Manage Class-Room", description: "Manage and direct a class room", icon: <School size={18} />, color: "text-purple-400" },
+    { id: "teacher", label: "Teacher", description: "Manage lessons, classes and student assessments", icon: <GraduationCap size={18} />, color: "text-blue-500", checked: true, PermissionKey: 64 },
+    { id: "create_user", label: "Create User", description: "Manage user registration profile and full eco system", icon: <UserPlus size={18} />, color: "text-purple-500", PermissionKey: 128 },
+    { id: "create_classes", label: "Create Classes", description: "Manage user registration profile and full eco system", icon: <BookOpen size={18} />, color: "text-indigo-500", PermissionKey: 2 },
+    { id: "approve_classes", label: "Approve Classes", description: "Manage user registration profile and full eco system", icon: <CheckSquare size={18} />, color: "text-red-500", PermissionKey: 1 },
+    { id: "manage_teachers", label: "Manage Teachers", description: "Manage teacher subject and profile", icon: <UserCheck size={18} />, color: "text-blue-400", PermissionKey: 4 },
+    { id: "manage_students", label: "Manage Students", description: "Manage student Register, profiles and eco system", icon: <Users size={18} />, color: "text-red-400", PermissionKey: 8 },
+    { id: "view_reports", label: "View Reports", description: "View Student learner eval", icon: <BarChart2 size={18} />, color: "text-blue-500", PermissionKey: 16 },
+    { id: "manage_classroom", label: "Manage Class-Room", description: "Manage and direct a class room", icon: <School size={18} />, color: "text-purple-400", PermissionKey: 32 },
 ];
 
 
-const AssignRoleDialog = () => {
-    // const [open, setOpen] = useState(false);
-    const [selected, setSelected] = useState<Set<string>>(new Set(["teacher"]));
-
-    const toggle = (id: string) =>
+const AssignRoleDialog = ({ admin }: { admin: Admin }) => {
+    const [open, setOpen] = useState(false);
+    const [selected, setSelected] = useState<Set<number>>(new Set());
+    const [errorMsg, setErrorMsg] = useState("");
+    const [fetchLoading, setFetchLoading] = useState(true);   // loading permissions on mount
+    const [assignLoading, setAssignLoading] = useState(false); // submitting the form
+    const [originalPermissions, setOriginalPermissions] = useState<Set<number>>(new Set())
+    const toggle = (id: number) => {
         setSelected((prev) => {
             const next = new Set(prev);
             next.has(id) ? next.delete(id) : next.add(id);
             return next;
         });
+    };
+
+    const fetchPermissions = async (id: string) => {
+        try {
+            setFetchLoading(true);
+            const response = await authService.getAdminPermissions(id);
+            const permissions = new Set<number>(response.data.data.permissions);
+            setSelected(permissions);
+            setOriginalPermissions(permissions);
+        } catch (error) {
+            const msg =
+                error instanceof AxiosError
+                    ? error.response?.data?.responseMessage ??
+                    error.response?.data?.message ??
+                    error.message
+                    : (error as Error).message;
+            setErrorMsg(msg);
+        } finally {
+            setFetchLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchPermissions(admin.id);
+    }, [admin.id]);
+
+    const handleAssign = async () => {
+        try {
+            setAssignLoading(true);
+            await authService.assignPermissions({ adminUserId: admin.id, permissions: Array.from(selected) });
+            toast.success("Permissions assigned successfully");
+            setOpen(false);
+        } catch (error) {
+            const msg =
+                error instanceof AxiosError
+                    ? error.response?.data?.responseMessage ??
+                    error.response?.data?.message ??
+                    error.message
+                    : (error as Error).message;
+            setErrorMsg(msg);
+        } finally {
+            setAssignLoading(false);
+        }
+    };
+
+
+    const hasChanged =
+        selected.size !== originalPermissions.size ||
+        [...selected].some((p) => !originalPermissions.has(p));
+
+    if (fetchLoading) {
+        return (
+            <div className="flex items-center justify-center py-8">
+                <Loader2 className="animate-spin text-chestnut" size={24} />
+            </div>
+        );
+    }
+
+    if (errorMsg) {
+        return (
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm">
+                <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
+                <span>{errorMsg}</span>
+            </div>
+        );
+    }
 
 
     return (
-        <Dialog>
+        <Dialog open={open}
+            onOpenChange={(isOpen) => {
+                setOpen(isOpen);
+                if (isOpen) {
+                    fetchPermissions(admin.id); // ✅ fetch every time dialog opens
+                }
+            }}>
             <DialogTrigger>
                 <Button className="flex  font-poppins  cursor-pointer items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold transition-opacity hover:opacity-90 bg-chestnut">
                     <PencilLine className="size-4" />
@@ -68,13 +162,13 @@ const AssignRoleDialog = () => {
 
                 {/* User Card */}
                 <div className="mx-5 mb-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 flex items-center gap-3">
-                    <Avatar initials="AO" size="lg" />
+                    <Avatar initials={`${admin.firstName.charAt(0)}${admin.lastName.charAt(0)}`} size="lg" />
                     <div className="min-w-0">
-                        <p className="text-sm font-semibold text-gray-800 truncate">Dr Ray Akinwale</p>
-                        <p className="text-xs text-gray-500 truncate">rayakinwale@greenfieldcollege.edu · Teacher</p>
+                        <p className="text-sm font-semibold text-gray-800 truncate">{admin.firstName} {admin.lastName}</p>
+                        <p className="text-xs text-gray-500 truncate">{admin.emailAddress} · {admin.roleName}</p>
                         <div className="mt-1 flex items-center gap-1 text-xs text-gray-500">
                             <UserCheck size={12} />
-                            <span>Current Role: Teacher</span>
+                            <span>Current Role: {admin.roleName}</span>
                         </div>
                     </div>
                 </div>
@@ -86,21 +180,21 @@ const AssignRoleDialog = () => {
 
                     <div className="grid grid-cols-2 gap-2 max-h-65 overflow-y-auto pr-0.5">
                         {roleOptions.map((role) => {
-                            const isChecked = selected.has(role.id);
+                            const isChecked = selected.has(role.PermissionKey); // ✅ if PermissionKey is number
                             return (
                                 <button
                                     key={role.id}
-                                    onClick={() => toggle(role.id)}
+                                    onClick={() => toggle(role.PermissionKey)}
                                     className={`relative text-left rounded-xl border p-3 transition-all ${isChecked
-                                            ? "border-chestnut border-2 bg-indigo-50"
-                                            : "border-gray-200 bg-white hover:border-gray-300"
+                                        ? "border-chestnut border-2 bg-indigo-50"
+                                        : "border-gray-200 bg-white hover:border-gray-300"
                                         }`}
                                 >
                                     <div className="flex items-start gap-2">
                                         <Checkbox
                                             checked={isChecked}
                                             className="mt-0.5 shrink-0 data-[state=checked]:bg-chestnut data-[state=checked]:border-indigo-600"
-                                            onCheckedChange={() => toggle(role.id)}
+                                            onCheckedChange={() => toggle(role.PermissionKey)}
                                         />
                                         <div>
                                             <div className={`mb-1 ${role.color}`}>{role.icon}</div>
@@ -124,12 +218,23 @@ const AssignRoleDialog = () => {
 
                 {/* Actions */}
                 <div className="flex items-center justify-end gap-2 px-5 py-4">
-                    <Button variant="outline" size="sm" className="text-xs px-4">
-                        Cancel
-                    </Button>
-                    <Button size="sm" className="text-xs px-4 bg-chestnut hover:bg-indigo-700 text-white gap-1.5">
-                        <UserPlus size={13} />
-                        Assign Role
+                    <DialogClose asChild>
+                        <Button variant="outline" size="sm" className="text-xs px-4">
+                            Cancel
+                        </Button>
+                    </DialogClose>
+                    <Button onClick={handleAssign} disabled={selected.size === 0 || assignLoading || !hasChanged} size="sm" className="text-xs px-4 bg-chestnut hover:bg-indigo-700 text-white gap-1.5">
+                        {assignLoading ? (
+                            <>
+                                <UserPlus size={13} />
+                                Assigning...
+                            </>
+                        ) : (
+                            <>
+                                <UserPlus size={13} />
+                                Assign Role
+                            </>
+                        )}
                     </Button>
                 </div>
             </DialogContent>

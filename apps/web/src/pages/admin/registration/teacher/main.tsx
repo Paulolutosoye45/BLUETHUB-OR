@@ -122,7 +122,7 @@ const TeacherMain = () => {
     });
 
     return (
-        <div className=" sm:px-5 lg:px-7  sm:py-6">
+        <div className=" sm:px-5 md:p-0 lg:px-7  sm:py-6">
             <section className="relative overflow-hidden lg:rounded-3xl border border-white/20 bg-white/85 shadow-sm">
                 <div className="pointer-events-none absolute -top-12 -right-14 h-44 w-44 rounded-full bg-chestnut/10 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-14 -left-14 h-44 w-44 rounded-full bg-[#292382]/10 blur-3xl" />
