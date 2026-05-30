@@ -5,14 +5,18 @@ import AppBar from "./component/app-bar";
 import { Toaster } from "react-hot-toast";
 import { SessionProvider } from "@/contexts/session-context";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { resetClassRuntime } from "@/store/class-action-slice";
 import { forceResetGlobalTimer } from "@/hooks/useGlobalTimer";
 import { getInterruptedSessions, cleanupEntireSession } from "@/utils/db";
 import type { LocalSession } from "@/utils/constant";
 import SessionRecoveryDialog from "@/component/session-recovery-dialog";
+import { deleteImage } from "@/services/class-media";
+import { LESSON_MEDIA_CACHE, buildLessonScopedCacheKey } from "@/utils/lesson-media-cache";
 
 // Inner component that has access to Redux dispatch
 const ClassRoomInner = () => {
+  const navigate = useNavigate();
   const [recoverySession, setRecoverySession] = useState<LocalSession | null>(null);
   const [showRecoveryDialog, setShowRecoveryDialog] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -40,16 +44,19 @@ const ClassRoomInner = () => {
         const interruptedSessions = await getInterruptedSessions();
 
         if (interruptedSessions.length > 0) {
-          // Discard sessions from other lessons silently
-          const otherLessons = interruptedSessions.filter(
-            s => !currentLessonId || s.lessonId !== currentLessonId
-          );
-          await Promise.allSettled(otherLessons.map(s => cleanupEntireSession(s.id)));
+          // If we know the active lesson, discard interrupted sessions from other lessons.
+          // If active lesson is missing (deep-link/open board directly), never discard.
+          if (currentLessonId) {
+            const otherLessons = interruptedSessions.filter(
+              s => s.lessonId !== currentLessonId
+            );
+            await Promise.allSettled(otherLessons.map(s => cleanupEntireSession(s.id)));
+          }
 
-          // Only offer recovery for the same lesson
-          const sameLesson = interruptedSessions.filter(
-            s => currentLessonId && s.lessonId === currentLessonId
-          );
+          // Prefer same-lesson recovery when available; otherwise fall back to all sessions.
+          const sameLesson = currentLessonId
+            ? interruptedSessions.filter(s => s.lessonId === currentLessonId)
+            : interruptedSessions;
 
           if (sameLesson.length > 0) {
             const mostRecent = sameLesson.sort(
@@ -112,6 +119,67 @@ const ClassRoomInner = () => {
     try {
       // Clean up the interrupted session
       await cleanupEntireSession(recoverySession.id);
+
+      // Remove lesson media cached in image-store by known media event IDs
+      const mediaIds = Array.from(new Set(
+        (recoverySession.mediaEvents ?? [])
+          .map((m) => m.id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0)
+      ));
+      await Promise.allSettled(mediaIds.map((id) => deleteImage(id)));
+
+      // Remove lesson media URLs from Cache API (lesson-specific only)
+      const cacheUrls = new Set<string>();
+      for (const media of recoverySession.mediaEvents ?? []) {
+        if (media?.url) cacheUrls.add(media.url);
+      }
+
+      try {
+        const activeLessonRaw = sessionStorage.getItem('activeLesson');
+        if (activeLessonRaw) {
+          const activeLesson = JSON.parse(activeLessonRaw) as {
+            lesson?: { id?: string };
+            media?: Array<{ cloudinaryUrl?: string }>;
+          };
+
+          if (activeLesson.lesson?.id === recoverySession.lessonId) {
+            for (const media of activeLesson.media ?? []) {
+              if (media.cloudinaryUrl) cacheUrls.add(media.cloudinaryUrl);
+            }
+          }
+        }
+      } catch {
+        // Best-effort cache cleanup only.
+      }
+
+      if (typeof window !== 'undefined' && 'caches' in window && cacheUrls.size > 0) {
+        const cache = await caches.open(LESSON_MEDIA_CACHE);
+        const urls = Array.from(cacheUrls);
+        await Promise.allSettled(urls.map((url) => cache.delete(url)));
+        await Promise.allSettled(
+          urls.map((url) => cache.delete(buildLessonScopedCacheKey(recoverySession.lessonId, url)))
+        );
+      }
+
+      // Clear local board replay/session artifacts for this session lifecycle
+      localStorage.removeItem('continueSessionId');
+      localStorage.removeItem('continueLessonId');
+      localStorage.removeItem('currentBatches');
+      localStorage.removeItem('recordingStartTimerMs');
+      localStorage.removeItem('sessionStartWallMs');
+      localStorage.removeItem('totalPausedMs');
+
+      try {
+        const activeLessonRaw = sessionStorage.getItem('activeLesson');
+        if (activeLessonRaw) {
+          const activeLesson = JSON.parse(activeLessonRaw) as { lesson?: { id?: string } };
+          if (activeLesson.lesson?.id === recoverySession.lessonId) {
+            sessionStorage.removeItem('activeLesson');
+          }
+        }
+      } catch {
+        sessionStorage.removeItem('activeLesson');
+      }
     } catch (err) {
       console.error('[ClassRoom] Failed to cleanup session:', err);
     }
@@ -123,6 +191,9 @@ const ClassRoomInner = () => {
     setShowRecoveryDialog(false);
     setRecoverySession(null);
     setIsReady(true);
+
+    // Exit board after discard to avoid continuing in a deleted session context.
+    navigate('/teacher', { replace: true });
   };
 
   return (

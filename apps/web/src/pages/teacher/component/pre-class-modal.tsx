@@ -19,6 +19,7 @@ import {
 import type { LessonForClassDto, LessonMediaDto } from "@/services/lesson";
 import { fetchImageAsBlob, fetchMediaWithAuthFallback } from "@/utils/blob";
 import { getImageSourceUrl } from "@/services/class-media";
+import { LESSON_MEDIA_CACHE, buildLessonScopedCacheKey } from "@/utils/lesson-media-cache";
 
 interface PreClassModalProps {
   open: boolean;
@@ -82,8 +83,6 @@ const PreClassModal = ({
   isLoading = false,
   errorMessage = null,
 }: PreClassModalProps) => {
-  const LESSON_MEDIA_CACHE = "bluethub-lesson-media";
-
   const resolveMediaType = (mediaType: string, fileExtension: string): "video" | "pdf" | "image" => {
     const mt = (mediaType ?? "").toLowerCase();
     const ext = (fileExtension ?? "").toLowerCase().replace(/^\./, "");
@@ -129,12 +128,22 @@ const PreClassModal = ({
       // 1) Warm Cache API for fast startup/offline resilience
       if (cache) {
         try {
+          const lessonScopedKey = lesson?.id ? buildLessonScopedCacheKey(lesson.id, url) : null;
           const cached = await cache.match(url);
+          const lessonScopedCached = lessonScopedKey ? await cache.match(lessonScopedKey) : null;
+
+          let response = cached ?? lessonScopedCached;
+
           if (!cached) {
             const fetched = await fetchMediaWithAuthFallback(url);
             if (fetched.ok) {
               await cache.put(url, fetched.clone());
+              response = fetched;
             }
+          }
+
+          if (response && lessonScopedKey) {
+            await cache.put(lessonScopedKey, response.clone());
           }
         } catch {
           // Continue even if Cache API warmup fails.
