@@ -7,8 +7,7 @@ import * as React from "react";
 import { clearSelectedImage } from "@/store/class-action-slice";
 import { useSession } from "@/contexts/session-context";
 import { fetchMediaWithAuthFallback } from "@/utils/blob";
-
-const LESSON_MEDIA_CACHE = "bluethub-lesson-media";
+import { LESSON_MEDIA_CACHE, buildLessonScopedCacheKey } from "@/utils/lesson-media-cache";
 
 const getFileExtension = (nameOrUrl?: string): string => {
   if (!nameOrUrl) return '';
@@ -63,6 +62,16 @@ const MediaFrame = () => {
     : null;
 
   const cacheBlobUrlRef = React.useRef<string | null>(null);
+  const getActiveLessonId = (): string | null => {
+    try {
+      const raw = sessionStorage.getItem("activeLesson");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { lesson?: { id?: string } };
+      return parsed.lesson?.id ?? null;
+    } catch {
+      return null;
+    }
+  };
 
   // Load media URL from cache when selectedImage changes
   useEffect(() => {
@@ -74,12 +83,20 @@ const MediaFrame = () => {
             if (typeof window !== "undefined" && "caches" in window) {
               try {
                 const cache = await caches.open(LESSON_MEDIA_CACHE);
+                const lessonId = getActiveLessonId();
+                const lessonScopedKey = lessonId ? buildLessonScopedCacheKey(lessonId, selectedImage.url) : null;
                 let response = await cache.match(selectedImage.url);
+                if (!response && lessonScopedKey) {
+                  response = await cache.match(lessonScopedKey);
+                }
 
                 if (!response) {
                   const fetched = await fetchMediaWithAuthFallback(selectedImage.url);
                   if (fetched.ok) {
                     await cache.put(selectedImage.url, fetched.clone());
+                    if (lessonScopedKey) {
+                      await cache.put(lessonScopedKey, fetched.clone());
+                    }
                     response = fetched;
                   }
                 }
@@ -116,12 +133,20 @@ const MediaFrame = () => {
 
           if (typeof window !== "undefined" && "caches" in window) {
             const cache = await caches.open(LESSON_MEDIA_CACHE);
+            const lessonId = getActiveLessonId();
+            const lessonScopedKey = lessonId ? buildLessonScopedCacheKey(lessonId, selectedImage.url) : null;
             let response = await cache.match(selectedImage.url);
+            if (!response && lessonScopedKey) {
+              response = await cache.match(lessonScopedKey);
+            }
 
             if (!response) {
               const fetched = await fetchMediaWithAuthFallback(selectedImage.url);
               if (fetched.ok) {
                 await cache.put(selectedImage.url, fetched.clone());
+                if (lessonScopedKey) {
+                  await cache.put(lessonScopedKey, fetched.clone());
+                }
                 response = fetched;
               }
             }
