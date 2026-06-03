@@ -102,6 +102,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const recorderRef             = useRef<MediaRecorder | null>(null);
   const batchIndexRef           = useRef(0);
   const sessionStartMsRef       = useRef(0);
+  const currentSessionIdRef     = useRef('');
 
   // State flags
   const [isMicMuted, setIsMicMuted] = useState(true);
@@ -302,6 +303,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // Update sync anchor to exact recording start moment
       sessionStartMsRef.current = batchStartMs;
       localStorage.setItem('sessionStartWallMs', String(batchStartMs));
+      if (currentSessionIdRef.current) {
+        localStorage.setItem('sessionStartSessionId', currentSessionIdRef.current);
+      }
       console.log('[SessionContext] SYNC ANCHOR set at recorder.start():', batchStartMs);
     }
 
@@ -327,6 +331,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       const sid = crypto.randomUUID();
       batchIndexRef.current = 0;
+      currentSessionIdRef.current = sid;
 
       // Reset pause tracking
       pauseStartMsRef.current = 0;
@@ -347,6 +352,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // Preliminary anchor (will be finalized in startAudioBatch right before recorder.start())
       const preliminaryAnchor = Date.now();
       localStorage.setItem('recordingStartTimerMs', String(Math.round(timerElapsedSeconds * 1000)));
+      localStorage.setItem('recordingStartSessionId', sid);
 
       // Build session metadata from activeLesson (for session recovery)
       let metadata: {
@@ -506,6 +512,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       // Continue from where we left off with batch indexing
       batchIndexRef.current = existingBatchCount;
+      currentSessionIdRef.current = sessionId;
 
       // Start with mic MUTED
       stream.getAudioTracks().forEach(track => {
@@ -526,6 +533,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const sessionStartMs = Date.now() - elapsedMs;
       sessionStartMsRef.current = sessionStartMs;
       localStorage.setItem('sessionStartWallMs', String(sessionStartMs));
+      localStorage.setItem('sessionStartSessionId', sessionId);
+      localStorage.setItem('recordingStartSessionId', sessionId);
 
       console.log('[SessionContext] Restored sessionStartWallMs:', sessionStartMs, 'batchIndex:', existingBatchCount);
 

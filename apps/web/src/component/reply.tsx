@@ -304,6 +304,8 @@ export default function Replay() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const currentBlobUrlRef = useRef<string | null>(null);
   const playedSessionMsRef = useRef<number>(0);
+  const audioAnchorWallMsRef = useRef<number>(0);
+  const replayDisplayOffsetMsRef = useRef<number>(0);
   const parentRef = useRef<HTMLDivElement>(null);
   // const __trRef = useRef<Konva.Transformer | null>(null);
   // const _rectRef = useRef(null);
@@ -353,7 +355,7 @@ export default function Replay() {
 
     const id = setInterval(() => {
       const sessionMs = batchStartMsRef.current + (audioRef.current?.currentTime ?? 0) * 1000;
-      setReplayMs(sessionMs);
+      setReplayMs(sessionMs + replayDisplayOffsetMsRef.current);
     }, 100);
 
     return () => clearInterval(id);
@@ -504,19 +506,50 @@ export default function Replay() {
     //
     // Fallback: if audio data is unavailable, fall back to the timerDisplay offset.
 
-    // Primary anchor: reconstruct from the first audio batch for THIS replay session.
-    // This avoids stale cross-session localStorage anchors causing board/audio drift.
-    // Fallback 1: stored anchor from localStorage.
-    // Fallback 2: timerDisplay string offset (coarsest, 1-second resolution).
-    const stored = parseInt(localStorage.getItem('sessionStartWallMs') ?? '0', 10);
+    // Primary sync strategy: map stroke wall timestamps onto the recorded audio
+    // chunk timeline. This keeps board time physically tied to audio time.
+    // Fallbacks remain for older data that may not have enough metadata.
+    const storedSessionId = localStorage.getItem('sessionStartSessionId') ?? '';
+    const stored = storedSessionId === activeSessionId
+      ? parseInt(localStorage.getItem('sessionStartWallMs') ?? '0', 10)
+      : 0;
     const sortedAudio = [...sessionAudioList].sort((a, b) => a.batchId - b.batchId);
     const firstBatch  = sortedAudio[0];
     const reconstructed = firstBatch
       ? firstBatch.timestamp - (firstBatch.duration ?? 10) * 1000
       : 0;
-    const timerOffset = parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10);
+    const timerOffsetSessionId = localStorage.getItem('recordingStartSessionId') ?? '';
+    const timerOffset = timerOffsetSessionId === activeSessionId
+      ? parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10)
+      : 0;
 
-    const sessionStartWallMs = reconstructed || stored || 0;
+    const sessionStartWallMs = stored || reconstructed || 0;
+    audioAnchorWallMsRef.current = sessionStartWallMs;
+
+    let accumulatedMs = 0;
+    const audioRanges = sortedAudio.map((batch) => {
+      const durationMs = Math.max(1, Math.round((batch.duration ?? 10) * 1000));
+      const endWallMs = batch.timestamp;
+      const startWallMs = endWallMs - durationMs;
+      const startMs = accumulatedMs;
+      const endMs = startMs + durationMs;
+      accumulatedMs = endMs;
+      return { startWallMs, endWallMs, startMs, endMs };
+    });
+
+    const mapWallTsToAudioMs = (wallTs: number): number | null => {
+      if (audioRanges.length === 0) return null;
+      const found = audioRanges.find((range) => wallTs >= range.startWallMs && wallTs <= range.endWallMs);
+      if (found) {
+        return found.startMs + (wallTs - found.startWallMs);
+      }
+
+      // Clamp to nearest known audio boundary for mild timestamp jitter.
+      if (wallTs < audioRanges[0].startWallMs) return 0;
+      const last = audioRanges[audioRanges.length - 1];
+      if (wallTs > last.endWallMs) return last.endMs;
+      return null;
+    };
 
     // Safety: only use min-stroke fallback when there is no reliable anchor.
     // Using min stroke as anchor while audio exists can pull board events too early.
@@ -531,7 +564,21 @@ export default function Replay() {
 
     const timelines = allStrokes.map(s => {
       let startMs: number;
-      if (effectiveAnchor && s.timestamp) {
+      if (s.timestamp && audioRanges.length > 0) {
+        const mapped = mapWallTsToAudioMs(s.timestamp);
+        if (mapped !== null) {
+          startMs = mapped;
+        } else if (effectiveAnchor) {
+          const wallMs = s.timestamp - effectiveAnchor;
+          if (wallMs > 0) {
+            startMs = wallMs;
+          } else {
+            startMs = Math.max(0, timeToMs(s.startTime) - timerOffset);
+          }
+        } else {
+          startMs = Math.max(0, timeToMs(s.startTime) - timerOffset);
+        }
+      } else if (effectiveAnchor && s.timestamp) {
         const wallMs = s.timestamp - effectiveAnchor;
         if (wallMs > 0) {
           startMs = wallMs;
@@ -544,12 +591,8 @@ export default function Replay() {
         // fallback: timerDisplay "MM:SS" minus stored offset
         startMs = Math.max(0, timeToMs(s.startTime) - timerOffset);
       }
-      // drawWindow: stroke.duration is 0 in current impl so we use 50ms min.
-      // The stroke "pops" in fully at startMs which is accurate to the ms.
-      const drawWindow = Math.max(
-        s.duration ?? 0,
-        50
-      );
+      // Preserve captured draw duration so stroke END timing matches audio/time.
+      const drawWindow = Math.max(50, s.duration ?? 0);
       return {
         stroke: s,
         startMs,
@@ -557,6 +600,21 @@ export default function Replay() {
         totalPoints: s.points.length,
       };
     });
+
+    const displayOffsetCandidates = timelines
+      .map(({ stroke, startMs }) => {
+        const classMs = timeToMs(stroke.startTime);
+        if (!Number.isFinite(classMs) || classMs <= 0) return null;
+        const offset = classMs - startMs;
+        if (!Number.isFinite(offset) || offset < 0 || offset > 5 * 60 * 1000) return null;
+        return offset;
+      })
+      .filter((v): v is number => v !== null)
+      .sort((a, b) => a - b);
+
+    replayDisplayOffsetMsRef.current = displayOffsetCandidates.length > 0
+      ? displayOffsetCandidates[Math.floor(displayOffsetCandidates.length / 2)]
+      : Math.max(0, timerOffset);
 
     strokeCursorsRef.current = new Map(timelines.map(t => [t.stroke.id, 0]));
     mediaEventIndexRef.current = 0;
@@ -701,7 +759,7 @@ export default function Replay() {
     };
 
     rafRef.current = requestAnimationFrame(frame);
-  }, [sessionAudioList]);
+  }, [sessionAudioList, activeSessionId]);
 
   const stopRaf = useCallback(() => {
     if (rafRef.current !== null) {
@@ -724,8 +782,15 @@ export default function Replay() {
 
     const batch = sortedBatches[batchIndex];
 
-    // Drive board clock from actual played-audio continuity.
-    // This avoids timeline jumps during chunk handoff/load gaps.
+    const anchorWallMs = audioAnchorWallMsRef.current;
+    const batchDurationMs = Math.max(1, Math.round((batch.duration ?? 10) * 1000));
+    const batchWallStartMs = batch.timestamp - batchDurationMs;
+    const plannedStartMs = anchorWallMs > 0
+      ? Math.max(0, batchWallStartMs - anchorWallMs)
+      : Math.max(0, playedSessionMsRef.current);
+
+    // Keep monotonic progression, but preserve recorded capture gaps.
+    playedSessionMsRef.current = Math.max(playedSessionMsRef.current, plannedStartMs);
     const batchStartMs = Math.max(0, playedSessionMsRef.current);
     batchStartMsRef.current = batchStartMs;
 
@@ -749,7 +814,11 @@ export default function Replay() {
       };
       const onEnded = () => {
         const playedMs = Math.max(0, (audioRef.current?.currentTime ?? batch.duration ?? 10) * 1000);
-        playedSessionMsRef.current = batchStartMs + playedMs;
+        const actualEndMs = batchStartMs + playedMs;
+        const plannedEndMs = anchorWallMs > 0
+          ? Math.max(plannedStartMs, batch.timestamp - anchorWallMs)
+          : actualEndMs;
+        playedSessionMsRef.current = Math.max(actualEndMs, plannedEndMs);
         cleanup();
         resolve();
       };
@@ -787,6 +856,10 @@ export default function Replay() {
     if (!hasStrokes && !hasAudio && !hasMedia) return;
 
     stopRef.current = false;
+    const timerOffsetSessionId = localStorage.getItem('recordingStartSessionId') ?? '';
+    replayDisplayOffsetMsRef.current = timerOffsetSessionId === activeSessionId
+      ? Math.max(0, parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10))
+      : 0;
     batchStartMsRef.current = 0;
     playedSessionMsRef.current = 0;
     drawnMapRef.current = new Map();
@@ -809,6 +882,15 @@ export default function Replay() {
     setIsPlaying(true);
 
     const sortedAudio = [...sessionAudioList].sort((a, b) => a.batchId - b.batchId);
+    const anchorSessionId = localStorage.getItem('sessionStartSessionId') ?? '';
+    const storedAnchor = anchorSessionId === activeSessionId
+      ? parseInt(localStorage.getItem('sessionStartWallMs') ?? '0', 10)
+      : 0;
+    const firstAudioBatch = sortedAudio[0];
+    const reconstructedAnchor = firstAudioBatch
+      ? firstAudioBatch.timestamp - Math.max(1, Math.round((firstAudioBatch.duration ?? 10) * 1000))
+      : 0;
+    audioAnchorWallMsRef.current = storedAnchor || reconstructedAnchor || 0;
 
     if (hasAudio && hasStrokes) {
       // Normal case: board slaved to audio clock
@@ -919,7 +1001,9 @@ export default function Replay() {
       await clearClass();
       localStorage.removeItem('currentBatches');
       localStorage.removeItem('recordingStartTimerMs');
+      localStorage.removeItem('recordingStartSessionId');
       localStorage.removeItem('sessionStartWallMs');
+      localStorage.removeItem('sessionStartSessionId');
       setStrokesList([]);
       setAudioList([]);
       setStrokes([]);

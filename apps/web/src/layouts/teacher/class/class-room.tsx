@@ -166,7 +166,9 @@ const ClassRoomInner = () => {
       localStorage.removeItem('continueLessonId');
       localStorage.removeItem('currentBatches');
       localStorage.removeItem('recordingStartTimerMs');
+      localStorage.removeItem('recordingStartSessionId');
       localStorage.removeItem('sessionStartWallMs');
+      localStorage.removeItem('sessionStartSessionId');
       localStorage.removeItem('totalPausedMs');
 
       try {

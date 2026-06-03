@@ -22,8 +22,11 @@ const getFileExtension = (nameOrUrl?: string): string => {
 
 const OFFICE_DOC_EXTENSIONS = new Set(['doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx']);
 
-const getRecordingElapsedMs = (timerElapsedSeconds: number): number => {
-  const recordingStartTimerMs = parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10);
+const getRecordingElapsedMs = (timerElapsedSeconds: number, sessionId?: string): number => {
+  const recordingSessionId = localStorage.getItem('recordingStartSessionId') ?? '';
+  const recordingStartTimerMs = !sessionId || recordingSessionId === sessionId
+    ? parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10)
+    : 0;
   return Math.max(0, Math.round(timerElapsedSeconds * 1000) - recordingStartTimerMs);
 };
 
@@ -43,6 +46,7 @@ const getFrameSizeByType = (type?: string): string => {
 
 const MediaFrame = () => {
   const selectedImage = useSelector((state: RootState) => state.action.selectedImage);
+  const sessionIdRef = useSelector((state: RootState) => state.action.sessionIdRef);
   const timerDisplay  = useSelector((state: RootState) => state.action.timerDisplay);
   const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
@@ -220,7 +224,7 @@ const MediaFrame = () => {
             className="text-white hover:bg-white/20 rounded p-1 transition-colors"
             onClick={() => {
               if (selectedImage?.id) {
-                sendMediaHide(selectedImage.id, timerDisplay, getRecordingElapsedMs(timerElapsedSeconds));
+                sendMediaHide(selectedImage.id, timerDisplay, getRecordingElapsedMs(timerElapsedSeconds, sessionIdRef));
               }
               dispatch(clearSelectedImage());
             }}
@@ -270,11 +274,11 @@ const MediaFrame = () => {
               controls
               onPlay={() => {
                 if (!selectedImage?.id || !isVideoEventReady) return;
-                sendMediaPlayback(selectedImage.id, 'play', timerDisplay, getRecordingElapsedMs(timerElapsedSeconds));
+                sendMediaPlayback(selectedImage.id, 'play', timerDisplay, getRecordingElapsedMs(timerElapsedSeconds, sessionIdRef));
               }}
               onPause={() => {
                 if (!selectedImage?.id || !isVideoEventReady) return;
-                sendMediaPlayback(selectedImage.id, 'pause', timerDisplay, getRecordingElapsedMs(timerElapsedSeconds));
+                sendMediaPlayback(selectedImage.id, 'pause', timerDisplay, getRecordingElapsedMs(timerElapsedSeconds, sessionIdRef));
               }}
               className="w-full h-full object-contain bg-black"
             />

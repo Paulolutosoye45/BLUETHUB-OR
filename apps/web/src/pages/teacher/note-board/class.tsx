@@ -131,6 +131,7 @@ const Class = () => {
                         // Calculate what sessionStartWallMs should be based on saved duration
                         const restoredSessionStart = Date.now() - savedDurationMs;
                         localStorage.setItem('sessionStartWallMs', String(restoredSessionStart));
+                        localStorage.setItem('sessionStartSessionId', continueSessionId);
                         localStorage.setItem('totalPausedMs', String(session.recording.pausedDurationMs || 0));
 
                         console.log('[Class] Session restored, ready to continue from', savedDurationSeconds, 'seconds');
@@ -332,9 +333,11 @@ const Class = () => {
         // Timestamp = wall clock minus total paused time
         // This keeps strokes aligned with audio after pause/resume
         const totalPausedMs = parseInt(localStorage.getItem('totalPausedMs') || '0', 10);
-        const timestamp = Date.now() - totalPausedMs;
+        const startedAtWallMs = strokeTimesRef.current.startWallMs || Date.now();
+        const timestamp = Math.max(0, startedAtWallMs - totalPausedMs);
         const wallDuration = Math.max(0, strokeTimesRef.current.endWallMs - strokeTimesRef.current.startWallMs);
-        const duration = Math.max(50, strokeTimesRef.current.endElapsedMs - strokeTimesRef.current.startElapsedMs, wallDuration);
+        const timerDuration = Math.max(0, strokeTimesRef.current.endElapsedMs - strokeTimesRef.current.startElapsedMs);
+        const duration = Math.max(50, wallDuration || timerDuration);
 
         const compressed = await gzipCompress(JSON.stringify(shape));
         const base64Data = btoa(String.fromCharCode(...compressed));
@@ -392,9 +395,11 @@ const Class = () => {
         // Timestamp = wall clock minus total paused time
         // This keeps strokes aligned with audio after pause/resume
         const totalPausedMs = parseInt(localStorage.getItem('totalPausedMs') || '0', 10);
-        const timestamp = Date.now() - totalPausedMs;
+        const startedAtWallMs = strokeTimesRef.current.startWallMs || Date.now();
+        const timestamp = Math.max(0, startedAtWallMs - totalPausedMs);
         const wallDuration = Math.max(0, strokeTimesRef.current.endWallMs - strokeTimesRef.current.startWallMs);
-        const duration = Math.max(50, strokeTimesRef.current.endElapsedMs - strokeTimesRef.current.startElapsedMs, wallDuration);
+        const timerDuration = Math.max(0, strokeTimesRef.current.endElapsedMs - strokeTimesRef.current.startElapsedMs);
+        const duration = Math.max(50, wallDuration || timerDuration);
         const startTime = strokeTimesRef.current.start;
         const endTime = strokeTimesRef.current.end;
         // Always use sessionIdRef if available (needed for both recording and draft continuation)
