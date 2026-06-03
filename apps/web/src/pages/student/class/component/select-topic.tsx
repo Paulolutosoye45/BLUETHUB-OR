@@ -10,22 +10,24 @@ import {
 import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
-const SelectTopic = () => {
-    const [isOpen, setIsOpen] = useState(false);
-    const [value, setValue] = useState<string>("");
+export interface TopicOption {
+    label: string;
+    value: string;
+}
 
-    const TOPIC_OPTIONS = [
-        { label: "Algebra", icon: "🧮" },
-        { label: "Geometry", icon: "📈" },
-        { label: "Calculus", icon: "📊" },
-        { label: "Statistics", icon: "📉" },
-        { label: "Probability", icon: "🎲" },
-        { label: "Pie Chart", icon: "📘" },
-    ];
+interface SelectTopicProps {
+    options: TopicOption[];
+    value?: string;
+    onChange: (value: string) => void;
+}
+
+const SelectTopic = ({ options, value, onChange }: SelectTopicProps) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const selectedLabel = options.find((option) => option.value === value)?.label;
 
     return (
-        <div className="pt-6 pb-10 px-6 border border-[#E5E7EB] rounded-[10px] h-113.5 shadow-sm bg-white">
-            <Label className="font-Poppins font-medium text-base text-blck-b2 mb-3 block">
+        <div className="rounded-[24px] border border-white/70 bg-white/90 px-5 py-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.42)]">
+            <Label className="mb-4 block text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
                 Select Topic
             </Label>
 
@@ -33,12 +35,12 @@ const SelectTopic = () => {
                 <DropdownMenuTrigger asChild>
                     <Button
                         variant="outline"
-                        className={`w-full flex justify-between items-center font-Poppins text-sm font-medium py-5 px-4 rounded-md border border-[#D1D5DB] text-blck-b2 focus:outline-none focus:ring-0 ${value ? "bg-white" : "text-[#9A9A9A]"
+                        className={`h-11 w-full items-center justify-between rounded-xl border border-slate-200 px-4 text-sm font-medium text-slate-700 ${value ? "bg-white" : "text-slate-400"
                             }`}
                     >
-                        <span>{value || "Select Topic"}</span>
+                        <span>{selectedLabel || "Select Topic"}</span>
                         <ChevronDown
-                            className={`w-5 h-5 text-[#6B7280] transition-transform duration-300 ${isOpen ? "rotate-180" : ""
+                            className={`h-5 w-5 text-slate-500 transition-transform duration-300 ${isOpen ? "rotate-180" : ""
                                 }`}
                         />
                     </Button>
@@ -46,8 +48,8 @@ const SelectTopic = () => {
 
                 <DropdownMenuContent
                     className="w-(--radix-dropdown-menu-trigger-width)
-             rounded-[10px] 
-             border border-[#E5E7EB] 
+             rounded-xl 
+             border border-slate-200 
              shadow-lg 
              bg-white 
              p-2 
@@ -64,17 +66,16 @@ const SelectTopic = () => {
                     avoidCollisions={false}   // 👈 Important: ensures it won’t flip upward
                 >
                     <DropdownMenuGroup className="space-y-1">
-                        {TOPIC_OPTIONS.map((option) => (
+                        {options.map((option) => (
                             <DropdownMenuItem
-                                key={option.label}
-                                onClick={() => setValue(option.label)}
-                                className={`flex items-center gap-3 py-3 px-3 rounded-lg transition-all duration-200 cursor-pointer ${value === option.label
-                                        ? "bg-[#E0E7FF] text-student-chestnut"
-                                        : "text-blck-b2 hover:bg-[#F3F4F6]"
+                                key={option.value}
+                                onClick={() => onChange(option.value)}
+                                className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200 ${value === option.value
+                                        ? "bg-[#eef2ff] text-[#4255db]"
+                                        : "text-slate-700 hover:bg-[#F3F4F6]"
                                     }`}
                             >
-                                <span className="text-lg">{option.icon}</span>
-                                <span className="font-Poppins text-sm font-medium">
+                                <span className="text-sm font-medium">
                                     {option.label}
                                 </span>
                             </DropdownMenuItem>

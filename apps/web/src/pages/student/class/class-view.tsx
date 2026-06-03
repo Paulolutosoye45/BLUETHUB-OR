@@ -1,17 +1,47 @@
 import VideoLessonList from "./component/video-list"
+import type { StudentPublishedLesson } from "@/services/student";
 
+interface ClassViewProps {
+    lessons: StudentPublishedLesson[];
+    loading: boolean;
+    selectedSubjectLabel: string;
+    selectedTopicLabel?: string;
+    summary?: {
+        total: number;
+        approved: number;
+        pendingApproval: number;
+        rejected: number;
+        published: number;
+    } | null;
+}
 
-const ClassView = () => {
+const ClassView = ({ lessons, loading, selectedSubjectLabel, selectedTopicLabel, summary }: ClassViewProps) => {
     return (
-        <div className="space-y-7 pb-5">
-            {/* Sub-Topic */}
-            <section className="border border-blck-b2/20 rounded-[10px] bg-white shadow-[0_5px_10px_0_rgba(41,35,130,0.1)]">
-                <div className="flex items-center justify-between px-10 py-4">
-                    <h2 className="font-poppins font-medium text-base text-blck-b2 capitalize">Sub-Topic </h2>
-                    <p className="font-poppins font-medium text-sm leading-[100%] text-student-chestnut">View all </p>
+        <div className="space-y-4 pb-5">
+            <section className="rounded-[24px] border border-white/75 bg-white/90 px-5 py-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.5)]">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Classroom lessons</p>
+                        <h2 className="text-lg font-semibold text-slate-900 capitalize">{selectedSubjectLabel}</h2>
+                        <p className="mt-1 text-sm text-slate-500">
+                            {selectedTopicLabel ? `Filtered by topic: ${selectedTopicLabel}` : "All topics in this subject"}
+                        </p>
+                    </div>
+                    <div className="rounded-full bg-[#eef2ff] px-4 py-2 text-sm font-semibold text-[#4255db]">
+                        {(summary?.total ?? lessons.length)} lesson{(summary?.total ?? lessons.length) === 1 ? "" : "s"}
+                    </div>
                 </div>
+
+                {summary && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Approved: {summary.approved}</span>
+                        <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">Pending: {summary.pendingApproval}</span>
+                        <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Published: {summary.published}</span>
+                    </div>
+                )}
             </section>
-            <div className="h-screen overflow-y-scroll pb-7   [&::-webkit-scrollbar]:w-1.5
+
+            <div className="h-[calc(100vh-260px)] overflow-y-auto pb-7 [&::-webkit-scrollbar]:w-1.5
       [&::-webkit-scrollbar]:h-2.5 
       [&::-webkit-scrollbar-track]:rounded-full
       [&::-webkit-scrollbar-track]:bg-gray-100
@@ -19,9 +49,8 @@ const ClassView = () => {
       [&::-webkit-scrollbar-thumb]:bg-gray-400
       dark:[&::-webkit-scrollbar-track]:bg-neutral-700
       dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-            <VideoLessonList />
+                <VideoLessonList lessons={lessons} loading={loading} />
             </div>
-            
         </div>
     )
 }

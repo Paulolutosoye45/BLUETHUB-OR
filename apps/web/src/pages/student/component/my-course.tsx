@@ -4,12 +4,15 @@ import CourseList from "./course-list"
 
 const MyCourse = () => {
   return (
-    <div className="border border-blck-b2/20 rounded-[10px] bg-white shadow-[0_15px_20px_0_rgba(41,35,130,0.1)]">
-        <div className="flex items-center justify-between p-6 border-b border-blck-b2/20 pb-7">
-          <h2 className="font-poppins font-medium text-base text-blck-b2 capitalize">My Course </h2>
-          <p className="font-poppins font-medium text-sm leading-[100%] text-student-chestnut">View all </p>
+    <div className="overflow-hidden rounded-[26px] border border-white/75 bg-white/82 shadow-[0_22px_55px_-34px_rgba(15,23,42,0.28)] backdrop-blur-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+          <div>
+            <h2 className="font-poppins text-lg font-semibold text-slate-900 capitalize">My Courses</h2>
+            <p className="mt-1 text-sm text-slate-500">Track progress across your active subjects.</p>
+          </div>
+          <button type="button" className="rounded-full bg-[#eef2ff] px-4 py-2 text-sm font-semibold text-[#4F61E8] transition-colors hover:bg-[#e0e7ff]">View all</button>
         </div>
-        <section className="px-10 py-7">
+        <section className="px-5 py-5 md:px-6 md:py-6">
             <CourseList/>
         </section>
     </div>

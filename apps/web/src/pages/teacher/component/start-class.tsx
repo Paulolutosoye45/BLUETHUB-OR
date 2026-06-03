@@ -16,7 +16,8 @@ import PreClassModal from "./pre-class-modal";
 import { useOutletContext } from "react-router-dom";
 
 const StartClass = () => {
-    const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
+    const outletContext = useOutletContext<{ openMobileNav?: () => void } | null>();
+  const openMobileNav = outletContext?.openMobileNav ?? (() => {});
   const [lessons, setLessons] = useState<LessonItem[]>([]);
   const [lessonMetaById, setLessonMetaById] = useState<Record<string, LessonForClassDto>>({});
   const [checkingLessonIds, setCheckingLessonIds] = useState<Record<string, boolean>>({});

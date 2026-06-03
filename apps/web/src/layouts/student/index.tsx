@@ -6,14 +6,14 @@ import { Outlet } from "react-router-dom";
 const StudentsLayout = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(79,97,232,0.14),_transparent_28%),linear-gradient(180deg,_#f5f7ff_0%,_#eef3ff_52%,_#f8fafc_100%)]">
       <div className="hidden lg:flex h-full">
         <StudentSideBar />
       </div>
       <div>
         <MobileStudentNav isOpen={mobileNavOpen} setIsOpen={setMobileNavOpen} />
       </div>
-      <div className="max-w-7xl mx-auto h-screen transition-all p-2 duration-300 border-none  overflow-y-auto">
+      <div className="flex-1 h-screen overflow-y-auto px-3 py-3 md:px-5 md:py-5 lg:px-7">
         <Outlet context={{ openMobileNav: () => setMobileNavOpen(true) }} />
       </div>
     </div>
