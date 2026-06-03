@@ -135,7 +135,7 @@ const RegistrationAdmin = () => {
   }
 
   return (
-    <div className="p-3 sm:p-5 lg:p-7 font-poppins">
+    <div className="p-3 sm:p-5 md:p-0 lg:p-7 font-poppins">
       <div className="lg:rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
         <TitleBar title="Admin Permissions" hasVertical hasMenu={() => openMobileNav()} />
 

@@ -1,119 +1,58 @@
-import { EllipsisVertical, FilterIcon, Menu, Plus } from "lucide-react";
-import { useState } from "react";
+import { EllipsisVertical, FilterIcon, Info, Menu, Plus } from "lucide-react";
+import { useEffect, useState } from "react";
 import AssignRoleDialog from "./admin-role-dialog";
 import { useOutletContext } from "react-router-dom";
-import {Table,
+import {
+  Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow} from '@bluethub/ui-kit'
+  TableRow
+} from '@bluethub/ui-kit'
+import { authService } from "@/services/auth";
+import { UserRole } from "@/utils/validate";
+import { AxiosError } from "axios";
 
 const BRAND = "#292382";
 
-type AdminStatus = "Active" | "Pending" | "Blocked";
+// type AdminStatus = "Active" | "Pending" | "Blocked";
 
 interface Admin {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-  roleLabel1: string;
-  roleLabel2: string;
-  status: AdminStatus;
-  toggled: boolean;
-  avatar: string; // color for avatar bg
-  initials: string;
-  hasPhoto?: boolean;
-  photoStyle?: string;
+  id: string;
+  firstName: string;
+  lastName: string;
+  userName: string;
+  emailAddress: string;
+  roleId: number;
+  roleName: string;
+  isActive: boolean,
+  hasAccess: boolean,
+  profileImage: string | null,
+  guardianName: string | null,
+  createdDate: string,
+  modifiedDate: string
 }
 
-const admins: Admin[] = [
-  {
-    id: 1,
-    name: "Dr Roy",
-    email: "royalex.system.co",
-    role: "Teacher",
-    roleLabel1: "Sub-Admin",
-    roleLabel2: "Sub-Admin",
-    status: "Active",
-    toggled: true,
-    avatar: "#1a1a2e",
-    initials: "DR",
-    hasPhoto: true,
-    photoStyle: "bg-gray-800",
-  },
-  {
-    id: 2,
-    name: "Mrs Taiwo",
-    email: "taiwo.system.co",
-    role: "Finance Admin",
-    roleLabel1: "Finance",
-    roleLabel2: "finance",
-    status: "Pending",
-    toggled: false,
-    avatar: "#c4a882",
-    initials: "MT",
-    hasPhoto: true,
-    photoStyle: "bg-amber-200",
-  },
-  {
-    id: 3,
-    name: "Mrs Taiwo",
-    email: "taiwo.system.co",
-    role: "Finance Admin",
-    roleLabel1: "Finance",
-    roleLabel2: "finance",
-    status: "Pending",
-    toggled: false,
-    avatar: "#8b5cf6",
-    initials: "MT",
-    hasPhoto: true,
-    photoStyle: "bg-purple-400",
-  },
-  {
-    id: 4,
-    name: "Dr Roy",
-    email: "royalex.system.co",
-    role: "Sub-Admin",
-    roleLabel1: "Sub-Admin",
-    roleLabel2: "Sub-Admin",
-    status: "Active",
-    toggled: true,
-    avatar: "#1a1a2e",
-    initials: "DR",
-    hasPhoto: true,
-    photoStyle: "bg-gray-800",
-  },
-  {
-    id: 5,
-    name: "Dr Alex",
-    email: "royalex.system.co",
-    role: "Auditor",
-    roleLabel1: "Auditor",
-    roleLabel2: "Audit-trx",
-    status: "Active",
-    toggled: true,
-    avatar: "#7c3aed",
-    initials: "DA",
-    hasPhoto: true,
-    photoStyle: "bg-purple-700",
-  },
-  {
-    id: 6,
-    name: "Dr Roy",
-    email: "royalex.system.co",
-    role: "Teacher",
-    roleLabel1: "Sub-Admin",
-    roleLabel2: "Sub-Admin",
-    status: "Active",
-    toggled: true,
-    avatar: "#1a1a2e",
-    initials: "DR",
-    hasPhoto: true,
-    photoStyle: "bg-gray-800",
-  },
-];
+
+const AvatarPhoto = ({ admin }: { admin: Admin }) => {
+  const colors = ["#1a1a3e", "#d4a5a5", "#8b5cf6", "#6d28d9", "#9ca3af"];
+  const color = colors[admin.firstName.charCodeAt(0) % colors.length];
+  const initials = `${admin.firstName?.[0] ?? ""}${admin.lastName?.[0] ?? ""}`.toUpperCase();
+
+  return (
+    <div
+      className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 overflow-hidden border-2 border-gray-200"
+      style={{ backgroundColor: color }}
+    >
+      {admin.profileImage ? (
+        <img src={admin.profileImage} alt={admin.userName} className="w-full h-full object-cover" />
+      ) : (
+        <span className="text-white text-xs font-bold">{initials}</span>
+      )}
+    </div>
+  );
+};
 
 const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
   <button
@@ -128,16 +67,17 @@ const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void 
   </button>
 );
 
-const StatusBadge = ({ status }: { status: AdminStatus }) => {
-  const styles: Record<AdminStatus, { bg: string; text: string }> = {
+const StatusBadge = ({ isActive, hasAccess }: { isActive: boolean; hasAccess: boolean }) => {
+  const status = isActive ? "Active" : hasAccess ? "Pending" : "Blocked";
+  const colors = {
     Active: { bg: "#22c55e", text: "#fff" },
     Pending: { bg: "#f59e0b", text: "#fff" },
     Blocked: { bg: "#ef4444", text: "#fff" },
   };
-  const s = styles[status];
+  const s = colors[status];
   return (
     <span
-      className="inline-flex items-center px-2.5 sm:px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+      className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
       style={{ backgroundColor: s.bg, color: s.text }}
     >
       {status}
@@ -145,50 +85,62 @@ const StatusBadge = ({ status }: { status: AdminStatus }) => {
   );
 };
 
-const AvatarPhoto = ({ admin }: { admin: Admin }) => {
-  const avatarColors: Record<number, string> = {
-    1: "#1a1a3e",
-    2: "#d4a5a5",
-    3: "#8b5cf6",
-    4: "#1a1a3e",
-    5: "#6d28d9",
-    6: "#1a1a3e",
-  };
-
-  return (
-    <div
-      className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 overflow-hidden border-2 border-gray-200"
-      style={{ backgroundColor: avatarColors[admin.id] ?? "#9ca3af" }}
-    >
-      <span className="text-white text-xs font-bold">{admin.initials}</span>
-    </div>
-  );
-};
-
 const AdminRole = () => {
   const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const [search, setSearch] = useState("");
-  const [rows, setRows] = useState<Admin[]>(admins);
+  const [rows, setRows] = useState<Admin[]>([]);
+  const [errorMsg, setErrorMsg] = useState("");
+  const [loading, setLoading] = useState(true);
 
+  // Derived values directly from API fields
   const filteredRows = rows.filter(a =>
-    a.name.toLowerCase().includes(search.toLowerCase()) ||
-    a.email.toLowerCase().includes(search.toLowerCase()) ||
-    a.role.toLowerCase().includes(search.toLowerCase())
+    `${a.firstName} ${a.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+    a.emailAddress.toLowerCase().includes(search.toLowerCase()) ||
+    a.roleName.toLowerCase().includes(search.toLowerCase())
   );
 
   const totalAdmins = rows.length;
-  const activeRole = rows.filter(r => r.status === "Active").length;
-  const blockedUser = rows.filter(r => r.status === "Blocked").length;
+  const activeRole = rows.filter(r => r.isActive).length;
+  const blockedUser = rows.filter(r => !r.isActive && !r.hasAccess).length;
 
-  const toggleRow = (id: number) => {
+  const toggleRow = (id: string) => {
     setRows(prev =>
       prev.map(r =>
-        r.id === id
-          ? { ...r, toggled: !r.toggled, status: !r.toggled ? "Active" : "Pending" }
-          : r
+        r.id === id ? { ...r, isActive: !r.isActive } : r
       )
     );
+  }
+  const adminRoles = async () => {
+    try {
+      setLoading(true);
+      const response = await authService.getUserByRole(UserRole.Admin);
+      console.log(response.data.data.users);
+      setRows(response.data.data.users);
+    } catch (error) {
+      const msg =
+        error instanceof AxiosError
+          ? error.response?.data?.responseMessage ??
+          error.response?.data?.message ??
+          error.message
+          : (error as Error).message;
+      setErrorMsg(msg);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    adminRoles();
+  }, []);
+
+  if (errorMsg) {
+    return (
+      <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm">
+        <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
+        <span>{errorMsg}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="lg:p-6 font-poppins">
@@ -285,7 +237,21 @@ const AdminRole = () => {
                 </TableHeader>
 
                 <TableBody>
-                  {filteredRows.length === 0 ? (
+                  {loading ? (<>
+                    {[...Array(5)].map((_, i) => (
+                      <TableRow key={i}>
+                        {[...Array(7)].map((_, j) => (
+                          <TableCell key={j}>
+                            <div
+                              className="h-4 rounded bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]"
+                              style={{ width: j === 0 ? "80%" : "60%", animationDelay: `${i * 80}ms` }}
+                            />
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </>
+                  ) : filteredRows.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={7} className="py-12 text-center text-sm text-gray-400">
                         No admins found
@@ -302,8 +268,8 @@ const AdminRole = () => {
                           <div className="flex items-center gap-2.5 min-w-0">
                             <AvatarPhoto admin={admin} />
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-blck-b2 capitalize truncate">{admin.name}</p>
-                              <p className="text-xs text-blck-b2 truncate">{admin.email}</p>
+                              <p className="text-sm font-medium text-blck-b2 capitalize truncate">{admin.firstName} {admin.lastName}</p>
+                              <p className="text-xs text-blck-b2 truncate">{admin.emailAddress}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -311,39 +277,39 @@ const AdminRole = () => {
                         {/* Role */}
                         <TableCell>
                           <span className="text-sm font-medium text-blck-b2 capitalize whitespace-nowrap">
-                            {admin.role}
+                            {admin.roleName}
                           </span>
                         </TableCell>
 
                         {/* Role Label 1 */}
                         <TableCell>
                           <span className="text-sm font-medium text-blck-b2 capitalize whitespace-nowrap">
-                            {admin.roleLabel1}
+                            {admin.roleName}
                           </span>
                         </TableCell>
 
                         {/* Role Label 2 */}
                         <TableCell>
                           <span className="text-sm font-medium text-blck-b2 capitalize whitespace-nowrap">
-                            {admin.roleLabel2}
+                            {admin.roleName}
                           </span>
                         </TableCell>
 
                         {/* Toggle */}
                         <TableCell>
-                          <Toggle checked={admin.toggled} onChange={() => toggleRow(admin.id)} />
+                          <Toggle checked={admin.isActive} onChange={() => toggleRow(admin.id)} />
                         </TableCell>
 
                         {/* Status */}
                         <TableCell>
                           <div className="w-fit">
-                            <StatusBadge status={admin.status} />
+                            <StatusBadge isActive={admin.isActive} hasAccess={admin.hasAccess} />
                           </div>
                         </TableCell>
 
                         {/* Edit */}
                         <TableCell>
-                          <AssignRoleDialog />
+                          <AssignRoleDialog admin={admin} />
                         </TableCell>
                       </TableRow>
                     ))
@@ -365,33 +331,33 @@ const AdminRole = () => {
                     <div className="flex items-center gap-2.5 min-w-0">
                       <AvatarPhoto admin={admin} />
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-blck-b2 capitalize truncate">{admin.name}</p>
-                        <p className="text-xs text-blck-b2 truncate">{admin.email}</p>
+                        <p className="text-sm font-medium text-blck-b2 capitalize truncate">{admin.firstName} {admin.lastName}</p>
+                        <p className="text-xs text-blck-b2 truncate">{admin.emailAddress}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <Toggle checked={admin.toggled} onChange={() => toggleRow(admin.id)} />
-                      <AssignRoleDialog />
+                      <Toggle checked={admin.isActive} onChange={() => toggleRow(admin.id)} />
+                      <AssignRoleDialog admin={admin} />
                     </div>
                   </div>
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                    {admin.role && (
+                    {admin.roleName && (
                       <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md capitalize">
-                        {admin.role}
+                        {admin.roleName}
                       </span>
                     )}
-                    {admin.roleLabel1 && (
+                    {admin.roleName} && (
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md capitalize">
+                      {admin.roleName}
+                    </span>
+                    )
+                    {admin.roleName && (
                       <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md capitalize">
-                        {admin.roleLabel1}
-                      </span>
-                    )}
-                    {admin.roleLabel2 && (
-                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md capitalize">
-                        {admin.roleLabel2}
+                        {admin.roleName}
                       </span>
                     )}
                     <div className="w-fit">
-                      <StatusBadge status={admin.status} />
+                      <StatusBadge isActive={admin.isActive} hasAccess={admin.hasAccess} />
                     </div>
                   </div>
                 </div>
@@ -401,7 +367,7 @@ const AdminRole = () => {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 
