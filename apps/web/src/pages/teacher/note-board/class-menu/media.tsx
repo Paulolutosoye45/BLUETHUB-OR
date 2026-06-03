@@ -15,8 +15,11 @@ import { useSession } from '@/contexts/session-context';
 
 const LESSON_MEDIA_CACHE = "bluethub-lesson-media";
 
-const getRecordingElapsedMs = (timerElapsedSeconds: number): number => {
-  const recordingStartTimerMs = parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10);
+const getRecordingElapsedMs = (timerElapsedSeconds: number, sessionId?: string): number => {
+  const recordingSessionId = localStorage.getItem('recordingStartSessionId') ?? '';
+  const recordingStartTimerMs = !sessionId || recordingSessionId === sessionId
+    ? parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10)
+    : 0;
   return Math.max(0, Math.round(timerElapsedSeconds * 1000) - recordingStartTimerMs);
 };
 
@@ -27,6 +30,7 @@ const Media = () => {
   // const { trackMediaInteraction } = useAudioRecorder();
 
   const selectedImage = useSelector((state: RootState) => state.action.selectedImage);
+  const sessionIdRef = useSelector((state: RootState) => state.action.sessionIdRef);
   const timerDisplay = useSelector((state: RootState) => state.action.timerDisplay);
   const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
 
@@ -220,7 +224,7 @@ const Media = () => {
                       onClick={() => {
                         if (!cachedIds.has(media.id)) return;
 
-                        const elapsedMs = getRecordingElapsedMs(timerElapsedSeconds);
+                        const elapsedMs = getRecordingElapsedMs(timerElapsedSeconds, sessionIdRef);
 
                         if (selectedImage?.id) {
                           sendMediaHide(selectedImage.id, timerDisplay, elapsedMs);
