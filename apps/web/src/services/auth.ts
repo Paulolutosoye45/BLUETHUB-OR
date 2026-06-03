@@ -101,18 +101,7 @@ export type TResponse<T> = {
 
 const endpoints = {
   login: "/api/User/login",
-  createUser: "api/User/createUser",
-  editUser: "api/User/editUser",
-  assignTeacherToClassroom: "api/User/AssignTeacherToClassroom",
   updateTeacherSubject: "api/User/teacher",
-  getStudents: "api/User/GetStudents",
-  updatePassword: "api/User/updatePassword",
-  updatePasswordNewUser: "api/User/update-password/newUser",
-  getUserById: "api/User/GetUserById",
-  assignPermissions: "api/User/AssignPermissions",
-  getAdminPermissions: "api/User/GetAdminPermissions",
-  getAllAdminPermissions: "api/User/GetAllAdminPermissions",
-  revokePermissions: "api/User/RevokePermissions",
   createUser: "/api/User/createUser",
   editUser: "/api/User/editUser",
   assignTeacherToClassroom: "/api/User/AssignTeacherToClassroom",

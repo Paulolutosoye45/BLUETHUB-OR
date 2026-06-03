@@ -21,7 +21,7 @@ const Time = () => {
 
   // Compute countdown from elapsed
   const totalSeconds = parseTime(classDuration);
-  const elapsedSeconds = Math.max(0, Math.floor(timerElapsedSeconds));
+  const elapsedSeconds = Math.max(0, Math.round(timerElapsedSeconds));
   const remaining = Math.max(0, totalSeconds - elapsedSeconds);
   const displayTime = fromSeconds(remaining);
   const elapsedDisplay = fromSeconds(elapsedSeconds);

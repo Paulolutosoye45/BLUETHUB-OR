@@ -102,7 +102,9 @@ const EndClass = () => {
       // Clear localStorage
       localStorage.removeItem("currentBatches");
       localStorage.removeItem("sessionStartWallMs");
+      localStorage.removeItem("sessionStartSessionId");
       localStorage.removeItem("recordingStartTimerMs");
+      localStorage.removeItem("recordingStartSessionId");
 
       toast.success("Recording discarded");
       allowExitRef.current = true;
