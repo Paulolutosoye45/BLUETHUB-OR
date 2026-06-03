@@ -38,15 +38,15 @@ const ExtracurricularActivity = () => {
 
   if (loading) {
     return (
-      <div className="my-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
-            className="bg-white rounded-2xl p-4 animate-pulse"
+            className="animate-pulse rounded-[24px] border border-white/80 bg-white/80 p-5 shadow-sm"
           >
-            <div className="w-10 h-10 bg-gray-200 rounded-xl mb-3" />
-            <div className="h-6 bg-gray-200 rounded w-12 mb-1" />
-            <div className="h-4 bg-gray-100 rounded w-20" />
+            <div className="mb-3 h-11 w-11 rounded-2xl bg-slate-200" />
+            <div className="mb-2 h-6 w-12 rounded bg-slate-200" />
+            <div className="h-4 w-28 rounded bg-slate-100" />
           </div>
         ))}
       </div>
@@ -98,9 +98,8 @@ const ExtracurricularActivity = () => {
   ];
 
   return (
-    <div className="my-6 space-y-4">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div className="mt-6 space-y-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {statCards.map((card) => {
           const Icon = card.icon;
           return (
@@ -108,37 +107,44 @@ const ExtracurricularActivity = () => {
               key={card.label}
               onClick={card.onClick}
               className={cn(
-                "relative bg-white rounded-2xl p-4 text-left transition-all",
-                "shadow-sm hover:shadow-md active:scale-[0.98]",
-                "border border-gray-100",
+                "group relative overflow-hidden rounded-[24px] border p-5 text-left transition-all duration-300",
+                "border-white/80 bg-white/80 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.3)] hover:-translate-y-1 hover:shadow-[0_26px_55px_-30px_rgba(53,70,160,0.45)] active:scale-[0.99]",
                 card.highlight && "ring-2 ring-amber-200"
               )}
             >
-              {/* Icon */}
               <div className={cn(
-                "w-10 h-10 rounded-xl flex items-center justify-center mb-3",
+                "absolute inset-x-0 top-0 h-1 opacity-80",
+                card.label === "Classes" && "bg-[#7d8eff]",
+                card.label === "Quizzes" && "bg-[#76b7ff]",
+                card.label === "Assessments" && "bg-[#6ee7b7]",
+                card.label === "Pending" && "bg-[#fbbf24]"
+              )} />
+
+              <div className={cn(
+                "mb-4 flex h-12 w-12 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105",
                 card.iconBg
               )}>
                 <Icon className={cn("w-5 h-5", card.color)} />
               </div>
 
-              {/* Value */}
               <p className={cn(
-                "text-2xl font-bold",
-                card.value > 0 ? "text-gray-900" : "text-gray-400"
+                "text-3xl font-semibold tracking-tight",
+                card.value > 0 ? "text-slate-900" : "text-slate-400"
               )}>
                 {card.value}
               </p>
 
-              {/* Labels */}
-              <p className="text-sm font-medium text-gray-700 leading-tight">
+              <p className="mt-3 text-sm font-semibold leading-tight text-slate-800">
                 {card.label}
               </p>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-slate-500">
                 {card.sublabel}
               </p>
 
-              {/* Badge for pending items */}
+              <p className="mt-4 text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                Open panel
+              </p>
+
               {card.highlight && card.value > 0 && (
                 <div className="absolute top-3 right-3 w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse" />
               )}
@@ -147,23 +153,21 @@ const ExtracurricularActivity = () => {
         })}
       </div>
 
-      {/* Ongoing Class Banner */}
       {stats?.ongoingClass?.isLive && (
         <button
           onClick={() => navigate(`/student/live-class/${stats.ongoingClass?.lessonId}`)}
           className={cn(
-            "w-full bg-gradient-to-r from-red-500 to-red-600 rounded-2xl p-4",
-            "flex items-center justify-between text-white",
-            "shadow-lg shadow-red-500/30 active:scale-[0.99] transition-transform"
+            "flex w-full items-center justify-between rounded-[26px] bg-gradient-to-r from-[#f2485b] via-[#f65a63] to-[#ff7b59] p-5 text-white",
+            "shadow-[0_22px_45px_-24px_rgba(242,72,91,0.7)] transition-transform active:scale-[0.99]"
           )}
         >
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
               <Play className="w-6 h-6 text-white" />
             </div>
             <div className="text-left">
-              <p className="font-bold text-base">Live Class Now</p>
-              <p className="text-red-100 text-sm">
+              <p className="text-base font-bold">Live Class Now</p>
+              <p className="text-sm text-red-100">
                 {stats.ongoingClass.subjectName} • {stats.ongoingClass.teacherName}
               </p>
             </div>

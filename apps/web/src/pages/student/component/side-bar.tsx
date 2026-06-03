@@ -13,13 +13,15 @@ import grades from "@/assets/svg/grades.svg?react";
 import bluethub_ai from "@/assets/svg/bluethub_ai.svg?react";
 import settings from "@/assets/svg/settings (1).svg?react";
 import B_2 from "@/assets/svg/B_2.svg?react";
-import { NavLink, } from "react-router-dom";
+import LogOutIcon from "@/assets/svg/log-out-04.svg?react";
+import { useAuthContext } from "@/contexts/auth-context";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 
 // ── Nav links ──────────────────────────────────────────────────────────────────
 const navLinks = [
     { name: "Dashboard", path: "/student", icons: element },
-    { name: "Classroom", path: "/student/class-room", icons: classRoom },
+    { name: "Classrooms", path: "/student/class-room", icons: classRoom },
     { name: "My Course", path: "/student/my-course", icons: my_course },
     { name: "Assignments", path: "/student/Assignments", icons: assignments },
     { name: "Quizzes", path: "/student/Quizzes", icons: quizzes },
@@ -54,9 +56,10 @@ const BluethubLogo = () => (
 interface StudentNavContentProps {
     isCollapsed: boolean;
     onNavigate?: () => void;
+    onLogout?: () => void;
 }
 
-const StudentNavContent = ({ isCollapsed, onNavigate }: StudentNavContentProps) => (
+const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavContentProps) => (
     <section className="px-4 py-6">
         <div className="space-y-1">
             {navLinks.map((link, idx) => {
@@ -96,6 +99,23 @@ const StudentNavContent = ({ isCollapsed, onNavigate }: StudentNavContentProps) 
                     </NavLink>
                 );
             })}
+
+            <button
+                type="button"
+                onClick={onLogout}
+                className={[
+                    "w-full flex items-center gap-4 px-4 py-2.5 rounded-md transition-colors cursor-pointer",
+                    "hover:bg-red-50",
+                    isCollapsed ? "justify-center" : "",
+                ].join(" ")}
+            >
+                <LogOutIcon className="w-5 h-5 shrink-0 text-[#EC1B2C]" />
+                {!isCollapsed && (
+                    <span className="text-sm font-medium font-poppins truncate text-[#EC1B2C]">
+                        Log Out
+                    </span>
+                )}
+            </button>
         </div>
     </section>
 );
@@ -103,6 +123,13 @@ const StudentNavContent = ({ isCollapsed, onNavigate }: StudentNavContentProps) 
 // ── Desktop sidebar ────────────────────────────────────────────────────────────
 const StudentSideBar = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const navigate = useNavigate();
+    const { logout } = useAuthContext();
+
+    const handleLogout = () => {
+        logout();
+        navigate("/auth", { replace: true });
+    };
 
     return (
         <aside
@@ -152,7 +179,7 @@ const StudentSideBar = () => {
           [&::-webkit-scrollbar-thumb]:rounded-full
           [&::-webkit-scrollbar-thumb]:bg-gray-400"
             >
-                <StudentNavContent isCollapsed={isCollapsed} />
+                <StudentNavContent isCollapsed={isCollapsed} onLogout={handleLogout} />
             </div>
         </aside>
     );
@@ -166,6 +193,14 @@ interface IMobileStudentNav {
 
 export const MobileStudentNav = ({ isOpen, setIsOpen }: IMobileStudentNav) => {
     const drawerRef = useRef<HTMLDivElement>(null);
+    const navigate = useNavigate();
+    const { logout } = useAuthContext();
+
+    const handleLogout = () => {
+        setIsOpen(false);
+        logout();
+        navigate("/auth", { replace: true });
+    };
 
     // Close on outside click
     useEffect(() => {
@@ -227,6 +262,7 @@ export const MobileStudentNav = ({ isOpen, setIsOpen }: IMobileStudentNav) => {
                     <StudentNavContent
                         isCollapsed={false}
                         onNavigate={() => setIsOpen(false)}
+                        onLogout={handleLogout}
                     />
                 </div>
             </div>

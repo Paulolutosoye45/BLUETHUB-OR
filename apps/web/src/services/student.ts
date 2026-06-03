@@ -76,6 +76,69 @@ export interface StudentAssessmentsResponse {
   totalCount: number;
 }
 
+export interface StudentSubjectItem {
+  subjectId: string;
+  subjectName: string;
+  category: string;
+  subjectType: "Major" | "Minor" | string;
+}
+
+export interface StudentSubjectsResponse {
+  studentId: string;
+  totalSubjects: number;
+  major: StudentSubjectItem[];
+  minor: StudentSubjectItem[];
+}
+
+export interface StudentPublishedLesson {
+  id: string;
+  aim: string;
+  description: string;
+  status?: string;
+  subTopic: string;
+  subTopicId?: string | null;
+  subTopicName?: string | null;
+  createdAt?: string;
+  teacherName: string;
+  approvedByName?: string;
+  approvedAt: string;
+  subjectId: string;
+  subjectName: string;
+  topicId: string;
+  topicName: string;
+  classroomId?: string;
+  className?: string;
+  accessDate?: string | null;
+  accessTime?: string | null;
+  durationMinutes?: number | null;
+  accessEndsAt?: string | null;
+  mediaCount: number;
+  media?: StudentLessonMedia[];
+}
+
+export interface StudentLessonMedia {
+  lessonContentId?: string;
+  mediaId?: string;
+  mediaName: string;
+  url: string;
+  mediaType?: string;
+  fileExtension?: string;
+  fileSizeBytes?: number;
+  displayOrder?: number;
+}
+
+export interface StudentSubjectLessonsResponse {
+  subjectId: string;
+  summary?: {
+    total: number;
+    approved: number;
+    pendingApproval: number;
+    rejected: number;
+    published: number;
+  };
+  lessons: StudentPublishedLesson[];
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // SERVICE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -126,6 +189,19 @@ export const studentService = {
   getPendingAssessments: () =>
     API.get<TResponse<StudentAssessmentsResponse>>(
       "api/student/assessments/pending",
+      { headers }
+    ),
+
+  // ── REGISTERED SUBJECTS ───────────────────────────────────────────────────
+  getRegisteredSubjects: () =>
+    API.get<TResponse<StudentSubjectsResponse>>(
+      "api/User/GetStudentSubjects",
+      { headers }
+    ),
+
+  getLessonsBySubject: (subjectId: string) =>
+    API.get<TResponse<StudentSubjectLessonsResponse>>(
+      `api/lessons/subject/${subjectId}`,
       { headers }
     ),
 
