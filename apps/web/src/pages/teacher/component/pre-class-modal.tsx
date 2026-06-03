@@ -17,6 +17,9 @@ import {
   Loader2,
 } from "lucide-react";
 import type { LessonForClassDto, LessonMediaDto } from "@/services/lesson";
+import { fetchImageAsBlob, fetchMediaWithAuthFallback } from "@/utils/blob";
+import { getImageSourceUrl } from "@/services/class-media";
+import { LESSON_MEDIA_CACHE, buildLessonScopedCacheKey } from "@/utils/lesson-media-cache";
 
 interface PreClassModalProps {
   open: boolean;
@@ -80,6 +83,90 @@ const PreClassModal = ({
   isLoading = false,
   errorMessage = null,
 }: PreClassModalProps) => {
+  const resolveMediaType = (mediaType: string, fileExtension: string): "video" | "pdf" | "image" => {
+    const mt = (mediaType ?? "").toLowerCase();
+    const ext = (fileExtension ?? "").toLowerCase().replace(/^\./, "");
+
+    if (mt.includes("video") || ["mp4", "webm", "mov", "m4v"].includes(ext)) {
+      return "video";
+    }
+
+    if (
+      mt.includes("pdf") ||
+      mt.includes("document") ||
+      ["pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx"].includes(ext)
+    ) {
+      return "pdf";
+    }
+
+    return "image";
+  };
+
+  const prefetchLessonMedia = async (items: LessonMediaDto[]) => {
+    if (items.length === 0) {
+      setCacheProgress(100);
+      return;
+    }
+
+    let cache: Cache | null = null;
+    if (typeof window !== "undefined" && "caches" in window) {
+      try {
+        cache = await caches.open(LESSON_MEDIA_CACHE);
+      } catch {
+        cache = null;
+      }
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const url = item.cloudinaryUrl;
+      if (!url) {
+        setCacheProgress(Math.round(((i + 1) / items.length) * 100));
+        continue;
+      }
+
+      // 1) Warm Cache API for fast startup/offline resilience
+      if (cache) {
+        try {
+          const lessonScopedKey = lesson?.id ? buildLessonScopedCacheKey(lesson.id, url) : null;
+          const cached = await cache.match(url);
+          const lessonScopedCached = lessonScopedKey ? await cache.match(lessonScopedKey) : null;
+
+          let response = cached ?? lessonScopedCached;
+
+          if (!cached) {
+            const fetched = await fetchMediaWithAuthFallback(url);
+            if (fetched.ok) {
+              await cache.put(url, fetched.clone());
+              response = fetched;
+            }
+          }
+
+          if (response && lessonScopedKey) {
+            await cache.put(lessonScopedKey, response.clone());
+          }
+        } catch {
+          // Continue even if Cache API warmup fails.
+        }
+      }
+
+      // 2) Pre-download image/video into IndexedDB before class starts
+      const mediaType = resolveMediaType(item.mediaType, item.fileExtension);
+      if (mediaType !== "pdf") {
+        try {
+          const currentSource = await getImageSourceUrl(item.id);
+          if (currentSource !== url) {
+            await fetchImageAsBlob(url, item.id, mediaType, item.originalFileName || item.fileName || item.id);
+          }
+        } catch {
+          // Keep going; board still has URL fallback.
+        }
+      }
+
+      setCacheProgress(Math.round(((i + 1) / items.length) * 100));
+    }
+  };
+
   const navigate = useNavigate();
   const [understood, setUnderstood] = useState(false);
   const [caching, setCaching] = useState(false);
@@ -112,18 +199,13 @@ const PreClassModal = ({
     let cancelled = false;
     (async () => {
       try {
-        const cache = await caches.open("bluethub-lesson-media");
-        for (let i = 0; i < lessonMediaLinks.length; i++) {
-          if (cancelled) break;
-          const url = lessonMediaLinks[i].cloudinaryUrl;
-          if (url) {
-            const cached = await cache.match(url);
-            if (!cached) await cache.add(url).catch(() => {});
-          }
-          setCacheProgress(Math.round(((i + 1) / lessonMediaLinks.length) * 100));
-        }
+        await prefetchLessonMedia(lessonMediaLinks);
       } catch {
-        // Cache API unavailable — proceed without caching
+        // Best-effort prefetch
+      }
+
+      if (!cancelled && lessonMediaLinks.length > 0) {
+        setCacheProgress(100);
       }
     })();
     return () => { cancelled = true; };
@@ -138,13 +220,11 @@ const PreClassModal = ({
     if (!understood || !lesson || caching) return;
 
     setCaching(true);
+    setCacheProgress(0);
 
-    // Ensure any remaining media is cached before navigating
+    // Ensure media are downloaded before navigating to board.
     try {
-      const cache = await caches.open("bluethub-lesson-media");
-      await Promise.allSettled(
-        lessonMediaLinks.map((m) => cache.add(m.cloudinaryUrl).catch(() => {}))
-      );
+      await prefetchLessonMedia(lessonMediaLinks);
     } catch { /* proceed if cache unavailable */ }
 
     // Clear any previous draft session so the board starts fresh
@@ -373,34 +453,50 @@ const PreClassModal = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50 shrink-0">
-          <button
-            onClick={handleClose}
-            className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleStartClass}
-            disabled={!understood || (isLoading && !lesson) || caching}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-white transition-all ${
-              understood && !(isLoading && !lesson) && lesson && !caching
-                ? "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/25"
-                : "bg-gray-300 cursor-not-allowed"
-            }`}
-          >
-            {caching ? (
-              <>
-                <Loader2 size={16} className="animate-spin" />
-                {cacheProgress < 100 ? `Preparing media ${cacheProgress}%…` : "Starting…"}
-              </>
-            ) : (
-              <>
-                <Play size={16} />
-                Start Class
-              </>
-            )}
-          </button>
+        <div className="flex flex-col gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50 shrink-0">
+          {caching && (
+            <div className="w-full mb-3 -mt-1">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-xs font-medium text-gray-600">Media is downloading for this class...</p>
+                <p className="text-xs font-semibold text-chestnut">{cacheProgress}%</p>
+              </div>
+              <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-chestnut transition-all duration-300"
+                  style={{ width: `${Math.max(0, Math.min(100, cacheProgress))}%` }}
+                />
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-3 w-full">
+            <button
+              onClick={handleClose}
+              className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleStartClass}
+              disabled={!understood || (isLoading && !lesson) || caching}
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-white transition-all ${
+                understood && !(isLoading && !lesson) && lesson && !caching
+                  ? "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/25"
+                  : "bg-gray-300 cursor-not-allowed"
+              }`}
+            >
+              {caching ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  {cacheProgress < 100 ? `Preparing media ${cacheProgress}%…` : "Starting…"}
+                </>
+              ) : (
+                <>
+                  <Play size={16} />
+                  Start Class
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

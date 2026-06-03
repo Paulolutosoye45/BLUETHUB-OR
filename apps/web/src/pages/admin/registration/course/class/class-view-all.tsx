@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { EllipsisVertical, GalleryVerticalEnd, LayoutGrid, PlusIcon } from "lucide-react";
+import { EllipsisVertical, GalleryVerticalEnd, LayoutGrid, Menu, PlusIcon } from "lucide-react";
 import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@bluethub/ui-kit";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 // import EditSubjectModal from "./edit-subject-modal";
 import EditClassModal from "./edit-class-dialog";
 import { AxiosError } from "axios";
@@ -31,7 +31,8 @@ export const levelBadge: Record<SchoolLevel, { bg: string; text: string }> = {
 
 
 const ClassviewAll = () => {
-    const navigate = useNavigate()
+    const navigate = useNavigate();
+    const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<FilterTab>("All");
     const [classes, setClasses] = useState<Classroom[]>([]);
@@ -82,15 +83,16 @@ const ClassviewAll = () => {
 
     return (
         <>
-            <div className="p-6 font-poppins">
-                <div className="backdrop-blur-sm rounded-2xl border border-white/20  overflow-hidden">
+            <div className="lg:p-6 font-poppins">
+                <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20  overflow-hidden">
 
                     {/* ── Top Nav ──────────────────────────────────────────────────── */}
                     <div
                         className="flex items-center justify-between px-4 py-5 sticky top-0 z-30 bg-chestnut"
                     >
                         <div className="flex items-center gap-2.5">
-                            <LayoutGrid className="w-6 h-6 text-white" />
+                            <LayoutGrid className="w-5 h-5 text-white lg:inline hidden" />
+                            <Menu className="lg:hidden text-white" onClick={openMobileNav} />
                             <span className="text-white font-semibold text-sm">View All class</span>
                         </div>
                         <button className="text-white">
@@ -99,22 +101,22 @@ const ClassviewAll = () => {
                     </div>
 
                     {/* ── White card ───────────────────────────────────────────────── */}
-                    <div className="flex-1 p-8 bg-white/70 backdrop-blur-sm">
-                        <div className="space-7-20">
+                    <div className="flex-1 p-4 lg:p-8 bg-white/70 backdrop-blur-sm">
+                        <div className="space-y-20">
 
                             {/* Page header row */}
                             <div className="flex items-start justify-between mb-4">
                                 <div>
-                                    <h1 className="text-xl font-bold text-blck-b2 leading-tight">
+                                    <h1 className="text-sm sm:text-xl font-bold text-blck-b2 leading-tight">
                                         Class Registry
                                     </h1>
-                                    <p className="text-sm text-[#A0A8C0]  mt-0.5">
+                                    <p className=" text-xs sm:text-sm text-[#A0A8C0]  mt-0.5">
                                         All classes at Greenfield College — Primary to Secondary
                                     </p>
                                 </div>
                                 <Button
                                     onClick={() => navigate('/admin/registration/class/new')}
-                                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-white text-xs font-semibold  bg-chestnut shrink-0 transition-opacity hover:opacity-90"
+                                    className="flex items-center gap-1.5 px-3.5 py-2  rounded-md lg:rounded-lg text-white text-xs font-semibold  bg-chestnut shrink-0 transition-opacity hover:opacity-90"
                                 >
                                     <PlusIcon />
                                     Add Class
@@ -122,7 +124,7 @@ const ClassviewAll = () => {
                             </div>
 
                             {/* Stats row */}
-                            <div className="grid grid-cols-3 gap-3 mb-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
                                 {[
                                     {
                                         icon: <GalleryVerticalEnd className="w-5 h-5 text-gray-500" />,
@@ -164,7 +166,9 @@ const ClassviewAll = () => {
                             </div>
 
                             {/* Search + filter tabs */}
-                            <div className="flex items-center gap-3 mb-3">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 mb-3">
+
+                                {/* Search */}
                                 <div className="flex-1 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
                                     <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -173,7 +177,7 @@ const ClassviewAll = () => {
                                         type="text"
                                         value={search}
                                         onChange={e => setSearch(e.target.value)}
-                                        placeholder="Search by class name..."
+                                        placeholder="Search by subject name..."
                                         className="flex-1 text-xs text-gray-600 placeholder-gray-400 outline-none bg-transparent"
                                     />
                                 </div>
@@ -184,7 +188,7 @@ const ClassviewAll = () => {
                                         <button
                                             key={tab}
                                             onClick={() => setFilter(tab)}
-                                            className="px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all"
+                                            className="flex-1 sm:flex-none px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all whitespace-nowrap"
                                             style={{
                                                 backgroundColor: filter === tab ? "#292382" : "transparent",
                                                 color: filter === tab ? "#fff" : "#6b7280",
@@ -194,10 +198,11 @@ const ClassviewAll = () => {
                                         </button>
                                     ))}
                                 </div>
+
                             </div>
 
                             {/* Table */}
-                            <div className="border border-gray-200 rounded-xl overflow-hidden">
+                            <div className="border border-gray-200 rounded-md lg:rounded-xl overflow-hidden">
                                 <Table>
                                     <TableHeader>
                                         <TableRow className="bg-gray-50/70 hover:bg-gray-50/70">

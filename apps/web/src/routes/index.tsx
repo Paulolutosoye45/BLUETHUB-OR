@@ -23,6 +23,7 @@ import StudenLayout from '@/pages/admin/registration/student/layout';
 import Student from '@/pages/admin/registration/student/student';
 import NewStudent from '@/pages/admin/registration/student/new-student';
 import Enrollment from '@/pages/admin/registration/student/enrollment';
+import EditStudent from '@/pages/admin/registration/student/edit-student';
 // import CourseLayout from '@/pages/admin/registration/course/layout';
 import CoursesMain from '@/pages/admin/registration/course/main';
 import Teacherlayout from '@/pages/admin/registration/teacher/layout';
@@ -160,6 +161,14 @@ const router = createBrowserRouter([
                                 path: "all",
                                 element: <ViewStudent />,
                             },
+                            {
+                                path: "edit",
+                                element: <EditStudent />,
+                            },
+                            {
+                                path: ":studentId/edit",
+                                element: <EditStudent />,
+                            },
                         ],
                     },
                     {
@@ -228,10 +237,10 @@ const router = createBrowserRouter([
         children: [
             {
                 index: true,
-                element: 
-                <TeacherProtectedRoute>
-                    <TeacherDashboard />
-                </TeacherProtectedRoute>
+                element:
+                    <TeacherProtectedRoute>
+                        <TeacherDashboard />
+                    </TeacherProtectedRoute>
             },
             { path: "resume-class", element: <ResumeClass /> },
             { path: "class-info", element: <ClassInfo /> },

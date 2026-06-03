@@ -456,11 +456,13 @@ export interface SessionManifest {
 // ── Cloudinary Config ─────────────────────────────────────────────────────────
 
 export interface CloudinaryUploadConfig {
+  resourceType: string;
   cloudName: string;
   apiKey: string;
   signature: string;
   timestamp: number;
   folder: string;
+  uploadPreset?: string | null;
 }
 
 export interface IPdfPageEvent {

@@ -121,6 +121,20 @@ export async function clearClass(): Promise<void> {
   await (await db()).clear(STORE_CLASS);
 }
 
+export async function deleteClassBySession(sessionId: string): Promise<number> {
+  const store = await db();
+  const strokes = await store.getAll(STORE_CLASS);
+  const sessionStrokes = strokes.filter(s => s.sessionId === sessionId);
+
+  const tx = store.transaction(STORE_CLASS, 'readwrite');
+  for (const stroke of sessionStrokes) {
+    await tx.store.delete(stroke.id);
+  }
+  await tx.done;
+
+  return sessionStrokes.length;
+}
+
 // ── Audio ──────────────────────────────────────────────────────────────────────
 
 export async function addAudio(payload: AudioBatch): Promise<void> {
@@ -139,6 +153,20 @@ export async function getAudioBySession(sessionId: string): Promise<AudioBatch[]
 
 export async function clearAudio(): Promise<void> {
   await (await db()).clear(STORE_AUDIO);
+}
+
+export async function deleteAudioBySession(sessionId: string): Promise<number> {
+  const store = await db();
+  const audio = await store.getAll(STORE_AUDIO);
+  const sessionAudio = audio.filter(a => a.sessionId === sessionId);
+
+  const tx = store.transaction(STORE_AUDIO, 'readwrite');
+  for (const batch of sessionAudio) {
+    await tx.store.delete(batch.id);
+  }
+  await tx.done;
+
+  return sessionAudio.length;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -436,6 +464,11 @@ export async function cleanupPublishedSession(sessionId: string): Promise<number
 
 export async function cleanupEntireSession(sessionId: string): Promise<number> {
   let totalFreed = 0;
+  // Legacy stores used by board preview/replay
+  totalFreed += await deleteClassBySession(sessionId);
+  totalFreed += await deleteAudioBySession(sessionId);
+
+  // New sync-architecture stores
   totalFreed += await deleteAudioChunksBySession(sessionId);
   totalFreed += await deleteStrokeBatchesBySession(sessionId);
   await deleteSession(sessionId);

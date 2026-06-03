@@ -1,29 +1,33 @@
+import { useAuthContext } from "@/contexts/auth-context";
 import type { schoolInfo } from "@/services";
 import { localData } from "@/utils";
-import { CircleAlert, EllipsisVertical, PlusIcon } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { CircleAlert, EllipsisVertical, Menu, PlusIcon } from "lucide-react";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
 const EmptyStudent = () => {
     const navigate = useNavigate()
+    const { user } = useAuthContext();
+    const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
 
     const school = localData.retrieve("schoolInfo") as schoolInfo
     return (
-        <div className="p-6 font-poppins">
-            <div className="backdrop-blur-sm rounded-2xl border border-white/70  overflow-hidden">
+        <div className="lg:p-6  font-poppins">
+            <div className="backdrop-blur-sm lg:rounded-2xl border border-white/70  overflow-hidden">
                 <div
                     className="flex items-center justify-between px-5 h-12 sticky top-0 z-30 bg-chestnut">
                     <div className="flex items-center gap-2.5">
+                        <Menu className="lg:hidden text-white" onClick={openMobileNav} />
                         {/* Grid icon */}
-                        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5 hidden lg:inline text-white" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M3 3h7v7H3V3zm0 11h7v7H3v-7zm11-11h7v7h-7V3zm0 11h7v7h-7v-7z" />
                         </svg>
                         <span className="text-white font-semibold text-sm">Register Subject</span>
                     </div>
                     {/* Three-dot */}
-                    <EllipsisVertical />
+                    <EllipsisVertical className="text-white" />
                 </div>
 
-                <div className="flex-1 px-8 pb-8 bg-white/20 backdrop-blur-sm">
+                <div className="flex-1 md:px-8 pb-8 bg-white/20 backdrop-blur-sm">
 
                     <div className="relative z-10 flex flex-col items-center px-6 pt-8 pb-6 flex-1">
                         <div className="relative w-52 h-44 flex items-center justify-center mb-2 shrink-0">
@@ -55,13 +59,13 @@ const EmptyStudent = () => {
 
                         {/* Welcome pill */}
                         <div
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-4 bg-chestnut/18">
+                            className="flex items-center gap-1.5 md:px-3 px-2 py-2 sm:py-1.5 rounded-full mb-4 bg-chestnut/18">
                             {/* Person icon */}
                             <svg className="w-3.5 h-3.5 shrink-0 text-chestnut" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5.33 0-8 2.67-8 4v1h16v-1c0-1.33-2.67-4-8-4z" />
                             </svg>
-                            <span className="text-xs font-semibold text-chestnut">
-                                Welcome, John Paul — Let's get started
+                            <span className="text-xs font-medium lg:font-semibold  text-chestnut">
+                                Welcome,  {user?.firstName} {user?.lastName} — Let's get started
                             </span>
                         </div>
 

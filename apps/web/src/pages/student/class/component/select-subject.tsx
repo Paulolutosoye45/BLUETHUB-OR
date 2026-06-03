@@ -10,22 +10,24 @@ import {
 import { Check, ChevronDown } from "lucide-react";
 import { useState } from "react";
 
-const SelectSubject = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [value, setValue] = useState<string>();
+export interface SubjectOption {
+  label: string;
+  value: string;
+}
 
-  const SUBJECT_OPTIONS = [
-    { label: "Mathematics", value: "mathematics" },
-    { label: "English", value: "english" },
-    { label: "Physics", value: "physics" },
-    { label: "Chemistry", value: "chemistry" },
-    { label: "Biology", value: "biology" },
-    { label: "Computer Science", value: "computer_science" },
-  ];
+interface SelectSubjectProps {
+  options: SubjectOption[];
+  value?: string;
+  onChange: (value: string) => void;
+}
+
+const SelectSubject = ({ options, value, onChange }: SelectSubjectProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedLabel = options.find((option) => option.value === value)?.label;
 
   return (
-    <div className="pt-6 pb-10 px-6 border border-black/20  rounded-[10px]">
-      <Label className="font-Poppins font-medium text-base text-blck-b2 mb-5">
+    <div className="rounded-[24px] border border-white/70 bg-white/90 px-5 py-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.42)]">
+      <Label className="mb-4 block text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
         Select Subject
       </Label>
 
@@ -33,15 +35,15 @@ const SelectSubject = () => {
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
-            className={`relative w-full justify-between font-Poppins text-sm font-medium transition-all duration-300 py-5 px-4 rounded-[6px] border border-black/30 ${
-              value ? "text-blck-b2" : "text-[#9A9A9A]"
+            className={`relative h-11 w-full justify-between rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium transition-all duration-300 ${
+              value ? "text-slate-800" : "text-slate-400"
             }`}
           >
-            <span className="capitalize font-Poppins text-sm font-medium ">
-              {value || "Select Subject"}
+            <span className="capitalize text-sm font-medium">
+              {selectedLabel || "Select Subject"}
             </span>
             <ChevronDown
-              className={`w-5 h-5 text-chestnut/70 transition-transform duration-300 ${
+              className={`h-5 w-5 text-slate-500 transition-transform duration-300 ${
                 isOpen ? "rotate-180" : ""
               }`}
             />
@@ -49,24 +51,24 @@ const SelectSubject = () => {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent
-          className="w-(--radix-dropdown-menu-trigger-width) rounded-[6px] border border-black/20 shadow-md bg-white/95 backdrop-blur-sm p-2"
+          className="w-(--radix-dropdown-menu-trigger-width) rounded-xl border border-slate-200 bg-white/95 p-2 shadow-lg backdrop-blur-sm"
           align="start"
           sideOffset={8}
         >
           <DropdownMenuGroup className="space-y-1">
-            {SUBJECT_OPTIONS.map((option) => (
+            {options.map((option) => (
               <DropdownMenuItem
                 key={option.value}
-                className={`font-Poppins text-sm font-medium py-3 px-4 rounded-md cursor-pointer transition-all duration-200 ${
-                  value === option.label
-                    ? "bg-gray-500 text-white"
-                    : "text-blck-b2 hover:bg-gray-100"
+                className={`cursor-pointer rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+                  value === option.value
+                    ? "bg-[#4255db] text-white"
+                    : "text-slate-700 hover:bg-slate-100"
                 }`}
-                onClick={() => setValue(option.label)}
+                onClick={() => onChange(option.value)}
               >
                 <div className="flex items-center justify-between w-full">
                   <span>{option.label}</span>
-                  {value === option.label && (
+                  {value === option.value && (
                     <Check className="w-4 h-4 ml-2 text-white" />
                   )}
                 </div>

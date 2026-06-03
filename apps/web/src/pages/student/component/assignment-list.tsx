@@ -37,7 +37,7 @@ const AssignmentList = () => {
       {assignments.map((assignment, idx) => (
         <div
           key={idx}
-          className="border border-black/10 flex items-center justify-between px-8 h-18.5 rounded-[10px]"
+          className="flex flex-col gap-4 rounded-[22px] border border-slate-100 bg-[linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(249,250,255,0.96))] px-5 py-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_30px_-24px_rgba(234,179,8,0.5)] sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex items-center gap-3">
             <div
@@ -50,16 +50,16 @@ const AssignmentList = () => {
               }`}
             ></div>
             <div className="space-y-1">
-              <h3 className="font-poppins font-medium text-sm text-blck-b2">
+              <h3 className="font-poppins text-base font-semibold text-slate-900">
                 {assignment.name}
               </h3>
-              <p className="font-poppins font-medium text-xs text-blck-b2">
+              <p className="font-poppins text-sm font-medium text-slate-500">
                 Due: {assignment.duedate}
               </p>
             </div>
           </div>
 
-          <Badge className={getBadgeStyle(assignment.type)}>
+          <Badge className={`${getBadgeStyle(assignment.type)} rounded-full px-3 py-1 text-xs font-semibold`}>
             {assignment.type}
           </Badge>
         </div>

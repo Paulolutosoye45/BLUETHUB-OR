@@ -7,7 +7,7 @@ import { Navigate } from "react-router-dom";
 
 
 
-interface Subject {
+export interface Subject {
   subjectId: string;
   subjectName: string;
   subjectCategory: string;
@@ -20,20 +20,23 @@ interface TeacherClassroom {
   subjects: Subject[];
 }
 
-interface TeacherRoleData {
+export interface TeacherRoleData {
   classrooms: TeacherClassroom[];
 }
 
 // Student shape
-interface StudentClassroom {
+export interface StudentClassroom {
   classroomId: string;
   className: string | null;
   classroomIsActive: boolean;
 }
 
-interface StudentRoleData {
+export interface StudentRoleData {
   classroom: StudentClassroom;
-  subjects: Subject[];
+  majorSubjects?: Subject[];
+  minorSubjects?: Subject[];
+  subjects?: Subject[];
+  totalSubjects?: number;
 }
 
 type RoleData = TeacherRoleData | StudentRoleData;
