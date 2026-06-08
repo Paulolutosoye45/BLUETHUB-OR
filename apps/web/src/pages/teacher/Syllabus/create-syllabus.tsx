@@ -135,6 +135,10 @@ const TopicCard = ({
                 <div className="w-7 h-7 rounded-lg bg-chestnut flex items-center justify-center text-white font-bold text-xs shrink-0">
                     {index + 1}
                 </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-slate-800 text-white text-[10px] font-semibold px-2 py-0.5 shrink-0">
+                    <BookOpen className="w-2.5 h-2.5" />
+                    Topic
+                </span>
                 {topic.isExisting ? (
                     <div className="flex-1 flex items-center gap-2 min-w-0">
                         <span className="flex-1 text-sm font-semibold text-gray-800 truncate">{topic.name}</span>
@@ -165,16 +169,18 @@ const TopicCard = ({
             <div className="px-4 py-3.5 space-y-3">
                 {topic.existingSubTopics.length > 0 && (
                     <div>
-                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5 inline-flex items-center gap-1.5">
+                            <Tag className="w-3 h-3" />
                             Saved subtopics
                         </p>
                         <div className="flex flex-wrap gap-2">
                             {topic.existingSubTopics.map((st, i) => (
                                 <span
                                     key={`existing-${i}`}
-                                    className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-500 text-xs font-medium px-3 py-1.5 rounded-full"
+                                    className="inline-flex items-center gap-1.5 border border-gray-200 bg-gray-50 text-gray-600 text-xs font-medium px-3 py-1.5 rounded-lg"
                                 >
                                     <Lock className="w-2.5 h-2.5 opacity-60" />
+                                    <span className="text-[10px] uppercase tracking-wide opacity-70">Sub</span>
                                     {st}
                                 </span>
                             ))}
@@ -185,7 +191,8 @@ const TopicCard = ({
                 {topic.subTopics.length > 0 && (
                     <div>
                         {topic.existingSubTopics.length > 0 && (
-                            <p className="text-[10px] font-semibold text-chestnut/70 uppercase tracking-wide mb-1.5">
+                            <p className="text-[10px] font-semibold text-chestnut/70 uppercase tracking-wide mb-1.5 inline-flex items-center gap-1.5">
+                                <Tag className="w-3 h-3" />
                                 New subtopics
                             </p>
                         )}
@@ -193,8 +200,9 @@ const TopicCard = ({
                             {topic.subTopics.map((st, i) => (
                                 <span
                                     key={`new-${i}`}
-                                    className="inline-flex items-center gap-1.5 bg-chestnut/10 text-chestnut text-xs font-semibold px-3 py-1.5 rounded-full"
+                                    className="inline-flex items-center gap-1.5 bg-chestnut/10 text-chestnut text-xs font-semibold px-3 py-1.5 rounded-lg border border-chestnut/20"
                                 >
+                                    <span className="text-[10px] uppercase tracking-wide text-chestnut/70">Sub</span>
                                     {st}
                                     <button onClick={() => onRemoveSubTopic(i)} className="hover:text-red-500 transition-colors">
                                         <X className="w-3 h-3" />
@@ -355,8 +363,8 @@ const CreateSyllabus = () => {
             return;
         }
 
-        const existingWithNew = topics.filter(t => !t.isExisting && t.subTopics.length > 0);
-        const newTopics = topics.filter(t => !t.isExisting && t.name.trim());
+        const existingWithNew = topics.filter(t => t.isExisting && t.subTopics.length > 0);
+        const newTopics = topics.filter(t => !t.isExisting && t.name.trim() && t.subTopics.length > 0);
 
         if (existingWithNew.length === 0 && newTopics.length === 0) {
             toast.error("Add at least one new topic or subtopic to save");
@@ -369,14 +377,13 @@ const CreateSyllabus = () => {
 
             for (const t of existingWithNew) {
                 ops.push(
-                    schoolService.addSubTopicsToTopic(t.id, t.subTopics)
+                    schoolService.addSubTopicsToTopic(t.existingTopicId ?? t.id, t.subTopics)
                 );
             }
 
             if (newTopics.length > 0) {
                 ops.push(
-                    schoolService.createTopic({
-                        classroomId: selectedClass.id,
+                    schoolService.createTopicsWithSubTopics({
                         subjectId: selectedSubject.id,
                         topics: newTopics.map(t => ({
                             name: t.name.trim(),
@@ -386,7 +393,14 @@ const CreateSyllabus = () => {
                 );
             }
 
-            await Promise.all(ops);
+            const results = await Promise.all(ops);
+            const failed = results.find((res) => (res.data as any)?.status !== "successful");
+            if (failed) {
+                const failedData = (failed.data as any);
+                toast.error(failedData?.responseMessage ?? "Failed to save topics");
+                return;
+            }
+
             toast.success("Topics saved successfully");
             navigate("/teacher/syllabus");
         } catch (err) {
@@ -408,8 +422,8 @@ const CreateSyllabus = () => {
     const existingTopicsCount = topics.filter(t => t.isExisting).length;
 
     const canSubmit = !!selectedClass && !!selectedSubject && !loadingCurriculum && (
-        topics.some(t => !t.isExisting && t.name.trim()) ||
-        topics.some(t => !t.isExisting && t.subTopics.length > 0)
+        topics.some(t => t.isExisting && t.subTopics.length > 0) ||
+        topics.some(t => !t.isExisting && t.name.trim() && t.subTopics.length > 0)
     );
 
     return (
@@ -523,6 +537,16 @@ const CreateSyllabus = () => {
                                                 ? "Add new subtopics to existing topics, or create new topics"
                                                 : "Add topics with their subtopics"}
                                     </p>
+                                    <div className="mt-2 flex items-center gap-2 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                                        <span className="inline-flex items-center gap-1 bg-slate-800 text-white px-2 py-0.5 rounded-full">
+                                            <BookOpen className="w-2.5 h-2.5" />
+                                            Topic
+                                        </span>
+                                        <span className="inline-flex items-center gap-1 bg-chestnut/10 text-chestnut px-2 py-0.5 rounded-full border border-chestnut/20">
+                                            <Tag className="w-2.5 h-2.5" />
+                                            Subtopic
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                             <button

@@ -132,8 +132,14 @@ const EndClass = () => {
       console.log("[SaveDraft] Step 2: Waiting 2s for worker to finalize...");
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      // Get or generate a session ID
-      const effectiveSessionId = sessionId || crypto.randomUUID();
+      // Use lesson/session ID for tracking consistency (no UUID fallback)
+      const activeLessonRaw = sessionStorage.getItem("activeLesson");
+      const parsedActiveLesson = activeLessonRaw ? JSON.parse(activeLessonRaw) as { lesson?: { id?: string }; id?: string } : null;
+      const lessonScopedId = parsedActiveLesson?.lesson?.id || parsedActiveLesson?.id || null;
+      const effectiveSessionId = sessionId || lessonScopedId;
+      if (!effectiveSessionId) {
+        throw new Error("Missing lesson ID for draft session");
+      }
       const sessionStartWallMs = parseInt(localStorage.getItem('sessionStartWallMs') || '0', 10);
       const totalPausedMs = parseInt(localStorage.getItem('totalPausedMs') || '0', 10);
       const durationMs = timerElapsedSeconds * 1000;
@@ -147,7 +153,7 @@ const EndClass = () => {
       // Create session data object
       const sessionData: LocalSession = {
         id: effectiveSessionId,
-        lessonId: `draft_${effectiveSessionId}`,
+        lessonId: effectiveSessionId,
         schoolId: "local",
         status: "draft",
         teacher: {

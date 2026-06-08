@@ -199,6 +199,8 @@ export default function Replay() {
   const [error, setError] = useState<Error | null>(null);
   const [currentBatch, setCurrentBatch] = useState(0);
   const [isClearing, setIsClearing] = useState(false);
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [scrubMs, setScrubMs] = useState(0);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [_renderTick, setRenderTick] = useState(0);
   const [replayMs, setReplayMs] = useState(0);
@@ -219,6 +221,15 @@ export default function Replay() {
   // We prefer the most recently updated audio session; if audio is absent,
   // we fall back to the most recent stroke session.
   const activeSessionId = useMemo(() => {
+    const preferredSessionId = localStorage.getItem('replaySessionId') ?? '';
+    if (preferredSessionId) {
+      const hasPreferredAudio = audioList.some((a) => a.sessionId === preferredSessionId);
+      const hasPreferredStrokes = strokesList.some((s) => s.sessionId === preferredSessionId);
+      if (hasPreferredAudio || hasPreferredStrokes) {
+        return preferredSessionId;
+      }
+    }
+
     if (audioList.length > 0) {
       const latestAudio = [...audioList].sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0))[0];
       if (latestAudio?.sessionId) return latestAudio.sessionId;
@@ -306,6 +317,7 @@ export default function Replay() {
   const playedSessionMsRef = useRef<number>(0);
   const audioAnchorWallMsRef = useRef<number>(0);
   const replayDisplayOffsetMsRef = useRef<number>(0);
+  const startFromSessionMsRef = useRef<number>(0);
   const parentRef = useRef<HTMLDivElement>(null);
   // const __trRef = useRef<Konva.Transformer | null>(null);
   // const _rectRef = useRef(null);
@@ -360,6 +372,94 @@ export default function Replay() {
 
     return () => clearInterval(id);
   }, [isPlaying]);
+
+  useEffect(() => {
+    if (!isSeeking) {
+      setScrubMs(replayMs);
+    }
+  }, [replayMs, isSeeking]);
+
+  const replayDurationMs = useMemo(() => {
+    const strokeDurationMs = strokes.length > 0
+      ? Math.max(...strokes.map((s) => {
+        const startMs = timeToMs(s.startTime);
+        const endFromClock = timeToMs(s.endTime);
+        const endFromDuration = startMs + Math.max(0, s.duration ?? 0);
+        return Math.max(endFromClock, endFromDuration);
+      }))
+      : 0;
+
+    const sortedAudio = [...sessionAudioList].sort((a, b) => a.batchId - b.batchId);
+    const anchorSessionId = localStorage.getItem('sessionStartSessionId') ?? '';
+    const storedAnchor = anchorSessionId === activeSessionId
+      ? parseInt(localStorage.getItem('sessionStartWallMs') ?? '0', 10)
+      : 0;
+    const firstAudioBatch = sortedAudio[0];
+    const reconstructedAnchor = firstAudioBatch
+      ? firstAudioBatch.timestamp - Math.max(1, Math.round((firstAudioBatch.duration ?? 10) * 1000))
+      : 0;
+    const anchor = storedAnchor || reconstructedAnchor || 0;
+    const audioDurationMs = sortedAudio.length > 0
+      ? Math.max(...sortedAudio.map((b) => Math.max(0, b.timestamp - anchor)))
+      : 0;
+
+    const mediaCloseMs = mediaTimelineRef.current.length > 0
+      ? Math.max(...mediaTimelineRef.current.map((m) => (Number.isFinite(m.closeMs) ? m.closeMs : m.showMs)))
+      : 0;
+
+    const displayOffset = Math.max(0, replayDisplayOffsetMsRef.current);
+    return Math.max(1000, strokeDurationMs, audioDurationMs + displayOffset, mediaCloseMs + displayOffset);
+  }, [strokes, sessionAudioList, activeSessionId, _renderTick]);
+
+  const renderPreviewAtDisplayMs = useCallback((displayMs: number) => {
+    const previewMap = new Map<string, Stroke>();
+    const all = preloadedStrokesRef.current;
+    let activeBoard = 1;
+
+    for (const stroke of all) {
+      const startMs = timeToMs(stroke.startTime);
+      if (displayMs < startMs) continue;
+
+      activeBoard = stroke.currentBoard ?? activeBoard;
+
+      const drawWindow = Math.max(50, stroke.duration ?? 0);
+      const elapsed = Math.min(displayMs - startMs, drawWindow);
+      const totalPoints = stroke.points.length;
+      const targetCursor = Math.min(
+        totalPoints,
+        Math.round((elapsed / drawWindow) * (totalPoints / 2)) * 2
+      );
+
+      previewMap.set(stroke.id, {
+        ...stroke,
+        points: stroke.points.slice(0, Math.max(0, targetCursor)),
+      });
+    }
+
+    drawnMapRef.current = previewMap;
+    currentBoardInReplayRef.current = activeBoard;
+    setCurrentBoardInReplay(activeBoard);
+    setRenderTick((t) => t + 1);
+  }, []);
+
+  const commitSeek = useCallback((displayMs: number) => {
+    const clamped = Math.max(0, Math.min(displayMs, replayDurationMs));
+    setReplayMs(clamped);
+    setScrubMs(clamped);
+    renderPreviewAtDisplayMs(clamped);
+
+    const targetSessionMs = Math.max(0, clamped - replayDisplayOffsetMsRef.current);
+
+    if (isPlaying) {
+      stop(); // resets startFromSessionMsRef to 0
+      startFromSessionMsRef.current = targetSessionMs; // re-apply seek target after stop
+      setTimeout(() => {
+        void play();
+      }, 0);
+    } else {
+      startFromSessionMsRef.current = targetSessionMs;
+    }
+  }, [isPlaying, replayDurationMs, renderPreviewAtDisplayMs]);
 
   // ── Resize observer ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -536,6 +636,7 @@ export default function Replay() {
       accumulatedMs = endMs;
       return { startWallMs, endWallMs, startMs, endMs };
     });
+    const audioTimelineEndMs = audioRanges.length > 0 ? audioRanges[audioRanges.length - 1].endMs : 0;
 
     const mapWallTsToAudioMs = (wallTs: number): number | null => {
       if (audioRanges.length === 0) return null;
@@ -544,10 +645,20 @@ export default function Replay() {
         return found.startMs + (wallTs - found.startWallMs);
       }
 
-      // Clamp to nearest known audio boundary for mild timestamp jitter.
-      if (wallTs < audioRanges[0].startWallMs) return 0;
+      // Only clamp tiny out-of-range jitter; large mismatches should fall back
+      // to timerDisplay/startTime mapping instead of collapsing everything to t=0.
+      const JITTER_TOLERANCE_MS = 2000;
+      if (wallTs < audioRanges[0].startWallMs) {
+        const delta = audioRanges[0].startWallMs - wallTs;
+        if (delta <= JITTER_TOLERANCE_MS) return 0;
+        return null;
+      }
       const last = audioRanges[audioRanges.length - 1];
-      if (wallTs > last.endWallMs) return last.endMs;
+      if (wallTs > last.endWallMs) {
+        const delta = wallTs - last.endWallMs;
+        if (delta <= JITTER_TOLERANCE_MS) return last.endMs;
+        return null;
+      }
       return null;
     };
 
@@ -563,33 +674,45 @@ export default function Replay() {
         : (Number.isFinite(minStrokeTs) ? minStrokeTs : 0);
 
     const timelines = allStrokes.map(s => {
+      const clockStartMs = Math.max(0, timeToMs(s.startTime) - timerOffset);
+      const TIMELINE_AGREEMENT_TOLERANCE_MS = 7000;
+
       let startMs: number;
       if (s.timestamp && audioRanges.length > 0) {
         const mapped = mapWallTsToAudioMs(s.timestamp);
         if (mapped !== null) {
-          startMs = mapped;
+          // Use wall-clock mapping only when it broadly agrees with the stroke's
+          // own timeline clock. This prevents a subset of strokes from collapsing
+          // near t=0 and appearing all at once.
+          startMs = Math.abs(mapped - clockStartMs) <= TIMELINE_AGREEMENT_TOLERANCE_MS
+            ? mapped
+            : clockStartMs;
         } else if (effectiveAnchor) {
           const wallMs = s.timestamp - effectiveAnchor;
           if (wallMs > 0) {
-            startMs = wallMs;
+            startMs = Math.abs(wallMs - clockStartMs) <= TIMELINE_AGREEMENT_TOLERANCE_MS
+              ? wallMs
+              : clockStartMs;
           } else {
-            startMs = Math.max(0, timeToMs(s.startTime) - timerOffset);
+            startMs = clockStartMs;
           }
         } else {
-          startMs = Math.max(0, timeToMs(s.startTime) - timerOffset);
+          startMs = clockStartMs;
         }
       } else if (effectiveAnchor && s.timestamp) {
         const wallMs = s.timestamp - effectiveAnchor;
         if (wallMs > 0) {
-          startMs = wallMs;
+          startMs = Math.abs(wallMs - clockStartMs) <= TIMELINE_AGREEMENT_TOLERANCE_MS
+            ? wallMs
+            : clockStartMs;
         } else {
           // timestamp pre-dates anchor — use the recorded timer string as fallback
           // so the stroke still appears at roughly the right moment rather than t=0
-          startMs = Math.max(0, timeToMs(s.startTime) - timerOffset);
+          startMs = clockStartMs;
         }
       } else {
         // fallback: timerDisplay "MM:SS" minus stored offset
-        startMs = Math.max(0, timeToMs(s.startTime) - timerOffset);
+        startMs = clockStartMs;
       }
       // Preserve captured draw duration so stroke END timing matches audio/time.
       const drawWindow = Math.max(50, s.duration ?? 0);
@@ -755,7 +878,9 @@ export default function Replay() {
           (strokeCursorsRef.current.get(stroke.id) ?? 0) >= totalPoints
       );
       const hasMediaTimeline = mediaTimelineRef.current.length > 0;
-      if (!allDone || hasMediaTimeline) rafRef.current = requestAnimationFrame(frame);
+      if (!allDone || hasMediaTimeline || sessionMs < audioTimelineEndMs) {
+        rafRef.current = requestAnimationFrame(frame);
+      }
     };
 
     rafRef.current = requestAnimationFrame(frame);
@@ -789,10 +914,19 @@ export default function Replay() {
       ? Math.max(0, batchWallStartMs - anchorWallMs)
       : Math.max(0, playedSessionMsRef.current);
 
-    // Keep monotonic progression, but preserve recorded capture gaps.
+    // Keep monotonic progression and honor seek offset.
     playedSessionMsRef.current = Math.max(playedSessionMsRef.current, plannedStartMs);
     const batchStartMs = Math.max(0, playedSessionMsRef.current);
-    batchStartMsRef.current = batchStartMs;
+
+    const startInsideBatchMs = Math.max(0, batchStartMs - plannedStartMs);
+    if (startInsideBatchMs >= batchDurationMs - 20) {
+      playedSessionMsRef.current = Math.max(playedSessionMsRef.current, plannedStartMs + batchDurationMs);
+      return;
+    }
+
+    // sessionMs = batchStartBaseMs + currentTime*1000
+    // When seeking inside a chunk, keep base at planned chunk start.
+    batchStartMsRef.current = plannedStartMs;
 
     if (currentBlobUrlRef.current) {
       URL.revokeObjectURL(currentBlobUrlRef.current);
@@ -841,6 +975,7 @@ export default function Replay() {
       audioRef.current!.defaultPlaybackRate = 1;
       audioRef.current!.preservesPitch = true;
       audioRef.current!.load();
+      audioRef.current!.currentTime = Math.max(0, startInsideBatchMs / 1000);
       audioRef.current!.play().catch(e => { cleanup(); reject(e); });
     });
   }, []);
@@ -860,8 +995,9 @@ export default function Replay() {
     replayDisplayOffsetMsRef.current = timerOffsetSessionId === activeSessionId
       ? Math.max(0, parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10))
       : 0;
-    batchStartMsRef.current = 0;
-    playedSessionMsRef.current = 0;
+    const startFromSessionMs = Math.max(0, startFromSessionMsRef.current);
+    batchStartMsRef.current = startFromSessionMs;
+    playedSessionMsRef.current = startFromSessionMs;
     drawnMapRef.current = new Map();
     strokeCursorsRef.current = new Map();
     mediaEventIndexRef.current = 0;
@@ -899,6 +1035,47 @@ export default function Replay() {
         if (stopRef.current) break;
         try { await playAudioBatch(i, sortedAudio); } catch (e) { console.error('[Replay] audio batch', i, 'failed:', e); }
       }
+
+      // If audio ends before all strokes/media windows, keep replay clock moving
+      // so board/media can finish naturally.
+      if (!stopRef.current) {
+        const strokeDurationMs = Math.max(
+          0,
+          ...readyStrokes.map((s) => {
+            const startMs = timeToMs(s.startTime);
+            const endFromClock = timeToMs(s.endTime);
+            const endFromDuration = startMs + Math.max(0, s.duration ?? 0);
+            return Math.max(endFromClock, endFromDuration);
+          })
+        );
+        const finiteMediaCloseMs = mediaTimelineRef.current
+          .filter((item) => Number.isFinite(item.closeMs))
+          .map((item) => item.closeMs);
+        const mediaDurationMs = finiteMediaCloseMs.length > 0
+          ? Math.max(...finiteMediaCloseMs)
+          : mediaTimelineRef.current.length > 0
+            ? Math.max(...mediaTimelineRef.current.map((item) => item.showMs)) + 5000
+            : 0;
+
+        const targetDurationMs = Math.max(strokeDurationMs, mediaDurationMs);
+        const remainingMs = Math.max(0, targetDurationMs - playedSessionMsRef.current);
+
+        if (remainingMs > 150) {
+          const tailBaseMs = playedSessionMsRef.current;
+          const tailStart = performance.now();
+          await new Promise<void>((resolve) => {
+            const tick = () => {
+              if (stopRef.current) return resolve();
+              const elapsed = performance.now() - tailStart;
+              batchStartMsRef.current = tailBaseMs + elapsed;
+              if (elapsed >= remainingMs) return resolve();
+              requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+          });
+        }
+      }
+
       stopRaf();
 
     } else if (hasAudio && !hasStrokes) {
@@ -910,6 +1087,34 @@ export default function Replay() {
         if (stopRef.current) break;
         try { await playAudioBatch(i, sortedAudio); } catch (e) { console.error('[Replay] audio batch', i, 'failed:', e); }
       }
+
+      if (!stopRef.current && hasMedia) {
+        const finiteMediaCloseMs = mediaTimelineRef.current
+          .filter((item) => Number.isFinite(item.closeMs))
+          .map((item) => item.closeMs);
+        const mediaDurationMs = finiteMediaCloseMs.length > 0
+          ? Math.max(...finiteMediaCloseMs)
+          : mediaTimelineRef.current.length > 0
+            ? Math.max(...mediaTimelineRef.current.map((item) => item.showMs)) + 5000
+            : 0;
+        const remainingMs = Math.max(0, mediaDurationMs - playedSessionMsRef.current);
+
+        if (remainingMs > 150) {
+          const tailBaseMs = playedSessionMsRef.current;
+          const tailStart = performance.now();
+          await new Promise<void>((resolve) => {
+            const tick = () => {
+              if (stopRef.current) return resolve();
+              const elapsed = performance.now() - tailStart;
+              batchStartMsRef.current = tailBaseMs + elapsed;
+              if (elapsed >= remainingMs) return resolve();
+              requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+          });
+        }
+      }
+
       if (hasMedia) {
         stopRaf();
       }
@@ -957,6 +1162,7 @@ export default function Replay() {
     stopRaf();
     setIsPlaying(false);
     playedSessionMsRef.current = 0;
+    startFromSessionMsRef.current = 0;
     activeFrameRef.current = null;
     activePdfPageRef.current = undefined;
     activePdfScrollRatioRef.current = undefined;
@@ -1122,6 +1328,36 @@ export default function Replay() {
             <div className="font-mono text-2xl font-bold text-gray-800">
               {formatReplayMs(replayMs)}
             </div>
+          </div>
+        </div>
+        <div className="px-4 pb-4">
+          <input
+            type="range"
+            min={0}
+            max={replayDurationMs}
+            step={100}
+            value={isSeeking ? scrubMs : replayMs}
+            onChange={(e) => {
+              const value = Number(e.target.value);
+              setIsSeeking(true);
+              setScrubMs(value);
+              setReplayMs(value);
+            }}
+            onMouseUp={(e) => {
+              const value = Number((e.target as HTMLInputElement).value);
+              setIsSeeking(false);
+              commitSeek(value);
+            }}
+            onTouchEnd={(e) => {
+              const value = Number((e.target as HTMLInputElement).value);
+              setIsSeeking(false);
+              commitSeek(value);
+            }}
+            className="w-full accent-blue-600"
+          />
+          <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
+            <span>{formatReplayMs(isSeeking ? scrubMs : replayMs)}</span>
+            <span>{formatReplayMs(replayDurationMs)}</span>
           </div>
         </div>
       </div>

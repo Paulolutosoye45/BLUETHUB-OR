@@ -12,6 +12,7 @@ import {
 // The old raw-API version opened a new connection on every single call.
 
 let _db: IDBPDatabase | null = null;
+let _initPromise: Promise<void> | null = null;
 
 const upgradeHandler = (database: IDBPDatabase, _oldVersion: number) => {
   console.log('[DB] Running upgrade handler, creating missing stores...');
@@ -57,9 +58,29 @@ const upgradeHandler = (database: IDBPDatabase, _oldVersion: number) => {
   console.log('[DB] Upgrade complete. Stores:', Array.from(database.objectStoreNames));
 };
 
+async function initializeDb(): Promise<void> {
+  if (_initPromise) return _initPromise;
+  if (_db) return;
+
+  _initPromise = (async () => {
+    try {
+      _db = await openDB(DB_NAME, DB_VERSION, { upgrade: upgradeHandler });
+      console.log('[DB] Initialized singleton connection');
+    } catch (err) {
+      console.error('[DB] Failed to open database:', err);
+      _initPromise = null;
+      throw err;
+    }
+  })();
+
+  await _initPromise;
+}
+
 async function db(): Promise<IDBPDatabase> {
-  if (_db) return _db;
-  _db = await openDB(DB_NAME, DB_VERSION, { upgrade: upgradeHandler });
+  if (!_db) {
+    await initializeDb();
+  }
+  if (!_db) throw new Error('Failed to initialize database');
   return _db;
 }
 
@@ -71,12 +92,23 @@ async function freshDb(): Promise<IDBPDatabase> {
 // ── Strokes ────────────────────────────────────────────────────────────────────
 
 export async function addStrokes(strokes: CompressedStroke[]): Promise<void> {
-  const store = await db();
-  const tx = store.transaction(STORE_CLASS, 'readwrite');
-  await Promise.all([
-    ...strokes.map(s => tx.store.put(s)),
-    tx.done,
-  ]);
+  if (!strokes.length) return;
+  try {
+    const store = await db();
+    if (!store.objectStoreNames.contains(STORE_CLASS)) {
+      console.error('[DB] STORE_CLASS does not exist; skipping addStrokes');
+      return;
+    }
+    const tx = store.transaction(STORE_CLASS, 'readwrite');
+    await Promise.all([
+      ...strokes.map(s => tx.store.put(s)),
+      tx.done,
+    ]);
+    console.log('[DB] ✓ Added', strokes.length, 'strokes');
+  } catch (err) {
+    console.error('[DB] ✗ Failed to add strokes:', err);
+    throw err;
+  }
 }
 
 export async function getClass(): Promise<CompressedStroke[]> {
@@ -138,7 +170,7 @@ export async function deleteClassBySession(sessionId: string): Promise<number> {
 // ── Audio ──────────────────────────────────────────────────────────────────────
 
 export async function addAudio(payload: AudioBatch): Promise<void> {
-  await (await db()).add(STORE_AUDIO, payload);
+  await (await db()).put(STORE_AUDIO, payload);
 }
 
 export async function getAudio(): Promise<AudioBatch[]> {
@@ -172,6 +204,33 @@ export async function deleteAudioBySession(sessionId: string): Promise<number> {
 // ═══════════════════════════════════════════════════════════════════════════════
 // SESSIONS (New Sync Architecture)
 // ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Ensures all required stores exist in the database.
+ * Call this on app startup to guarantee store existence.
+ */
+export async function ensureAllStoresExist(): Promise<void> {
+  const store = await db();
+  const requiredStores = [STORE_CLASS, STORE_AUDIO, STORE_SESSIONS, STORE_AUDIO_CHUNKS, STORE_STROKE_BATCHES];
+  const missingStores = requiredStores.filter(s => !store.objectStoreNames.contains(s));
+
+  if (missingStores.length === 0) {
+    console.log('[DB] All required stores exist');
+    return;
+  }
+
+  console.warn('[DB] Missing stores:', missingStores, '— incrementing version to force upgrade');
+  // Close current connection to allow version upgrade
+  _db?.close();
+  _db = null;
+  _initPromise = null;
+
+  // Force version bump by opening with a higher version
+  const nextVersion = DB_VERSION + 1;
+  const upgraded = await openDB(DB_NAME, nextVersion, { upgrade: upgradeHandler });
+  _db = upgraded;
+  console.log('[DB] Database upgraded, stores should now exist');
+}
 
 export async function createSession(session: LocalSession): Promise<void> {
   await (await db()).add(STORE_SESSIONS, session);
@@ -229,7 +288,18 @@ export async function deleteSession(id: string): Promise<void> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function addAudioChunk(chunk: LocalAudioChunk): Promise<void> {
-  await (await db()).add(STORE_AUDIO_CHUNKS, chunk);
+  try {
+    const store = await db();
+    if (!store.objectStoreNames.contains(STORE_AUDIO_CHUNKS)) {
+      console.error('[DB] STORE_AUDIO_CHUNKS does not exist; skipping addAudioChunk');
+      return;
+    }
+    await store.add(STORE_AUDIO_CHUNKS, chunk);
+    console.log('[DB] ✓ Added audio chunk:', chunk.id);
+  } catch (err) {
+    console.error('[DB] ✗ Failed to add audio chunk:', err);
+    throw err;
+  }
 }
 
 export async function getAudioChunk(id: string): Promise<LocalAudioChunk | undefined> {
@@ -497,24 +567,12 @@ async function ensureStoresExist(): Promise<void> {
         console.log('[DB] All required stores exist');
         resolve();
       } else {
-        console.log('[DB] Missing stores detected, deleting database to force recreation...');
-        // Close singleton if open
-        if (_db) {
-          _db.close();
-          _db = null;
-        }
-
-        const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
-        deleteRequest.onsuccess = () => {
-          console.log('[DB] Database deleted, will recreate on next access');
-          resolve();
-        };
-        deleteRequest.onerror = () => {
-          reject(new Error('Failed to delete database for recreation'));
-        };
-        deleteRequest.onblocked = () => {
-          reject(new Error('Database deletion blocked - close all tabs and try again'));
-        };
+        // Do NOT delete the DB at runtime.
+        // Deleting/closing active connections while recording/uploading causes:
+        // "Failed to execute 'transaction' on 'IDBDatabase': The database connection is closing"
+        // and may wipe in-progress board/audio data.
+        console.warn('[DB] Missing stores detected. Skipping runtime delete to avoid data loss/connection-closing race.');
+        resolve();
       }
     };
 
@@ -526,11 +584,11 @@ async function ensureStoresExist(): Promise<void> {
 }
 
 export async function saveSessionAsDraft(sessionId: string, sessionData: LocalSession): Promise<void> {
-  // First ensure all stores exist (may delete and recreate DB if needed)
+  // First ensure all stores exist (will upgrade DB if needed)
   try {
-    await ensureStoresExist();
+    await ensureAllStoresExist();
   } catch (err) {
-    console.warn('[SaveDraft] ensureStoresExist failed:', err);
+    console.warn('[SaveDraft] ensureAllStoresExist failed:', err);
   }
 
   // Try multiple approaches in sequence
@@ -560,11 +618,11 @@ export async function saveSessionAsDraft(sessionId: string, sessionData: LocalSe
         };
 
     await store.put(STORE_SESSIONS, dataToSave);
-    console.log('[SaveDraft] Success via idb singleton');
+    console.log('[SaveDraft] ✓ Saved via idb singleton');
     return;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.warn('[SaveDraft] Attempt 1 failed:', msg);
+    console.warn('[SaveDraft] ✗ Attempt 1 failed:', msg);
     errors.push(`idb: ${msg}`);
   }
 

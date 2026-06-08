@@ -24,7 +24,7 @@ const ClassRoomList = ({ loading, subjects }: ClassRoomListProps) => {
   }
 
   return (
-    <div className="w-full min-h-[90vh] px-4 py-8 space-y-4">
+    <div className="w-full min-h-[60vh] md:min-h-[90vh] px-3 sm:px-4 py-4 sm:py-6 md:py-8 space-y-3 sm:space-y-4">
       {subjects.map((subject) => (
         <ClassRoomCard key={subject.subjectId} subject={subject} />
       ))}
