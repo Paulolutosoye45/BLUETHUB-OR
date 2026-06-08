@@ -315,9 +315,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // ── Public API ────────────────────────────────────────────────────────────
 
+  const getActiveLessonId = useCallback((): string | null => {
+    try {
+      const activeLessonStr = sessionStorage.getItem('activeLesson');
+      if (!activeLessonStr) return null;
+
+      const activeLesson = JSON.parse(activeLessonStr) as {
+        lesson?: { id?: string };
+        id?: string;
+      };
+
+      return activeLesson.lesson?.id || activeLesson.id || null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const startRecording = useCallback(async () => {
     try {
       console.log('[SessionContext] startRecording called');
+
+      const lessonId = getActiveLessonId();
+      if (!lessonId) {
+        toast.error('No active lesson found. Please select a lesson before starting class.');
+        return;
+      }
 
       // Get microphone FIRST - this can take time (permission dialog)
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -329,7 +351,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         },
       });
 
-      const sid = crypto.randomUUID();
+      const sid = lessonId;
       batchIndexRef.current = 0;
       currentSessionIdRef.current = sid;
 
@@ -384,7 +406,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           const activeLesson = JSON.parse(activeLessonStr);
 
           metadata = {
-            lessonId: activeLesson.lesson?.id || `lesson_${sid}`,
+            lessonId: activeLesson.lesson?.id || sid,
             schoolId: schoolInfo.id || 'unknown',
             teacher: {
               id: user.id || '',
@@ -408,7 +430,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           console.log('[SessionContext] Built metadata for session:', metadata.lessonId);
         } else {
           metadata = {
-            lessonId: `lesson_${sid}`,
+            lessonId: sid,
             schoolId: schoolInfo.id || 'unknown',
             teacher: {
               id: user.id || '',
@@ -436,7 +458,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
         // Last-resort fallback so worker can still persist sync architecture data.
         metadata = {
-          lessonId: `lesson_${sid}`,
+          lessonId: sid,
           schoolId: 'unknown',
           teacher: {
             id: '',
@@ -479,7 +501,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       console.error('[SessionContext] startRecording failed:', err);
       toast.error('Recording failed — check microphone permissions');
     }
-  }, [dispatch, timerElapsedSeconds]);
+  }, [dispatch, getActiveLessonId, timerElapsedSeconds]);
 
   /**
    * Continue recording from a saved draft session.
@@ -697,7 +719,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const muteMic = useCallback(() => {
     if (!isRecordingRef.current || isMicMutedRef.current) return;
 
-    streamRef.current?.getAudioTracks().forEach(track => {
+    const audioTracks = streamRef.current?.getAudioTracks() ?? [];
+    if (audioTracks.length === 0) {
+      toast.error('Microphone is not available');
+      return;
+    }
+
+    audioTracks.forEach(track => {
       track.enabled = false;
     });
     setIsMicMuted(true);
@@ -708,7 +736,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const unmuteMic = useCallback(() => {
     if (!isRecordingRef.current || !isMicMutedRef.current) return;
 
-    streamRef.current?.getAudioTracks().forEach(track => {
+    const audioTracks = streamRef.current?.getAudioTracks() ?? [];
+    if (audioTracks.length === 0) {
+      toast.error('Microphone is not available');
+      return;
+    }
+
+    audioTracks.forEach(track => {
       track.enabled = true;
     });
     setIsMicMuted(false);

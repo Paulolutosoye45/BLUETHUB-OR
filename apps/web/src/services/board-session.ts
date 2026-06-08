@@ -187,24 +187,37 @@ export const boardSessionService = {
   },
 
   /**
-    * Get a single stroke batch by index key (sessionId_batchIndex)
+   * Get a single stroke batch by index key (sessionId_batchIndex)
    * Used for on-demand loading during playback
+   * Endpoint: GET /api/board/session/{sessionId}/batch/{indexKey}
    */
-  getBatchByIndexKey: async (indexKey: string): Promise<FetchedStrokeBatch | null> => {
+  getBatchByIndexKey: async (sessionId: string, indexKey: string): Promise<FetchedStrokeBatch | null> => {
     const response = await API.get<{ data: FetchedStrokeBatch }>(
-      `api/board/batch/${indexKey}`,
+      `api/board/session/${sessionId}/batch/${indexKey}`,
       { headers: { 'X-Tenant-ID': X_Tenant_ID } }
     );
     return response.data.data ?? null;
   },
 
   /**
-   * Get session manifest for replay
+   * Get session manifest for replay — teacher / admin
    * Contains audio URLs, stroke batch references, and metadata
    */
   getManifest: async (sessionId: string): Promise<SessionManifestPayload | null> => {
     const response = await API.get<{ data: SessionManifestPayload }>(
       `api/board/session/${sessionId}/manifest`,
+      { headers: { 'X-Tenant-ID': X_Tenant_ID } }
+    );
+    return response.data.data ?? null;
+  },
+
+  /**
+   * Get session manifest for replay — student
+   * Endpoint: GET /api/board/student/session/{sessionId}/manifest
+   */
+  getStudentManifest: async (sessionId: string): Promise<SessionManifestPayload | null> => {
+    const response = await API.get<{ data: SessionManifestPayload }>(
+      `api/board/student/session/${sessionId}/manifest`,
       { headers: { 'X-Tenant-ID': X_Tenant_ID } }
     );
     return response.data.data ?? null;

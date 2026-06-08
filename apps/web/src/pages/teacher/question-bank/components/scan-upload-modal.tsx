@@ -92,10 +92,10 @@ export default function ScanUploadModal({
       const seenPairs = new Set<string>();
       const subjectList: SubjectOption[] = [];
       const pairs: AssignmentPair[] = [];
-      for (const c of classrooms) {
+      for (const [index, c] of classrooms.entries()) {
         const classroomId = c.classroomId;
-        const className = c.className;
-        if (!classroomId || !className) continue;
+        const className = String(c.className ?? `Classroom ${index + 1}`);
+        if (!classroomId) continue;
 
         for (const s of (c.subjects ?? [])) {
           if (!s.subjectId || !s.subjectName) continue;

@@ -698,15 +698,16 @@ const CreateQuizQuestion = () => {
         const pairs: TeacherAssignment[] = [];
         const uniqueClassrooms = new Map<string, ApiItem>();
 
-        for (const c of roleClassrooms) {
-          if (!c?.classroomId || !c?.className) continue;
-          uniqueClassrooms.set(c.classroomId, { id: c.classroomId, name: c.className });
+        for (const [index, c] of roleClassrooms.entries()) {
+          if (!c?.classroomId) continue;
+          const classroomName = String(c.className ?? `Classroom ${index + 1}`);
+          uniqueClassrooms.set(c.classroomId, { id: c.classroomId, name: classroomName });
 
           for (const s of c.subjects ?? []) {
             if (!s?.subjectId || !s?.subjectName) continue;
             pairs.push({
               classroomId: c.classroomId,
-              className: c.className,
+              className: classroomName,
               subjectId: s.subjectId,
               subjectName: s.subjectName,
             });

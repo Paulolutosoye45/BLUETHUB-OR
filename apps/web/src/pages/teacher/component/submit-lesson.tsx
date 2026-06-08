@@ -40,10 +40,12 @@ import {
   LessonMediaType,
   resolveMediaType,
   type CloudinarySignature,
+  type SupabaseUploadToken,
   type MediaFilePayload,
   type DraftLessonPayload,
   type SubmitLessonPayload,
 } from "@/services/lesson";
+import { authService } from "@/services/auth";
 import { schoolService } from "@/services/school";
 import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { localData } from "@/utils";
@@ -72,6 +74,12 @@ interface UploadFile {
 interface SelectItem {
   id: string;
   label: string;
+}
+
+interface RoleDataClassroom {
+  classroomId: string;
+  className: string;
+  subjects: SelectItem[];
 }
 
 interface DraftFile {
@@ -136,6 +144,63 @@ const formatBytes = (bytes: number): string => {
   return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
 };
 
+function normalizeRoleDataClassrooms(roleData: unknown): RoleDataClassroom[] {
+  const rawClassrooms = Array.isArray((roleData as { classrooms?: unknown[] })?.classrooms)
+    ? ((roleData as { classrooms?: unknown[] }).classrooms ?? [])
+    : [];
+
+  return rawClassrooms
+    .map((rawClassroom, index) => {
+      const classroom = rawClassroom as {
+        classroomId?: string;
+        id?: string;
+        classId?: string;
+        className?: string;
+        name?: string;
+        subjects?: unknown[];
+        majorSubjects?: unknown[];
+        minorSubjects?: unknown[];
+      };
+
+      const classroomId = String(classroom.classroomId ?? classroom.id ?? classroom.classId ?? "").trim();
+      if (!classroomId) return null;
+
+      const className = String(classroom.className ?? classroom.name ?? `Classroom ${index + 1}`);
+
+      const rawSubjects = [
+        ...(Array.isArray(classroom.subjects) ? classroom.subjects : []),
+        ...(Array.isArray(classroom.majorSubjects) ? classroom.majorSubjects : []),
+        ...(Array.isArray(classroom.minorSubjects) ? classroom.minorSubjects : []),
+      ];
+
+      const seen = new Set<string>();
+      const subjects: SelectItem[] = [];
+
+      for (const rawSubject of rawSubjects) {
+        const subject = rawSubject as {
+          subjectId?: string;
+          id?: string;
+          subjectName?: string;
+          name?: string;
+          subject?: string;
+        };
+
+        const id = String(subject.subjectId ?? subject.id ?? "").trim();
+        const label = String(subject.subjectName ?? subject.name ?? subject.subject ?? "").trim();
+        if (!id || !label || seen.has(id)) continue;
+        seen.add(id);
+        subjects.push({ id, label });
+      }
+
+      return {
+        classroomId,
+        className,
+        subjects,
+      };
+    })
+    .filter((item): item is RoleDataClassroom => item !== null);
+}
+
 function getFileIcon(mimeType: string) {
   if (mimeType.startsWith("video/"))
     return <FileVideo className="w-5 h-5 text-violet-500" />;
@@ -146,6 +211,22 @@ function getFileIcon(mimeType: string) {
   if (mimeType === "application/pdf")
     return <FileIcon className="w-5 h-5 text-red-400" />;
   return <FileIcon className="w-5 h-5 text-gray-400" />;
+}
+
+function resolveMediaTypeFromCloudinary(format?: string, resourceType?: string): number {
+  const f = (format ?? "").toLowerCase();
+  const rt = (resourceType ?? "").toLowerCase();
+
+  if (rt === "video") return LessonMediaType.Video;
+  if (rt === "audio") return LessonMediaType.Audio;
+
+  const documentExt = new Set([
+    "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt", "rtf", "csv", "odt",
+  ]);
+  if (documentExt.has(f)) return LessonMediaType.Document;
+
+  if (rt === "image") return LessonMediaType.Image;
+  return LessonMediaType.Document;
 }
 
 async function runConcurrent<T>(
@@ -176,6 +257,7 @@ function uploadToCloudinary(
   bytes: number;
   duration?: number;
   format: string;
+  resource_type?: string;
   original_filename: string;
 }> {
   return new Promise((resolve, reject) => {
@@ -208,6 +290,49 @@ function uploadToCloudinary(
     xhr.onerror = () => reject(new Error("Network error — check your connection"));
     xhr.open("POST", `https://api.cloudinary.com/v1_1/${sig.cloudName}/${sig.resourceType}/upload`);
     xhr.send(fd);
+  });
+}
+
+function uploadToSupabase(
+  file: File,
+  token: SupabaseUploadToken,
+  onProgress: (pct: number) => void
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const resolvedPublicUrl = token.publicUrl
+      ? token.publicUrl
+      : token.uploadUrl.replace("/storage/v1/object/", "/storage/v1/object/public/");
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable)
+        onProgress(Math.min(95, Math.round((e.loaded / e.total) * 95)));
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200 || xhr.status === 201) {
+        onProgress(100);
+        resolve(resolvedPublicUrl);
+      } else {
+        let details = xhr.statusText || "Unknown error";
+        try {
+          const parsed = JSON.parse(xhr.responseText);
+          details = parsed?.message || parsed?.error || details;
+        } catch {
+          if (xhr.responseText) details = xhr.responseText;
+        }
+        reject(new Error(`Supabase upload failed (${xhr.status}): ${details}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Network error — check your connection"));
+
+    xhr.open("POST", token.uploadUrl);
+    xhr.setRequestHeader("Authorization", `Bearer ${token.token}`);
+    xhr.setRequestHeader("apikey", token.token);
+    xhr.setRequestHeader("x-upsert", "true");
+    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+    xhr.send(file);
   });
 }
 
@@ -541,7 +666,7 @@ const SubmitLesson = () => {
   // ── Data State ──
   const [classrooms, setClassrooms] = useState<SelectItem[]>([]);
   const [subjects, setSubjects] = useState<SelectItem[]>([]);
-  const [roleDataClassrooms, setRoleDataClassrooms] = useState<any[]>([]);
+  const [roleDataClassrooms, setRoleDataClassrooms] = useState<RoleDataClassroom[]>([]);
   const [topics, setTopics] = useState<SelectItem[]>([]);
   const [subTopics, setSubTopics] = useState<SelectItem[]>([]);
   const [topicsData, setTopicsData] = useState<any[]>([]);
@@ -683,11 +808,11 @@ const SubmitLesson = () => {
           return;
         }
 
-        // Use roleData already loaded by AuthContext — no extra API call needed
-        const roleData = user.roleData;
+        const userRes = await authService.getUserById(user.id);
+        const roleData = (userRes.data as any)?.data?.roleData ?? (userRes.data as any)?.roleData;
 
         if (roleData && isTeacherRoleData(roleData)) {
-          const classroomsData = roleData.classrooms;
+          const classroomsData = normalizeRoleDataClassrooms(roleData);
 
           if (classroomsData.length > 0) {
             setRoleDataClassrooms(classroomsData);
@@ -711,7 +836,7 @@ const SubmitLesson = () => {
     };
 
     fetchUserData();
-  }, [user?.id, user?.roleData, isAdminRole]);
+  }, [user?.id, isAdminRole]);
 
   useEffect(() => {
     if (!classroomId) return;
@@ -740,11 +865,11 @@ const SubmitLesson = () => {
 
     if (roleDataClassrooms.length > 0) {
       const selectedClass = roleDataClassrooms.find(
-        (c: any) => String(c.classroomId) === classroomId
+        (c) => String(c.classroomId) === classroomId
       );
       const subjectsData = selectedClass?.subjects;
-      if (subjectsData && Array.isArray(subjectsData) && subjectsData.length > 0) {
-        setSubjects(subjectsData.map((s: any) => ({ id: String(s.subjectId), label: s.subjectName })));
+      if (subjectsData && subjectsData.length > 0) {
+        setSubjects(subjectsData);
         return;
       }
     }
@@ -789,18 +914,53 @@ const SubmitLesson = () => {
   }, [topicId, topicsData]);
 
   // ── Upload Logic ──
-  const runUpload = useCallback(async (uid: string, file: File, sig: CloudinarySignature) => {
+  const runUpload = useCallback(async (uid: string, file: File, sig?: CloudinarySignature) => {
     setUploadFiles((p) => p.map((f) => f.uid === uid ? { ...f, status: "uploading" } : f));
     try {
+      const originalExt = file.name.split(".").pop()?.toLowerCase() ?? "";
+
+      if (originalExt === "pdf") {
+        const tokenRes = await lessonService.getSupabaseUploadToken(file.name);
+        const token = (tokenRes.data as any).data as SupabaseUploadToken;
+        const publicUrl = await uploadToSupabase(file, token, (pct) =>
+          setUploadFiles((p) => p.map((f) => f.uid === uid ? { ...f, progress: pct } : f))
+        );
+
+        const supabaseResult: MediaFilePayload = {
+          fileName: file.name,
+          originalFileName: file.name,
+          fileExtension: originalExt,
+          mediaType: LessonMediaType.Document,
+          cloudinaryUrl: publicUrl,
+          publicId: token.bucketPath,
+          fileSizeBytes: file.size,
+          displayOrder: 0,
+        };
+
+        setUploadFiles((p) =>
+          p.map((f) => f.uid === uid ? { ...f, status: "done", progress: 100, result: supabaseResult } : f)
+        );
+        return;
+      }
+
+      if (!sig) {
+        throw new Error("Upload credentials are missing");
+      }
+
       const res = await uploadToCloudinary(file, sig, (pct) =>
         setUploadFiles((p) => p.map((f) => f.uid === uid ? { ...f, progress: pct } : f))
       );
-      const ext = res.format || file.name.split(".").pop() || "";
+      const secureUrlExt = res.secure_url.split("?")[0].split(".").pop() || "";
+      const ext = String(res.format ?? secureUrlExt).trim();
+      const normalizedExt = ext.replace(/^\./, "").toLowerCase();
+      const resolvedFileName = normalizedExt
+        ? `${res.original_filename}.${normalizedExt}`
+        : res.original_filename;
       const result: MediaFilePayload = {
-        fileName: `${res.original_filename}.${ext}`,
+        fileName: resolvedFileName,
         originalFileName: file.name,
-        fileExtension: ext,
-        mediaType: resolveMediaType(file.type),
+        fileExtension: normalizedExt,
+        mediaType: resolveMediaTypeFromCloudinary(normalizedExt, res.resource_type),
         cloudinaryUrl: res.secure_url,
         publicId: res.public_id,
         fileSizeBytes: res.bytes,
@@ -837,13 +997,17 @@ const SubmitLesson = () => {
     await runConcurrent(incoming, UPLOAD_CONCURRENCY, async ({ uid, file }) => {
       if (!file) return;
       const mediaType = resolveMediaType(file.type) as typeof LessonMediaType[keyof typeof LessonMediaType];
+      const isPdfUpload = file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf";
 
       try {
-        let sig = signatures.get(mediaType);
-        if (!sig) {
-          const r = await lessonService.getUploadSignature(mediaType);
-          sig = (r.data as any).data as CloudinarySignature;
-          signatures.set(mediaType, sig);
+        let sig: CloudinarySignature | undefined;
+        if (!isPdfUpload) {
+          sig = signatures.get(mediaType);
+          if (!sig) {
+            const r = await lessonService.getUploadSignature(mediaType);
+            sig = (r.data as any).data as CloudinarySignature;
+            signatures.set(mediaType, sig);
+          }
         }
         await runUpload(uid, file, sig);
       } catch {
@@ -862,11 +1026,14 @@ const SubmitLesson = () => {
   const handleRetry = useCallback(async (uid: string) => {
     const entry = uploadFiles.find((f) => f.uid === uid);
     if (!entry?.file) return;
-    let sig: CloudinarySignature;
+    let sig: CloudinarySignature | undefined;
     try {
       const mediaType = resolveMediaType(entry.file.type) as typeof LessonMediaType[keyof typeof LessonMediaType];
-      const r = await lessonService.getUploadSignature(mediaType);
-      sig = (r.data as any).data as CloudinarySignature;
+      const isPdfUpload = entry.file.name.toLowerCase().endsWith(".pdf") || entry.file.type === "application/pdf";
+      if (!isPdfUpload) {
+        const r = await lessonService.getUploadSignature(mediaType);
+        sig = (r.data as any).data as CloudinarySignature;
+      }
     } catch {
       toast.error("Could not get upload credentials");
       return;

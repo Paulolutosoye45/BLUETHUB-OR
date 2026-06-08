@@ -128,13 +128,13 @@ export const ReviewModal = ({ open, onOpenChange, lesson }: ReviewModalProps) =>
                     {/* Lesson objectives */}
                     <div className="bg-gray-50 rounded-xl p-3.5">
                         <p className="text-[#A8A8A4] text-[11px] font-medium mb-1">Lesson objectives</p>
-                        <p className="text-[#0F0F0E] text-xs">{lesson.objectives}</p>
+                        <p className="text-[#0F0F0E] text-xs leading-relaxed whitespace-pre-wrap break-words">{lesson.objectives}</p>
                     </div>
 
                     {/* Lesson notes */}
                     <div className="bg-gray-50 rounded-xl p-3.5">
                         <p className="text-[#A8A8A4] text-[11px] font-medium mb-1">Lesson Notes</p>
-                        <p className="text-[#0F0F0E] text-xs">{lesson.lessonNotes}</p>
+                        <p className="text-[#0F0F0E] text-xs leading-relaxed whitespace-pre-wrap break-words">{lesson.lessonNotes}</p>
                     </div>
 
                     {/* Activity timeline */}
