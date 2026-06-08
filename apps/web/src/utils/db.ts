@@ -549,40 +549,6 @@ export async function cleanupEntireSession(sessionId: string): Promise<number> {
 // DRAFT SAVE (Uses raw IndexedDB API to avoid transaction conflicts with worker)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-// Helper to delete and recreate database if stores are missing
-async function ensureStoresExist(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME);
-
-    request.onsuccess = () => {
-      const database = request.result;
-      const hasAllStores =
-        database.objectStoreNames.contains(STORE_SESSIONS) &&
-        database.objectStoreNames.contains(STORE_AUDIO_CHUNKS) &&
-        database.objectStoreNames.contains(STORE_STROKE_BATCHES);
-
-      database.close();
-
-      if (hasAllStores) {
-        console.log('[DB] All required stores exist');
-        resolve();
-      } else {
-        // Do NOT delete the DB at runtime.
-        // Deleting/closing active connections while recording/uploading causes:
-        // "Failed to execute 'transaction' on 'IDBDatabase': The database connection is closing"
-        // and may wipe in-progress board/audio data.
-        console.warn('[DB] Missing stores detected. Skipping runtime delete to avoid data loss/connection-closing race.');
-        resolve();
-      }
-    };
-
-    request.onerror = () => {
-      // Database doesn't exist yet, that's fine
-      resolve();
-    };
-  });
-}
-
 export async function saveSessionAsDraft(sessionId: string, sessionData: LocalSession): Promise<void> {
   // First ensure all stores exist (will upgrade DB if needed)
   try {
