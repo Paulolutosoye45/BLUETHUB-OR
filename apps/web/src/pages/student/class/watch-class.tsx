@@ -6,17 +6,8 @@ import toast from "react-hot-toast";
 import boardSessionService from "@/services/board-session";
 import { addAudio, addStrokes, getAudioBySession, getClassBySession } from "@/utils/db";
 import type { AudioBatch, IActions, IBatch } from "@/utils/constant";
+import type { MediaType } from "@/utils/constant";
 import { LESSON_MEDIA_CACHE, buildLessonScopedCacheKey } from "@/utils/lesson-media-cache";
-
-type DownloadStage =
-  | "idle"
-  | "checking-local"
-  | "downloading-manifest"
-  | "downloading-strokes"
-  | "downloading-audio"
-  | "downloading-media"
-  | "ready"
-  | "error";
 
 interface ReplayCheckpoint {
   sessionId: string;
@@ -48,29 +39,15 @@ const toMmSs = (ms: number): string => {
   return `${mm}:${ss}`;
 };
 
-const parseClockToMs = (value: string | null | undefined): number => {
-  if (!value) return 0;
-  const parts = value.split(":").map((part) => Number(part));
-  if (parts.length === 2) {
-    const [m, s] = parts;
-    return (Math.max(0, m) * 60 + Math.max(0, s)) * 1000;
-  }
-  if (parts.length === 3) {
-    const [h, m, s] = parts;
-    return (Math.max(0, h) * 3600 + Math.max(0, m) * 60 + Math.max(0, s)) * 1000;
-  }
-  return 0;
-};
-
 const buildReplayBatches = (
   manifest: NonNullable<Awaited<ReturnType<typeof boardSessionService.getManifest>>>
 ): IActions => {
-  const batches: IBatch[] = manifest.chunks.map((chunk) => {
+  const batches: IBatch[] = manifest.chunks.map((chunk, idx) => {
     const mediaAction = manifest.mediaAssets.map((asset) => ({
       id: asset.id,
       name: asset.name,
       url: asset.url,
-      type: asset.type,
+      type: asset.type as MediaType,
       show: toMmSs(chunk.startMs),
       closed: toMmSs(chunk.endMs),
       showMs: chunk.startMs,
@@ -78,6 +55,7 @@ const buildReplayBatches = (
     }));
 
     return {
+      id: `batch-${idx}`,
       startTime: toMmSs(chunk.startMs),
       endTime: toMmSs(chunk.endMs),
       hasAudio: true,
@@ -99,10 +77,9 @@ const WatchClass = () => {
   const location = useLocation();
   const locationState = (location.state as WatchLocationState | null) ?? null;
 
-  const lessonId = locationState.lessonId ?? classId ?? "";
-  const sessionId = locationState.sessionId ?? classId ?? "";
+  const lessonId = locationState?.lessonId ?? classId ?? "";
+  const sessionId = locationState?.sessionId ?? classId ?? "";
 
-  const [stage, setStage] = useState<DownloadStage>("idle");
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState("Ready to prepare replay data.");
   const [isRunning, setIsRunning] = useState(false);
@@ -128,13 +105,11 @@ const WatchClass = () => {
 
     setIsRunning(true);
     setProgress(0);
-    setStage("checking-local");
     setStatusText("Checking local replay cache...");
 
     const cachedAudio = await getAudioBySession(sessionId);
     const cachedStrokes = await getClassBySession(sessionId);
 
-    setStage("downloading-manifest");
     setStatusText("Downloading replay manifest...");
     setProgress(5);
 
@@ -202,7 +177,7 @@ const WatchClass = () => {
     // Checkpoint can become stale (for example after DB clear), so do not use
     // it as the source of truth for skipping stroke batch fetches.
     // We always fetch stroke batches and then dedupe by stroke id locally.
-    setStage("downloading-strokes");
+
     for (const strokeBatchRef of manifest.strokeBatches) {
       const batch = await boardSessionService.getBatchByIndexKey(sessionId, strokeBatchRef.indexKey);
       if (!batch) continue;
@@ -232,7 +207,7 @@ const WatchClass = () => {
       updateProgress(`Downloaded board batch ${strokeBatchRef.batchIndex + 1}/${manifest.strokeBatches.length}`);
     }
 
-    setStage("downloading-audio");
+
     for (const chunk of manifest.chunks) {
       // Skip only when the chunk is truly present in IndexedDB for this session.
       // Checkpoint flags alone are not reliable after local cache resets.
@@ -275,7 +250,7 @@ const WatchClass = () => {
       updateProgress(`Downloaded audio chunk ${chunk.index + 1}/${manifest.chunks.length}`);
     }
 
-    setStage("downloading-media");
+
     if (typeof window !== "undefined" && "caches" in window) {
       const cache = await caches.open(LESSON_MEDIA_CACHE);
 
@@ -310,7 +285,6 @@ const WatchClass = () => {
     cp.updatedAt = new Date().toISOString();
     writeCheckpoint(cp);
 
-    setStage("ready");
     setProgress(100);
     setStatusText("Replay data is ready. Launching player...");
     localStorage.setItem("replaySessionId", sessionId);
@@ -323,7 +297,6 @@ const WatchClass = () => {
       navigate("/replay");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to prepare replay.";
-      setStage("error");
       setStatusText(message);
       toast.error(message);
     } finally {
