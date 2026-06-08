@@ -27,7 +27,7 @@ export const endpoints = {
   getSubjectsBySubjectCategory: "/api/School/GetSubjectsBySubjectCategory",
   updateClassroomTeachers: "/api/School/UpdateClassroomTeachers",
   updateTeacherClassroom: "/api/School/teacher",
-  createTopic: "/api/School/topics",
+  createTopicsWithSubTopics: "/api/School/createtopics",
 };
 
 interface Ischool {
@@ -78,6 +78,38 @@ export interface ISubject {
   schoolId: string;
   category: string;
 }
+
+export interface TopicWithSubTopicsPayload {
+  name: string;
+  subTopics: string[];
+}
+
+export interface CreateTopicsWithSubTopicsPayload {
+  subjectId: string;
+  topics: TopicWithSubTopicsPayload[];
+}
+
+export interface CreateTopicsWithSubTopicsData {
+  subjectId: string;
+  subjectName: string;
+  topicsCreated: number;
+  subTopicsCreated: number;
+  requiresApproval: boolean;
+  topics: {
+    topicId: string;
+    topicName: string;
+    subTopicCount: number;
+    subTopics: string[];
+  }[];
+}
+
+export interface AddSubTopicsToTopicData {
+  topicId: string;
+  topicName: string;
+  addedCount: number;
+  requiresApproval: boolean;
+}
+
 export const schoolService = {
   registerSubject: (data: IRegisterSubject) => {
     return API.post<TResponse<unknown>>(endpoints.registerSubject, data, {
@@ -160,17 +192,18 @@ export const schoolService = {
     );
   },
 
-  createTopic: (payload: {
-    subjectId: string;
-    classroomId: string;
-    topics: { name: string; subTopics: string[] }[];
-  }) => {
-    return API.post<TResponse<unknown>>(endpoints.createTopic, payload, {
+  createTopicsWithSubTopics: (payload: CreateTopicsWithSubTopicsPayload) => {
+    return API.post<TResponse<CreateTopicsWithSubTopicsData>>(endpoints.createTopicsWithSubTopics, payload, {
       headers: {
         "X-Tenant-ID": X_Tenant_ID,
         Authorization: `Bearer ${token.getToken()}`,
       },
     });
+  },
+
+  // Backward-compatible alias used by existing callers.
+  createTopic: (payload: CreateTopicsWithSubTopicsPayload) => {
+    return schoolService.createTopicsWithSubTopics(payload);
   },
 
   getTopicsWithSubTopics: (subjectId: string, classroomId: string) => {
@@ -192,7 +225,7 @@ export const schoolService = {
   },
 
   addSubTopicsToTopic: (topicId: string, subTopics: string[]) => {
-    return API.post(`/api/School/subtopics/add`, 
+    return API.post<TResponse<AddSubTopicsToTopicData>>(`/api/School/subtopics/add`,
       { topicId: topicId, subTopics: subTopics },
       {
         headers: {

@@ -408,10 +408,12 @@ const MyLesson = () => {
                                   <p className="text-[#0F0F0E] font-semibold text-sm leading-tight line-clamp-1">
                                     {buildLessonTitle(lesson)}
                                   </p>
-                                  <p className="text-[#A8A8A4] text-[11px] mt-0.5 line-clamp-1">
-                                    {lesson.subjectName && (
-                                      <span className="font-medium text-chestnut/70">{lesson.subjectName} · </span>
-                                    )}
+                                  {lesson.subjectName && (
+                                    <p className="text-[11px] font-semibold text-chestnut/70 mt-0.5">
+                                      {lesson.subjectName}
+                                    </p>
+                                  )}
+                                  <p className="text-[#A8A8A4] text-[11px] mt-1 leading-relaxed whitespace-pre-wrap break-words">
                                     {lesson.aim}
                                   </p>
                                 </TableCell>
@@ -485,7 +487,9 @@ const MyLesson = () => {
                               {lesson.subjectName && (
                                 <p className="text-[10px] font-semibold text-chestnut/70 mt-0.5">{lesson.subjectName}</p>
                               )}
-                              <p className="text-[11px] text-[#A8A8A4] mt-1 line-clamp-1">{lesson.aim}</p>
+                              <p className="text-[11px] text-[#A8A8A4] mt-1 leading-relaxed whitespace-pre-wrap break-words">
+                                {lesson.aim}
+                              </p>
                             </div>
                             <span className={`shrink-0 inline-flex items-center gap-1 rounded-full py-0.5 px-2 text-[10px] font-semibold ${style.badge}`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />

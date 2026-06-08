@@ -219,18 +219,19 @@ Promise.resolve(roleClassrooms)
     const pairs: TeacherAssignment[] = [];
     const uniqueClassrooms = new Map<string, ApiItem>();
 
-    for (const c of roleClassrooms) {
-      if (!c?.classroomId || !c?.className) continue;
+    for (const [index, c] of roleClassrooms.entries()) {
+      if (!c?.classroomId) continue;
+      const classroomName = String(c.className ?? `Classroom ${index + 1}`);
       uniqueClassrooms.set(String(c.classroomId), {
         id: String(c.classroomId),
-        name: String(c.className),
+        name: classroomName,
       });
 
       for (const s of c.subjects ?? []) {
         if (!s?.subjectId || !s?.subjectName) continue;
         pairs.push({
           classroomId: String(c.classroomId),
-          className: String(c.className),
+          className: classroomName,
           subjectId: String(s.subjectId),
           subjectName: String(s.subjectName),
         });

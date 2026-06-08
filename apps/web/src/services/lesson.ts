@@ -14,6 +14,14 @@ export interface CloudinarySignature {
   uploadPreset?: string | null;
 }
 
+export interface SupabaseUploadToken {
+  uploadUrl: string;
+  publicUrl: string;
+  token: string;
+  bucketPath: string;
+  bucket: string;
+}
+
 // Matches C# enum: Audio=1, Video=2, Document=3, Image=4
 export const LessonMediaType = {
   Audio: 1,
@@ -280,6 +288,12 @@ export const lessonService = {
     API.get<TResponse<CloudinarySignature>>("api/lessons/upload-signature", {
       headers: { "X-Tenant-ID": X_Tenant_ID },
       params: { mediaType },
+    }),
+
+  getSupabaseUploadToken: (fileName: string) =>
+    API.get<TResponse<SupabaseUploadToken>>("api/lessons/supabase-upload-token", {
+      headers: { "X-Tenant-ID": X_Tenant_ID },
+      params: { fileName },
     }),
 
   submitLesson: (payload: SubmitLessonPayload) =>

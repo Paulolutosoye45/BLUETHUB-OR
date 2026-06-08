@@ -18,8 +18,9 @@ const Audio = () => {
   const pauseTime = useSelector((state: RootState) => state.action.pauseTime);
   const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
 
-  // Class hasn't started yet if no time has elapsed
-  const classNotStarted = timerElapsedSeconds === 0;
+  // Class hasn't started yet when recording is not active.
+  // Relying on timerElapsedSeconds can keep mic disabled during the first tick.
+  const classNotStarted = !isRecording;
 
   // Mic is unmuted when recording is active and mic is not muted
   const isMicUnmuted = isRecording && !isMicMuted;
@@ -99,7 +100,7 @@ const Audio = () => {
       <Button
         onClick={handleMic}
         disabled={classEnded || classNotStarted}
-        title={classNotStarted ? "Start the class first" : isMicUnmuted ? "Mute mic" : "Unmute mic"}
+        title={classNotStarted ? "Start recording first" : isMicUnmuted ? "Mute mic" : "Unmute mic"}
         className="size-10 cursor-pointer rounded-full bg-white text-[#1EE23E] shadow-md transition-all duration-200 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {!isMicUnmuted ? (

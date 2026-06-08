@@ -272,14 +272,13 @@ const subjects: SelectItem[] = useMemo(() => {
         }));
 
       if (newTopicsPayload.length > 0) {
-        const topicResponse = await schoolService.createTopic({
+        const topicResponse = await schoolService.createTopicsWithSubTopics({
           subjectId,
-          classroomId,
           topics: newTopicsPayload,
         });
 
         const responseData = topicResponse.data as any;
-        if (responseData?.status === "failed" || responseData?.responseCode !== "00000") {
+        if (responseData?.status !== "successful") {
           const errorMessage = responseData?.responseMessage || "Failed to create topics";
           toast.error(errorMessage);
           setBusy(false);

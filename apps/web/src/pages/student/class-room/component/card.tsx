@@ -35,31 +35,31 @@ const ClassRoomCard = ({ subject }: ClassRoomCardProps) => {
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between w-full shadow-sm">
+    <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between w-full shadow-sm">
       {/* Left Content */}
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3 sm:gap-4 min-w-0 w-full">
         <div>
-          <span className="inline-block rounded-full bg-[#7A65E3] p-3">
-            <Svector className="w-8 h-8 text-white" />
+          <span className="inline-block rounded-full bg-[#7A65E3] p-2.5 sm:p-3">
+            <Svector className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
           </span>
         </div>
-        <div>
-          <h3 className="font-semibold text-base capitalize text-gray-800">
+        <div className="min-w-0">
+          <h3 className="font-semibold text-base capitalize text-gray-800 break-words">
             {subject.subjectName}
           </h3>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 mt-1 break-words">
             Access lessons and activities for this subject.
           </p>
-          <div className="flex gap-3 text-xs text-gray-400 mt-2">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-xs text-gray-400 mt-2">
             <span className={`px-2 py-0.5 rounded-full font-medium ${typeBadgeClass}`}>
               {subject.subjectType}
             </span>
-            <span>• {subject.category}</span>
+            <span className="break-words">• {subject.category}</span>
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3 mr-2">
+      <div className="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-3 sm:mr-2">
         <div className="hidden md:flex items-center gap-1">
           {members.map((m, idx) => (
             <span
@@ -75,7 +75,7 @@ const ClassRoomCard = ({ subject }: ClassRoomCardProps) => {
         <button
           type="button"
           onClick={handleViewLessons}
-          className="bg-student-chestnut hover:bg-[#3A4FE8] text-white rounded-md px-3 py-2 text-sm font-medium"
+          className="bg-student-chestnut hover:bg-[#3A4FE8] text-white rounded-md px-3 py-2 text-sm font-medium w-full sm:w-auto"
         >
           View lessons
         </button>
