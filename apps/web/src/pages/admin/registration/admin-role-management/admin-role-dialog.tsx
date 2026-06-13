@@ -71,8 +71,8 @@ const AssignRoleDialog = ({ admin }: { admin: Admin }) => {
     const fetchPermissions = async (id: string) => {
         try {
             setFetchLoading(true);
-            const response = await authService.getAdminPermissions(id);
-            const permissions = new Set<number>(response.data.data.permissions);
+            const response = await authService.getAdapterPermissions(id);
+            const permissions = new Set<number>((response.data as any).Tdata?.permissions ?? (response.data as any).data?.permissions);
             setSelected(permissions);
             setOriginalPermissions(permissions);
         } catch (error) {

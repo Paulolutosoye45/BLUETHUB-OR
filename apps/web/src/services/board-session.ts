@@ -83,13 +83,16 @@ export interface SessionManifestPayload {
   // Stroke batches are stored separately in MongoDB via submitBatch endpoint
   // The manifest references them by explicit id and index key
   strokeBatches: Array<{
-    id: string;       // sessionId_batchIndex
+    id?: string;       // sessionId_batchIndex
     batchIndex: number;
     indexKey: string; // sessionId_batchIndex
     startMs: number;
     endMs: number;
     strokeCount: number;
     sizeBytes: number;
+    boardIndex?: number;
+    audioUrl?: string | null;
+    boardSwitches?: Array<{ fromBoard: number; toBoard: number; timestampMs: number }>;
   }>;
   mediaAssets: Array<{
     id: string;
@@ -109,6 +112,11 @@ export interface SessionManifestPayload {
     title: string;
     startMs: number;
     endMs: number;
+  }>;
+  boardSwitches?: Array<{
+    fromBoard: number;
+    toBoard: number;
+    timestampMs: number;
   }>;
 }
 
@@ -213,11 +221,11 @@ export const boardSessionService = {
 
   /**
    * Get session manifest for replay — student
-   * Endpoint: GET /api/board/student/session/{sessionId}/manifest
+   * Endpoint: GET /api/board/session/{sessionId}/manifest
    */
   getStudentManifest: async (sessionId: string): Promise<SessionManifestPayload | null> => {
     const response = await API.get<{ data: SessionManifestPayload }>(
-      `api/board/student/session/${sessionId}/manifest`,
+      `/api/board/session/${sessionId}/manifest`,
       { headers: { 'X-Tenant-ID': X_Tenant_ID } }
     );
     return response.data.data ?? null;

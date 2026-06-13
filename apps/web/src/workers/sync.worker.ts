@@ -281,6 +281,7 @@ async function uploadStrokeBatchToBackend(
         strokeCount: batch.strokeCount,
         strokes: batch.strokes,
         sizeBytes: batch.sizeBytes,
+        boardSwitches: batch.boardSwitches ?? [],
       }),
     }
   );
@@ -372,20 +373,31 @@ function buildManifest(
     // Collect events for this time range
     const events: Array<{ type: string; timestampMs: number; [key: string]: unknown }> = [];
 
-    // Add media events
-    session.mediaEvents
-      .filter(e => {
-        const showMs = e.showMs ?? 0;
-        return showMs >= audio.startMs && showMs < audio.endMs;
-      })
-      .forEach(e => {
+    // Add media events.
+    // Emit a 'media:show' event in the chunk where showMs falls, and a
+    // separate 'media:hide' event in the chunk where closedMs falls (which
+    // may be a different chunk than the show event).
+    session.mediaEvents.forEach(e => {
+      const showMs = e.showMs ?? 0;
+      if (showMs >= audio.startMs && showMs < audio.endMs) {
         events.push({
-          type: e.show ? 'media:show' : 'media:hide',
-          timestampMs: e.showMs ?? 0,
+          type: 'media:show',
+          timestampMs: showMs,
           mediaAssetId: e.id,
           frameIndex: e.frameIndex,
         });
-      });
+      }
+      // Emit hide event in the chunk containing closedMs (independent of show chunk).
+      const closedMs = e.closedMs;
+      if (typeof closedMs === 'number' && closedMs > 0 &&
+          closedMs >= audio.startMs && closedMs < audio.endMs) {
+        events.push({
+          type: 'media:hide',
+          timestampMs: closedMs,
+          mediaAssetId: e.id,
+        });
+      }
+    });
 
     // Add board events
     session.boardEvents

@@ -1,11 +1,9 @@
 import { token } from "@/utils";
-import { API, type TResponse } from ".";
-import { getSubdomain } from "@/utils/subdomain";
-import { getTenantId } from "@/utils/tenant";
 
-export const X_Tenant_ID = getTenantId();
-export const tenantId = getSubdomain();
-const RESOLVED_TENANT_ID = tenantId || X_Tenant_ID || "green";
+import { API, type TResponse } from ".";
+
+import { X_Tenant_ID } from "@/utils/tenant";
+export { X_Tenant_ID };
 
 export const endpoints = {
   createSchool: "/api/School/createSchool",
@@ -26,8 +24,7 @@ export const endpoints = {
   getSubjectsByClassCategory: "/api/School/GetSubjectsByClassCategory",
   getSubjectsBySubjectCategory: "/api/School/GetSubjectsBySubjectCategory",
   updateClassroomTeachers: "/api/School/UpdateClassroomTeachers",
-  updateTeacherClassroom: "/api/School/teacher",
-  createTopicsWithSubTopics: "/api/School/createtopics",
+  createTopic: "/api/School/topics",
 };
 
 interface Ischool {
@@ -47,28 +44,6 @@ interface IregClass {
   subjectIds: any[]
 }
 
-export const TeacherActionType = {
-  Add: 1,
-  Remove: 2,
-  Reactivate: 3,
-} as const;
-
-export interface ITeacherAssignmentAction {
-  teacherId: string;
-  action: (typeof TeacherActionType)[keyof typeof TeacherActionType];
-  isPrimary?: boolean;
-}
-
-export interface IUpdateClassroomTeachersRequest {
-  classroomId: string;
-  teacherActions: ITeacherAssignmentAction[];
-}
-
-export interface IUpdateTeacherClassroomRequest {
-  teacherId: string;
-  classroomIds: string[];
-}
-
 export interface ICreateSchool {
   classrooms: IregClass[];
 }
@@ -78,44 +53,12 @@ export interface ISubject {
   schoolId: string;
   category: string;
 }
-
-export interface TopicWithSubTopicsPayload {
-  name: string;
-  subTopics: string[];
-}
-
-export interface CreateTopicsWithSubTopicsPayload {
-  subjectId: string;
-  topics: TopicWithSubTopicsPayload[];
-}
-
-export interface CreateTopicsWithSubTopicsData {
-  subjectId: string;
-  subjectName: string;
-  topicsCreated: number;
-  subTopicsCreated: number;
-  requiresApproval: boolean;
-  topics: {
-    topicId: string;
-    topicName: string;
-    subTopicCount: number;
-    subTopics: string[];
-  }[];
-}
-
-export interface AddSubTopicsToTopicData {
-  topicId: string;
-  topicName: string;
-  addedCount: number;
-  requiresApproval: boolean;
-}
-
 export const schoolService = {
   registerSubject: (data: IRegisterSubject) => {
     return API.post<TResponse<unknown>>(endpoints.registerSubject, data, {
       headers: {
         Authorization: `Bearer ${token.getToken()}`,
-        "X-Tenant-ID": RESOLVED_TENANT_ID,
+        "X-Tenant-ID":  X_Tenant_ID ,
       },
     });
   },
@@ -127,7 +70,7 @@ export const schoolService = {
       {
         params: { schoolId },
         headers: {
-          "X-Tenant-ID": RESOLVED_TENANT_ID,
+          "X-Tenant-ID":  X_Tenant_ID,
         },
       },
     );
@@ -136,7 +79,7 @@ export const schoolService = {
   getAllSubject: () => {
     return API.get(endpoints.getAllSubjects, {
         headers: {
-        "X-Tenant-ID": RESOLVED_TENANT_ID,
+            "X-Tenant-ID":  X_Tenant_ID,
         },
     });
 },
@@ -145,17 +88,20 @@ export const schoolService = {
   createClassRoom: (data: ICreateSchool) => {
     return API.post(endpoints.createSchoolClass, data, {
       headers: {
-        "X-Tenant-ID": RESOLVED_TENANT_ID,
+        "X-Tenant-ID":  X_Tenant_ID,
         "Authorization": `Bearer ${token.getToken()}`
       },
     });
   },
 
-  getAllClassRooms: (params?: { pageNumber?: number; pageSize?: number }) => {
+  getAllClassRooms: (params: { pageNumber?: number; pageSize?: number } = {}) => {
     return API.get(endpoints.getAllClassrooms, {
-      params,
+      params: {
+        pageNumber: params.pageNumber ?? 1,
+        pageSize: params.pageSize ?? 50,
+      },
       headers: {
-        "X-Tenant-ID": RESOLVED_TENANT_ID,
+        "X-Tenant-ID":  X_Tenant_ID,
         "Authorization": `Bearer ${token.getToken()}`
       },
     });
@@ -164,46 +110,21 @@ export const schoolService = {
   getSubjectsByClassroomId: (classroomId: string) => {
     return API.get(endpoints.getSubjectsByClassroom, {
       params: { classroomId },
-      headers: { "X-Tenant-ID": RESOLVED_TENANT_ID },
+      headers: { "X-Tenant-ID":  X_Tenant_ID },
     });
   },
 
-  updateClassroomTeachers: (payload: IUpdateClassroomTeachersRequest) => {
-    return API.post<TResponse<unknown>>(endpoints.updateClassroomTeachers, payload, {
-      headers: {
-        "X-Tenant-ID": RESOLVED_TENANT_ID,
-        Authorization: `Bearer ${token.getToken()}`,
-      },
-    });
-  },
-
-  updateTeacherClassroom: (payload: IUpdateTeacherClassroomRequest) => {
-    return API.put<TResponse<unknown>>(
-      `${endpoints.updateTeacherClassroom}/${payload.teacherId}/classrooms`,
-      {
-        classroomIds: payload.classroomIds,
-      },
-      {
-        headers: {
-          "X-Tenant-ID": RESOLVED_TENANT_ID,
-          Authorization: `Bearer ${token.getToken()}`,
-        },
-      },
-    );
-  },
-
-  createTopicsWithSubTopics: (payload: CreateTopicsWithSubTopicsPayload) => {
-    return API.post<TResponse<CreateTopicsWithSubTopicsData>>(endpoints.createTopicsWithSubTopics, payload, {
+  createTopic: (payload: {
+    subjectId: string;
+    classroomId: string;
+    topics: { name: string; subTopics: string[] }[];
+  }) => {
+    return API.post<TResponse<unknown>>(endpoints.createTopic, payload, {
       headers: {
         "X-Tenant-ID": X_Tenant_ID,
         Authorization: `Bearer ${token.getToken()}`,
       },
     });
-  },
-
-  // Backward-compatible alias used by existing callers.
-  createTopic: (payload: CreateTopicsWithSubTopicsPayload) => {
-    return schoolService.createTopicsWithSubTopics(payload);
   },
 
   getTopicsWithSubTopics: (subjectId: string, classroomId: string) => {
@@ -225,8 +146,8 @@ export const schoolService = {
   },
 
   addSubTopicsToTopic: (topicId: string, subTopics: string[]) => {
-    return API.post<TResponse<AddSubTopicsToTopicData>>(`/api/School/subtopics/add`,
-      { topicId: topicId, subTopics: subTopics },
+    return API.post(`/api/topic/subtopics/add`, 
+      { TopicId: topicId, SubTopics: subTopics },
       {
         headers: {
           "X-Tenant-ID": X_Tenant_ID,

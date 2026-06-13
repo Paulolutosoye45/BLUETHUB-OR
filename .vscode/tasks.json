@@ -1,0 +1,40 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "web:dev",
+			"type": "shell",
+			"command": "pnpm",
+			"args": [
+				"web:dev"
+			],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "web:build",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/c",
+				"pnpm",
+				"turbo",
+				"build",
+				"--filter=@bluethub/web"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "build-web-check",
+			"type": "shell",
+			"command": "pnpm",
+			"args": [
+				"turbo",
+				"build",
+				"--filter=@bluethub/web"
+			],
+			"isBackground": false
+		}
+	]
+}
