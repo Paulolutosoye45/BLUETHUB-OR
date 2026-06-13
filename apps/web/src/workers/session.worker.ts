@@ -70,6 +70,7 @@ type ToWorkerMsg =
     | { type: 'PDF_PAGE';   mediaId: string; page: number; timerDisplay: string; elapsedMs?: number; }
     | { type: 'MEDIA_SCROLL'; mediaId: string; scrollRatio: number; timerDisplay: string; elapsedMs?: number; }
     | { type: 'MEDIA_PLAYBACK'; mediaId: string; state: 'play' | 'pause'; timerDisplay: string; elapsedMs?: number; }
+  | { type: 'BOARD_SWITCH'; fromBoard: number; toBoard: number; elapsedMs: number; }
   | { type: 'PAUSE'; elapsedMs: number; }
   | { type: 'RESUME'; }
   | { type: 'END'; }
@@ -85,6 +86,7 @@ let _db: IDBPDatabase | null = null;
 // after compression so replay sees them in near real-time (< 20ms latency).
 let hasStrokesInBatch = false;
 let batchMediaActions: IActiveMedia[] = [];
+let boardEventsList: Array<{ id: string; type: 'switch'; timestampMs: number; fromBoard: number; toBoard: number }> = [];
 
 // Full session manifest (grows each batch)
 let manifest = { totalDuration: 0, totalBatches: 0, batches: [] as IBatch[] };
@@ -221,6 +223,10 @@ async function flushUploadStrokeBatch(force = false): Promise<void> {
   const startMs = uploadBatchIndex * UPLOAD_BATCH_MS;
   const endMs = startMs + UPLOAD_BATCH_MS;
 
+  const batchBoardSwitches = boardEventsList
+    .filter(e => e.timestampMs >= startMs && e.timestampMs < endMs)
+    .map(e => ({ fromBoard: e.fromBoard, toBoard: e.toBoard, timestampMs: e.timestampMs }));
+
   const batch: LocalStrokeBatch = {
     id: crypto.randomUUID(),
     sessionId,
@@ -231,6 +237,7 @@ async function flushUploadStrokeBatch(force = false): Promise<void> {
     strokes,
     strokeCount: strokes.length,
     sizeBytes: estimateStrokesSize(strokes),
+    boardSwitches: batchBoardSwitches.length > 0 ? batchBoardSwitches : undefined,
     syncStatus: 'pending',
     uploadAttempts: 0,
     lastAttemptAt: null,
@@ -678,6 +685,18 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
       break;
     }
 
+    case 'BOARD_SWITCH': {
+      const { fromBoard, toBoard, elapsedMs } = msg;
+      boardEventsList.push({
+        id: crypto.randomUUID(),
+        type: 'switch',
+        timestampMs: elapsedMs,
+        fromBoard,
+        toBoard,
+      });
+      break;
+    }
+
     case 'PAUSE': {
       // elapsedMs available in msg if needed for tracking
       void msg;
@@ -770,9 +789,18 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
         manifest.totalDuration = BATCH_MS * manifest.totalBatches;
       }
 
-      // Flush any remaining strokes for sync architecture
-      if (sessionMetadata && currentUploadBatchStrokes.length > 0) {
-        await flushUploadStrokeBatch(true);
+      // Flush any remaining strokes/board-events for sync architecture.
+      // Also flush when there are board events after the last stroke flush
+      // (e.g. teacher switched boards at the end without drawing anything).
+      if (sessionMetadata) {
+        const pendingBatchStart = uploadBatchIndex * UPLOAD_BATCH_MS;
+        const pendingBatchEnd = pendingBatchStart + UPLOAD_BATCH_MS;
+        const hasPendingBoardEvents = boardEventsList.some(
+          e => e.timestampMs >= pendingBatchStart && e.timestampMs < pendingBatchEnd
+        );
+        if (currentUploadBatchStrokes.length > 0 || hasPendingBoardEvents) {
+          await flushUploadStrokeBatch(true);
+        }
       }
 
       // Update session to completed status
@@ -785,6 +813,7 @@ self.onmessage = async (e: MessageEvent<ToWorkerMsg>) => {
           session.recording.totalDurationMs = totalDurationMs;
           session.recording.pausedDurationMs = pausedDurationMs;
           session.mediaEvents = extractAllMediaEvents(manifest);
+          session.boardEvents = boardEventsList.slice();
           await updateLocalSession(session);
         }
       }

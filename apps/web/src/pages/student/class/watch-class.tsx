@@ -4,7 +4,14 @@ import { Button } from "@bluethub/ui-kit";
 import { CheckCircle2, Download, Loader2, PlayCircle, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 import boardSessionService from "@/services/board-session";
-import { addAudio, addStrokes, getAudioBySession, getClassBySession } from "@/utils/db";
+import {
+  addAudio,
+  addStrokes,
+  deleteAudioBySession,
+  deleteClassBySession,
+  getAudioBySession,
+  getClassBySession,
+} from "@/utils/db";
 import type { AudioBatch, IActions, IBatch } from "@/utils/constant";
 import type { MediaType } from "@/utils/constant";
 import { LESSON_MEDIA_CACHE, buildLessonScopedCacheKey } from "@/utils/lesson-media-cache";
@@ -39,33 +46,167 @@ const toMmSs = (ms: number): string => {
   return `${mm}:${ss}`;
 };
 
+const clockToMs = (value: string | null | undefined): number => {
+  if (!value) return NaN;
+  const parts = String(value)
+    .trim()
+    .split(":")
+    .map((part) => Number(part));
+
+  if (!parts.every((part) => Number.isFinite(part))) return NaN;
+
+  if (parts.length === 2) {
+    return Math.max(0, (parts[0] * 60 + parts[1]) * 1000);
+  }
+
+  if (parts.length === 3) {
+    return Math.max(0, (parts[0] * 3600 + parts[1] * 60 + parts[2]) * 1000);
+  }
+
+  return NaN;
+};
+
+interface ManifestChunkEvent {
+  type: string;
+  timestampMs: number;
+  mediaAssetId?: string;
+  frameIndex?: 0 | 1;
+}
+
 const buildReplayBatches = (
   manifest: NonNullable<Awaited<ReturnType<typeof boardSessionService.getManifest>>>
 ): IActions => {
-  const batches: IBatch[] = manifest.chunks.map((chunk, idx) => {
-    const mediaAction = manifest.mediaAssets.map((asset) => ({
-      id: asset.id,
-      name: asset.name,
-      url: asset.url,
-      type: asset.type as MediaType,
-      show: toMmSs(chunk.startMs),
-      closed: toMmSs(chunk.endMs),
-      showMs: chunk.startMs,
-      closedMs: chunk.endMs,
-    }));
+  const sortedChunks = [...manifest.chunks].sort((a, b) => a.startMs - b.startMs);
+  const batches: IBatch[] = sortedChunks.map((chunk, idx) => ({
+    id: `batch-${idx}`,
+    startTime: toMmSs(chunk.startMs),
+    endTime: toMmSs(chunk.endMs),
+    hasAudio: true,
+    hasBoard: true,
+    mediaAction: [],
+  }));
 
-    return {
-      id: `batch-${idx}`,
-      startTime: toMmSs(chunk.startMs),
-      endTime: toMmSs(chunk.endMs),
-      hasAudio: true,
-      hasBoard: true,
-      mediaAction,
-    };
-  });
+  const assetById = new Map(manifest.mediaAssets.map((asset) => [asset.id, asset] as const));
+  const openMedia = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      url: string;
+      type: MediaType;
+      show: string;
+      showMs: number;
+      frameIndex?: 0 | 1;
+    }
+  >();
+
+  const attachMediaToBatch = (media: {
+    id: string;
+    name: string;
+    url: string;
+    type: MediaType;
+    show: string;
+    closed: string;
+    showMs: number;
+    closedMs: number;
+    frameIndex?: 0 | 1;
+  }) => {
+    const idx = sortedChunks.findIndex(
+      (chunk) => media.showMs >= chunk.startMs && media.showMs < chunk.endMs
+    );
+    const batchIndex = idx >= 0 ? idx : Math.max(0, sortedChunks.length - 1);
+    batches[batchIndex].mediaAction = [...(batches[batchIndex].mediaAction ?? []), media];
+  };
+
+  // If the manifest stores event timestamps as absolute wall-clock ms (same
+  // format as stroke.timestamp), convert them to session-relative ms before use.
+  const sessionStartWallMs = manifest.session?.recordedAt
+    ? new Date(manifest.session.recordedAt).getTime()
+    : 0;
+  // Timestamps above this threshold (year 2001+) are treated as absolute.
+  const ABSOLUTE_TS_THRESHOLD_MS = 1_000_000_000_000;
+  const toRelativeMs = (rawMs: number): number => {
+    if (sessionStartWallMs > 0 && rawMs > ABSOLUTE_TS_THRESHOLD_MS) {
+      return Math.max(0, rawMs - sessionStartWallMs);
+    }
+    return Math.max(0, rawMs);
+  };
+
+  for (const chunk of sortedChunks) {
+    const events = ((chunk.events as ManifestChunkEvent[] | undefined) ?? [])
+      .filter((event) => Number.isFinite(event.timestampMs))
+      .sort((a, b) => a.timestampMs - b.timestampMs);
+
+    for (const event of events) {
+      if (!event.mediaAssetId) continue;
+      const asset = assetById.get(event.mediaAssetId);
+      if (!asset) continue;
+
+      const relativeMs = toRelativeMs(event.timestampMs);
+
+      if (event.type === "media:show") {
+        openMedia.set(event.mediaAssetId, {
+          id: asset.id,
+          name: asset.name,
+          url: asset.url,
+          type: asset.type as MediaType,
+          show: toMmSs(relativeMs),
+          showMs: relativeMs,
+          frameIndex: event.frameIndex,
+        });
+        continue;
+      }
+
+      if (event.type === "media:hide") {
+        const active = openMedia.get(event.mediaAssetId);
+        if (!active) continue;
+
+        attachMediaToBatch({
+          ...active,
+          closed: toMmSs(relativeMs),
+          closedMs: relativeMs,
+        });
+
+        openMedia.delete(event.mediaAssetId);
+      }
+    }
+  }
+
+  const totalDurationMs = Math.max(
+    manifest.stats.totalDurationMs,
+    sortedChunks.length > 0 ? sortedChunks[sortedChunks.length - 1].endMs : 0
+  );
+
+  for (const active of openMedia.values()) {
+    attachMediaToBatch({
+      ...active,
+      closed: toMmSs(totalDurationMs),
+      closedMs: totalDurationMs,
+    });
+  }
+
+  // Fallback: if the server didn't return any media:show events but the session
+  // has media assets, show them from the session midpoint. This avoids blocking
+  // the board at t=0 while still making media visible during replay.
+  const hasAnyMediaEvents = batches.some((b) => (b.mediaAction?.length ?? 0) > 0);
+  if (!hasAnyMediaEvents && manifest.mediaAssets.length > 0 && sortedChunks.length > 0) {
+    const fallbackShowMs = Math.floor(totalDurationMs / 2);
+    for (const asset of manifest.mediaAssets) {
+      attachMediaToBatch({
+        id: asset.id,
+        name: asset.name,
+        url: asset.url,
+        type: asset.type as MediaType,
+        show: toMmSs(fallbackShowMs),
+        closed: toMmSs(totalDurationMs),
+        showMs: fallbackShowMs,
+        closedMs: totalDurationMs,
+      });
+    }
+  }
 
   return {
-    totalDuration: manifest.stats.totalDurationMs,
+    totalDuration: totalDurationMs,
     totalBatches: batches.length,
     batches,
   };
@@ -107,13 +248,15 @@ const WatchClass = () => {
     setProgress(0);
     setStatusText("Checking local replay cache...");
 
+    await Promise.all([deleteAudioBySession(sessionId), deleteClassBySession(sessionId)]);
+
     const cachedAudio = await getAudioBySession(sessionId);
     const cachedStrokes = await getClassBySession(sessionId);
 
     setStatusText("Downloading replay manifest...");
     setProgress(5);
 
-    const manifest = await boardSessionService.getManifest(sessionId);
+    const manifest = await boardSessionService.getStudentManifest(sessionId);
     if (!manifest) {
       throw new Error("Replay manifest not found for this class.");
     }
@@ -182,14 +325,68 @@ const WatchClass = () => {
       const batch = await boardSessionService.getBatchByIndexKey(sessionId, strokeBatchRef.indexKey);
       if (!batch) continue;
 
-      // Preserve the original wall-clock timestamp from the server — it has
-      // ms precision and is already anchored to the real recording time.
-      // Reconstructing it from startTime strings would lose precision and
-      // break mapWallTsToAudioMs synchronisation in the replay engine.
-      const normalized = batch.strokes.map((stroke) => ({
-        ...stroke,
-        sessionId,
-      }));
+      // Student payloads can occasionally contain stroke start/end clocks that
+      // drift outside the batch window. Re-anchor strokes to their batch window
+      // so board rendering advances with replay time and audio progression.
+      const batchStartMs = Math.max(0, strokeBatchRef.startMs ?? batch.startMs ?? 0);
+      const batchEndMs = Math.max(batchStartMs + 1000, strokeBatchRef.endMs ?? batch.endMs ?? batchStartMs + 60000);
+      const batchWindowMs = Math.max(1000, batchEndMs - batchStartMs);
+
+      const strokesByTimestamp = [...batch.strokes].sort(
+        (a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0)
+      );
+
+      const validTimestamps = strokesByTimestamp
+        .map((stroke) => stroke.timestamp)
+        .filter((ts): ts is number => typeof ts === "number" && Number.isFinite(ts));
+
+      const minTimestamp = validTimestamps.length > 0 ? Math.min(...validTimestamps) : null;
+      const maxTimestamp = validTimestamps.length > 0 ? Math.max(...validTimestamps) : null;
+
+      const normalized = strokesByTimestamp.map((stroke, index) => {
+        const duration = Math.max(50, stroke.duration ?? 0);
+        const providedStartMs = clockToMs(stroke.startTime);
+        const startWithinBatch =
+          Number.isFinite(providedStartMs) &&
+          providedStartMs >= batchStartMs - 2000 &&
+          providedStartMs <= batchEndMs + 2000;
+
+        let alignedStartMs: number;
+        if (startWithinBatch) {
+          alignedStartMs = providedStartMs;
+        } else if (
+          minTimestamp !== null &&
+          maxTimestamp !== null &&
+          maxTimestamp > minTimestamp &&
+          typeof stroke.timestamp === "number" &&
+          Number.isFinite(stroke.timestamp)
+        ) {
+          const ratio = (stroke.timestamp - minTimestamp) / (maxTimestamp - minTimestamp);
+          alignedStartMs = batchStartMs + Math.round(ratio * Math.max(0, batchWindowMs - duration));
+        } else {
+          const spreadRatio = index / Math.max(1, strokesByTimestamp.length - 1);
+          alignedStartMs = batchStartMs + Math.round(spreadRatio * Math.max(0, batchWindowMs - duration));
+        }
+
+        alignedStartMs = Math.max(batchStartMs, Math.min(alignedStartMs, Math.max(batchStartMs, batchEndMs - duration)));
+
+        const providedEndMs = clockToMs(stroke.endTime);
+        const endFromProvided =
+          Number.isFinite(providedEndMs) && providedEndMs >= alignedStartMs
+            ? providedEndMs
+            : alignedStartMs + duration;
+
+        const alignedEndMs = Math.max(alignedStartMs + 50, Math.min(batchEndMs, endFromProvided));
+
+        return {
+          ...stroke,
+          sessionId,
+          timestamp: sessionStartWallMs + alignedStartMs,
+          startTime: toMmSs(alignedStartMs),
+          endTime: toMmSs(alignedEndMs),
+          duration: Math.max(50, alignedEndMs - alignedStartMs),
+        };
+      });
 
       const missing = normalized.filter((stroke) => !cachedStrokeIds.has(stroke.id));
       if (missing.length > 0) {
@@ -220,22 +417,38 @@ const WatchClass = () => {
         continue;
       }
 
+      // Skip chunks with no audio content (sizeBytes=0 means the server
+      // uploaded nothing for this sub-segment). Without this, the player
+      // would create a phantom audio batch that fails immediately in
+      // onError, causing playedSessionMsRef to jump the full chunk window
+      // in one frame — producing the "board rushes to 1 min" effect.
+      if (chunk.audio.sizeBytes === 0) {
+        cachedAudioIndexes.add(chunk.index);
+        completedItems += 1;
+        updateProgress(`Skipped empty audio chunk ${chunk.index + 1}/${manifest.chunks.length}`);
+        continue;
+      }
+
       const audioResponse = await fetch(chunk.audio.url);
       if (!audioResponse.ok) {
         throw new Error(`Failed to download audio chunk ${chunk.index}.`);
       }
 
       const blob = await audioResponse.blob();
+      const chunkWindowDurationMs = Math.max(1000, chunk.endMs - chunk.startMs);
+      // Use the actual audio blob duration (mirrors useAudioRecorder approach).
+      // Anchoring to the chunk window end causes plannedEndMs to jump to the window
+      // end even when the audio file is shorter, triggering a spurious gap-fill that
+      // races the timer to 1 minute.
+      const actualDurationMs = Math.max(1000, chunk.audio.durationMs > 0 ? chunk.audio.durationMs : chunkWindowDurationMs);
       const audioBatch: AudioBatch = {
         id: `${sessionId}_audio_${chunk.index}`,
         type: "audio",
         sessionId,
         batchId: chunk.index,
-        // Anchor to the real recording start so the replay engine's
-        // mapWallTsToAudioMs can match stroke wall-clock timestamps to audio ranges.
-        timestamp: sessionStartWallMs + Math.max(chunk.endMs, chunk.startMs + chunk.audio.durationMs),
+        timestamp: sessionStartWallMs + chunk.startMs + actualDurationMs,
         blob,
-        duration: Math.max(1, chunk.audio.durationMs / 1000),
+        duration: actualDurationMs / 1000,
         size: chunk.audio.sizeBytes,
       };
 
@@ -294,7 +507,9 @@ const WatchClass = () => {
     try {
       await ensureReplayData();
       toast.success("Replay ready");
-      navigate("/replay");
+      navigate(`/student/recorded-class/${lessonId}/replay`, {
+        state: { sessionId, lessonId },
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to prepare replay.";
       setStatusText(message);
@@ -302,7 +517,7 @@ const WatchClass = () => {
     } finally {
       setIsRunning(false);
     }
-  }, [ensureReplayData, navigate]);
+  }, [ensureReplayData, lessonId, navigate, sessionId]);
 
   const completedLabel = checkpoint?.completed ? "Cached locally" : "Not fully cached";
 

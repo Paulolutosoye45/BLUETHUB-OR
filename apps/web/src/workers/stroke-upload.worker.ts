@@ -31,6 +31,7 @@ type StrokeBatchMessage = {
   strokeCount: number;
   boardIndex: number;
   strokes: StrokePayload[];
+  boardSwitches?: Array<{ fromBoard: number; toBoard: number; timestampMs: number }>;
 };
 
 type ToWorkerMessage =
@@ -75,6 +76,7 @@ async function submitBatch(
     strokes: batch.strokes,
     strokeCount: batch.strokeCount,
     boardIndex: batch.boardIndex,
+    boardSwitches: batch.boardSwitches ?? [],
   };
 
   console.log('[stroke-upload-worker] 📤 Submitting stroke batch:', {
@@ -159,6 +161,7 @@ self.onmessage = async (event: MessageEvent<ToWorkerMessage>) => {
         strokeCount: batch.strokeCount,
         boardIndex: 0, // Default to first board
         strokes: batch.strokes as unknown as StrokePayload[],
+        boardSwitches: batch.boardSwitches,
       }));
 
       console.log('[stroke-upload-worker] ✅ Converted batches for upload:', {

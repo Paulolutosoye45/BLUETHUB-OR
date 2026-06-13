@@ -272,8 +272,9 @@ const subjects: SelectItem[] = useMemo(() => {
         }));
 
       if (newTopicsPayload.length > 0) {
-        const topicResponse = await schoolService.createTopicsWithSubTopics({
+        const topicResponse = await schoolService.createTopic({
           subjectId,
+          classroomId,
           topics: newTopicsPayload,
         });
 

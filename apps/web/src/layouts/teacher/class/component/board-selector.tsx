@@ -3,17 +3,41 @@ import type { RootState } from "@/store";
 import { setCurrentBoard, addNewBoard } from "@/store/class-action-slice";
 import { Button } from "@bluethub/ui-kit";
 import { Plus } from "lucide-react";
+import { useSession } from "@/contexts/session-context";
+
+const getRecordingElapsedMs = (timerElapsedSeconds: number, sessionId?: string): number => {
+  const recordingSessionId = localStorage.getItem('recordingStartSessionId') ?? '';
+  const recordingStartTimerMs = !sessionId || recordingSessionId === sessionId
+    ? parseInt(localStorage.getItem('recordingStartTimerMs') ?? '0', 10)
+    : 0;
+  return Math.max(0, Math.round(timerElapsedSeconds * 1000) - recordingStartTimerMs);
+};
 
 const BoardSelector = () => {
   const dispatch = useDispatch();
   const currentBoard = useSelector((state: RootState) => state.action.currentBoard);
   const availableBoards = useSelector((state: RootState) => state.action.availableBoards);
+  const timerElapsedSeconds = useSelector((state: RootState) => state.action.timerElapsedSeconds);
+  const sessionIdRef = useSelector((state: RootState) => state.action.sessionIdRef);
+
+  const { sendBoardSwitch, isRecording } = useSession();
 
   const handleBoardSelect = (boardNumber: number) => {
-    dispatch(setCurrentBoard(boardNumber));
+    if (boardNumber !== currentBoard) {
+      if (isRecording) {
+        const elapsedMs = getRecordingElapsedMs(timerElapsedSeconds, sessionIdRef);
+        sendBoardSwitch(currentBoard, boardNumber, elapsedMs);
+      }
+      dispatch(setCurrentBoard(boardNumber));
+    }
   };
 
   const handleAddNewBoard = () => {
+    const nextBoardNumber = Math.max(...availableBoards, 0) + 1;
+    if (isRecording) {
+      const elapsedMs = getRecordingElapsedMs(timerElapsedSeconds, sessionIdRef);
+      sendBoardSwitch(currentBoard, nextBoardNumber, elapsedMs);
+    }
     dispatch(addNewBoard());
   };
 

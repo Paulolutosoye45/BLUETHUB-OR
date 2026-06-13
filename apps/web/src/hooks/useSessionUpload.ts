@@ -30,16 +30,107 @@ const _CHUNKS_PER_UPLOAD_BATCH = UPLOAD_BATCH_MS / LOCAL_BATCH_MS; // 6
 void _CHUNKS_PER_UPLOAD_BATCH;
 
 /**
- * Merge multiple audio blobs into a single blob
- * Used to combine 6 x 10s chunks into 1 x 60s upload batch
+ * Converts an AudioBuffer to a WAV Blob (16-bit PCM).
+ * WAV is a flat PCM container — safe to construct from raw sample data,
+ * unlike WebM which requires a full Matroska container with proper headers.
+ */
+function audioBufferToWavBlob(buffer: AudioBuffer): Blob {
+  const numCh = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const numSamples = buffer.length;
+  const bytesPerSample = 2; // 16-bit
+  const blockAlign = numCh * bytesPerSample;
+  const dataSize = numSamples * blockAlign;
+  const ab = new ArrayBuffer(44 + dataSize);
+  const dv = new DataView(ab);
+  const ws = (off: number, s: string) => {
+    for (let i = 0; i < s.length; i++) dv.setUint8(off + i, s.charCodeAt(i));
+  };
+  ws(0, 'RIFF'); dv.setUint32(4, 36 + dataSize, true);
+  ws(8, 'WAVE'); ws(12, 'fmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, numCh, true);
+  dv.setUint32(24, sampleRate, true); dv.setUint32(28, sampleRate * blockAlign, true);
+  dv.setUint16(32, blockAlign, true); dv.setUint16(34, 16, true);
+  ws(36, 'data'); dv.setUint32(40, dataSize, true);
+  let off = 44;
+  for (let i = 0; i < numSamples; i++) {
+    for (let c = 0; c < numCh; c++) {
+      const s = Math.max(-1, Math.min(1, buffer.getChannelData(c)[i]));
+      dv.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      off += 2;
+    }
+  }
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
+/**
+ * Merge multiple audio blobs into a single blob via PCM-level concatenation.
+ *
+ * WHY NOT new Blob(blobs):
+ *   Each WebM/Opus blob is a self-contained Matroska container with its own
+ *   EBML header and cluster structure. Concatenating raw bytes produces an
+ *   invalid container — decoders stop at the end of the first valid stream
+ *   and silently discard everything after it. Result: only the first 10-second
+ *   sub-chunk plays; the other 50 seconds are lost.
+ *
+ * FIX:
+ *   1. Decode each blob to a raw PCM AudioBuffer with decodeAudioData().
+ *   2. Copy all sample frames sequentially into one merged AudioBuffer.
+ *   3. Encode the merged buffer to a WAV file (flat PCM container — no header
+ *      complexity, fully seekable, universally decodable).
  */
 async function mergeAudioBlobs(blobs: Blob[]): Promise<Blob> {
   if (blobs.length === 0) throw new Error('No blobs to merge');
   if (blobs.length === 1) return blobs[0];
 
-  // Concatenate blob data
-  const mimeType = blobs[0].type || 'audio/webm';
-  return new Blob(blobs, { type: mimeType });
+  const tempCtx = new AudioContext();
+  const decoded: AudioBuffer[] = [];
+
+  for (const blob of blobs) {
+    try {
+      const ab = await blob.arrayBuffer();
+      if (ab.byteLength < 32) {
+        console.warn('[Upload] sub-chunk too small, skipping:', ab.byteLength, 'bytes');
+        continue;
+      }
+      const buffer = await tempCtx.decodeAudioData(ab);
+      decoded.push(buffer);
+    } catch (e) {
+      console.warn('[Upload] sub-chunk decode failed, skipping:', e);
+    }
+  }
+
+  await tempCtx.close();
+
+  if (decoded.length === 0) return blobs[0]; // fallback: nothing decoded, send first blob
+  if (decoded.length === 1) return audioBufferToWavBlob(decoded[0]);
+
+  const sampleRate = decoded[0].sampleRate;
+  const numCh = Math.max(...decoded.map(b => b.numberOfChannels));
+  const totalLength = decoded.reduce((sum, b) => sum + b.length, 0);
+
+  const merged = new AudioBuffer({ numberOfChannels: numCh, length: totalLength, sampleRate });
+  let sampleOff = 0;
+  for (const buf of decoded) {
+    for (let c = 0; c < numCh; c++) {
+      const src = c < buf.numberOfChannels
+        ? buf.getChannelData(c)
+        : new Float32Array(buf.length); // silence for missing channels
+      merged.copyToChannel(src, c, sampleOff);
+    }
+    sampleOff += buf.length;
+  }
+
+  // Pad with silence to the full upload-batch duration so downstream
+  // consumers (AudioContext scheduling) see no gap at batch boundaries.
+  const targetSamples = Math.round((UPLOAD_BATCH_MS / 1000) * sampleRate);
+  if (merged.length < targetSamples) {
+    const padded = new AudioBuffer({ numberOfChannels: numCh, length: targetSamples, sampleRate });
+    for (let c = 0; c < numCh; c++) padded.copyToChannel(merged.getChannelData(c), c, 0);
+    return audioBufferToWavBlob(padded);
+  }
+
+  return audioBufferToWavBlob(merged);
 }
 
 /**

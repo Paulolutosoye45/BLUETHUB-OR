@@ -64,7 +64,23 @@ async function initializeDb(): Promise<void> {
 
   _initPromise = (async () => {
     try {
-      _db = await openDB(DB_NAME, DB_VERSION, { upgrade: upgradeHandler });
+      _db = await openDB(DB_NAME, DB_VERSION, {
+        upgrade: upgradeHandler,
+        // When a newer-version connection (another tab) wants to upgrade,
+        // close this connection so it is not blocked.
+        blocking: () => {
+          console.warn('[DB] blocking a version-change — closing connection');
+          _db?.close();
+          _db = null;
+          _initPromise = null;
+        },
+        // When the browser force-closes the connection (e.g. storage eviction).
+        terminated: () => {
+          console.warn('[DB] connection terminated unexpectedly');
+          _db = null;
+          _initPromise = null;
+        },
+      });
       console.log('[DB] Initialized singleton connection');
     } catch (err) {
       console.error('[DB] Failed to open database:', err);
@@ -82,11 +98,6 @@ async function db(): Promise<IDBPDatabase> {
   }
   if (!_db) throw new Error('Failed to initialize database');
   return _db;
-}
-
-// Fresh connection for critical operations (avoids stale singleton issues)
-async function freshDb(): Promise<IDBPDatabase> {
-  return openDB(DB_NAME, DB_VERSION, { upgrade: upgradeHandler });
 }
 
 // ── Strokes ────────────────────────────────────────────────────────────────────
@@ -219,17 +230,17 @@ export async function ensureAllStoresExist(): Promise<void> {
     return;
   }
 
-  console.warn('[DB] Missing stores:', missingStores, '— incrementing version to force upgrade');
-  // Close current connection to allow version upgrade
+  // Stores are missing — this means the DB was opened at an old version whose
+  // upgrade handler didn't create them yet.  The safe fix is to close the
+  // singleton and reopen at DB_VERSION so the upgrade handler runs.
+  // Do NOT bump to DB_VERSION+1 at runtime: that emits a versionchange event
+  // to every open connection and causes "connection is closing" races.
+  console.warn('[DB] Missing stores:', missingStores, '— reopening to trigger upgrade handler');
   _db?.close();
   _db = null;
   _initPromise = null;
-
-  // Force version bump by opening with a higher version
-  const nextVersion = DB_VERSION + 1;
-  const upgraded = await openDB(DB_NAME, nextVersion, { upgrade: upgradeHandler });
-  _db = upgraded;
-  console.log('[DB] Database upgraded, stores should now exist');
+  await initializeDb(); // reopens at DB_VERSION — upgrade handler creates missing stores
+  console.log('[DB] Database reopened, stores should now exist');
 }
 
 export async function createSession(session: LocalSession): Promise<void> {
@@ -592,10 +603,10 @@ export async function saveSessionAsDraft(sessionId: string, sessionData: LocalSe
     errors.push(`idb: ${msg}`);
   }
 
-  // Attempt 2: Use a fresh idb connection
+  // Attempt 2: Re-use the singleton (re-initialises if connection was reset)
   try {
-    console.log('[SaveDraft] Attempt 2: Using fresh idb connection');
-    const store = await freshDb();
+    console.log('[SaveDraft] Attempt 2: Using singleton idb connection');
+    const store = await db();
     const existing = await store.get(STORE_SESSIONS, sessionId);
 
     const dataToSave: LocalSession = existing
