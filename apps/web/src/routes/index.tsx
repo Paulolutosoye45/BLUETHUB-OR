@@ -44,6 +44,7 @@ import ClassRoomlayout from '@/pages/student/class-room/layout';
 import StudentClassRoom from '@/pages/student/class-room/class-room';
 import CreateclassRoom from '@/pages/student/class-room/create-class-room';
 import WatchClass from '@/pages/student/class/watch-class';
+import StudentReplay from '@/pages/student/class/student-replay';
 import Assessment from '@/pages/teacher/component/assessment';
 import CreateQuizQuestion from '@/pages/teacher/component/create-quiz';
 import TopicQuestionList from '@/pages/teacher/component/topic-question-list';
@@ -304,6 +305,7 @@ const router = createBrowserRouter([
             },
             { path: "Settings", element: <StudentSettings /> },
             { path: "recorded-class/:classId/watch", element: <WatchClass /> },
+            { path: "recorded-class/:classId/replay", element: <StudentReplay /> },
         ],
     },
 

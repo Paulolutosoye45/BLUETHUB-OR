@@ -7,6 +7,7 @@ import {
   Trash,
   Edit3,
   Volume2,
+  VolumeX,
   Clock,
   Circle,
   Loader,
@@ -197,13 +198,15 @@ export default function Replay() {
   const [audioList, setAudioList] = useState<AudioBatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [currentBatch, setCurrentBatch] = useState(0);
+  const [_currentBatch, setCurrentBatch] = useState(0);
   const [isClearing, setIsClearing] = useState(false);
   const [isSeeking, setIsSeeking] = useState(false);
   const [scrubMs, setScrubMs] = useState(0);
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const [_renderTick, setRenderTick] = useState(0);
   const [replayMs, setReplayMs] = useState(0);
+  // True while playing and the session clock is between audio batches (silent gap).
+  const [isSilentGap, setIsSilentGap] = useState(false);
   const [activeFrame, setActiveFrame] = useState<IActiveMedia | null>(null);
   const [activeFrameUrl, setActiveFrameUrl] = useState<string | null>(null);
   const [activePdfPage, setActivePdfPage] = useState<number | undefined>(undefined);
@@ -285,6 +288,7 @@ export default function Replay() {
   const targetVideoPlaybackStateRef = useRef<'play' | 'pause'>('pause');
   const replayVideoRef = useRef<HTMLVideoElement | null>(null);
   const currentBoardInReplayRef = useRef<number>(1);
+  const boardSwitchTimelineRef = useRef<Array<{ timestampMs: number; toBoard: number }>>([]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // THE SYNC ANCHOR
@@ -314,6 +318,16 @@ export default function Replay() {
   const stopRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement>(null);
   const currentBlobUrlRef = useRef<string | null>(null);
+  // AudioContext used to schedule all batches at once so audio.currentTime
+  // advances continuously (including through silent gaps) — no fill animation needed.
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  // sessionMs = (audioCtx.currentTime - audioCtxOffsetRef) * 1000
+  // Set so that at the scheduled start of the first audio, sessionMs = startFromSessionMs.
+  const audioCtxOffsetRef = useRef<number>(0);
+  // Known audio windows in session-space ms. Used to detect silent gaps for the UI.
+  const audioPeriodsRef = useRef<Array<{ startMs: number; endMs: number }>>([]);
+  // Number of batches that failed to decode (0 = all OK, >0 = possible Cloudinary issue).
+  const decodeFailureCountRef = useRef(0);
   const playedSessionMsRef = useRef<number>(0);
   const audioAnchorWallMsRef = useRef<number>(0);
   const replayDisplayOffsetMsRef = useRef<number>(0);
@@ -366,8 +380,18 @@ export default function Replay() {
     }
 
     const id = setInterval(() => {
-      const sessionMs = batchStartMsRef.current + (audioRef.current?.currentTime ?? 0) * 1000;
+      const sessionMs = audioCtxRef.current
+        ? Math.max(0, (audioCtxRef.current.currentTime - audioCtxOffsetRef.current) * 1000)
+        : batchStartMsRef.current + (audioRef.current?.currentTime ?? 0) * 1000;
       setReplayMs(sessionMs + replayDisplayOffsetMsRef.current);
+      // Update silent-gap indicator: we're silent when no audio period covers this ms.
+      const inAudio = audioPeriodsRef.current.some(
+        (p) => sessionMs >= p.startMs && sessionMs <= p.endMs
+      );
+      const hasGap = !inAudio && audioPeriodsRef.current.length > 0;
+      // If decode failures occurred the gap might be a Cloudinary issue, not genuine silence.
+      const hasDecodeFailures = decodeFailureCountRef.current > 0;
+      setIsSilentGap(hasGap || (hasDecodeFailures && audioPeriodsRef.current.length === 0));
     }, 100);
 
     return () => clearInterval(id);
@@ -415,12 +439,24 @@ export default function Replay() {
     const previewMap = new Map<string, Stroke>();
     const all = preloadedStrokesRef.current;
     let activeBoard = 1;
+    let lastBoardChangeMs = -1;
+
+    // Apply board:switch events first
+    for (const ev of boardSwitchTimelineRef.current) {
+      if (displayMs >= ev.timestampMs && ev.timestampMs >= lastBoardChangeMs) {
+        activeBoard = ev.toBoard;
+        lastBoardChangeMs = ev.timestampMs;
+      }
+    }
 
     for (const stroke of all) {
       const startMs = timeToMs(stroke.startTime);
       if (displayMs < startMs) continue;
 
-      activeBoard = stroke.currentBoard ?? activeBoard;
+      if (startMs >= lastBoardChangeMs) {
+        activeBoard = stroke.currentBoard ?? activeBoard;
+        lastBoardChangeMs = startMs;
+      }
 
       const drawWindow = Math.max(50, stroke.duration ?? 0);
       const elapsed = Math.min(displayMs - startMs, drawWindow);
@@ -460,6 +496,20 @@ export default function Replay() {
       startFromSessionMsRef.current = targetSessionMs;
     }
   }, [isPlaying, replayDurationMs, renderPreviewAtDisplayMs]);
+
+  // Jumps to the start of the next audio period when in a silent gap.
+  const skipToNextAudio = useCallback(() => {
+    const currentSessionMs = audioCtxRef.current
+      ? Math.max(0, (audioCtxRef.current.currentTime - audioCtxOffsetRef.current) * 1000)
+      : batchStartMsRef.current + (audioRef.current?.currentTime ?? 0) * 1000;
+    const next = audioPeriodsRef.current
+      .slice()
+      .sort((a, b) => a.startMs - b.startMs)
+      .find((p) => p.startMs > currentSessionMs + 500);
+    if (next) {
+      commitSeek(next.startMs + replayDisplayOffsetMsRef.current);
+    }
+  }, [commitSeek]);
 
   // ── Resize observer ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -504,10 +554,17 @@ export default function Replay() {
         const raw = localStorage.getItem('currentBatches');
         mediaTimelineRef.current = buildMediaTimelineFromManifest(raw);
         mediaEventsRef.current = buildMediaEventsFromManifest(raw);
+        if (raw) {
+          const parsed = JSON.parse(raw) as IActions;
+          boardSwitchTimelineRef.current = parsed.boardSwitchTimeline ?? [];
+        } else {
+          boardSwitchTimelineRef.current = [];
+        }
       } catch (err) {
         console.error('Failed to parse replay manifest media actions:', err);
         mediaTimelineRef.current = [];
         mediaEventsRef.current = [];
+        boardSwitchTimelineRef.current = [];
       }
     };
 
@@ -759,9 +816,16 @@ export default function Replay() {
     const frame = () => {
       if (stopRef.current) return;
 
-      // ✅ Session position derived from audio's own clock — never drifts
-      const sessionMs = batchStartMsRef.current +
-        (audioRef.current?.currentTime ?? 0) * 1000;
+      // ✅ Session position: prefer AudioContext clock (continuous, no gaps)
+      // Falls back to batchStartMsRef + audio.currentTime for teacher replay.
+      const sessionMs = audioCtxRef.current
+        ? Math.max(0, (audioCtxRef.current.currentTime - audioCtxOffsetRef.current) * 1000)
+        : batchStartMsRef.current + (audioRef.current?.currentTime ?? 0) * 1000;
+
+      // NOTE: timer display (setReplayMs) is intentionally driven by the
+      // setInterval below (100ms cadence), NOT here. Calling setReplayMs at
+      // 60fps from the RAF causes "Maximum update depth exceeded" in React
+      // which freezes the timer display even while strokes keep advancing.
 
       // Media frames: drive from exact manifest events, not broad time-window filtering.
       while (
@@ -805,12 +869,27 @@ export default function Replay() {
       // ── Board tracking — uses same timing logic as stroke drawing ──────────
       // Track the LATEST board (chronologically), not the max. If you write on
       // board 1, then 2, then 1 again, the board should be 1 at the end.
+      // board:switch manifest events handle boards the teacher navigated to
+      // without drawing on them.
       let activeBoard = 1;
-      for (const { stroke, startMs } of timelines) {
-        if (sessionMs >= startMs) {
-          activeBoard = stroke.currentBoard ?? 1;  // Latest board, not max
+      let lastBoardChangeMs = -1;
+
+      // Apply board:switch events from manifest (populated in student-replay buildReplayBatches)
+      for (const ev of boardSwitchTimelineRef.current) {
+        if (sessionMs >= ev.timestampMs && ev.timestampMs >= lastBoardChangeMs) {
+          activeBoard = ev.toBoard;
+          lastBoardChangeMs = ev.timestampMs;
         }
       }
+
+      // Apply stroke-based board tracking — wins when the stroke is more recent
+      for (const { stroke, startMs } of timelines) {
+        if (sessionMs >= startMs && startMs >= lastBoardChangeMs) {
+          activeBoard = stroke.currentBoard ?? activeBoard;  // Latest board, not max
+          lastBoardChangeMs = startMs;
+        }
+      }
+
       if (activeBoard !== currentBoardInReplayRef.current) {
         currentBoardInReplayRef.current = activeBoard;
         setCurrentBoardInReplay(activeBoard);
@@ -899,7 +978,7 @@ export default function Replay() {
   // durations of all previous batches. This keeps the RAF's sessionMs formula
   // accurate regardless of gaps between batches.
   //
-  const playAudioBatch = useCallback(async (
+  const _playAudioBatch = useCallback(async (
     batchIndex: number,
     sortedBatches: AudioBatch[],
   ): Promise<void> => {
@@ -954,7 +1033,55 @@ export default function Replay() {
           : actualEndMs;
         playedSessionMsRef.current = Math.max(actualEndMs, plannedEndMs);
         cleanup();
-        resolve();
+
+        // Advance batchStartMsRef through the silent gap between where audio
+        // content ended and where the NEXT batch will begin.  This must span
+        // the full inter-batch gap (e.g. timestamps 60 s apart but each blob
+        // only ~10 s of content) so strokes appear progressively instead of
+        // bursting all at once when the next batch fires.
+        //
+        // fillTargetMs  = start of the next batch in session time
+        //   - when a next batch exists:  nextBatch.timestamp - nextDurationMs - anchorWallMs
+        //   - last batch:                plannedEndMs (within-batch gap only)
+        //
+        // Cap real-time fill to 2 s so large gaps don't stall the viewer.
+        let fillTargetMs = playedSessionMsRef.current; // fallback: within-batch
+        const nextBatchInFill = sortedBatches[batchIndex + 1];
+        if (nextBatchInFill && anchorWallMs > 0) {
+          const nextDurMs = Math.max(1, Math.round((nextBatchInFill.duration ?? 10) * 1000));
+          const nextPlannedStart = Math.max(0, (nextBatchInFill.timestamp - nextDurMs) - anchorWallMs);
+          fillTargetMs = Math.max(fillTargetMs, nextPlannedStart);
+        }
+        const gapMs = fillTargetMs - actualEndMs;
+        if (gapMs > 150 && !stopRef.current) {
+          const gapStart = performance.now();
+          // Adaptive fill speed:
+          //  • Short gaps (≤ 3 s) — 1:1 real time so tiny inter-chunk transitions
+          //    feel like a natural clock tick rather than a visible jump.
+          //  • Long gaps (> 3 s) — 5× speed, capped at 15 s real time.
+          //    Silently fast-forwards the board through periods where the teacher
+          //    wasn't speaking, so the viewer reaches the next audio section in
+          //    ~10 s instead of waiting 47+ s in silence.
+          const realFillMs = gapMs <= 3_000
+            ? gapMs                               // 1:1 for short gaps
+            : Math.min(gapMs / 5, 15_000);        // 5× for long gaps, cap 15 s
+          const speedFactor = gapMs / realFillMs;
+          const fillGap = () => {
+            if (stopRef.current) { resolve(); return; }
+            const elapsed = performance.now() - gapStart;
+            const sessionProgress = Math.min(elapsed * speedFactor, gapMs);
+            const currentAudioMs = (audioRef.current?.currentTime ?? 0) * 1000;
+            batchStartMsRef.current = actualEndMs + sessionProgress - currentAudioMs;
+            if (sessionProgress >= gapMs) {
+              resolve();
+            } else {
+              requestAnimationFrame(fillGap);
+            }
+          };
+          requestAnimationFrame(fillGap);
+        } else {
+          resolve();
+        }
       };
       const onError = () => {
         const err = audioRef.current?.error;
@@ -979,8 +1106,7 @@ export default function Replay() {
       audioRef.current!.play().catch(e => { cleanup(); reject(e); });
     });
   }, []);
-
-  // ── Play ──────────────────────────────────────────────────────────────────
+  void _playAudioBatch; // retained for future batch-level playback — reference suppresses TS6133 ──────────────────────────────────────────────────────────────────
   const play = async () => {
     if (isPlaying || isPreloading) return;
 
@@ -1029,95 +1155,228 @@ export default function Replay() {
     audioAnchorWallMsRef.current = storedAnchor || reconstructedAnchor || 0;
 
     if (hasAudio && hasStrokes) {
-      // Normal case: board slaved to audio clock
-      startRaf(readyStrokes);
-      for (let i = 0; i < sortedAudio.length; i++) {
-        if (stopRef.current) break;
-        try { await playAudioBatch(i, sortedAudio); } catch (e) { console.error('[Replay] audio batch', i, 'failed:', e); }
+      // Schedule every audio batch via AudioContext so audio.currentTime
+      // advances continuously — including through silent gaps between batches.
+      // The board clock reads (audioCtx.currentTime - offset)*1000, so board
+      // and audio are always in sync with zero drift and no fill animation.
+      const audioCtx = new AudioContext();
+      audioCtxRef.current = audioCtx;
+      // Park the offset far in the future so sessionMs = max(0, …) = 0 while
+      // decoding runs.  AudioContext.currentTime starts advancing immediately
+      // on creation, so without this the board would show false progress during
+      // the decode phase and then snap back to 0 when the real offset is set.
+      audioCtxOffsetRef.current = audioCtx.currentTime + 3600;
+
+      // Decode all batches in parallel (native decoders — fast)
+      const anchorWallMs = audioAnchorWallMsRef.current;
+      decodeFailureCountRef.current = 0;
+      const decoded = await Promise.all(sortedAudio.map(async (batch) => {
+        try {
+          const ab = await batch.blob.arrayBuffer();
+          // Guard: reject blobs that are clearly not audio (e.g. Cloudinary HTML error pages)
+          if (ab.byteLength < 32) {
+            console.warn(`[Replay] batch ${batch.batchId}: blob too small (${ab.byteLength} bytes) — likely empty Cloudinary asset`);
+            decodeFailureCountRef.current++;
+            return null;
+          }
+          const buffer = await audioCtx.decodeAudioData(ab);
+          const batchDurationMs = Math.max(1, Math.round((batch.duration ?? 10) * 1000));
+          const plannedStartMs = anchorWallMs > 0
+            ? Math.max(0, (batch.timestamp - batchDurationMs) - anchorWallMs)
+            : 0;
+          console.log(`[Replay] batch ${batch.batchId}: decoded ${buffer.duration.toFixed(2)}s @ session ${Math.round(plannedStartMs/1000)}s`);
+          return { buffer, plannedStartMs };
+        } catch (e) {
+          console.warn(`[Replay] batch ${batch.batchId}: decodeAudioData failed — blob type=${batch.blob.type}, size=${batch.blob.size}`, e);
+          decodeFailureCountRef.current++;
+          return null;
+        }
+      }));
+
+      // Summary log so it's easy to spot gaps vs failures in DevTools
+      const okCount = decoded.filter(Boolean).length;
+      const failCount = decodeFailureCountRef.current;
+      console.log(`[Replay] decode summary: ${okCount} ok, ${failCount} failed out of ${sortedAudio.length} batches`);
+      if (failCount > 0) {
+        console.warn('[Replay] Some batches failed to decode. If sizeBytes was >0 on those chunks, the Cloudinary asset may be corrupt or missing.');
       }
 
-      // If audio ends before all strokes/media windows, keep replay clock moving
-      // so board/media can finish naturally.
-      if (!stopRef.current) {
-        const strokeDurationMs = Math.max(
-          0,
-          ...readyStrokes.map((s) => {
-            const startMs = timeToMs(s.startTime);
-            const endFromClock = timeToMs(s.endTime);
-            const endFromDuration = startMs + Math.max(0, s.duration ?? 0);
-            return Math.max(endFromClock, endFromDuration);
-          })
-        );
-        const finiteMediaCloseMs = mediaTimelineRef.current
-          .filter((item) => Number.isFinite(item.closeMs))
-          .map((item) => item.closeMs);
-        const mediaDurationMs = finiteMediaCloseMs.length > 0
-          ? Math.max(...finiteMediaCloseMs)
-          : mediaTimelineRef.current.length > 0
-            ? Math.max(...mediaTimelineRef.current.map((item) => item.showMs)) + 5000
-            : 0;
+      if (stopRef.current) {
+        await audioCtx.close();
+        audioCtxRef.current = null;
+        return;
+      }
 
-        const targetDurationMs = Math.max(strokeDurationMs, mediaDurationMs);
-        const remainingMs = Math.max(0, targetDurationMs - playedSessionMsRef.current);
-
-        if (remainingMs > 150) {
-          const tailBaseMs = playedSessionMsRef.current;
-          const tailStart = performance.now();
-          await new Promise<void>((resolve) => {
-            const tick = () => {
-              if (stopRef.current) return resolve();
-              const elapsed = performance.now() - tailStart;
-              batchStartMsRef.current = tailBaseMs + elapsed;
-              if (elapsed >= remainingMs) return resolve();
-              requestAnimationFrame(tick);
-            };
-            requestAnimationFrame(tick);
-          });
+      // Pad each decoded buffer to its planned duration to eliminate audible
+      // silence gaps at batch transitions. If the WAV is more than 500ms
+      // shorter than the scheduled time window, append silence so the next
+      // batch starts exactly on schedule.
+      // Guard: only pad when the buffer is at least 50% of the planned duration
+      // (avoids inflating pre-WAV-fix batches that are genuinely short).
+      for (let _pi = 0; _pi < decoded.length; _pi++) {
+        const _item = decoded[_pi];
+        if (!_item) continue;
+        const _next = decoded.slice(_pi + 1).find(Boolean);
+        const _plannedEndMs = _next
+          ? _next.plannedStartMs
+          : _item.plannedStartMs + Math.round(_item.buffer.duration * 1000) + 2000;
+        const _plannedSec = Math.max(0, _plannedEndMs - _item.plannedStartMs) / 1000;
+        const _gapSec = _plannedSec - _item.buffer.duration;
+        if (_gapSec > 0.5 && _item.buffer.duration >= _plannedSec * 0.5) {
+          const _targetLen = Math.ceil(_plannedSec * _item.buffer.sampleRate);
+          const _padded = audioCtx.createBuffer(
+            _item.buffer.numberOfChannels, _targetLen, _item.buffer.sampleRate
+          );
+          for (let _c = 0; _c < _item.buffer.numberOfChannels; _c++) {
+            _padded.copyToChannel(_item.buffer.getChannelData(_c), _c, 0);
+          }
+          _item.buffer = _padded;
         }
       }
 
+      // Build audio-period map so the interval can light up the silence indicator.
+      audioPeriodsRef.current = decoded
+        .filter(Boolean)
+        .map((item) => ({
+          startMs: item!.plannedStartMs,
+          endMs: item!.plannedStartMs + item!.buffer.duration * 1000,
+        }));
+
+      // scheduleBase = context time when the session clock should read startFromSessionMs.
+      // audioCtxOffsetRef = scheduleBase - startFromSessionMs/1000
+      // → sessionMs = (ctx.currentTime - audioCtxOffsetRef)*1000 = startFromSessionMs at t=scheduleBase ✓
+      const scheduleBase = audioCtx.currentTime + 0.1;
+      audioCtxOffsetRef.current = scheduleBase - startFromSessionMs / 1000;
+
+      for (const item of decoded) {
+        if (!item || stopRef.current) continue;
+        const src = audioCtx.createBufferSource();
+        src.buffer = item.buffer;
+        src.connect(audioCtx.destination);
+        if (item.plannedStartMs < startFromSessionMs) {
+          // Batch starts before seek position — play from the correct offset
+          const playOffset = (startFromSessionMs - item.plannedStartMs) / 1000;
+          if (playOffset < item.buffer.duration) {
+            src.start(scheduleBase, playOffset);
+          }
+          // else: entire batch is before seek point, skip
+        } else {
+          src.start(scheduleBase + (item.plannedStartMs - startFromSessionMs) / 1000);
+        }
+      }
+
+      startRaf(readyStrokes);
+
+      // Wait until session clock reaches full duration or stop is signalled
+      const sessionEndSec = audioCtxOffsetRef.current + replayDurationMs / 1000;
+      await new Promise<void>((resolve) => {
+        const check = setInterval(() => {
+          if (stopRef.current || (audioCtxRef.current?.currentTime ?? 0) >= sessionEndSec) {
+            clearInterval(check);
+            resolve();
+          }
+        }, 100);
+      });
+
+      await audioCtx.close();
+      // Flush any media hide events that are still pending at session end.
+      // The RAF runs at 60 fps and may have been cancelled just before sessionMs
+      // reached closedMs, so we process remaining events explicitly here.
+      {
+        const flushMs = replayDurationMs;
+        while (
+          mediaEventIndexRef.current < mediaEventsRef.current.length &&
+          flushMs >= mediaEventsRef.current[mediaEventIndexRef.current].atMs
+        ) {
+          const evt = mediaEventsRef.current[mediaEventIndexRef.current];
+          if (evt.type === 'hide') {
+            activeFrameSigRef.current = '';
+            setActiveFrame(null);
+            setActivePdfPage(undefined);
+          }
+          mediaEventIndexRef.current += 1;
+        }
+      }
+      // stopRaf BEFORE nulling the ref so the last RAF frame still reads
+      // sessionMs from AudioContext.currentTime (frozen at close).
       stopRaf();
+      audioCtxRef.current = null;
 
     } else if (hasAudio && !hasStrokes) {
-      // Audio only (or media + audio)
-      if (hasMedia) {
-        startRaf([]);
-      }
-      for (let i = 0; i < sortedAudio.length; i++) {
-        if (stopRef.current) break;
-        try { await playAudioBatch(i, sortedAudio); } catch (e) { console.error('[Replay] audio batch', i, 'failed:', e); }
-      }
+      // Audio only (or media + audio) — same AudioContext scheduling approach.
+      const audioCtxAO = new AudioContext();
+      audioCtxRef.current = audioCtxAO;
+      audioCtxOffsetRef.current = audioCtxAO.currentTime + 3600; // freeze sessionMs=0 during decode
 
-      if (!stopRef.current && hasMedia) {
-        const finiteMediaCloseMs = mediaTimelineRef.current
-          .filter((item) => Number.isFinite(item.closeMs))
-          .map((item) => item.closeMs);
-        const mediaDurationMs = finiteMediaCloseMs.length > 0
-          ? Math.max(...finiteMediaCloseMs)
-          : mediaTimelineRef.current.length > 0
-            ? Math.max(...mediaTimelineRef.current.map((item) => item.showMs)) + 5000
+      const anchorWallMsAO = audioAnchorWallMsRef.current;
+      const decodedAO = await Promise.all(sortedAudio.map(async (batch) => {
+        try {
+          const ab = await batch.blob.arrayBuffer();
+          const buffer = await audioCtxAO.decodeAudioData(ab);
+          const batchDurationMs = Math.max(1, Math.round((batch.duration ?? 10) * 1000));
+          const plannedStartMs = anchorWallMsAO > 0
+            ? Math.max(0, (batch.timestamp - batchDurationMs) - anchorWallMsAO)
             : 0;
-        const remainingMs = Math.max(0, mediaDurationMs - playedSessionMsRef.current);
+          return { buffer, plannedStartMs };
+        } catch (e) {
+          console.warn('[Replay] failed to decode batch (ao)', batch.batchId, e);
+          return null;
+        }
+      }));
 
-        if (remainingMs > 150) {
-          const tailBaseMs = playedSessionMsRef.current;
-          const tailStart = performance.now();
-          await new Promise<void>((resolve) => {
-            const tick = () => {
-              if (stopRef.current) return resolve();
-              const elapsed = performance.now() - tailStart;
-              batchStartMsRef.current = tailBaseMs + elapsed;
-              if (elapsed >= remainingMs) return resolve();
-              requestAnimationFrame(tick);
-            };
-            requestAnimationFrame(tick);
-          });
+      if (stopRef.current) {
+        await audioCtxAO.close();
+        audioCtxRef.current = null;
+        return;
+      }
+
+      const scheduleBaseAO = audioCtxAO.currentTime + 0.1;
+      audioCtxOffsetRef.current = scheduleBaseAO - startFromSessionMs / 1000;
+
+      for (const item of decodedAO) {
+        if (!item || stopRef.current) continue;
+        const src = audioCtxAO.createBufferSource();
+        src.buffer = item.buffer;
+        src.connect(audioCtxAO.destination);
+        if (item.plannedStartMs < startFromSessionMs) {
+          const playOffset = (startFromSessionMs - item.plannedStartMs) / 1000;
+          if (playOffset < item.buffer.duration) src.start(scheduleBaseAO, playOffset);
+        } else {
+          src.start(scheduleBaseAO + (item.plannedStartMs - startFromSessionMs) / 1000);
         }
       }
 
+      if (hasMedia) startRaf([]);
+
+      const sessionEndSecAO = audioCtxOffsetRef.current + replayDurationMs / 1000;
+      await new Promise<void>((resolve) => {
+        const check = setInterval(() => {
+          if (stopRef.current || (audioCtxRef.current?.currentTime ?? 0) >= sessionEndSecAO) {
+            clearInterval(check);
+            resolve();
+          }
+        }, 100);
+      });
+
+      await audioCtxAO.close();
+      // Flush remaining media hide events before stopping the RAF.
       if (hasMedia) {
+        const flushMs = replayDurationMs;
+        while (
+          mediaEventIndexRef.current < mediaEventsRef.current.length &&
+          flushMs >= mediaEventsRef.current[mediaEventIndexRef.current].atMs
+        ) {
+          const evt = mediaEventsRef.current[mediaEventIndexRef.current];
+          if (evt.type === 'hide') {
+            activeFrameSigRef.current = '';
+            setActiveFrame(null);
+            setActivePdfPage(undefined);
+          }
+          mediaEventIndexRef.current += 1;
+        }
         stopRaf();
       }
+      audioCtxRef.current = null;
 
     } else if ((hasStrokes || hasMedia) && !hasAudio) {
       // Board only — feed performance.now() into batchStartMsRef each frame
@@ -1176,6 +1435,14 @@ export default function Replay() {
     setActivePdfScrollRatio(undefined);
     mediaEventIndexRef.current = 0;
     activeFrameSigRef.current = '';
+    audioPeriodsRef.current = [];
+    decodeFailureCountRef.current = 0;
+    setIsSilentGap(false);
+    // Close AudioContext (silences scheduled nodes immediately)
+    if (audioCtxRef.current) {
+      audioCtxRef.current.close().catch(() => {/* ignore */});
+      audioCtxRef.current = null;
+    }
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -1315,11 +1582,31 @@ export default function Replay() {
           </div>
 
           {isPlaying && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-              <Circle className="w-2 h-2 fill-blue-500 text-blue-500 animate-pulse" />
-              <div className="text-sm font-medium text-blue-700">
-                Audio: {currentBatch + 1}/{audioList.length} • Strokes: {drawn.length}/{strokes.length}
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors duration-300 ${
+              isSilentGap
+                ? 'bg-amber-50 border-amber-300'
+                : 'bg-blue-50 border-blue-200'
+            }`}>
+              {isSilentGap ? (
+                <VolumeX className="w-4 h-4 text-amber-500" />
+              ) : (
+                <Circle className="w-2 h-2 fill-blue-500 text-blue-500 animate-pulse" />
+              )}
+              <div className={`text-sm font-medium ${isSilentGap ? 'text-amber-700' : 'text-blue-700'}`}>
+                {isSilentGap
+                  ? decodeFailureCountRef.current > 0
+                    ? 'Audio unavailable (load error)'
+                    : 'No audio in this segment'
+                  : `Strokes: ${drawn.length}\u202f/\u202f${strokes.length}`}
               </div>
+              {isSilentGap && decodeFailureCountRef.current === 0 && (
+                <button
+                  onClick={skipToNextAudio}
+                  className="ml-1 text-xs font-semibold text-amber-700 underline underline-offset-2 hover:text-amber-900 transition-colors"
+                >
+                  Skip →
+                </button>
+              )}
             </div>
           )}
 

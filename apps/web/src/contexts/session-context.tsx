@@ -43,6 +43,7 @@ interface SessionContextValue {
   sendPdfPage: (mediaId: string, page: number, timerDisplay: string, elapsedMs?: number) => void;
   sendMediaScroll: (mediaId: string, scrollRatio: number, timerDisplay: string, elapsedMs?: number) => void;
   sendMediaPlayback: (mediaId: string, state: 'play' | 'pause', timerDisplay: string, elapsedMs?: number) => void;
+  sendBoardSwitch: (fromBoard: number, toBoard: number, elapsedMs: number) => void;
 }
 
 export interface PdfScrollPayload {
@@ -789,6 +790,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     workerRef.current?.postMessage({ type: 'MEDIA_PLAYBACK', mediaId, state, timerDisplay, elapsedMs });
   }, []);
 
+  const sendBoardSwitch = useCallback((fromBoard: number, toBoard: number, elapsedMs: number) => {
+    workerRef.current?.postMessage({ type: 'BOARD_SWITCH', fromBoard, toBoard, elapsedMs });
+  }, []);
+
   return (
     <SessionContext.Provider value={{
       isRecording,
@@ -808,6 +813,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       sendPdfPage,
       sendMediaScroll,
       sendMediaPlayback,
+      sendBoardSwitch,
     }}>
       {children}
     </SessionContext.Provider>

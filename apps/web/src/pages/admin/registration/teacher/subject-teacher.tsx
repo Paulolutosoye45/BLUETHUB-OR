@@ -3,11 +3,11 @@ import { authService, type IcreateUserRequest } from "@/services/auth";
 import { Hashing, localData } from "@/utils";
 import type { Tuser } from "@/utils/decode";
 import { regUserSchema, UserRole, type RegisterFormData } from "@/utils/validate";
-import { Label, Input, Button, Popover, PopoverTrigger, PopoverContent, Calendar } from "@bluethub/ui-kit";
+import { Label, Input, Button, Popover, PopoverTrigger, PopoverContent, Calendar  } from "@bluethub/ui-kit";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { AxiosError } from "axios";
 import { format } from "date-fns";
-import { Upload, User, Camera, Mail, Loader2, Info, CalendarIcon, ChevronLeft } from "lucide-react";
+import { Upload, User, Camera, Mail, Loader2, Info, CalendarIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -18,7 +18,7 @@ const SubjectTeacher = () => {
   const [loading, setLoading] = useState<boolean>(false)
   const [user, setUser] = useState<Tuser | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
-  const [_, setSuccessMsg] = useState("");
+  const [successMsg, setSuccessMsg] = useState("");
 
   const location = useLocation();
   const navigate = useNavigate()
@@ -179,19 +179,18 @@ const SubjectTeacher = () => {
 
   return (
     // "space-y-4 px-6 max-w-full min-w-[80%] mx-auto"
-    <div className="space-y-4 md:px-6  font-poppins">
+    <div className="space-y-4 px-6  font-poppins">
 
       {/* Main Content */}
-      <div className="bg-white/90 backdrop-blur-sm lg:rounded-2xl border border-white/20 shadow-xl overflow-hidden">
+      <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">
         {/* Section Header */}
-        <div className="bg-linear-to-r from-chestnut to-chestnut/90 md:px-8 px-4 py-6 flex items-center justify-between">
+        <div className="bg-linear-to-r from-chestnut to-chestnut/90 px-8 py-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <User className="w-5 h-5 text-white hidden lg:inline" />
-              <ChevronLeft className="w-5 h-5 text-white lg:hidden" onClick={() => navigate(-1)} />
+              <User className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="font-bold text-sm md:text-xl text-white">
+              <h2 className="font-bold text-xl text-white">
                 {isAdminRegistration
                   ? "Admin Details"
                   : isClassTeacherRegistration
@@ -206,9 +205,8 @@ const SubjectTeacher = () => {
         </div>
 
         {/* Form Content */}
-        <form onSubmit={handleSubmit(handleRegister)} className="p-4 sm:p-8 bg-linear-to-br from-white/95 to-white/85">
-          <div className="flex flex-col lg:flex-row gap-6 lg:gap-12">
-            {/* Profile Picture Upload */}
+        <form onSubmit={handleSubmit(handleRegister)} className="p-8 bg-linear-to-br from-white/95 to-white/85">
+          <div className="flex gap-12">
             {/* Profile Picture Upload */}
             <div className="space-y-3">
               <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
@@ -223,9 +221,9 @@ const SubjectTeacher = () => {
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
                 className={`group relative flex items-center justify-center flex-col gap-4 
-                      border-2 border-dashed w-full lg:w-60 h-48 lg:h-50 rounded-2xl cursor-pointer 
-                      transition-all duration-300 overflow-hidden
-                      ${dragActive
+                  border-2 border-dashed w-60 h-50 rounded-2xl cursor-pointer 
+                  transition-all duration-300 overflow-hidden
+                  ${dragActive
                     ? "border-chestnut bg-chestnut/10 scale-105"
                     : fileName
                       ? "border-green-500 bg-green-50"
@@ -239,22 +237,36 @@ const SubjectTeacher = () => {
                   onChange={handleFileChange}
                   accept="image/*"
                 />
-                <div className="absolute inset-0 bg-linear-to-br from-chestnut/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                <div className={`p-4 rounded-full transition-all duration-300 ${fileName ? "bg-green-500" : "bg-chestnut/10 group-hover:bg-chestnut/20"}`}>
-                  {fileName
-                    ? <Camera className="w-8 h-8 text-white" />
-                    : <Upload className="w-8 h-8 text-chestnut" />
-                  }
+
+                <div className="absolute inset-0 bg-linear-to-br from-chestnut/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
+                <div
+                  className={`p-4 rounded-full transition-all duration-300 ${fileName
+                    ? "bg-green-500"
+                    : "bg-chestnut/10 group-hover:bg-chestnut/20"
+                    }`}
+                >
+                  {fileName ? (
+                    <Camera className="w-8 h-8 text-white" />
+                  ) : (
+                    <Upload className="w-8 h-8 text-chestnut" />
+                  )}
                 </div>
+
                 <div className="text-center px-4 space-y-1">
-                  <p className={`font-semibold text-sm transition-colors ${fileName ? "text-green-700" : "text-chestnut group-hover:text-chestnut/80"}`}>
+                  <p
+                    className={`font-semibold text-sm transition-colors ${fileName
+                      ? "text-green-700"
+                      : "text-chestnut group-hover:text-chestnut/80"
+                      }`}
+                  >
                     {fileName ? "Image Selected" : "Upload Image"}
                   </p>
                   <p className="text-xs text-chestnut/60 font-medium">
                     {fileName || "Click or drag to select file"}
                   </p>
                   {fileName && (
-                    <p className="text-xs text-green-600 font-medium truncate max-w-[180px]">
+                    <p className="text-xs text-green-600 font-medium truncate max-w-50">
                       {fileName}
                     </p>
                   )}
@@ -263,7 +275,7 @@ const SubjectTeacher = () => {
             </div>
 
             {/* Form Fields */}
-            <div className="flex-1 space-y-4 min-w-0">
+            <div className="flex-1 space-y-4">
               {/* Row 1 */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="space-y-2">
@@ -402,20 +414,29 @@ const SubjectTeacher = () => {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-8 pt-6 border-t border-chestnut/10 gap-4">
+          <div className="flex justify-between mt-12 pt-8 border-t border-chestnut/10">
             {errorMsg && (
               <div
                 role="alert"
-                className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm w-full sm:w-auto"
+                className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm mb-5"
               >
                 <Info className="w-4 h-4 mt-0.5 shrink-0 text-red-500" />
                 <span>{errorMsg}</span>
               </div>
             )}
+            {!errorMsg && successMsg && (
+              <div
+                role="status"
+                className="flex items-start gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg px-4 py-3 text-sm mb-5"
+              >
+                <Info className="w-4 h-4 mt-0.5 shrink-0 text-emerald-600" />
+                <span>{successMsg}</span>
+              </div>
+            )}
             <Button
               type="submit"
               disabled={loading}
-              className="w-full sm:w-auto ml-auto bg-linear-to-r from-chestnut to-chestnut/90 hover:from-chestnut/90 hover:to-chestnut text-white font-medium text-base sm:text-lg py-5 sm:py-7 px-8 sm:px-12 rounded-md shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
+              className="ml-auto bg-linear-to-r from-chestnut to-chestnut/90 hover:from-chestnut/90 hover:to-chestnut text-white font-medium text-lg py-7 px-12 rounded-md shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
             >
               {loading ? (
                 <>
@@ -423,7 +444,9 @@ const SubjectTeacher = () => {
                   <span>Saving...</span>
                 </>
               ) : (
-                <span>Save and Continue</span>
+                <>
+                  <span>Save and Continue</span>
+                </>
               )}
             </Button>
           </div>

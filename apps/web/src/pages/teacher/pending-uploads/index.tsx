@@ -535,18 +535,43 @@ const PendingUploads = () => {
         strokeBatchCount: strokeBatches.length,
       },
       // Audio chunks (Cloudinary URLs) - 60s (1-minute) each
-      chunks: audioUrls.map((audio, idx) => ({
-        index: audio.chunkIndex,
-        startMs: idx * 60000,
-        endMs: (idx + 1) * 60000,
-        audio: {
-          url: audio.url,
-          mediaId: audio.mediaId,
-          sizeBytes: 150000, // ~150KB per 1-minute chunk
-          durationMs: 60000,
-        },
-        events: [],
-      })),
+      chunks: audioUrls.map((audio, idx) => {
+        const chunkStart = idx * 60000;
+        const chunkEnd = (idx + 1) * 60000;
+        const events: Array<{ type: string; timestampMs: number; mediaAssetId: string }> = [];
+
+        // Show events: chunk where showMs falls
+        session.mediaEvents.forEach(e => {
+          const ms = e.showMs ?? 0;
+          if (ms >= chunkStart && ms < chunkEnd) {
+            events.push({ type: 'media:show', timestampMs: ms, mediaAssetId: e.id });
+          }
+        });
+
+        // Hide events: chunk where closedMs falls (may differ from show chunk)
+        session.mediaEvents.forEach(e => {
+          const closedMs = e.closedMs;
+          if (typeof closedMs === 'number' && closedMs > 0 &&
+              closedMs >= chunkStart && closedMs < chunkEnd) {
+            events.push({ type: 'media:hide', timestampMs: closedMs, mediaAssetId: e.id });
+          }
+        });
+
+        events.sort((a, b) => a.timestampMs - b.timestampMs);
+
+        return {
+          index: audio.chunkIndex,
+          startMs: chunkStart,
+          endMs: chunkEnd,
+          audio: {
+            url: audio.url,
+            mediaId: audio.mediaId,
+            sizeBytes: 150000,
+            durationMs: 60000,
+          },
+          events,
+        };
+      }),
       // Stroke batches (stored in MongoDB, referenced by index key)
       strokeBatches: strokeBatches.map((batch) => ({
         id: batch.id,

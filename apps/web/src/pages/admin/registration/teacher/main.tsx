@@ -1,4 +1,4 @@
-import { Link, useNavigate, useOutletContext } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
     Button,
     Dialog,
@@ -11,7 +11,7 @@ import {
     DropdownMenuTrigger,
 } from "@bluethub/ui-kit";
 import { useState } from "react";
-import { Check, ChevronDown, Loader2, Menu, Search, Sparkles, UserCircle, Users } from "lucide-react";
+import { Check, ChevronDown, Loader2, Search, Sparkles, UserCircle, Users } from "lucide-react";
 import { authService } from "@/services/auth";
 import { UserRole } from "@/utils/validate";
 
@@ -72,7 +72,6 @@ type UserDto = {
 
 const TeacherMain = () => {
     const navigate = useNavigate();
-    const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
     const [selectRole, setSelectRole] = useState<RoleOption | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
@@ -122,36 +121,25 @@ const TeacherMain = () => {
     });
 
     return (
-        <div className=" sm:px-5 md:p-0 lg:px-7  sm:py-6">
-            <section className="relative overflow-hidden lg:rounded-3xl border border-white/20 bg-white/85 shadow-sm">
+        <div className="px-3 sm:px-5 lg:px-7 py-4 sm:py-6">
+            <section className="relative overflow-hidden rounded-3xl border border-white/20 bg-white/85 shadow-sm">
                 <div className="pointer-events-none absolute -top-12 -right-14 h-44 w-44 rounded-full bg-chestnut/10 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-14 -left-14 h-44 w-44 rounded-full bg-[#292382]/10 blur-3xl" />
 
                 <section className="relative bg-chestnut px-5 py-4 sm:px-7">
-                    <div className="flex items-center justify-between gap-3">
-
-                        {/* Left: hamburger + text */}
-                        <div className="flex items-center gap-3 min-w-0">
-                            <Menu
-                                className="lg:hidden shrink-0 text-white cursor-pointer"
-                                onClick={openMobileNav}
-                            />
-                            <div className="min-w-0">
-                                <h1 className="font-poppins text-base sm:text-xl font-semibold text-white truncate">
-                                    Register Teacher
-                                </h1>
-                                <p className="mt-0.5 text-xs sm:text-sm text-white/85 truncate">
-                                    Select a role and continue with the registration flow.
-                                </p>
-                            </div>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h1 className="font-poppins text-lg sm:text-xl font-semibold text-white">
+                                Register Teacher
+                            </h1>
+                            <p className="mt-1 text-xs sm:text-sm text-white/85">
+                                Select a role and continue with the registration flow.
+                            </p>
                         </div>
-
-                        {/* Right: badge */}
-                        <span className="hidden md:inline-flex shrink-0 items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">
                             <Sparkles className="h-3.5 w-3.5" />
                             Admin Workspace
                         </span>
-
                     </div>
                 </section>
 
@@ -257,7 +245,7 @@ const TeacherMain = () => {
 
             {/* ── Edit Profile dialog ─────────────────────────────────────── */}
             <Dialog open={editOpen} onOpenChange={setEditOpen}>
-                <DialogContent className="max-w-lg  rounded-2xl p-0 overflow-hidden">
+                <DialogContent className="max-w-lg rounded-2xl p-0 overflow-hidden">
                     <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-[#fff4ec] via-white to-[#eef6ff]">
                         <DialogTitle className="text-base font-semibold text-slate-800">
                             {selectRole?.label} — Select user to edit

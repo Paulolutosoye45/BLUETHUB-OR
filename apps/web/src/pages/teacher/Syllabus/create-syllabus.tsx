@@ -383,8 +383,9 @@ const CreateSyllabus = () => {
 
             if (newTopics.length > 0) {
                 ops.push(
-                    schoolService.createTopicsWithSubTopics({
+                    schoolService.createTopic({
                         subjectId: selectedSubject.id,
+                        classroomId: selectedClass.id,
                         topics: newTopics.map(t => ({
                             name: t.name.trim(),
                             subTopics: t.subTopics,

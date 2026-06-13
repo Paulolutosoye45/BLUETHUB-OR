@@ -20,7 +20,7 @@ import {
   getAudioChunksBySession,
   getStrokeBatchesBySession,
 } from "@/utils/db";
-import type { LocalSession } from "@/utils/constant";
+import type { LocalSession, IActiveMedia } from "@/utils/constant";
 
 type ModalState = "closed" | "confirm" | "discard-confirm" | "uploading" | "complete" | "error" | "draft-saved";
 
@@ -309,6 +309,24 @@ const EndClass = () => {
 
     const { audioUrls, strokeBatches: uploadedStrokeBatches } = uploadResults;
 
+    // Use IDB mediaEvents; fall back to localStorage.currentBatches when empty.
+    // localStorage.currentBatches is the live in-memory manifest from session.worker.ts
+    // and is always up-to-date on the recording device.
+    let mediaEvents: IActiveMedia[] = session.mediaEvents;
+    if (mediaEvents.length === 0) {
+      try {
+        const raw = localStorage.getItem('currentBatches');
+        if (raw) {
+          const parsed = JSON.parse(raw) as { batches?: Array<{ mediaAction?: IActiveMedia[] }> };
+          const collected: IActiveMedia[] = [];
+          for (const batch of parsed.batches ?? []) {
+            if (batch.mediaAction) collected.push(...batch.mediaAction);
+          }
+          if (collected.length > 0) mediaEvents = collected;
+        }
+      } catch { /* ignore parse errors */ }
+    }
+
     // Fetch actual timing data from IDB
     const allAudioChunks = await getAudioChunksBySession(session.id);
     const allStrokeBatches = await getStrokeBatchesBySession(session.id);
@@ -342,17 +360,22 @@ const EndClass = () => {
       // Collect board/media events that fall within this audio chunk's time window
       const events: unknown[] = [];
 
-      session.mediaEvents
-        .filter(e => {
-          const ms = e.showMs ?? 0;
-          return ms >= startMs && ms < endMs;
-        })
-        .forEach(e => {
-          events.push({ type: 'media:show', timestampMs: e.showMs ?? 0, mediaAssetId: e.id });
-          if (e.closed !== null && e.closedMs !== undefined && e.closedMs >= startMs && e.closedMs < endMs) {
-            events.push({ type: 'media:hide', timestampMs: e.closedMs, mediaAssetId: e.id });
-          }
-        });
+      // Show events: emit in the chunk where showMs falls.
+      mediaEvents.forEach(e => {
+        const ms = e.showMs ?? 0;
+        if (ms >= startMs && ms < endMs) {
+          events.push({ type: 'media:show', timestampMs: ms, mediaAssetId: e.id });
+        }
+      });
+
+      // Hide events: emit in the chunk where closedMs falls (can be a different chunk).
+      mediaEvents.forEach(e => {
+        const closedMs = e.closedMs;
+        if (typeof closedMs === 'number' && closedMs > 0 &&
+            closedMs >= startMs && closedMs < endMs) {
+          events.push({ type: 'media:hide', timestampMs: closedMs, mediaAssetId: e.id });
+        }
+      });
 
       session.boardEvents
         .filter(e => e.timestampMs >= startMs && e.timestampMs < endMs)
@@ -429,7 +452,7 @@ const EndClass = () => {
       },
       chunks,
       strokeBatches: strokeBatchesManifest,
-      mediaAssets: session.mediaEvents
+      mediaAssets: mediaEvents
         .filter((m, i, arr) => arr.findIndex(x => x.id === m.id) === i)
         .map((m) => ({ id: m.id, name: m.name, type: m.type, url: m.url })),
       boards: Array.from(boardIndices).sort().map(index => ({

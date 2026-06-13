@@ -207,6 +207,7 @@ export interface IActions {
   totalDuration: number;
   totalBatches: number;
   batches: IBatch[];
+  boardSwitchTimeline?: Array<{ timestampMs: number; toBoard: number }>;
 }
 
 export const MEDIA_STORAGE_KEY = "MEDIA_INSTANCES";
@@ -368,6 +369,8 @@ export interface LocalStrokeBatch {
   strokes: CompressedStroke[];
   strokeCount: number;
   sizeBytes: number;
+
+  boardSwitches?: Array<{ fromBoard: number; toBoard: number; timestampMs: number }>;
 
   syncStatus: SyncStatus;
 

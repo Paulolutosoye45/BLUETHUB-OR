@@ -2,7 +2,6 @@ import { token } from "@/utils";
 import axios, { type AxiosInstance } from "axios";
 
 const X_Tenant_ID = (import.meta.env.VITE_TENANT_ID as string) || "green";
-const RESOLVED_TENANT_ID = X_Tenant_ID || "green";
 
 export const API: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
@@ -101,20 +100,18 @@ export type TResponse<T> = {
 
 const endpoints = {
   login: "/api/User/login",
-  updateTeacherSubject: "api/User/teacher",
-  createUser: "/api/User/createUser",
-  editUser: "/api/User/editUser",
-  assignTeacherToClassroom: "/api/User/AssignTeacherToClassroom",
-  getStudents: "/api/User/GetStudents",
-  updatePassword: "/api/User/updatePassword",
-  updatePasswordNewUser: "/api/User/update-password/newUser",
-  getUserById: "/api/User/GetUserById",
-  assignPermissions: "/api/User/AssignPermissions",
-  getAdminPermissions: "/api/User/GetAdminPermissions",
-  getAllAdminPermissions: "/api/User/GetAllAdminPermissions",
-  revokePermissions: "/api/User/RevokePermissions",
+  createUser: "api/User/createUser",
+  editUser: "api/User/editUser",
+  assignTeacherToClassroom: "api/User/AssignTeacherToClassroom",
+  getStudents: "api/User/GetStudents",
+  updatePassword: "api/User/updatePassword",
+  updatePasswordNewUser: "api/User/update-password/newUser",
+  getUserById: "api/User/GetUserById",
+  assignPermissions: "api/User/AssignPermissions",
+  getAdminPermissions: "api/User/GetAdminPermissions",
+  getAllAdminPermissions: "api/User/GetAllAdminPermissions",
+  revokePermissions: "api/User/RevokePermissions",
   getTeacher: "/api/User/teachers",
-  studentMinorSubjects: "/api/User",
   refreshToken: "/api/User/refresh-token",
   getUserByRole: "/api/User/GetUsersByRole",
 };
@@ -191,22 +188,8 @@ export interface IEditUserRequest {
 
 export interface IAssignTeacherToClassroomRequest {
   teacherId: string;
-  classroomId?: string;
-  classroomIds?: string[];
-  isPrimary?: boolean;
-}
-
-export interface IUpdateTeacherSubjectRequest {
-  teacherId: string;
   classroomId: string;
-  subjectIds: string[];
-}
-
-export interface IUpdateStudentAssignmentRequest {
-  classroomId?: string;
-  minorSubjectIds?: string[];
-  addSubjects?: string[];
-  removeSubjects?: string[];
+  isPrimary?: boolean;
 }
 
 export interface IupdatePasswordRequest {
@@ -258,6 +241,13 @@ interface GetStudentsParams {
   pageSize?: number;
 }
 
+export interface IUpdateStudentAssignmentRequest {
+  classroomId?: string;
+  minorSubjectIds?: string[];
+  addSubjects?: string[];
+  removeSubjects?: string[];
+}
+
 export const authService = {
   login: (data: ILoginRequest) => {
     return API.post<ILoginResponse>(endpoints.login, data, {
@@ -279,43 +269,15 @@ export const authService = {
   },
 
   editUser: (data: IEditUserRequest) => {
-    return API.post<TResponse<unknown>>(endpoints.editUser, data, {
-      headers: {
-        "X-Tenant-ID": RESOLVED_TENANT_ID,
-      },
-    });
+    return API.post<TResponse<unknown>>(endpoints.editUser, data);
   },
 
   assignTeacherToClassroom: (data: IAssignTeacherToClassroomRequest) => {
-    return API.post<TResponse<unknown>>(
-      endpoints.assignTeacherToClassroom,
-      {
-        teacherId: data.teacherId,
-        classroomId: data.classroomId,
-        classroomIds: data.classroomIds ?? [],
-        isPrimary: data.isPrimary ?? false,
-      },
-      {
-        headers: {
-          "X-Tenant-ID": RESOLVED_TENANT_ID,
-        },
-      },
-    );
-  },
-
-  updateTeacherSubject: (data: IUpdateTeacherSubjectRequest) => {
-    return API.put<TResponse<unknown>>(
-      `${endpoints.updateTeacherSubject}/${data.teacherId}/subject`,
-      {
-        classroomId: data.classroomId,
-        subjectIds: data.subjectIds,
-      },
-      {
-        headers: {
-          "X-Tenant-ID": RESOLVED_TENANT_ID,
-        },
-      },
-    );
+    return API.post<TResponse<unknown>>(endpoints.assignTeacherToClassroom, {
+      teacherId: data.teacherId,
+      classroomId: data.classroomId,
+      isPrimary: data.isPrimary ?? false,
+    });
   },
 
   getStudents: (
@@ -359,36 +321,19 @@ export const authService = {
     });
   },
   assignPermissions: (data: IAssignPermissionsRequest) => {
-    return API.post<TResponse<unknown>>(endpoints.assignPermissions, data, {
-       headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
-      }});
+    return API.post<TResponse<unknown>>(endpoints.assignPermissions, data);
   },
   getAdapterPermissions: (adminUserId: string) => {
     return API.get<TResponse<unknown>>(endpoints.getAdminPermissions, {
       params: { adminUserId },
-      
     });
   },
 
   getAllAdminPermissions: (data: IGetAdminPermissionsRequest) => {
     return API.get<TResponse<unknown>>(endpoints.getAdminPermissions, {
       params: data,
-       headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
-      },
     });
   },
-
-  getAdminPermissions: (adminUserId: string) => {
-    return API.get(endpoints.getAdminPermissions, {
-      params: { adminUserId },
-      headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
-      },
-    });
-  },
-
 
   revokePermissions: (adminUserId: string) => {
     return API.post<TResponse<unknown>>(endpoints.revokePermissions, {
@@ -413,27 +358,16 @@ export const authService = {
     });
   },
 
-  getStudentMinorSubjects: (studentId: string, classroomId?: string) => {
-    return API.get<TResponse<unknown>>(`${endpoints.studentMinorSubjects}/${studentId}/minor-subjects`, {
-      params: classroomId ? { classroomId } : undefined,
-      headers: {
-        "X-Tenant-ID": X_Tenant_ID,
-      },
+  getStudentMinorSubjects: (userId: string, classroomId: string) => {
+    return API.get<TResponse<unknown>>(`api/User/student/${userId}/minor-subjects`, {
+      params: { classroomId },
+      headers: { "X-Tenant-ID": X_Tenant_ID },
     });
   },
 
-  updateStudentAssignment: (
-    studentId: string,
-    payload: IUpdateStudentAssignmentRequest,
-  ) => {
-    return API.put<TResponse<unknown>>(
-      `${endpoints.studentMinorSubjects}/${studentId}/assignment`,
-      payload,
-      {
-        headers: {
-          "X-Tenant-ID": X_Tenant_ID,
-        },
-      },
-    );
+  updateStudentAssignment: (userId: string, data: IUpdateStudentAssignmentRequest) => {
+    return API.post<TResponse<unknown>>(`api/User/student/${userId}/assignment`, data, {
+      headers: { "X-Tenant-ID": X_Tenant_ID },
+    });
   },
 };
