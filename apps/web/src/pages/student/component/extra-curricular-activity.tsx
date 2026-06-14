@@ -107,8 +107,8 @@ const ExtracurricularActivity = () => {
               key={card.label}
               onClick={card.onClick}
               className={cn(
-                "group relative overflow-hidden rounded-[24px] border p-5 text-left transition-all duration-300",
-                "border-white/80 bg-white/80 shadow-[0_18px_45px_-30px_rgba(15,23,42,0.3)] hover:-translate-y-1 hover:shadow-[0_26px_55px_-30px_rgba(53,70,160,0.45)] active:scale-[0.99]",
+                "group relative overflow-hidden rounded-md border p-5 text-left transition-all duration-300",
+                "border-white/80 bg-white/80  hover:-translate-y-1 hover:shadow-[0_26px_55px_-30px_rgba(53,70,160,0.45)] active:scale-[0.99]",
                 card.highlight && "ring-2 ring-amber-200"
               )}
             >
