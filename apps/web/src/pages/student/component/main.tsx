@@ -10,7 +10,7 @@ import UpcomingClass from "./up-coming-class";
 const StudentIndex = () => {
   return (
     <div
-      className="mx-auto flex min-h-full w-full max-w-[1400px] flex-col overflow-y-auto rounded-[28px] border border-white/70 bg-white/55 p-3 shadow-[0_24px_80px_-32px_rgba(37,52,122,0.32)] backdrop-blur-xl transition-all duration-300 md:p-5 lg:p-6
+      className="mx-auto flex min-h-full w-full max-w-[1400px] flex-col overflow-y-auto rounded-md border border-white/70 bg-white/55 p-3  backdrop-blur-xl transition-all duration-300 md:p-5 lg:p-6
   [&::-webkit-scrollbar]:w-1
   [&::-webkit-scrollbar]:h-2.5 
   [&::-webkit-scrollbar-track]:rounded-full

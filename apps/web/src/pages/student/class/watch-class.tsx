@@ -522,7 +522,7 @@ const WatchClass = () => {
   const completedLabel = checkpoint?.completed ? "Cached locally" : "Not fully cached";
 
   return (
-    <div className="min-h-screen overflow-y-auto bg-slate-50 px-4 py-5 sm:px-6">
+    <div className="min-h-screen overflow-y-auto bg-slate-50 md:py-6 sm:px-6">
       <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>

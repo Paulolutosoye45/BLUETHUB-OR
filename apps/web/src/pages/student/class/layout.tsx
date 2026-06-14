@@ -202,7 +202,7 @@ const ClassLayout = () => {
 
   return (
     <div
-      className="px-3 md:px-7 h-screen transition-all duration-300 border-none 
+      className="px-2 md:px-0 lg:px-7 h-screen transition-all duration-300 border-none 
       overflow-y-auto 
       [&::-webkit-scrollbar]:w-1
       [&::-webkit-scrollbar]:h-2.5 
@@ -216,7 +216,7 @@ const ClassLayout = () => {
       {/* App Bar */}
       <StudentAppBar />
 
-      <section className="mt-6 rounded-[28px] border border-white/70 bg-[radial-gradient(circle_at_top_right,_rgba(79,97,232,0.15),_transparent_48%),linear-gradient(180deg,_#ffffff_0%,_#f5f8ff_100%)] px-5 py-5 shadow-[0_24px_60px_-40px_rgba(15,23,42,0.42)]">
+      <section className="mt-6 rounded-[28px] border border-white/70 bg-[radial-gradient(circle_at_top_right,_rgba(79,97,232,0.15),_transparent_48%),linear-gradient(180deg,_#ffffff_0%,_#f5f8ff_100%)] px-5 py-5 ">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#4F61E8]">Recorded classes</p>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
           <div>

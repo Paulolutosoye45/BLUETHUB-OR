@@ -11,9 +11,11 @@ const ClassRoomlayout = () => {
       [&::-webkit-scrollbar-thumb]:bg-gray-400
       dark:[&::-webkit-scrollbar-track]:bg-neutral-700
       dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-      <StudentAppBar />
+        <div className="md:px-4 md:py-6">
+          <StudentAppBar />
+        </div>
 
-      <div className="w-full px-3 sm:px-4 md:px-6 pb-6">
+      <div className="w-full  sm:px-4 md:px-6 pb-6">
         <Outlet />
       </div>
     </section>
