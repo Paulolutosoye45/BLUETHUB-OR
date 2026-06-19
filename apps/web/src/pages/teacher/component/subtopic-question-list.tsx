@@ -23,7 +23,7 @@ const SubtopicQuestionList = () => {
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionSummaryDto | null>(null);
 
   useEffect(() => {
-    if (!classroomId || !subjectId || !subTopicId) {
+    if (!classroomId || !subjectId || !topicId || !subTopicId) {
       setQuestions([]);
       setTotalCount(0);
       return;
@@ -31,13 +31,10 @@ const SubtopicQuestionList = () => {
 
     setLoading(true);
     questionService
-      .getQuestionsByClassroom(classroomId, {
+      .getQuestionsByClassroomSubjectTopic(classroomId, subjectId, topicId, {
         page: 1,
         pageSize: 50,
-        subjectId,
-        topicId: topicId || undefined,
-        subTopicIds: [subTopicId],
-        status: 2,
+        subTopicIds: subTopicId ? [subTopicId] : [],
       })
       .then((res) => {
         const raw = res.data as any;

@@ -49,6 +49,7 @@ const Assessment = () => {
               <div className="absolute right-0 top-8 z-50 overflow-hidden bg-white rounded-xl shadow-lg border border-gray-100 py-1 w-44">
                 {[
                   { label: "View Existing Questions", link: '/teacher/assessment/questionlist' },
+                  { label: "Generate Quiz", link: '/teacher/assessment/generate-quiz' },
                   { label: "Extract Question", link: '/teacher/assessment/upload-scan' },
                   { label: "Type Question", link: '/teacher/assessment/createQuiz' },
                   { label: "Pending Job Status", link: '/teacher/assessments/My-Uploads' },
@@ -121,6 +122,16 @@ const Assessment = () => {
               <p className="text-sm font-semibold text-[#1A1C5E] mb-1">Type Question</p>
               <p className="text-[13px] text-[#6C70A6] leading-5">
                 Manually type and format questions using the current question form.
+              </p>
+            </button>
+
+            <button
+              onClick={() => navigate('/teacher/assessment/generate-quiz')}
+              className="text-left border border-[#C7CAF0] rounded-xl p-5 bg-[#2118920D] hover:border-chestnut/40 hover:shadow-sm transition-all"
+            >
+              <p className="text-sm font-semibold text-[#1A1C5E] mb-1">Generate Quiz</p>
+              <p className="text-[13px] text-[#6C70A6] leading-5">
+                Select questions from your bank and generate a shareable quiz code.
               </p>
             </button>
           </div>

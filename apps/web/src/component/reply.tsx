@@ -289,6 +289,8 @@ export default function Replay() {
   const replayVideoRef = useRef<HTMLVideoElement | null>(null);
   const currentBoardInReplayRef = useRef<number>(1);
   const boardSwitchTimelineRef = useRef<Array<{ timestampMs: number; toBoard: number }>>([]);
+  /** Teacher's recording dimensions; null until manifest is parsed. */
+  const recordedBoardDimsRef = useRef<{ width: number; height: number } | null>(null);
 
   // ─────────────────────────────────────────────────────────────────────────
   // THE SYNC ANCHOR
@@ -557,8 +559,10 @@ export default function Replay() {
         if (raw) {
           const parsed = JSON.parse(raw) as IActions;
           boardSwitchTimelineRef.current = parsed.boardSwitchTimeline ?? [];
+          recordedBoardDimsRef.current = parsed.recordedBoardDimensions ?? null;
         } else {
           boardSwitchTimelineRef.current = [];
+          recordedBoardDimsRef.current = null;
         }
       } catch (err) {
         console.error('Failed to parse replay manifest media actions:', err);
@@ -688,9 +692,17 @@ export default function Replay() {
       const durationMs = Math.max(1, Math.round((batch.duration ?? 10) * 1000));
       const endWallMs = batch.timestamp;
       const startWallMs = endWallMs - durationMs;
-      const startMs = accumulatedMs;
+      // Use the same formula as audio scheduling (plannedStartMs in play()) so that
+      // stroke mapping and audio timing share the exact same session-time origin.
+      // The old cumulative `accumulatedMs` diverges when batch.duration > the actual
+      // chunk window (e.g. chunk.audio.durationMs > chunk.endMs - chunk.startMs),
+      // which pushes later batches' startMs forward past where audio actually plays.
+      const startMs = sessionStartWallMs > 0
+        ? Math.max(0, startWallMs - sessionStartWallMs)
+        : accumulatedMs;
       const endMs = startMs + durationMs;
-      accumulatedMs = endMs;
+      // Keep accumulatedMs pointing past the furthest end we've seen (fallback path).
+      accumulatedMs = Math.max(accumulatedMs, endMs);
       return { startWallMs, endWallMs, startMs, endMs };
     });
     const audioTimelineEndMs = audioRanges.length > 0 ? audioRanges[audioRanges.length - 1].endMs : 0;
@@ -1161,6 +1173,10 @@ export default function Replay() {
       // and audio are always in sync with zero drift and no fill animation.
       const audioCtx = new AudioContext();
       audioCtxRef.current = audioCtx;
+      // Browsers may start AudioContext in "suspended" state when created
+      // outside an active user-gesture frame (e.g. from setTimeout during seek).
+      // resume() is a no-op when already running, so it is safe to always call.
+      if (audioCtx.state === 'suspended') await audioCtx.resume();
       // Park the offset far in the future so sessionMs = max(0, …) = 0 while
       // decoding runs.  AudioContext.currentTime starts advancing immediately
       // on creation, so without this the board would show false progress during
@@ -1306,6 +1322,7 @@ export default function Replay() {
       // Audio only (or media + audio) — same AudioContext scheduling approach.
       const audioCtxAO = new AudioContext();
       audioCtxRef.current = audioCtxAO;
+      if (audioCtxAO.state === 'suspended') await audioCtxAO.resume();
       audioCtxOffsetRef.current = audioCtxAO.currentTime + 3600; // freeze sessionMs=0 during decode
 
       const anchorWallMsAO = audioAnchorWallMsRef.current;
@@ -1509,75 +1526,78 @@ export default function Replay() {
   );
 
   return (
-    <div className="h-screen flex flex-col bg-linear-to-br from-gray-50 to-gray-100">
+    <div className="h-screen flex flex-col bg-linear-to-br from-gray-50 to-gray-100 overflow-hidden">
 
       {/* ── Header ── */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="flex items-center justify-between gap-4 p-4">
-          <div className="flex items-center gap-3">
+      <div className="bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-2 p-2 sm:p-4">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
 
             <button
               onClick={play}
               disabled={isPlaying || isPreloading}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${isPlaying || isPreloading
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg active:scale-95'
-                }`}
+              className={`flex items-center gap-1 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                isPlaying || isPreloading
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                  : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg active:scale-95'
+              }`}
             >
               {isPreloading
-                ? <><Loader className="w-5 h-5 animate-spin" /><span>Preparing...</span></>
-                : <><PlayCircle className="w-5 h-5" /><span>Play</span></>
+                ? <><Loader className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /><span className="text-xs sm:text-sm hidden xs:inline">Preparing...</span><span className="text-xs xs:hidden">...</span></>
+                : <><PlayCircle className="w-4 h-4 sm:w-5 sm:h-5" /><span className="text-xs sm:text-sm">Play</span></>
               }
             </button>
 
             <button
               onClick={stop}
               disabled={!isPlaying}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${!isPlaying
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                : 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg active:scale-95'
-                }`}
+              className={`flex items-center gap-1 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                !isPlaying
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                  : 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg active:scale-95'
+              }`}
             >
-              <StopCircle className="w-5 h-5" />
-              <span>Stop</span>
+              <StopCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="text-xs sm:text-sm">Stop</span>
             </button>
 
             <button
               disabled={isPlaying || isClearing || isPreloading}
               onClick={Cleardata}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium transition-all duration-200 ${isPlaying || isClearing || isPreloading
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                : 'bg-orange-500 hover:bg-orange-600 text-white shadow-md hover:shadow-lg active:scale-95'
-                }`}
+              className={`flex items-center gap-1 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                isPlaying || isClearing || isPreloading
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
+                  : 'bg-orange-500 hover:bg-orange-600 text-white shadow-md hover:shadow-lg active:scale-95'
+              }`}
             >
-              <Trash className="w-5 h-5" />
-              <span>{isClearing ? 'Clearing...' : 'Clear DB'}</span>
+              <Trash className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="text-xs sm:text-sm hidden sm:inline">{isClearing ? 'Clearing...' : 'Clear DB'}</span>
             </button>
 
-            <div className="h-8 w-px bg-gray-300 mx-2" />
+            <div className="h-6 w-px bg-gray-300 mx-0.5 sm:mx-2" />
 
-            <div className="flex items-center gap-4 text-sm">
-              <div className="flex items-center gap-1.5 text-gray-600">
-                <Edit3 className="w-4 h-4" />
+            <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+              <div className="flex items-center gap-1 sm:gap-1.5 text-gray-600">
+                <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="font-semibold">{strokes.length}</span>
-                <span className="text-gray-500">strokes</span>
+                <span className="text-gray-500 hidden sm:inline">strokes</span>
                 {isPreloading && (
-                  <span className="text-xs text-blue-500 animate-pulse ml-1">preparing...</span>
+                  <span className="text-xs text-blue-500 animate-pulse ml-1">...</span>
                 )}
               </div>
-              <div className="flex items-center gap-1.5 text-gray-600">
-                <Volume2 className="w-4 h-4" />
-                <span className="font-semibold">{audioList.length}</span>
-                <span className="text-gray-500">audio</span>
+              <div className="flex items-center gap-1 sm:gap-1.5 text-gray-600">
+                <Volume2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="font-semibold">{sessionAudioList.length}</span>
+                <span className="text-gray-500 hidden sm:inline">audio</span>
               </div>
             </div>
           </div>
 
 
-          <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 rounded-lg">
-            <Edit3 className="w-4 h-4 text-indigo-600" />
-            <div className="text-sm font-medium text-indigo-700">
-              Current Board: {Math.min(currentBoardInReplay, totalBoards)}/{totalBoards}
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-indigo-50 border border-indigo-200 rounded-lg">
+            <Edit3 className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-600" />
+            <div className="text-xs sm:text-sm font-medium text-indigo-700">
+              Board {Math.min(currentBoardInReplay, totalBoards)}/{totalBoards}
             </div>
           </div>
 
@@ -1610,14 +1630,14 @@ export default function Replay() {
             </div>
           )}
 
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg border border-gray-300">
-            <Clock className="w-5 h-5 text-gray-600" />
-            <div className="font-mono text-2xl font-bold text-gray-800">
+          <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-gray-100 rounded-lg border border-gray-300">
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+            <div className="font-mono text-lg sm:text-2xl font-bold text-gray-800">
               {formatReplayMs(replayMs)}
             </div>
           </div>
         </div>
-        <div className="px-4 pb-4">
+        <div className="px-2 sm:px-4 pb-2 sm:pb-4">
           <input
             type="range"
             min={0}
@@ -1652,40 +1672,71 @@ export default function Replay() {
       <audio ref={audioRef} />
 
       {/* ── Canvas ── */}
-      <div className="flex-1 p-4 overflow-hidden">
+      <div className="flex-1 min-h-0 p-1 sm:p-4 overflow-hidden">
         <div
           ref={parentRef}
-          className="relative h-full bg-white rounded-lg shadow-lg border-2 border-gray-300 overflow-hidden"
+          className="relative h-full bg-[#f0f2f5] rounded-lg shadow-lg border border-gray-200 overflow-hidden"
         >
-          <Stage
-            width={dimensions.width}
-            height={dimensions.height}
-            style={{ background: 'white' }}
-          >
-            {/* Static background — listening:false skips hit detection on every frame */}
-            <Layer listening={false}>
-              <Rect x={0} y={0} width={dimensions.width} height={dimensions.height} fill="white" />
-            </Layer>
+          {(() => {
+            // Scale recorded coordinate space to fit the current display size
+            // while preserving aspect ratio (letterboxed on the short axis).
+            const recW = recordedBoardDimsRef.current?.width ?? 0;
+            const recH = recordedBoardDimsRef.current?.height ?? 0;
+            const hasRecordedDims = recW > 0 && recH > 0;
+            const boardScale = hasRecordedDims
+              ? Math.min(dimensions.width / recW, dimensions.height / recH)
+              : 1;
+            const boardOffsetX = hasRecordedDims
+              ? (dimensions.width - recW * boardScale) / 2
+              : 0;
+            const boardOffsetY = hasRecordedDims
+              ? (dimensions.height - recH * boardScale) / 2
+              : 0;
+            return (
+              <Stage
+                width={dimensions.width}
+                height={dimensions.height}
+                style={{ background: '#f0f2f5' }}
+              >
+                {/* Outer background + white board area (letterboxed) */}
+                <Layer listening={false}>
+                  <Rect x={0} y={0} width={dimensions.width} height={dimensions.height} fill="#f0f2f5" />
+                  <Rect
+                    x={boardOffsetX}
+                    y={boardOffsetY}
+                    width={hasRecordedDims ? recW * boardScale : dimensions.width}
+                    height={hasRecordedDims ? recH * boardScale : dimensions.height}
+                    fill="white"
+                  />
+                </Layer>
 
-            {/* Drawing layer — repaints only when renderTick increments */}
-            <Layer listening={false}>
-              {drawn.map((stroke) => (
-                <Line
-                  key={stroke.id}
-                  points={stroke.points}
-                  stroke={stroke.type === 'eraser' ? 'white' : stroke.color}
-                  strokeWidth={stroke.type === 'eraser' ? 20 : 5}
-                  lineCap="round"
-                  lineJoin="round"
-                  tension={0.4}
-                  opacity={stroke.type === 'eraser' ? 1 : 0.9}
-                  globalCompositeOperation={
-                    stroke.type === 'eraser' ? 'destination-out' : 'source-over'
-                  }
-                />
-              ))}
-            </Layer>
-          </Stage>
+                {/* Drawing layer — scaled from recorded coord space to display space */}
+                <Layer
+                  listening={false}
+                  x={boardOffsetX}
+                  y={boardOffsetY}
+                  scaleX={boardScale}
+                  scaleY={boardScale}
+                >
+                  {drawn.map((stroke) => (
+                    <Line
+                      key={stroke.id}
+                      points={stroke.points}
+                      stroke={stroke.type === 'eraser' ? 'white' : stroke.color}
+                      strokeWidth={stroke.type === 'eraser' ? 20 : 5}
+                      lineCap="round"
+                      lineJoin="round"
+                      tension={0.4}
+                      opacity={stroke.type === 'eraser' ? 1 : 0.9}
+                      globalCompositeOperation={
+                        stroke.type === 'eraser' ? 'destination-out' : 'source-over'
+                      }
+                    />
+                  ))}
+                </Layer>
+              </Stage>
+            );
+          })()}
 
           {activeFrame && (
             <div className={`pointer-events-none absolute inset-0 flex justify-center p-2 sm:p-4 ${activeFrame.type.toLowerCase().includes('pdf') ? 'items-start' : 'items-center'}`}>
