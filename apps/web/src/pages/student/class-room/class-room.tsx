@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import studentService, { type StudentSubjectItem } from '@/services/student'
 import toast from 'react-hot-toast'
 import { isStudentRoleData, useAuthContext } from '@/contexts/auth-context'
+import { PlusIcon } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 const StudentClassRoom = () => {
   const { user } = useAuthContext()
@@ -32,11 +34,11 @@ const StudentClassRoom = () => {
 
     if (major.length + minor.length > 0) {
       const byId = new Map<string, StudentSubjectItem>()
-      ;[...major, ...minor].forEach((subject) => {
-        if (!byId.has(subject.subjectId)) {
-          byId.set(subject.subjectId, subject)
-        }
-      })
+        ;[...major, ...minor].forEach((subject) => {
+          if (!byId.has(subject.subjectId)) {
+            byId.set(subject.subjectId, subject)
+          }
+        })
       return Array.from(byId.values())
     }
 
@@ -86,11 +88,15 @@ const StudentClassRoom = () => {
           <People className="text-student-chestnut/75 w-5 h-5" />
           <h2 className="font-Poppins font-medium text-base leading-[100%] text-student-chestnut">Class-Room</h2>
         </div>
-        <div className="flex items-center gap-4 sm:justify-end">
+        <div className="flex items-center gap-4 justify-between md:justify-end">
           <div className="flex items-center gap-1 text-student-chestnut">
             <People className="w-5 h-5" />
-            <span className="font-Poppins font-medium text-sm break-words">{existingClassLabel}</span>
+            <span className="font-Poppins font-medium text-sm break-words">{existingClassLabel} </span>
           </div>
+          <Link to="create" className="inline-flex items-center gap-1.5 bg-[#5C5FEF] text-white rounded-md px-4 py-2 text-sm font-medium hover:bg-[#4B4EDE] transition-colors cursor-pointer">
+            <PlusIcon className="w-4 h-4" />
+            New Class
+          </Link>
         </div>
       </div>
 

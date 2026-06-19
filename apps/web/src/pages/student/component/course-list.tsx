@@ -25,7 +25,7 @@ const CourseList = () => {
         return (
           <div
             key={idx}
-            className="flex flex-col gap-4 rounded-[22px] border border-slate-100 bg-[linear-gradient(180deg,_rgba(255,255,255,0.95),_rgba(243,246,255,0.95))] px-5 py-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_30px_-24px_rgba(79,97,232,0.7)] sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-4 rounded-[22px] border border-slate-100 bg-[linear-gradient(180deg,_rgba(255,255,255,0.95),_rgba(243,246,255,0.95))] px-5 py-5  transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_30px_-24px_rgba(79,97,232,0.7)] sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="flex items-center gap-3">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-slate-100">

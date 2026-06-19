@@ -136,7 +136,7 @@ const StudentSideBar = () => {
             className={[
                 "hidden lg:flex flex-col bg-white h-full border-r border-[#3A3A3A1A] transition-all duration-300 overflow-hidden",
                 "shadow-[0_15px_20px_0_rgba(41,35,130,0.1)]",
-                isCollapsed ? "w-[72px]" : "w-[252px]",
+                isCollapsed ? "w-[100px]" : "w-[252px]",
             ].join(" ")}
         >
             {/* Header */}
@@ -148,13 +148,13 @@ const StudentSideBar = () => {
             >
                 {isCollapsed ? (
                     <button
-                        type="button"
-                        onClick={() => setIsCollapsed(false)}
-                        className="cursor-pointer hover:opacity-80 transition-opacity"
-                        aria-label="Expand sidebar"
-                    >
-                        <B_2 className="size-8" />
-                    </button>
+                            type="button"
+                            onClick={() => setIsCollapsed(false)}
+                            className="cursor-pointer hover:opacity-80 transition-opacity shrink-0"
+                            aria-label="Collapse sidebar"
+                        >
+                            <FamiconsChevron />
+                        </button>
                 ) : (
                     <>
                         <BluethubLogo />
@@ -240,8 +240,15 @@ export const MobileStudentNav = ({ isOpen, setIsOpen }: IMobileStudentNav) => {
                 ].join(" ")}
             >
                 {/* Header */}
-                <>
-                    <BluethubLogo />
+                <div className="flex items-center justify-between px-4 py-4 border-b-2 border-[#3A3A3A33] shrink-0">
+                    <button
+                        type="button"
+                        // onClick={() => setIsCollapsed(false)}
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                        aria-label="Expand sidebar"
+                    >
+                        <B_2 className="size-8" />
+                    </button>
                     <button
                         type="button"
                         className="cursor-pointer hover:opacity-80 transition-opacity shrink-0"
@@ -249,7 +256,7 @@ export const MobileStudentNav = ({ isOpen, setIsOpen }: IMobileStudentNav) => {
                     >
                         <FamiconsChevron />
                     </button>
-                </>
+                </div>
 
                 {/* Scrollable nav — same StudentNavContent, never collapsed */}
                 <div
