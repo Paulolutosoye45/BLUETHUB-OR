@@ -631,6 +631,7 @@ const SubmitLesson = () => {
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [serverDraftSaved, setServerDraftSaved] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
+  const [attachedQuizId, setAttachedQuizId] = useState<string | null>(null);
 
   // ── Draft Logic ──
   useEffect(() => {
@@ -1103,6 +1104,11 @@ const SubmitLesson = () => {
       return;
     }
     debugLog("Opening quiz modal");
+    // If a quiz code was already attached, submit directly without re-opening the modal
+    if (attachedQuizId !== null) {
+      void handleConfirmSubmit(attachedQuizId);
+      return;
+    }
     setShowQuizModal(true);
   };
 
@@ -1627,32 +1633,50 @@ const SubmitLesson = () => {
                   )}
                 </Button>
                 {/* Submit — requires form complete + media uploaded */}
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!canSubmit}
-                  className={cn(
-                    "rounded-xl px-6 h-11 font-semibold text-white transition-all min-w-[160px]",
-                    canSubmit
-                      ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/25"
-                      : "bg-gray-300 cursor-not-allowed"
+                <div className="flex flex-col items-end gap-2">
+                  {attachedQuizId && (
+                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-1.5 text-sm">
+                      <BookOpen className="w-4 h-4 text-blue-600 shrink-0" />
+                      <span className="text-blue-700 font-semibold tracking-wide">{attachedQuizId}</span>
+                      <button
+                        type="button"
+                        onClick={() => setAttachedQuizId(null)}
+                        className="ml-1 text-blue-400 hover:text-blue-700 transition-colors"
+                        title="Remove quiz"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
-                  title={!canSubmit && !formValid
-                    ? "Fill all required fields first"
-                    : !canSubmit && hasPendingUploads
-                      ? "Wait for uploads to finish"
-                      : !canSubmit && hasUploadErrors
-                        ? "Fix or remove failed uploads"
-                        : ""}
-                >
-                  {isSubmitting ? (
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Submitting...
-                    </span>
-                  ) : (
-                    "Submit for Approval"
-                  )}
-                </Button>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!canSubmit}
+                    className={cn(
+                      "rounded-xl px-6 h-11 font-semibold text-white transition-all min-w-[160px]",
+                      canSubmit
+                        ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg shadow-blue-500/25"
+                        : "bg-gray-300 cursor-not-allowed"
+                    )}
+                    title={!canSubmit && !formValid
+                      ? "Fill all required fields first"
+                      : !canSubmit && hasPendingUploads
+                        ? "Wait for uploads to finish"
+                        : !canSubmit && hasUploadErrors
+                          ? "Fix or remove failed uploads"
+                          : ""}
+                  >
+                    {isSubmitting ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Submitting...
+                      </span>
+                    ) : attachedQuizId ? (
+                      "Submit with Quiz"
+                    ) : (
+                      "Submit for Approval"
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -1691,38 +1715,46 @@ const SubmitLesson = () => {
               )}
             </button>
             {/* Mobile Submit — requires form + media */}
-            <button
-              onClick={handleSubmit}
-              disabled={!canSubmit}
-              className={cn(
-                "flex-[2] h-12 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all",
-                canSubmit
-                  ? "bg-gradient-to-r from-blue-600 to-blue-700 active:from-blue-700 active:to-blue-800 shadow-lg shadow-blue-500/25"
-                  : "bg-gray-300 cursor-not-allowed"
+            <div className="flex-[2] flex flex-col gap-1">
+              {attachedQuizId && (
+                <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-3 py-1.5 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                    <span className="text-blue-700 font-semibold tracking-wide">{attachedQuizId}</span>
+                  </div>
+                  <button type="button" onClick={() => setAttachedQuizId(null)} className="text-blue-400 hover:text-blue-700">
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
               )}
-              title={!canSubmit && !formValid
-                ? "Fill all required fields first"
-                : !canSubmit && hasPendingUploads
-                  ? "Wait for uploads to finish"
-                  : !canSubmit && hasUploadErrors
-                    ? "Fix or remove failed uploads"
-                    : ""}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : !formValid ? (
-                "Fill all fields"
-              ) : hasPendingUploads ? (
-                "Uploading files..."
-              ) : hasUploadErrors ? (
-                "Fix uploads"
-              ) : (
-                "Submit for Approval"
-              )}
-            </button>
+              <button
+                onClick={handleSubmit}
+                disabled={!canSubmit}
+                className={cn(
+                  "w-full h-12 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-2 transition-all",
+                  canSubmit
+                    ? "bg-gradient-to-r from-blue-600 to-blue-700 active:from-blue-700 active:to-blue-800 shadow-lg shadow-blue-500/25"
+                    : "bg-gray-300 cursor-not-allowed"
+                )}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : attachedQuizId ? (
+                  "Submit with Quiz"
+                ) : !formValid ? (
+                  "Fill all fields"
+                ) : hasPendingUploads ? (
+                  "Uploading files..."
+                ) : hasUploadErrors ? (
+                  "Fix uploads"
+                ) : (
+                  "Submit for Approval"
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1733,7 +1765,7 @@ const SubmitLesson = () => {
         subjectLabel={subjectLabel}
         classroomLabel={classroomLabel}
         onSkip={() => handleConfirmSubmit(null)}
-        onConfirm={(id) => handleConfirmSubmit(id)}
+        onConfirm={(id) => { setAttachedQuizId(id); setShowQuizModal(false); }}
         onDismiss={() => setShowQuizModal(false)}
         isSubmitting={isSubmitting}
       />

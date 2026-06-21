@@ -5,17 +5,16 @@ import { useNavigate } from "react-router-dom";
 import type { StudentPublishedLesson } from "@/services/student";
 import enginerring from "@/assets/png/engineering.png";
 import { useMemo, useState } from "react";
+import QuizAttemptPanel from "../../component/quiz-attempt-panel";
 
 interface VideoLessonCardProps {
     lesson: StudentPublishedLesson;
 }
 
-const VideoLessonCard = ({
-    lesson,
-}: VideoLessonCardProps) => {
-
+const VideoLessonCard = ({ lesson }: VideoLessonCardProps) => {
     const navigate = useNavigate()
     const [showMediaPanel, setShowMediaPanel] = useState(false);
+    const [showQuizPanel, setShowQuizPanel] = useState(false);
     const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 
     const mediaFiles = useMemo(
@@ -59,23 +58,11 @@ const VideoLessonCard = ({
         }
 
         if (activeMediaType.includes("video") || activeMediaExtension === "mp4" || activeMediaExtension === "webm") {
-            return (
-                <video
-                    controls
-                    className="h-64 w-full rounded-xl bg-black"
-                    src={activeMedia.url}
-                />
-            );
+            return <video controls className="h-64 w-full rounded-xl bg-black" src={activeMedia.url} />;
         }
 
         if (activeMediaType.includes("image") || ["jpg", "jpeg", "png", "webp", "gif"].includes(activeMediaExtension)) {
-            return (
-                <img
-                    src={activeMedia.url}
-                    alt={activeMedia.mediaName}
-                    className="h-64 w-full rounded-xl object-cover"
-                />
-            );
+            return <img src={activeMedia.url} alt={activeMedia.mediaName} className="h-64 w-full rounded-xl object-cover" />;
         }
 
         if (activeMediaType.includes("pdf") || activeMediaExtension === "pdf") {
@@ -104,11 +91,7 @@ const VideoLessonCard = ({
         <div className="group rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,_#ffffff_0%,_#f9fbff_100%)] px-4 py-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_40px_-34px_rgba(79,97,232,0.65)]">
             <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
                 <div className="relative h-28 w-full overflow-hidden rounded-[14px] md:h-24 md:w-38">
-                    <img
-                        src={enginerring}
-                        alt={lesson.topicName}
-                        className="h-full w-full rounded-[14px] object-cover"
-                    />
+                    <img src={enginerring} alt={lesson.topicName} className="h-full w-full rounded-[14px] object-cover" />
                     <span className="absolute bottom-2 right-2 rounded-full bg-black/75 px-2.5 py-1 text-[11px] font-medium text-white">
                         {durationLabel}
                     </span>
@@ -124,11 +107,14 @@ const VideoLessonCard = ({
                                 Approved by {lesson.approvedByName}
                             </span>
                         )}
+                        {lesson.quizId && (
+                            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+                                Quiz attached
+                            </span>
+                        )}
                     </div>
 
-                    <h3 className="text-base font-semibold text-slate-900">
-                        {lesson.topicName}
-                    </h3>
+                    <h3 className="text-base font-semibold text-slate-900">{lesson.topicName}</h3>
                     <p className="text-sm leading-6 text-slate-600">
                         {lesson.description || lesson.aim || "No description available."}
                     </p>
@@ -143,9 +129,9 @@ const VideoLessonCard = ({
                     </div>
 
                     <div className="flex items-center gap-1 text-xs font-medium text-slate-500">
-                    <Clock className="w-4 h-4" />
-                    <span>{lesson.subTopic || "Sub-topic"}</span>
-                </div>
+                        <Clock className="w-4 h-4" />
+                        <span>{lesson.subTopic || "Sub-topic"}</span>
+                    </div>
 
                     <div className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
                         Duration: {lessonDuration}
@@ -161,7 +147,7 @@ const VideoLessonCard = ({
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <Button
                         onClick={() =>
                             navigate(`/student/recorded-class/${lesson.id}/watch`, {
@@ -177,15 +163,30 @@ const VideoLessonCard = ({
                         variant="outline"
                         onClick={() => {
                             setShowMediaPanel((prev) => !prev);
+                            if (showQuizPanel) setShowQuizPanel(false);
                             setActiveMediaIndex(0);
                         }}
                         className="rounded-full border border-student-chestnut/30 bg-[#F3F4FF] px-4 py-2 text-sm font-medium text-student-chestnut hover:bg-[#E8EAFF]"
                     >
                         Lesson media files
                     </Button>
+
+                    {lesson.quizId && (
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setShowQuizPanel((prev) => !prev);
+                                if (showMediaPanel) setShowMediaPanel(false);
+                            }}
+                            className="rounded-full border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100"
+                        >
+                            {showQuizPanel ? "Hide Quiz" : "Take Quiz"}
+                        </Button>
+                    )}
                 </div>
             </div>
 
+            {/* ── Media files panel ─────────────────────────────────────────── */}
             {showMediaPanel && (
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4">
                     <div className="mb-3 flex items-center justify-between">
@@ -219,7 +220,8 @@ const VideoLessonCard = ({
                                     >
                                         <p className="text-sm font-semibold text-slate-800">{media.mediaName}</p>
                                         <p className="mt-1 text-xs text-slate-500">
-                                            {(media.mediaType ?? media.fileExtension ?? "File")} {media.fileSizeBytes ? `• ${(media.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB` : ""}
+                                            {media.mediaType ?? media.fileExtension ?? "File"}{" "}
+                                            {media.fileSizeBytes ? `• ${(media.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB` : ""}
                                         </p>
                                     </button>
                                 ))}
@@ -231,6 +233,23 @@ const VideoLessonCard = ({
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {/* ── Quiz attempt panel ────────────────────────────────────────── */}
+            {showQuizPanel && lesson.quizId && (
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/40 p-3 sm:p-4">
+                    <div className="mb-4 flex items-center justify-between">
+                        <p className="text-sm font-semibold text-amber-800">Lesson Quiz</p>
+                        <button
+                            type="button"
+                            onClick={() => setShowQuizPanel(false)}
+                            className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 hover:text-slate-700"
+                        >
+                            Close
+                        </button>
+                    </div>
+                    <QuizAttemptPanel lessonId={lesson.id} onClose={() => setShowQuizPanel(false)} />
                 </div>
             )}
         </div>

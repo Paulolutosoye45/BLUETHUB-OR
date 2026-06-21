@@ -45,10 +45,12 @@ import StudentClassRoom from '@/pages/student/class-room/class-room';
 import CreateclassRoom from '@/pages/student/class-room/create-class-room';
 import WatchClass from '@/pages/student/class/watch-class';
 import StudentReplay from '@/pages/student/class/student-replay';
+import StudentQuizzes from '@/pages/student/quizzes';
 import Assessment from '@/pages/teacher/component/assessment';
 import CreateQuizQuestion from '@/pages/teacher/component/create-quiz';
 import TopicQuestionList from '@/pages/teacher/component/topic-question-list';
 import SubtopicQuestionList from '@/pages/teacher/component/subtopic-question-list';
+import GenerateQuiz from '@/pages/teacher/component/generate-quiz';
 import Login from '@/pages/auth/login';
 import NewPassword from '@/pages/auth/new-password';
 import AdminProtectedRoute from '@/component/protected-routes/admin-routes';
@@ -252,6 +254,7 @@ const router = createBrowserRouter([
             { path: "assessment/createQuiz", element: <CreateQuizQuestion /> },
             { path: "assessment/questionlist", element: <TopicQuestionList /> },
             { path: "assessment/questionlist/subtopic", element: <SubtopicQuestionList /> },
+            { path: "assessment/generate-quiz", element: <GenerateQuiz /> },
             { path: "assessment/upload-scan", element: <UploadScan /> },
             { path: "assessment/review", element: <ReviewQuestion /> },
             { path: "assessments/My-Uploads", element: <MyUploads /> },
@@ -306,6 +309,7 @@ const router = createBrowserRouter([
             { path: "Settings", element: <StudentSettings /> },
             { path: "recorded-class/:classId/watch", element: <WatchClass /> },
             { path: "recorded-class/:classId/replay", element: <StudentReplay /> },
+            { path: "Quizzes", element: <StudentQuizzes /> },
         ],
     },
 

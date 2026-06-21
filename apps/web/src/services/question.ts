@@ -313,7 +313,7 @@ export const questionService = {
   // ── CREATE ─────────────────────────────────────────────────────────────────
   createQuestion: (payload: CreateQuestionPayload) =>
     API.post<TResponse<CreateQuestionResponseData>>(
-      "api/Question/createquestions",
+      "api/questions/createquestions",
       payload,
       {
         headers: { "X-Tenant-ID": X_Tenant_ID },
@@ -329,12 +329,36 @@ export const questionService = {
       subjectId?: string;
       topicId?: string;
       subTopicIds?: string[];
+      questionType?: number;
+      difficultyLevel?: number;
+      status?: number;
+      searchText?: string;
+      includePendingReview?: boolean;
+      scanSessionId?: string;
+    },
+  ) =>
+    API.post<TResponse<QuestionListResponseData>>(
+      `api/questions/classroom/${classroomId}/questions`,
+      filter ?? {},
+      {
+        headers: { "X-Tenant-ID": X_Tenant_ID },
+      },
+    ),
+
+  getQuestionsByClassroomSubjectTopic: (
+    classroomId: string,
+    subjectId: string,
+    topicId: string,
+    filter?: {
+      page?: number;
+      pageSize?: number;
+      subTopicIds?: string[];
       status?: number;
       searchText?: string;
     },
   ) =>
     API.get<TResponse<QuestionListResponseData>>(
-      `api/Question/classroom/${classroomId}/questions`,
+      `api/questions/classroom/${classroomId}/subject/${subjectId}/topic/${topicId}`,
       {
         params: filter,
         headers: { "X-Tenant-ID": X_Tenant_ID },
@@ -347,7 +371,7 @@ export const questionService = {
     subTopicId?: string,
   ) =>
     API.get<TResponse<SubjectQuestionSummaryResponseData>>(
-      `api/Question/classroom/${classroomId}/subject/${subjectId}/summary`,
+      `api/questions/classroom/${classroomId}/subject/${subjectId}/summary`,
       {
         params: subTopicId ? { subTopicId } : undefined,
         headers: { "X-Tenant-ID": X_Tenant_ID },

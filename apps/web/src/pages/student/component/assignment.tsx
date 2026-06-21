@@ -4,7 +4,7 @@ import AssignmentList from "./assignment-list"
 
 const Assignment = () => {
   return (
-    <div className="overflow-hidden rounded-[26px] border border-white/75 bg-white/82 shadow-[0_22px_55px_-34px_rgba(15,23,42,0.28)] backdrop-blur-sm">
+    <div className="overflow-hidden rounded-md border border-white/75 bg-white/82">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
           <div>
             <h2 className="font-poppins text-lg font-semibold text-slate-900 capitalize">Recent Assignments</h2>

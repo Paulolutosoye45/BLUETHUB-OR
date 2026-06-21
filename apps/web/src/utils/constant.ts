@@ -208,17 +208,21 @@ export interface IActions {
   totalBatches: number;
   batches: IBatch[];
   boardSwitchTimeline?: Array<{ timestampMs: number; toBoard: number }>;
+  /** Dimensions of the teacher's board at recording time. Used by the replay
+   *  player to scale strokes proportionally onto any display size. */
+  recordedBoardDimensions?: { width: number; height: number };
 }
 
 export const MEDIA_STORAGE_KEY = "MEDIA_INSTANCES";
 
 export const DB_NAME = "BluethubClassroom";
-export const DB_VERSION = 7;
+export const DB_VERSION = 8;
 export const STORE_CLASS = "CLASS";
 export const STORE_AUDIO = "Audio";
 export const STORE_SESSIONS = "Sessions";
 export const STORE_AUDIO_CHUNKS = "AudioChunks";
 export const STORE_STROKE_BATCHES = "StrokeBatches";
+export const STORE_REPLAY_CACHE = "ReplayCache";
 
 // ── Sync Status Types ─────────────────────────────────────────────────────────
 
@@ -385,7 +389,22 @@ export interface LocalStrokeBatch {
   indexKey?: string;
 }
 
-// ── Session Manifest (for upload to backend) ──────────────────────────────────
+// ── Replay Download Cache ─────────────────────────────────────────────────────
+// Tracks which items have been downloaded for a given session so that
+// interrupted downloads can be resumed and corrupted audio can be re-fetched.
+
+export interface ReplayDownloadCache {
+  id: string;                   // primary key = sessionId
+  sessionId: string;
+  version: string;              // bump this string to invalidate the cache
+  // NOTE: manifestJson was removed — it was blob-backed by Chrome IDB when
+  // large (>64 KB), causing "Failed to write blobs" on every download attempt.
+  // The manifest is now always fetched fresh from the API (lightweight call).
+  downloadedBatches: string[];  // batchRef.indexKey values already in IDB
+  downloadedAudioChunks: number[]; // chunk.index values whose audio blob is valid
+  createdAt: number;            // Date.now()
+  updatedAt: number;
+}
 
 export interface SessionManifest {
   version: string;

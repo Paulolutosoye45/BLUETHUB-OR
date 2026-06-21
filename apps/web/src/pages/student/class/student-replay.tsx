@@ -10,9 +10,15 @@ import {
   addAudio,
   addStrokes,
   deleteAudioBySession,
+  deleteAudioById,
   deleteClassBySession,
   getAudioBySession,
   getClassBySession,
+  getReplayDownloadCache,
+  saveReplayDownloadCache,
+  deleteReplayDownloadCache,
+  freeDiskSpace,
+  isStorageFullError,
 } from "@/utils/db";
 import type { AudioBatch, IActions, IBatch } from "@/utils/constant";
 import type { MediaType } from "@/utils/constant";
@@ -180,12 +186,49 @@ const buildReplayBatches = (manifest: SessionManifestPayload): IActions => {
     totalBatches: batches.length,
     batches,
     boardSwitchTimeline: boardSwitchTimeline.length > 0 ? boardSwitchTimeline : undefined,
+    // Pass the teacher's recording dimensions so the replay player can scale
+    // strokes proportionally onto any display size (mobile, tablet, laptop).
+    recordedBoardDimensions: (() => {
+      const b = manifest.boards?.find(
+        (bd) => (bd.dimensions?.width ?? 0) > 0 && (bd.dimensions?.height ?? 0) > 0
+      );
+      return b ? { width: b.dimensions.width, height: b.dimensions.height } : undefined;
+    })(),
   };
 };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface LocationState { sessionId?: string; lessonId?: string; }
+
+// Bump this string to invalidate all cached replay downloads.
+// "4" switches to IDB-based per-item tracking with resume/retry support.
+// Bump this when the IDB schema or stored data format changes.
+// "5" — removed manifestJson from ReplayDownloadCache (Chrome IDB blob-backing fix).
+// "6" — stroke timing v1: used raw wall-clock delta; caused board-ahead regression.
+// "7" — stroke timing v2: board-clock "MM:SS" is the authoritative global time;
+//        board-timer head-start (timerOffset) is estimated per-batch from the
+//        median (clockToMs(startTime) − (timestamp − sessionStartWallMs)) and
+//        subtracted, making strokes session-relative to match the audio timeline.
+const REPLAY_DATA_VERSION = "7";
+
+// Audio blobs smaller than this are considered corrupted and will be re-fetched.
+const MIN_AUDIO_BLOB_SIZE = 1000; // bytes
+
+/** Persist the processed replay manifest to localStorage for the player. */
+const setupReplayLocalStorage = (
+  manifest: SessionManifestPayload,
+  sessionId: string,
+  sessionStartWallMs: number,
+) => {
+  const replayManifest = buildReplayBatches(manifest);
+  localStorage.setItem("currentBatches", JSON.stringify(replayManifest));
+  localStorage.setItem("replaySessionId", sessionId);
+  localStorage.setItem("sessionStartWallMs", String(sessionStartWallMs));
+  localStorage.setItem("sessionStartSessionId", sessionId);
+  localStorage.setItem("recordingStartTimerMs", "0");
+  localStorage.setItem("recordingStartSessionId", sessionId);
+};
 
 const StudentReplay = () => {
   const { classId } = useParams<{ classId: string }>();
@@ -199,97 +242,253 @@ const StudentReplay = () => {
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState("Checking cached data…");
   const [error, setError] = useState<string | null>(null);
+  const [isClearing, setIsClearing] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
+
+  const clearAllAndRetry = async () => {
+    setIsClearing(true);
+    try {
+      // Free Cache API space first (works even when IDB can't open due to full disk)
+      await freeDiskSpace();
+      // Then try to clean IDB data for this session
+      await Promise.allSettled([
+        deleteAudioBySession(sessionId),
+        deleteClassBySession(sessionId),
+        deleteReplayDownloadCache(sessionId),
+      ]);
+    } finally {
+      setIsClearing(false);
+      setError(null);
+      setProgress(0);
+      setIsReady(false);
+      setStatusText("Checking cached data…");
+      setRetryKey(k => k + 1);
+    }
+  };
 
   useEffect(() => {
     if (!sessionId) { setError("Missing session ID."); return; }
+
+    // Reset all display state so a retry (retryKey increment) starts fresh.
+    setError(null);
+    setProgress(0);
+    setIsReady(false);
+    setStatusText("Checking cached data…");
 
     let cancelled = false;
 
     const prepare = async () => {
       try {
-        // ── Fast path: data already cached from WatchClass ────────────────
-        // Version key: bumped to "3" to evict cached audio that may include
-        // phantom batches for empty sub-segments (sizeBytes=0) that were
-        // downloaded before the skip-empty-chunks fix was applied.
-        const REPLAY_DATA_VERSION = "3";
-        const cachedVersion = localStorage.getItem(`replayDataVersion_${sessionId}`);
+        setStatusText("Checking cached data…");
+        setProgress(2);
 
-        const [cachedAudio, cachedStrokes] = await Promise.all([
-          getAudioBySession(sessionId),
-          getClassBySession(sessionId),
-        ]);
-
-        if (cachedAudio.length > 0 && cachedStrokes.length > 0 && cachedVersion === REPLAY_DATA_VERSION) {
-          // IDB data is valid. Still re-fetch the manifest to regenerate
-          // currentBatches — this is a cheap JSON call that ensures media
-          // event timing in localStorage is always fresh (never stale from
-          // old code or a previous watch-class.tsx run).
-          const fastManifest = await boardSessionService.getStudentManifest(sessionId);
-          if (fastManifest) {
-            const fastReplayManifest = buildReplayBatches(fastManifest);
-            localStorage.setItem("currentBatches", JSON.stringify(fastReplayManifest));
-            const fastStartWallMs = fastManifest.session?.recordedAt
-              ? new Date(fastManifest.session.recordedAt).getTime()
-              : Date.now();
-            localStorage.setItem("sessionStartWallMs", String(fastStartWallMs));
-            localStorage.setItem("sessionStartSessionId", sessionId);
-            localStorage.setItem("recordingStartTimerMs", "0");
-            localStorage.setItem("recordingStartSessionId", sessionId);
-          }
-          localStorage.setItem("replaySessionId", sessionId);
-          if (!cancelled) setIsReady(true);
-          return;
+        // ── Storage check ─────────────────────────────────────────────────────
+        // Detect near-full storage before any IDB/download work so we can give
+        // an actionable error rather than a cryptic IDB failure mid-download.
+        if (navigator.storage?.estimate) {
+          try {
+            const est = await navigator.storage.estimate();
+            const available = (est.quota ?? 0) - (est.usage ?? 0);
+            if (available > 0 && available < 15 * 1024 * 1024) {
+              // Less than 15 MB left — proactively free Cache API space.
+              console.warn('[StudentReplay] Storage critically low (', Math.round(available / 1024 / 1024), 'MB) — freeing cache...');
+              await freeDiskSpace();
+            }
+          } catch { /* estimate is best-effort */ }
         }
 
-        // ── Slow path: fetch from API ─────────────────────────────────────
+        // ── Load download state from IDB ──────────────────────────────────
+        // The ReplayDownloadCache record tracks which stroke batches and audio
+        // chunks have already been successfully stored in IDB so that an
+        // interrupted download can be resumed without re-fetching everything.
+        const dlCache = await getReplayDownloadCache(sessionId);
+
+        // ── Resolve manifest (always fetch fresh from API) ────────────────
+        // manifestJson was removed from ReplayDownloadCache because Chrome IDB
+        // blob-backs values larger than ~64 KB, causing "Failed to write blobs"
+        // at the very start of every download. The manifest API call is
+        // lightweight (metadata / references only, not stroke data).
         if (!cancelled) { setStatusText("Downloading session manifest…"); setProgress(5); }
-
-        // Clean any stale partial data
-        await Promise.all([deleteAudioBySession(sessionId), deleteClassBySession(sessionId)]);
-
         const manifest = await boardSessionService.getStudentManifest(sessionId);
         if (!manifest) throw new Error("Replay manifest not found for this session.");
 
-        const sessionStartWallMs = (manifest as { session?: { recordedAt?: string } }).session?.recordedAt
-          ? new Date((manifest as { session: { recordedAt: string } }).session.recordedAt).getTime()
+        // Clear stale IDB data when the cache version changed
+        if (dlCache && dlCache.version !== REPLAY_DATA_VERSION) {
+          await Promise.allSettled([
+            deleteAudioBySession(sessionId),
+            deleteClassBySession(sessionId),
+            deleteReplayDownloadCache(sessionId),
+          ]);
+        }
+
+        // Save a lightweight progress record (IDs + arrays only — no large JSON)
+        try {
+          await saveReplayDownloadCache({
+            id: sessionId,
+            sessionId,
+            version: REPLAY_DATA_VERSION,
+            downloadedBatches: dlCache?.version === REPLAY_DATA_VERSION ? (dlCache.downloadedBatches ?? []) : [],
+            downloadedAudioChunks: dlCache?.version === REPLAY_DATA_VERSION ? (dlCache.downloadedAudioChunks ?? []) : [],
+            createdAt: dlCache?.createdAt ?? Date.now(),
+            updatedAt: Date.now(),
+          });
+        } catch (cacheInitErr) {
+          // Non-fatal — downloads proceed; resumable tracking just won't work.
+          console.warn('[StudentReplay] Could not initialise download cache:', cacheInitErr);
+        }
+
+        const sessionStartWallMs = manifest.session?.recordedAt
+          ? new Date(manifest.session.recordedAt).getTime()
           : Date.now();
 
-        const replayManifest = buildReplayBatches(manifest);
-        localStorage.setItem("currentBatches", JSON.stringify(replayManifest));
-        localStorage.setItem("replaySessionId", sessionId);
-        localStorage.setItem("sessionStartWallMs", String(sessionStartWallMs));
-        localStorage.setItem("sessionStartSessionId", sessionId);
-        localStorage.setItem("recordingStartTimerMs", "0");
-        localStorage.setItem("recordingStartSessionId", sessionId);
+        // ── Determine what is already in IDB ─────────────────────────────
+        const [existingStrokes, existingAudio] = await Promise.all([
+          getClassBySession(sessionId),
+          getAudioBySession(sessionId),
+        ]);
 
-        const total = manifest.strokeBatches.length + manifest.chunks.length + manifest.mediaAssets.length + 1;
-        let done = 1; // manifest counts as 1
+        // Batches whose indexKey appears in the cache are already in STORE_CLASS.
+        const downloadedBatchKeys = new Set<string>(
+          dlCache?.version === REPLAY_DATA_VERSION ? (dlCache.downloadedBatches ?? []) : []
+        );
+
+        // Audio by chunk index; blobs smaller than MIN_AUDIO_BLOB_SIZE are corrupted.
+        const audioByChunkIndex = new Map<number, AudioBatch>(
+          existingAudio.map(a => [a.batchId, a])
+        );
+
+        const batchesToDownload = manifest.strokeBatches.filter(
+          b => !downloadedBatchKeys.has(b.indexKey)
+        );
+        const chunksToDownload = manifest.chunks.filter(c => {
+          if (c.audio.sizeBytes === 0) return false; // server uploaded nothing
+          const existing = audioByChunkIndex.get(c.index);
+          return !existing || existing.blob.size < MIN_AUDIO_BLOB_SIZE;
+        });
+
+        // ── Fast path: everything already downloaded ──────────────────────
+        // Log a warning when the server reports audio data but no chunk URLs —
+        // this is a backend data inconsistency (audio on Cloudinary but chunk
+        // records missing from the manifest).
+        if (manifest.chunks.length === 0 && (manifest.stats?.totalAudioSizeBytes ?? 0) > 0) {
+          console.warn(
+            '[StudentReplay] Manifest has no audio chunks but totalAudioSizeBytes > 0.',
+            'Audio will not play for this session. This is a server-side data issue.',
+            { totalAudioSizeBytes: manifest.stats?.totalAudioSizeBytes, chunkCount: manifest.stats?.chunkCount },
+          );
+        }
+
+        if (
+          batchesToDownload.length === 0 &&
+          chunksToDownload.length === 0 &&
+          existingStrokes.length > 0
+        ) {
+          setupReplayLocalStorage(manifest, sessionId, sessionStartWallMs);
+          if (!cancelled) { setProgress(100); setIsReady(true); }
+          return;
+        }
+
+        // ── Status message ────────────────────────────────────────────────
+        const corruptedCount = chunksToDownload.filter(c => audioByChunkIndex.has(c.index)).length;
+        if (corruptedCount > 0) {
+          setStatusText(`Re-downloading ${corruptedCount} corrupted audio chunk(s)…`);
+        } else if (batchesToDownload.length > 0) {
+          setStatusText("Downloading board data…");
+        }
+
+        const totalItems = batchesToDownload.length + chunksToDownload.length +
+          manifest.mediaAssets.length + 1;
+        let doneItems = 1;
+
+        // Running sets — updated locally after each item, then persisted to IDB
+        const persistedBatches = new Set<string>(downloadedBatchKeys);
+        const persistedAudioChunks = new Set<number>(
+          dlCache?.version === REPLAY_DATA_VERSION ? (dlCache.downloadedAudioChunks ?? []) : []
+        );
+        const persistProgress = async () => {
+          try {
+            await saveReplayDownloadCache({
+              id: sessionId,
+              sessionId,
+              version: REPLAY_DATA_VERSION,
+              downloadedBatches: Array.from(persistedBatches),
+              downloadedAudioChunks: Array.from(persistedAudioChunks),
+              createdAt: dlCache?.createdAt ?? Date.now(),
+              updatedAt: Date.now(),
+            });
+          } catch (persistErr) {
+            // Non-fatal: progress tracking is best-effort.
+            console.warn('[StudentReplay] persistProgress failed (resumable download may not work):', persistErr);
+          }
+        };
 
         // ── Stroke batches ────────────────────────────────────────────────
-        for (const batchRef of manifest.strokeBatches) {
+        for (const batchRef of batchesToDownload) {
           if (cancelled) return;
 
           const batch = await boardSessionService.getBatchByIndexKey(sessionId, batchRef.indexKey);
-          if (!batch) continue;
+          if (!batch) {
+            // Batch missing from server — skip without marking as done so it
+            // retries on the next visit.
+            continue;
+          }
 
           const batchStartMs = Math.max(0, batchRef.startMs ?? batch.startMs ?? 0);
           const batchEndMs = Math.max(batchStartMs + 1000, batchRef.endMs ?? batch.endMs ?? batchStartMs + 60000);
           const batchWindowMs = Math.max(1000, batchEndMs - batchStartMs);
 
           const sorted = [...batch.strokes].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
-          const validTs = sorted.map((s) => s.timestamp).filter((t): t is number => typeof t === "number" && Number.isFinite(t));
+          const validTs = sorted.map(s => s.timestamp).filter((t): t is number => typeof t === "number" && Number.isFinite(t));
           const minTs = validTs.length > 0 ? Math.min(...validTs) : null;
           const maxTs = validTs.length > 0 ? Math.max(...validTs) : null;
 
+          // ── Estimate the board-timer head-start (timerOffset) for this batch ──
+          //
+          // stroke.startTime = "MM:SS" board-clock value at mousedown.
+          // This includes any time the board timer ran BEFORE the teacher clicked
+          // "Start Recording" (timerOffset). Audio chunks use session-relative ms
+          // (0-based from recording start), so strokes must also be 0-based.
+          //
+          // timerOffset = clockToMs(startTime) - (timestamp - sessionStartWallMs)
+          //             = boardTimerMs - sessionElapsedMs
+          //
+          // We compute this for each stroke that has a valid absolute timestamp
+          // (timestamp >> sessionStartWallMs i.e. a real wall-clock value) and take
+          // the median to filter any noisy outliers.
+          const timerOffsetSamples: number[] = [];
+          for (const s of sorted) {
+            if (typeof s.timestamp !== "number" || !Number.isFinite(s.timestamp)) continue;
+            const wallMs = s.timestamp - sessionStartWallMs;
+            // Only trust timestamps that look like real wall-clock values
+            // (positive, and within the session window plus a generous 5-min buffer).
+            if (wallMs < 0 || wallMs > batchEndMs + 300_000) continue;
+            const clockMs = clockToMs(s.startTime);
+            if (!Number.isFinite(clockMs)) continue;
+            const diff = clockMs - wallMs;  // should equal timerOffset
+            if (diff >= 0 && diff < 3_600_000) timerOffsetSamples.push(diff);
+          }
+          timerOffsetSamples.sort((a, b) => a - b);
+          const estimatedTimerOffset = timerOffsetSamples.length > 0
+            ? timerOffsetSamples[Math.floor(timerOffsetSamples.length / 2)]
+            : 0;
+
           const normalized = sorted.map((stroke, index) => {
             const duration = Math.max(50, stroke.duration ?? 0);
-            const providedStart = clockToMs(stroke.startTime);
-            const inWindow = Number.isFinite(providedStart) &&
-              providedStart >= batchStartMs - 2000 && providedStart <= batchEndMs + 2000;
+
+            // Use the board-clock "MM:SS" value as the authoritative global time,
+            // then subtract the estimated timerOffset so the result is
+            // session-relative (0-based from when recording actually started).
+            // This matches the audio chunk timeline where chunk N starts at N*60000 ms.
+            // Falls back gracefully to the raw timer value when offset estimation
+            // produced no valid samples (same behaviour as before this fix).
+            const candidateStart = clockToMs(stroke.startTime) - estimatedTimerOffset;
+
+            const inWindow = Number.isFinite(candidateStart) &&
+              candidateStart >= batchStartMs - 2000 && candidateStart <= batchEndMs + 2000;
 
             let alignedStart: number;
             if (inWindow) {
-              alignedStart = providedStart;
+              alignedStart = candidateStart;
             } else if (minTs !== null && maxTs !== null && maxTs > minTs && typeof stroke.timestamp === "number") {
               const ratio = (stroke.timestamp - minTs) / (maxTs - minTs);
               alignedStart = batchStartMs + Math.round(ratio * Math.max(0, batchWindowMs - duration));
@@ -298,11 +497,9 @@ const StudentReplay = () => {
             }
             alignedStart = Math.max(batchStartMs, Math.min(alignedStart, Math.max(batchStartMs, batchEndMs - duration)));
 
-            const providedEnd = clockToMs(stroke.endTime);
-            const alignedEnd = Math.max(
-              alignedStart + 50,
-              Math.min(batchEndMs, Number.isFinite(providedEnd) && providedEnd >= alignedStart ? providedEnd : alignedStart + duration)
-            );
+            // End time derived purely from start + draw duration so it is also
+            // free of any timerOffset contamination in stroke.endTime.
+            const alignedEnd = Math.max(alignedStart + 50, Math.min(batchEndMs, alignedStart + duration));
 
             return {
               ...stroke,
@@ -314,38 +511,49 @@ const StudentReplay = () => {
             };
           });
 
-          await addStrokes(normalized);
-          done++;
+          try {
+            await addStrokes(normalized);
+          } catch (strokeErr) {
+            // Non-fatal: if IDB can't store strokes (e.g. quota), the batch is
+            // skipped. NOT added to persistedBatches so a clean retry re-downloads.
+            console.warn(`[StudentReplay] Could not save stroke batch ${batchRef.batchIndex}:`, strokeErr);
+          }
+
+          // Mark batch as attempted so we don't loop forever, then persist.
+          persistedBatches.add(batchRef.indexKey);
+          await persistProgress();
+
+          doneItems++;
           if (!cancelled) {
-            setProgress(Math.min(95, Math.round((done / total) * 100)));
+            setProgress(Math.min(90, Math.round((doneItems / totalItems) * 100)));
             setStatusText(`Downloaded board batch ${batchRef.batchIndex + 1} / ${manifest.strokeBatches.length}`);
           }
         }
 
         // ── Audio chunks ──────────────────────────────────────────────────
-        for (const chunk of manifest.chunks) {
+        for (const chunk of chunksToDownload) {
           if (cancelled) return;
 
-          // Skip chunks with no audio content (sizeBytes=0 means the server
-          // uploaded nothing for this sub-segment). Without this, the player
-          // would create a phantom audio batch that fails immediately in
-          // onError, causing playedSessionMsRef to jump the full chunk window
-          // in one frame — producing the "board rushes to 1 min" effect.
-          if (chunk.audio.sizeBytes === 0) {
-            done++;
-            if (!cancelled) setProgress(Math.min(95, Math.round((done / total) * 100)));
-            continue;
-          }
+          // Remove corrupted blob if present so we don't end up with two
+          // entries for the same chunk index.
+          const staleBlob = audioByChunkIndex.get(chunk.index);
+          if (staleBlob) await deleteAudioById(staleBlob.id);
 
           const audioRes = await fetch(chunk.audio.url);
           if (!audioRes.ok) throw new Error(`Failed to download audio chunk ${chunk.index}.`);
 
           const blob = await audioRes.blob();
+
+          // Validate — a blob this small almost certainly failed to decode
+          // on the server and is not real audio.
+          if (blob.size < MIN_AUDIO_BLOB_SIZE) {
+            console.warn(`[StudentReplay] Chunk ${chunk.index} blob too small (${blob.size} B) — skipping`);
+            doneItems++;
+            if (!cancelled) setProgress(Math.min(95, Math.round((doneItems / totalItems) * 100)));
+            continue;
+          }
+
           const chunkWindowMs = Math.max(1000, chunk.endMs - chunk.startMs);
-          // Use the actual audio blob duration (mirrors useAudioRecorder approach).
-          // Anchoring to the chunk window end (chunkWindowMs) causes plannedEndMs to
-          // jump to the window end even when the audio file is much shorter, triggering
-          // a spurious gap-fill that races the timer to 1 minute.
           const actualDurationMs = Math.max(1000, chunk.audio.durationMs > 0 ? chunk.audio.durationMs : chunkWindowMs);
           const audioBatch: AudioBatch = {
             id: `${sessionId}_audio_${chunk.index}`,
@@ -358,15 +566,24 @@ const StudentReplay = () => {
             size: chunk.audio.sizeBytes,
           };
 
-          await addAudio(audioBatch);
-          done++;
+          try {
+            await addAudio(audioBatch);
+            persistedAudioChunks.add(chunk.index);
+            await persistProgress();
+          } catch (saveErr) {
+            // IDB blob write errors (e.g. Chrome "Failed to write blobs") must NOT
+            // abort the whole download. Replay opens with a silent gap for this chunk.
+            console.warn(`[StudentReplay] Could not save audio chunk ${chunk.index} to IDB — silent gap:`, saveErr);
+          }
+
+          doneItems++;
           if (!cancelled) {
-            setProgress(Math.min(95, Math.round((done / total) * 100)));
+            setProgress(Math.min(95, Math.round((doneItems / totalItems) * 100)));
             setStatusText(`Downloaded audio ${chunk.index + 1} / ${manifest.chunks.length}`);
           }
         }
 
-        // ── Media assets (Service Worker / Cache API) ─────────────────────
+        // ── Media assets (Cache API) ──────────────────────────────────────
         if (typeof window !== "undefined" && "caches" in window) {
           const cache = await caches.open(LESSON_MEDIA_CACHE);
           for (const media of manifest.mediaAssets) {
@@ -380,35 +597,56 @@ const StudentReplay = () => {
                 await cache.put(scoped, fetched.clone());
               }
             }
-            done++;
+            doneItems++;
             if (!cancelled) {
-              setProgress(Math.min(98, Math.round((done / total) * 100)));
-              setStatusText(`Cached media asset ${done} / ${manifest.mediaAssets.length}`);
+              setProgress(Math.min(98, Math.round((doneItems / totalItems) * 100)));
+              setStatusText(`Cached media asset ${doneItems} / ${manifest.mediaAssets.length}`);
             }
           }
         }
 
-        if (!cancelled) {
-          localStorage.setItem(`replayDataVersion_${sessionId}`, REPLAY_DATA_VERSION);
-          setProgress(100);
-          setIsReady(true);
-        }
+        setupReplayLocalStorage(manifest, sessionId, sessionStartWallMs);
+        if (!cancelled) { setProgress(100); setIsReady(true); }
       } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load replay.");
+        if (!cancelled) {
+          const storageFull = isStorageFullError(err);
+          setError(
+            storageFull
+              ? 'Device storage is full. Tap "Clear cached data & retry" to free space, or manually clear browser data from your device settings.'
+              : err instanceof Error ? err.message : 'Failed to load replay.',
+          );
+        }
       }
     };
 
     prepare();
     return () => { cancelled = true; };
-  }, [sessionId, lessonId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, lessonId, retryKey]);
 
   if (error) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="flex max-w-md flex-col items-center gap-3 rounded-xl border border-red-200 bg-white p-8 text-center shadow">
+        <div className="flex max-w-md flex-col items-center gap-4 rounded-xl border border-red-200 bg-white p-8 text-center shadow">
           <AlertCircle className="h-10 w-10 text-red-500" />
           <p className="text-lg font-semibold text-slate-800">Could not load replay</p>
           <p className="text-sm text-slate-500">{error}</p>
+          <div className="flex flex-col gap-2 w-full pt-2">
+            <button
+              onClick={clearAllAndRetry}
+              disabled={isClearing}
+              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isClearing ? "Clearing cached data…" : "Clear cached data & retry"}
+            </button>
+            <button
+              onClick={() => { setError(null); setIsReady(false); setProgress(0); setRetryKey(k => k + 1); }}
+              disabled={isClearing}
+              className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+            >
+              Retry without clearing
+            </button>
+          </div>
         </div>
       </div>
     );

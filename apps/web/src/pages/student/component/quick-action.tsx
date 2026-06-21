@@ -30,7 +30,7 @@ const QuickAction = () => {
   ];
 
   return (
-    <div className="overflow-hidden rounded-[26px] border border-white/75 bg-white/82 shadow-[0_22px_55px_-34px_rgba(15,23,42,0.28)] backdrop-blur-sm">
+    <div className="overflow-hidden rounded-md border border-white/75 bg-white/82">
         <div className="border-b border-slate-100 p-6">
           <h2 className="font-poppins text-lg font-semibold text-slate-900 capitalize">
             Quick Action{" "}

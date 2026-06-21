@@ -140,15 +140,17 @@ const TopicQuestionList = () => {
     topicId?: string,
     subTopicId?: string,
   ) => {
+    if (!topicId) {
+      setQuestions([]);
+      setQuestionsTotal(0);
+      return;
+    }
     setQuestionsLoading(true);
     questionService
-      .getQuestionsByClassroom(classroomId, {
+      .getQuestionsByClassroomSubjectTopic(classroomId, subjectId, topicId, {
         page: 1,
         pageSize: 50,
-        subjectId,
-        topicId,
         subTopicIds: subTopicId ? [subTopicId] : [],
-        status: 2,
       })
       .then((res) => {
         const raw = res.data as any;

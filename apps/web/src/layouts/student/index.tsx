@@ -13,7 +13,7 @@ const StudentsLayout = () => {
       <div>
         <MobileStudentNav isOpen={mobileNavOpen} setIsOpen={setMobileNavOpen} />
       </div>
-      <div className="flex-1 h-screen overflow-y-auto px-3 py-3 md:px-5 md:py-5 lg:px-7">
+      <div className="flex-1 h-screen overflow-y-auto px-3 py-3 md:px-5 md:py-5 lg:px-4">
         <Outlet context={{ openMobileNav: () => setMobileNavOpen(true) }} />
       </div>
     </div>

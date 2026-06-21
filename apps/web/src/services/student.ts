@@ -114,6 +114,8 @@ export interface StudentPublishedLesson {
   accessEndsAt?: string | null;
   mediaCount: number;
   media?: StudentLessonMedia[];
+  quizId?: string | null;
+  quizCode?: string | null;
 }
 
 export interface StudentLessonMedia {
