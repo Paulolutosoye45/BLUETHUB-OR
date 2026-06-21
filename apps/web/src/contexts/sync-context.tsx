@@ -55,7 +55,7 @@ export interface SyncContextValue {
   getSessionById: (sessionId: string) => Promise<LocalSession | undefined>;
 
   // Cleanup
-  cleanupSession: (sessionId: string, deleteAll?: boolean) => Promise<number>;
+  cleanupSession: (sessionId: string, deleteAll?: boolean) => Promise<void>;
 }
 
 export interface CloudinaryConfig {
@@ -263,7 +263,17 @@ export function SyncProvider({ children, onSyncComplete, onSyncError }: SyncProv
 
   // Queries
   const getSyncStatsWrapper = useCallback(async (sessionId: string): Promise<SyncStats> => {
-    return getSessionSyncStats(sessionId);
+    const s = await getSessionSyncStats(sessionId);
+    return {
+      totalAudio: s.totalAudioChunks,
+      audioSent: s.sentAudioChunks,
+      audioPending: s.pendingAudioChunks,
+      audioFailed: s.failedAudioChunks,
+      totalStrokes: s.totalStrokeBatches,
+      strokesSent: s.sentStrokeBatches,
+      strokesPending: s.pendingStrokeBatches,
+      strokesFailed: s.failedStrokeBatches,
+    };
   }, []);
 
   const getLocalSessionsWrapper = useCallback(async (): Promise<LocalSession[]> => {
@@ -283,11 +293,12 @@ export function SyncProvider({ children, onSyncComplete, onSyncError }: SyncProv
   }, []);
 
   // Cleanup
-  const cleanupSessionWrapper = useCallback(async (sessionId: string, deleteAll = false): Promise<number> => {
+  const cleanupSessionWrapper = useCallback(async (sessionId: string, deleteAll = false): Promise<void> => {
     if (deleteAll) {
-      return cleanupEntireSession(sessionId);
+      await cleanupEntireSession(sessionId);
+    } else {
+      await cleanupPublishedSession(sessionId);
     }
-    return cleanupPublishedSession(sessionId);
   }, []);
 
   const value: SyncContextValue = {
