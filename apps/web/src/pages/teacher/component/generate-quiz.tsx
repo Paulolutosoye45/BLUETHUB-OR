@@ -241,7 +241,7 @@ const GenerateQuiz = () => {
   const [savingConfig, setSavingConfig] = useState(false);
   const [configExpanded, setConfigExpanded] = useState(true);
   const [configDirty, setConfigDirty] = useState(false);
-  const [showSavedCheck, setShowSavedCheck] = useState(false);
+  const [_showSavedCheck, setShowSavedCheck] = useState(false);
 
   // ── derived ────────────────────────────────────────────────────────────────
   const selectedSubjectName = useMemo(
