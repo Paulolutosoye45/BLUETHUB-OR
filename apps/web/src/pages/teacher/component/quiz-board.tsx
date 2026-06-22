@@ -15,7 +15,7 @@ import {
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { lessonService } from "@/services/lesson";
+import { LessonMediaType, lessonService } from "@/services/lesson";
 import type { CreateOptionPayload } from "@/services/question";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -27,6 +27,7 @@ interface BoardStroke {
   color: string;
   width: number;
   points: number[]; // flat [x1,y1,x2,y2,…] for Konva Line
+  timestamp: number;
 }
 
 interface OptionRow {
@@ -40,6 +41,7 @@ export interface BoardQuestionResult {
   options: CreateOptionPayload[];
   correctAnswers: string[];
   difficultyLevel: number;
+  imageUrl?: string;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────
@@ -115,6 +117,35 @@ const StarPicker = ({
   );
 };
 
+// ── Helper: Snapshot Konva stage to PNG Blob ────────────────────────────────
+const captureCanvasAsBlob = async (stage: Konva.Stage | null): Promise<Blob> => {
+  if (!stage) throw new Error("Stage not ready");
+  // Convert Konva stage to canvas data URL
+  const dataUrl = stage.toDataURL({ pixelRatio: 1 });
+  const response = await fetch(dataUrl);
+  return response.blob();
+};
+
+// ── Helper: Upload board snapshot to Cloudinary ─────────────────────────────
+const uploadBoardImage = async (blob: Blob): Promise<string> => {
+  const { data } = await lessonService.getUploadSignature(LessonMediaType.Image);
+  const sig = data.data;
+  const form = new FormData();
+  form.append("file", blob, "board-snapshot.png");
+  form.append("api_key", sig.apiKey);
+  form.append("timestamp", String(sig.timestamp));
+  form.append("signature", sig.signature);
+  form.append("folder", sig.folder);
+  if (sig.uploadPreset) form.append("upload_preset", sig.uploadPreset);
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${sig.cloudName}/${sig.resourceType}/upload`,
+    { method: "POST", body: form }
+  );
+  if (!res.ok) throw new Error("Board image upload failed");
+  const json = await res.json();
+  return json.secure_url as string;
+};
+
 // ── QuizBoard ──────────────────────────────────────────────────────────────
 interface QuizBoardProps {
   onCancel: () => void;
@@ -183,6 +214,7 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
       color: tool === "eraser" ? "#ffffff" : color,
       width: tool === "eraser" ? width * 4 : width,
       points: pos,
+      timestamp: Date.now(),
     };
     setActiveStroke(stroke);
   }, [tool, color, width]);
@@ -210,32 +242,35 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
   const undo = () => setStrokes((prev) => prev.slice(0, -1));
   const clearBoard = () => { setStrokes([]); setActiveStroke(null); };
 
-  // ── Save board to backend ───────────────────────────────────────────────
+  // ── Save board: capture snapshot and upload as image ──────────────────────
   const handleSaveBoard = async () => {
-    if (strokes.length === 0) {
+    const finalStrokes = activeStroke ? [...strokes, activeStroke] : strokes;
+    if (finalStrokes.length === 0) {
       toast.error("Draw something on the board first.");
       return;
     }
-    const sessionId = crypto.randomUUID();
+
+    if (activeStroke) {
+      setStrokes(finalStrokes);
+      setActiveStroke(null);
+      isDrawing.current = false;
+    }
+
     setIsSaving(true);
     try {
-      await lessonService.submitManifest({
-        sessionId,
-        manifest: {
-          totalDuration: 0,
-          totalBatches: 1,
-          batches: [
-            {
-              id: crypto.randomUUID(),
-              startTime: "0",
-              endTime: "0",
-              hasAudio: false,
-              hasBoard: true,
-            },
-          ],
-        },
-      });
+      // Capture board snapshot as PNG blob
+      const blob = await captureCanvasAsBlob(stageRef.current);
+      
+      // Upload to Cloudinary and get image URL
+      const imageUrl = await uploadBoardImage(blob);
+      
+      // Set the session ID (already have the image URL for later use)
+      const sessionId = crypto.randomUUID();
       setBoardSessionId(sessionId);
+      
+      // Store the image URL in sessionStorage for access in onSaved callback
+      sessionStorage.setItem(`board-snapshot-${sessionId}`, imageUrl);
+      
       toast.success("Board saved. Now add options and publish.");
     } catch (err) {
       const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
@@ -288,12 +323,17 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
       isCorrect: correctAnswers.includes(opt.key),
       orderIndex: idx + 1,
     }));
+    
+    // Retrieve the stored board snapshot image URL
+    const imageUrl = sessionStorage.getItem(`board-snapshot-${boardSessionId}`) || undefined;
+    
     onSaved({
       boardSessionId,
       questionText: questionText.trim(),
       options: payload,
       correctAnswers,
       difficultyLevel,
+      imageUrl,
     });
   };
 

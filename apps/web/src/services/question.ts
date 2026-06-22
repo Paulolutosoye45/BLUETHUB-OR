@@ -52,21 +52,25 @@ export interface CreateQuestionPayload {
   createdAtDevice: string;
   subjectId: string;
   topicId?: string | null;
-  topic?: string;
+  topic: string;
   subTopic: string;
   title: string;
-  textContent?: string;
+  textContent: string;
   questionType: number;
   difficultyLevel: number;
   marksAllocation: number;
+  correctAnswer?: string | null;
   options: CreateOptionPayload[];
   boardSessionId?: string | null;
+  snapshotUrl?: string | null;
+  snapshotPublicId?: string | null;
   scanSessionId?: string | null;
   isScanned: boolean;
   extractedQuestionIndex?: number | null;
   aiConfidenceScore?: string | null;
-  classroomId?: string | null;
+  classroomId: string;
   imageUrl?: string | null;
+  imagePublicId?: string | null;
 }
 
 export interface UpdateQuestionPayload {

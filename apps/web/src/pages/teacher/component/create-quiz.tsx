@@ -16,7 +16,6 @@ import {
   ChevronDown,
   ImagePlus,
   Loader2,
-  PencilLine,
   PenTool,
   Plus,
   Star,
@@ -58,6 +57,7 @@ interface TeacherAssignment {
 
 interface QuestionDraft {
   id: string;
+  draftType: "text" | "board";
   questionType: QuestionType;
   question: string;
   options: Option[];
@@ -90,6 +90,7 @@ const DIFFICULTY_META = [
 
 const createDraft = (): QuestionDraft => ({
   id: crypto.randomUUID(),
+  draftType: "text",
   questionType: "Multiple Choice",
   question: "",
   options: [
@@ -624,6 +625,84 @@ const QuestionCard = ({
   );
 };
 
+// ── BoardDraftCard ─────────────────────────────────────────────────────────
+const BoardDraftCard = ({
+  draft,
+  index,
+  canDelete,
+  onDelete,
+  onBoardSaved,
+  isSubmitting,
+}: {
+  draft: QuestionDraft;
+  index: number;
+  canDelete: boolean;
+  onDelete: () => void;
+  onBoardSaved: (result: BoardQuestionResult) => void;
+  isSubmitting: boolean;
+}) => (
+  <div
+    className={`border rounded-2xl overflow-hidden transition-all duration-300 ${
+      draft.isPublished
+        ? "border-emerald-300 bg-emerald-50/30"
+        : "border-emerald-500/40"
+    }`}
+  >
+    {/* Header */}
+    <div className="flex items-center justify-between px-4 sm:px-6 pt-4 pb-3 border-b border-[#D9D9D9] bg-white/60">
+      <div className="flex items-center gap-3">
+        <span
+          className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0 ${
+            draft.isPublished
+              ? "bg-emerald-500 text-white"
+              : "bg-emerald-600/10 text-emerald-700"
+          }`}
+        >
+          {draft.isPublished ? (
+            <Check className="w-3.5 h-3.5" strokeWidth={3} />
+          ) : (
+            <PenTool size={13} />
+          )}
+        </span>
+        <div>
+          <h2 className="font-semibold text-chestnut text-sm sm:text-base tracking-tight">
+            {draft.isPublished ? "Board Question Saved" : `Board Question ${index + 1}`}
+          </h2>
+          {!draft.isPublished && (
+            <p className="text-[11px] text-slate-400 mt-0.5">
+              Draw on the canvas · set options · click Save
+            </p>
+          )}
+        </div>
+      </div>
+      {!draft.isPublished && canDelete && (
+        <button
+          onClick={onDelete}
+          className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-rose-500 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-rose-50"
+        >
+          <X size={14} />
+          <span className="hidden sm:inline">Remove</span>
+        </button>
+      )}
+      {draft.isPublished && (
+        <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2.5 py-1 rounded-full">
+          ✓ Saved
+        </span>
+      )}
+    </div>
+
+    {!draft.isPublished && (
+      <div className="p-4 sm:p-6">
+        <QuizBoard
+          onCancel={onDelete}
+          onSaved={onBoardSaved}
+          isSubmitting={isSubmitting}
+        />
+      </div>
+    )}
+  </div>
+);
+
 // ── Main Component ─────────────────────────────────────────────────────────
 const CreateQuizQuestion = () => {
   const [searchParams] = useSearchParams();
@@ -633,7 +712,6 @@ const CreateQuizQuestion = () => {
 
   // ── Multi-draft state ───────────────────────────────────────────────────
   const [drafts, setDrafts] = useState<QuestionDraft[]>([createDraft()]);
-  const [quizType, setQuizType] = useState<"questions" | "board">("questions");
   const [isPublishingAll, setIsPublishingAll] = useState(false);
   const [publishProgress, setPublishProgress] = useState<{ done: number; total: number } | null>(null);
   const [boardSubmitting, setBoardSubmitting] = useState(false);
@@ -877,30 +955,21 @@ const CreateQuizQuestion = () => {
 
   const addDraft = () => setDrafts((prev) => [...prev, createDraft()]);
 
+  const addBoardDraft = () =>
+    setDrafts((prev) => [...prev, { ...createDraft(), id: crypto.randomUUID(), draftType: "board" }]);
+
   const deleteDraft = (id: string) =>
-    setDrafts((prev) => prev.filter((d) => d.id !== id));
+    setDrafts((prev) => {
+      const next = prev.filter((d) => d.id !== id);
+      return next.length > 0 ? next : [createDraft()];
+    });
 
-  // ── Board question saved → publish it immediately then add to list ───────
-  const handleBoardSaved = async (result: BoardQuestionResult) => {
-    if (!selectedClassId) {
-      toast.error("Please select a class.");
-      return;
-    }
-
-    if (!effectiveSubjectId) {
-      toast.error("Please select a subject.");
-      return;
-    }
-
-    if (!hasSubTopicContext) {
-      toast.error("Please select a sub-topic.");
-      return;
-    }
-
-    if (!resolvedTopicName) {
-      toast.error("Please select a topic.");
-      return;
-    }
+  // ── Board question saved for a specific draft ────────────────────────────
+  const handleBoardDraftSaved = async (draftId: string, result: BoardQuestionResult) => {
+    if (!selectedClassId) { toast.error("Please select a class."); return; }
+    if (!effectiveSubjectId) { toast.error("Please select a subject."); return; }
+    if (!hasSubTopicContext) { toast.error("Please select a sub-topic."); return; }
+    if (!resolvedTopicName) { toast.error("Please select a topic."); return; }
 
     setBoardSubmitting(true);
     try {
@@ -914,16 +983,21 @@ const CreateQuizQuestion = () => {
         subTopic: effectiveSubTopic,
         title: result.questionText || "Board Question",
         textContent: result.questionText || "",
-        questionType: QuestionTypeEnum.BoardBased,
+        questionType: QuestionTypeEnum.ImageBased,
         difficultyLevel: result.difficultyLevel,
         marksAllocation: 1,
+        correctAnswer: null,
         options: result.options,
+        snapshotUrl: result.imageUrl ?? null,
+        snapshotPublicId: null,
+        imageUrl: result.imageUrl,
+        imagePublicId: null,
         boardSessionId: result.boardSessionId,
         scanSessionId: scanSessionId || null,
         isScanned: false,
         extractedQuestionIndex: null,
         aiConfidenceScore: null,
-        classroomId: selectedClassId ?? null,
+        classroomId: selectedClassId,
       });
 
       const meta = getCreateQuestionMeta(res.data);
@@ -931,12 +1005,15 @@ const CreateQuizQuestion = () => {
         throw new Error(meta.responseMessage || "Question creation failed.");
       }
 
-      const duplicate = meta.isDuplicate;
-      if (!duplicate) toast.success("Board question saved.");
-
-      // Reset drafts after successful board-question publish.
-      setDrafts([createDraft()]);
-      setQuizType("questions");
+      if (!meta.isDuplicate) toast.success("Board question saved.");
+      // Mark the board draft published; auto-remove after a moment
+      updateDraft(draftId, { isPublished: true });
+      setTimeout(() => {
+        setDrafts((prev) => {
+          const next = prev.filter((d) => d.id !== draftId);
+          return next.length > 0 ? next : [createDraft()];
+        });
+      }, 1500);
     } catch (err) {
       const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
       toast.error(e?.response?.data?.responseMessage ?? e?.message ?? "Failed to publish board question.");
@@ -944,7 +1021,6 @@ const CreateQuizQuestion = () => {
       setBoardSubmitting(false);
     }
   };
-
   // ── Helpers shared by publish flow ─────────────────────────────────────
   const toQuestionTypeEnum = (qt: QuestionType): number => {
     switch (qt) {
@@ -1031,7 +1107,7 @@ const CreateQuizQuestion = () => {
       return;
     }
 
-    const pending = drafts.filter((d) => !d.isPublished);
+    const pending = drafts.filter((d) => !d.isPublished && d.draftType === "text");
 
     // Validate all drafts upfront
     for (let i = 0; i < pending.length; i++) {
@@ -1079,14 +1155,18 @@ const CreateQuizQuestion = () => {
             : toQuestionTypeEnum(draft.questionType),
           difficultyLevel: draft.difficultyLevel,
           marksAllocation: 1,
+          correctAnswer: null,
           options: buildOptionsPayload(draft),
           boardSessionId: boardSessionId || null,
+          snapshotUrl: null,
+          snapshotPublicId: null,
           scanSessionId: scanSessionId || null,
           isScanned: !!scanSessionId,
           extractedQuestionIndex: null,
           aiConfidenceScore: null,
-          classroomId: selectedClassId ?? null,
+          classroomId: selectedClassId,
           imageUrl,
+          imagePublicId: null,
         });
 
         const meta = getCreateQuestionMeta(res.data);
@@ -1151,7 +1231,7 @@ const CreateQuizQuestion = () => {
       ? `${selectedClassName ? `${selectedClassName} — ` : ""}${selectedSubjectName}${adminTopic ? `: ${adminTopic}` : ""}`
       : topicParam || "Create Quiz Question";
 
-  const unpublishedCount = drafts.filter((d) => !d.isPublished).length;
+  const unpublishedCount = drafts.filter((d) => !d.isPublished && d.draftType === "text").length;
   const canPublish = !!selectedClassId && !!effectiveSubjectId && hasSubTopicContext;
 
   // ── Render ───────────────────────────────────────────────────────────────
@@ -1295,25 +1375,35 @@ const CreateQuizQuestion = () => {
                 </div>
               </div>
 
-          {/* ── Question Cards or Board ── */}
-          {quizType === "questions" ? (
-            <div className="flex flex-col gap-4">
-              {/* Board toggle header */}
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-slate-500">
-                  {unpublishedCount} question{unpublishedCount !== 1 ? "s" : ""} pending
-                </span>
-                <Button
-                  onClick={() => setQuizType("board")}
-                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 shadow-sm cursor-pointer"
-                >
-                  <PenTool size={14} className="shrink-0" />
-                  <span className="hidden sm:inline">Use Board</span>
-                </Button>
-              </div>
+          {/* ── Unified Draft List ── */}
+          <div className="flex flex-col gap-4">
+            {/* Header row */}
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-slate-500">
+                {unpublishedCount} text question{unpublishedCount !== 1 ? "s" : ""} pending
+              </span>
+              <Button
+                onClick={addBoardDraft}
+                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 shadow-sm cursor-pointer"
+              >
+                <PenTool size={14} className="shrink-0" />
+                <span className="hidden sm:inline">Add Board Question</span>
+              </Button>
+            </div>
 
-              {/* Draft cards */}
-              {drafts.map((draft, index) => (
+            {/* Draft cards — text or board */}
+            {drafts.map((draft, index) =>
+              draft.draftType === "board" ? (
+                <BoardDraftCard
+                  key={draft.id}
+                  draft={draft}
+                  index={index}
+                  canDelete={drafts.length > 1}
+                  onDelete={() => deleteDraft(draft.id)}
+                  onBoardSaved={(result) => void handleBoardDraftSaved(draft.id, result)}
+                  isSubmitting={boardSubmitting}
+                />
+              ) : (
                 <QuestionCard
                   key={draft.id}
                   draft={draft}
@@ -1322,27 +1412,28 @@ const CreateQuizQuestion = () => {
                   onDelete={() => deleteDraft(draft.id)}
                   onUpdate={(updates) => updateDraft(draft.id, updates)}
                 />
-              ))}
+              )
+            )}
 
-              {/* Add Another Question */}
-              <button
-                onClick={addDraft}
-                disabled={isPublishingAll}
-                className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl border-2 border-dashed border-chestnut/30 text-chestnut font-semibold text-sm hover:border-chestnut/60 hover:bg-chestnut/5 transition-all duration-200 cursor-pointer disabled:opacity-40"
-              >
-                <Plus size={16} className="shrink-0" />
-                Add Another Question
-              </button>
+            {/* Add Text Question */}
+            <button
+              onClick={addDraft}
+              disabled={isPublishingAll}
+              className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl border-2 border-dashed border-chestnut/30 text-chestnut font-semibold text-sm hover:border-chestnut/60 hover:bg-chestnut/5 transition-all duration-200 cursor-pointer disabled:opacity-40"
+            >
+              <Plus size={16} className="shrink-0" />
+              Add Text Question
+            </button>
 
-              {/* Publish All */}
-              {unpublishedCount > 0 && (
-                <div className="flex flex-col gap-2 pt-2 border-t border-[#D9D9D9]">
-                  {!canPublish && (
-                    <p className="text-xs text-amber-500 font-medium">
-                      Select a class, subject and sub-topic before publishing.
-                    </p>
-                  )}
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            {/* Publish All (text drafts only) */}
+            {unpublishedCount > 0 && (
+              <div className="flex flex-col gap-2 pt-2 border-t border-[#D9D9D9]">
+                {!canPublish && (
+                  <p className="text-xs text-amber-500 font-medium">
+                    Select a class, subject and sub-topic before publishing.
+                  </p>
+                )}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
                   <div className="text-sm text-slate-500 font-medium">
                     {publishProgress
                       ? `Publishing ${publishProgress.done} of ${publishProgress.total}…`
@@ -1366,38 +1457,10 @@ const CreateQuizQuestion = () => {
                       </span>
                     )}
                   </Button>
-                  </div>
                 </div>
-              )}
-            </div>
-          ) : (
-            /* ── Board view ── */
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="font-semibold text-chestnut text-base tracking-tight">
-                    Board Question
-                  </h2>
-                  <p className="text-[12px] text-slate-400 mt-0.5">
-                    Draw your question, save the board, then add answer options
-                  </p>
-                </div>
-                <Button
-                  onClick={() => setQuizType("questions")}
-                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 shadow-sm cursor-pointer"
-                >
-                  <PencilLine size={14} className="shrink-0" />
-                  <span className="hidden sm:inline">Type Instead</span>
-                </Button>
               </div>
-
-              <QuizBoard
-                onCancel={() => setQuizType("questions")}
-                onSaved={handleBoardSaved}
-                isSubmitting={boardSubmitting}
-              />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1405,3 +1468,4 @@ const CreateQuizQuestion = () => {
 };
 
 export default CreateQuizQuestion;
+
