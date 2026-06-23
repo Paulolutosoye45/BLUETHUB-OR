@@ -137,6 +137,21 @@ const SubtopicQuestionList = () => {
                     <span>{question.creationDate}</span>
                     <span>{question.statusName || `Status ${question.status}`}</span>
                   </div>
+
+                  {/* Thumbnail preview */}
+                  {(question.imageUrl || question.boardSnapshotUrl) && (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600">
+                        {question.imageUrl ? "Image" : "Board Snapshot"}
+                      </span>
+                      <img
+                        src={question.imageUrl || question.boardSnapshotUrl || ""}
+                        alt="Preview"
+                        className="h-10 w-10 rounded-md object-cover border border-slate-200"
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
                 </button>
               ))}
             </div>
@@ -171,6 +186,23 @@ const SubtopicQuestionList = () => {
                       Status: {selectedQuestion.statusName || `Status ${selectedQuestion.status}`}
                     </span>
                   </div>
+
+                  {/* Image / Board Snapshot preview */}
+                  {(selectedQuestion.imageUrl || selectedQuestion.boardSnapshotUrl) && (
+                    <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+                      <p className="text-[11px] font-semibold text-slate-500 px-3 py-2 border-b border-slate-100 bg-white">
+                        {selectedQuestion.imageUrl ? "Attached Image" : "Board Snapshot"}
+                      </p>
+                      <div className="flex items-center justify-center p-3">
+                        <img
+                          src={selectedQuestion.imageUrl || selectedQuestion.boardSnapshotUrl || ""}
+                          alt="Question media"
+                          className="max-w-full rounded-lg object-contain"
+                          style={{ maxHeight: 320 }}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex justify-end">
                     <Button

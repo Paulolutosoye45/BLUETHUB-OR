@@ -113,6 +113,39 @@ const getQuestionTypeName = (type: number) => {
   }
 };
 
+// Convert string questionType from API ("Objective", "Theory", "TrueFalse") → number
+const parseQuestionTypeFromApi = (raw: unknown): number => {
+  if (typeof raw === "number") return raw;
+  switch (String(raw ?? "").toLowerCase()) {
+    case "objective": case "multiplechoice": return 1;
+    case "shortanswer": return 2;
+    case "essay": return 3;
+    case "trueorfalse": case "truefalse": return 4;
+    default: return 1;
+  }
+};
+
+// Convert string difficultyLevel from API ("Easy", "Medium", "Hard", "Expert") → number
+const parseDifficultyFromApi = (raw: unknown): number => {
+  if (typeof raw === "number") return Math.min(4, Math.max(1, raw));
+  switch (String(raw ?? "").toLowerCase()) {
+    case "easy": return 1;
+    case "medium": return 2;
+    case "hard": return 3;
+    case "expert": return 4;
+    default: return 1;
+  }
+};
+
+// Parse contentParts which may arrive as a JSON string or already an array
+const parseContentPartsFromApi = (raw: unknown): ContentPart[] => {
+  if (Array.isArray(raw)) return parseContentParts(raw);
+  if (typeof raw === "string" && raw.trim().startsWith("[")) {
+    try { return parseContentParts(JSON.parse(raw)); } catch { /* fall through */ }
+  }
+  return [];
+};
+
 const statusPillClass = (status: string) => {
   switch (status) {
     case "Completed":          return "bg-emerald-50 text-emerald-600 border-emerald-200";
@@ -376,33 +409,50 @@ const MyUploads = () => {
       const jobData = (data.data ?? data) as unknown as JobPreviewResponseData;
       const rawQuestions = jobData?.questions ?? [];
       setPreviewScanSessionId(jobData?.scanSessionId ?? null);
-      const mapped: EditableQuestion[] = rawQuestions.map((q, index) => ({
-        localId: crypto.randomUUID(),
-        id: "",
-        questionNumber: index + 1,
-        questionType: q.questionType ?? 1,
-        questionTypeName: getQuestionTypeName(q.questionType ?? 1),
-        questionHtml: "",
-        questionText: q.textContent ?? q.title ?? "",
-        contentParts: [],
-        hasLatex: false,
-        hasImages: false,
-        hasMedia: false,
-        correctAnswer: null,
-        difficultyLevel: q.difficultyLevel ?? 1,
-        marksAllocation: q.marksAllocation ?? 1,
-        status: 1,
-        statusName: "Draft",
-        subTopicName: job.subTopicName ?? "",
-        topicName: job.topicName ?? "",
-        creationDate: new Date().toISOString(),
-        options: (q.options ?? []).map((opt, i) => ({
-          id: crypto.randomUUID(),
-          label: nextOptionLabel(i),
-          text: opt.optionText ?? "",
-          isCorrect: opt.isCorrect ?? false,
-        })),
-      }));
+      const mapped: EditableQuestion[] = rawQuestions.map((q, index) => {
+        // The API may return questionType as a string ("Objective") or number
+        const questionType = parseQuestionTypeFromApi((q as unknown as Record<string, unknown>).questionType ?? q.questionType);
+        const difficultyLevel = parseDifficultyFromApi((q as unknown as Record<string, unknown>).difficultyLevel ?? q.difficultyLevel);
+        // contentParts may be a JSON string on the wire
+        const rawParts = (q as unknown as Record<string, unknown>).contentParts;
+        const parsedParts = parseContentPartsFromApi(rawParts);
+        // questionHtml comes directly from the API
+        const questionHtml = String((q as unknown as Record<string, unknown>).questionHtml ?? "");
+        // Use the HTML-stripped text for the editable text field; fall back to title/textContent
+        const questionText = stripHtml(questionHtml) || (q.textContent ?? (q as unknown as Record<string, unknown>).title as string ?? "");
+        const hasLatex = !!((q as unknown as Record<string, unknown>).hasLatex ?? false);
+        const hasImages = !!((q as unknown as Record<string, unknown>).hasImages ?? false);
+        // questionNumber may come from the API
+        const questionNumber = Number((q as unknown as Record<string, unknown>).questionNumber ?? index + 1);
+
+        return {
+          localId: crypto.randomUUID(),
+          id: "",
+          questionNumber,
+          questionType,
+          questionTypeName: getQuestionTypeName(questionType),
+          questionHtml,
+          questionText,
+          contentParts: parsedParts,
+          hasLatex,
+          hasImages,
+          hasMedia: hasImages,
+          correctAnswer: null,
+          difficultyLevel,
+          marksAllocation: q.marksAllocation ?? 1,
+          status: 1,
+          statusName: "Draft",
+          subTopicName: job.subTopicName ?? "",
+          topicName: job.topicName ?? "",
+          creationDate: new Date().toISOString(),
+          options: (q.options ?? []).map((opt, i) => ({
+            id: crypto.randomUUID(),
+            label: nextOptionLabel(i),
+            text: opt.optionText ?? "",
+            isCorrect: opt.isCorrect ?? false,
+          })),
+        };
+      });
       setEditableQuestions(mapped);
     } catch (err) {
       const e = err as AxiosError<{ responseMessage?: string }>;
@@ -711,13 +761,17 @@ const MyUploads = () => {
           questionType: question.questionType,
           difficultyLevel: Math.max(1, Math.min(4, Number(question.difficultyLevel) || 1)),
           marksAllocation: Math.max(1, Math.min(4, Number(question.marksAllocation || question.difficultyLevel) || 1)),
+          correctAnswer: null,
           options: buildOptionsPayload(question),
           boardSessionId: null,
+          snapshotUrl: null,
+          snapshotPublicId: null,
           scanSessionId: previewScanSessionId,
           isScanned: true,
           extractedQuestionIndex: (question.questionNumber ?? index + 1) - 1,
           aiConfidenceScore: null,
           imageUrl: typeof firstImageUrl === "string" ? firstImageUrl : null,
+          imagePublicId: null,
         };
 
         const response = await questionService.createQuestion(payload);
