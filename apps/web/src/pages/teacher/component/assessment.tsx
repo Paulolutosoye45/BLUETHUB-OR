@@ -49,10 +49,12 @@ const Assessment = () => {
               <div className="absolute right-0 top-8 z-50 overflow-hidden bg-white rounded-xl shadow-lg border border-gray-100 py-1 w-44">
                 {[
                   { label: "View Existing Questions", link: '/teacher/assessment/questionlist' },
+                  { label: "Browse Question Bank", link: '/teacher/assessment/view-questions' },
                   { label: "Generate Quiz", link: '/teacher/assessment/generate-quiz' },
                   { label: "Extract Question", link: '/teacher/assessment/upload-scan' },
                   { label: "Type Question", link: '/teacher/assessment/createQuiz' },
                   { label: "My Uploads", link: '/teacher/assessments/My-Uploads' },
+                  { label: "Assessment Settings", link: '/teacher/assessment/config' },
                 ].map((item) => (
                   <button
                     key={item.label}
@@ -106,6 +108,16 @@ const Assessment = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-7">
             <button
+              onClick={() => navigate('/teacher/assessment/view-questions')}
+              className="text-left border border-[#C7CAF0] rounded-xl p-5 bg-[#2118920D] hover:border-chestnut/40 hover:shadow-sm transition-all"
+            >
+              <p className="text-sm font-semibold text-[#1A1C5E] mb-1">Browse Question Bank</p>
+              <p className="text-[13px] text-[#6C70A6] leading-5">
+                Explore questions by subject, topic, and subtopic with image previews.
+              </p>
+            </button>
+
+            <button
               onClick={() => navigate('/teacher/assessment/upload-scan')}
               className="text-left border border-[#C7CAF0] rounded-xl p-5 bg-[#2118920D] hover:border-chestnut/40 hover:shadow-sm transition-all"
             >
@@ -142,6 +154,16 @@ const Assessment = () => {
               <p className="text-sm font-semibold text-[#1A1C5E] mb-1">My Uploads</p>
               <p className="text-[13px] text-[#6C70A6] leading-5">
                 Track AI-processed extractions and manage uploaded question files.
+              </p>
+            </button>
+
+            <button
+              onClick={() => navigate('/teacher/assessment/config')}
+              className="text-left border border-[#C7CAF0] rounded-xl p-5 bg-[#2118920D] hover:border-chestnut/40 hover:shadow-sm transition-all"
+            >
+              <p className="text-sm font-semibold text-[#1A1C5E] mb-1">Assessment Settings</p>
+              <p className="text-[13px] text-[#6C70A6] leading-5">
+                Configure pass marks, time limits, retakes, and default quiz behaviour.
               </p>
             </button>
           </div>

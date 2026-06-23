@@ -50,6 +50,8 @@ import Assessment from '@/pages/teacher/component/assessment';
 import CreateQuizQuestion from '@/pages/teacher/component/create-quiz';
 import TopicQuestionList from '@/pages/teacher/component/topic-question-list';
 import SubtopicQuestionList from '@/pages/teacher/component/subtopic-question-list';
+import ViewQuestions from '@/pages/teacher/component/view-questions';
+import AssessmentConfig from '@/pages/teacher/component/assessment-config';
 import GenerateQuiz from '@/pages/teacher/component/generate-quiz';
 import Login from '@/pages/auth/login';
 import NewPassword from '@/pages/auth/new-password';
@@ -248,6 +250,8 @@ const router = createBrowserRouter([
             { path: "resume-class", element: <ResumeClass /> },
             { path: "class-info", element: <ClassInfo /> },
             { path: "assessment", element: <Assessment /> },
+            { path: "assessment/view-questions", element: <ViewQuestions /> },
+            { path: "assessment/config", element: <AssessmentConfig /> },
             { path: "my-lessons", element: <MyLesson /> },
             { path: "submit-lesson", element: <SubmitLesson /> },
             { path: "start-class", element: <StartClass /> },

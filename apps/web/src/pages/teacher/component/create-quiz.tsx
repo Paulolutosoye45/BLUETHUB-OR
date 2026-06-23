@@ -986,7 +986,7 @@ const CreateQuizQuestion = () => {
         questionType: QuestionTypeEnum.ImageBased,
         difficultyLevel: result.difficultyLevel,
         marksAllocation: 1,
-        correctAnswer: null,
+        correctAnswer: result.options.find((o) => o.isCorrect)?.optionText ?? null,
         options: result.options,
         snapshotUrl: result.imageUrl ?? null,
         snapshotPublicId: null,
@@ -1047,6 +1047,18 @@ const CreateQuizQuestion = () => {
       isCorrect: draft.correctAnswers.includes(opt.key),
       orderIndex: idx + 1,
     }));
+  };
+
+  const buildCorrectAnswer = (draft: QuestionDraft): string | null => {
+    if (draft.questionType === "True/False") {
+      return draft.correctAnswers[0] ?? null; // "True" or "False"
+    }
+    if (draft.questionType === "Single Choice" && draft.correctAnswers.length === 1) {
+      const key = draft.correctAnswers[0];
+      const option = draft.options.find((o) => o.key === key);
+      return option?.value?.trim() || key || null;
+    }
+    return null;
   };
 
   const validateDraft = (draft: QuestionDraft, num: number): string | null => {
@@ -1155,7 +1167,7 @@ const CreateQuizQuestion = () => {
             : toQuestionTypeEnum(draft.questionType),
           difficultyLevel: draft.difficultyLevel,
           marksAllocation: 1,
-          correctAnswer: null,
+          correctAnswer: buildCorrectAnswer(draft),
           options: buildOptionsPayload(draft),
           boardSessionId: boardSessionId || null,
           snapshotUrl: null,

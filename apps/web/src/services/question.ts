@@ -226,6 +226,8 @@ export interface QuestionSummaryDto {
   status: number;
   statusName?: string;
   creationDate: string;
+  imageUrl?: string | null;
+  boardSnapshotUrl?: string | null;
 }
 
 export interface QuestionDetailResponseData {
