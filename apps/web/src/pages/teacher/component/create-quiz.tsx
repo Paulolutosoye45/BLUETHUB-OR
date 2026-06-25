@@ -1,5 +1,6 @@
 import TitleBar from "@/shared/title-bar";
 import QuizBoard, { type BoardQuestionResult } from "./quiz-board";
+import SelectQuestionsModal from "./select-questions-modal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,7 @@ import {
   Check,
   ChevronDown,
   ImagePlus,
+  Library,
   Loader2,
   PenTool,
   Plus,
@@ -29,6 +31,7 @@ import {
   questionService,
   QuestionTypeEnum,
   type CreateOptionPayload,
+  type QuestionSummaryDto,
 } from "@/services/question";
 import { schoolService } from "@/services/school";
 import { lessonService, LessonMediaType } from "@/services/lesson";
@@ -67,6 +70,9 @@ interface QuestionDraft {
   imageFile: File | null;
   isSubmitting: boolean;
   isPublished: boolean;
+  boardData?: BoardQuestionResult | null;
+  existingQuestionId?: string;
+  existingData?: QuestionSummaryDto;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────
@@ -105,27 +111,8 @@ const createDraft = (): QuestionDraft => ({
   imageFile: null,
   isSubmitting: false,
   isPublished: false,
+  boardData: null,
 });
-
-const getCreateQuestionMeta = (res: unknown) => {
-  const raw = (res as any) ?? {};
-  const data = raw?.data ?? {};
-  const questionId = raw?.questionId ?? raw?.id ?? data?.questionId ?? data?.id ?? null;
-  const isDuplicate = !!(raw?.isDuplicate ?? data?.isDuplicate);
-  const status = String(raw?.status ?? data?.status ?? "").toLowerCase();
-  const responseCode = String(raw?.responseCode ?? data?.responseCode ?? "").toLowerCase();
-  const responseMessage = raw?.responseMessage ?? data?.responseMessage ?? "";
-  const isSuccessful = status === "successful" || responseCode === "successful" || !!questionId || isDuplicate;
-
-  return {
-    questionId,
-    isDuplicate,
-    status,
-    responseCode,
-    responseMessage,
-    isSuccessful,
-  };
-};
 
 // ── SelectDropdown ─────────────────────────────────────────────────────────
 const SelectDropdown = ({
@@ -381,31 +368,46 @@ const QuestionCard = ({
           : [...draft.correctAnswers, key]),
     });
 
+  const isExisting = !!draft.existingQuestionId;
+
   return (
     <div
-      className={`border rounded-2xl overflow-hidden transition-all duration-300 ${draft.isPublished
-          ? "border-emerald-300 bg-emerald-50/30"
-          : "border-[#29238280]"
+      className={`border rounded-2xl overflow-hidden transition-all duration-300 ${isExisting
+          ? "border-indigo-200 bg-indigo-50/20"
+          : draft.isPublished
+            ? "border-emerald-300 bg-emerald-50/30"
+            : "border-[#29238280]"
         }`}
     >
       {/* Card Header */}
       <div className="flex items-center justify-between px-4 sm:px-6 pt-4 pb-3 border-b border-[#D9D9D9] bg-white/60">
         <div className="flex items-center gap-3">
-          <span
-            className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0 ${draft.isPublished
-                ? "bg-emerald-500 text-white"
-                : "bg-chestnut/10 text-chestnut"
-              }`}
-          >
-            {draft.isPublished ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : index + 1}
-          </span>
-          <h2 className="font-semibold text-chestnut text-sm sm:text-base tracking-tight">
-            {draft.isPublished ? "Published" : `Question ${index + 1}`}
-          </h2>
+          {isExisting ? (
+            <span className="inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0 bg-indigo-500 text-white">
+              <Check className="w-3.5 h-3.5" strokeWidth={3} />
+            </span>
+          ) : (
+            <span
+              className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0 ${draft.isPublished
+                  ? "bg-emerald-500 text-white"
+                  : "bg-chestnut/10 text-chestnut"
+                }`}
+            >
+              {draft.isPublished ? <Check className="w-3.5 h-3.5" strokeWidth={3} /> : index + 1}
+            </span>
+          )}
+          <div>
+            <h2 className="font-semibold text-chestnut text-sm sm:text-base tracking-tight">
+              {isExisting ? "From Question Bank" : draft.isPublished ? "Published" : `Question ${index + 1}`}
+            </h2>
+            {isExisting && draft.question && (
+              <p className="text-xs text-slate-500 mt-0.5 truncate max-w-sm">{draft.question}</p>
+            )}
+          </div>
         </div>
 
         {/* Header actions */}
-        {!draft.isPublished && canDelete && (
+        {isExisting && canDelete && (
           <button
             onClick={onDelete}
             className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-rose-500 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-rose-50"
@@ -414,7 +416,27 @@ const QuestionCard = ({
             <span className="hidden sm:inline">Remove</span>
           </button>
         )}
-        {draft.isPublished && (
+        {isExisting && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-indigo-600 bg-indigo-100 px-2.5 py-1 rounded-full flex items-center gap-1">
+              <Library size={11} />
+              Existing
+            </span>
+            <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2.5 py-1 rounded-full">
+              ID: {draft.existingQuestionId?.slice(0, 8)}…
+            </span>
+          </div>
+        )}
+        {!isExisting && !draft.isPublished && canDelete && (
+          <button
+            onClick={onDelete}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-rose-500 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-rose-50"
+          >
+            <X size={14} />
+            <span className="hidden sm:inline">Remove</span>
+          </button>
+        )}
+        {!isExisting && draft.isPublished && (
           <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2.5 py-1 rounded-full">
             ✓ Saved
           </span>
@@ -640,68 +662,91 @@ const BoardDraftCard = ({
   onDelete: () => void;
   onBoardSaved: (result: BoardQuestionResult) => void;
   isSubmitting: boolean;
-}) => (
-  <div
-    className={`border rounded-2xl overflow-hidden transition-all duration-300 ${
-      draft.isPublished
-        ? "border-emerald-300 bg-emerald-50/30"
-        : "border-emerald-500/40"
-    }`}
-  >
-    {/* Header */}
-    <div className="flex items-center justify-between px-4 sm:px-6 pt-4 pb-3 border-b border-[#D9D9D9] bg-white/60">
-      <div className="flex items-center gap-3">
-        <span
-          className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0 ${
-            draft.isPublished
-              ? "bg-emerald-500 text-white"
-              : "bg-emerald-600/10 text-emerald-700"
-          }`}
-        >
-          {draft.isPublished ? (
-            <Check className="w-3.5 h-3.5" strokeWidth={3} />
-          ) : (
-            <PenTool size={13} />
-          )}
-        </span>
-        <div>
-          <h2 className="font-semibold text-chestnut text-sm sm:text-base tracking-tight">
-            {draft.isPublished ? "Board Question Saved" : `Board Question ${index + 1}`}
-          </h2>
-          {!draft.isPublished && (
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Draw on the canvas · set options · click Save
-            </p>
-          )}
+}) => {
+  const isReady = !!draft.boardData && !draft.isPublished;
+  return (
+    <div
+      className={`border rounded-2xl overflow-hidden transition-all duration-300 ${
+        draft.isPublished
+          ? "border-emerald-300 bg-emerald-50/30"
+          : isReady
+            ? "border-amber-300 bg-amber-50/20"
+            : "border-emerald-500/40"
+      }`}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 sm:px-6 pt-4 pb-3 border-b border-[#D9D9D9] bg-white/60">
+        <div className="flex items-center gap-3">
+          <span
+            className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0 ${
+              draft.isPublished
+                ? "bg-emerald-500 text-white"
+                : isReady
+                  ? "bg-amber-500 text-white"
+                  : "bg-emerald-600/10 text-emerald-700"
+            }`}
+          >
+            {draft.isPublished ? (
+              <Check className="w-3.5 h-3.5" strokeWidth={3} />
+            ) : isReady ? (
+              <Check className="w-3.5 h-3.5" strokeWidth={3} />
+            ) : (
+              <PenTool size={13} />
+            )}
+          </span>
+          <div>
+            <h2 className="font-semibold text-chestnut text-sm sm:text-base tracking-tight">
+              {draft.isPublished
+                ? "Board Question Saved"
+                : isReady
+                  ? "Board Question Ready"
+                  : `Board Question ${index + 1}`}
+            </h2>
+            {isReady && (
+              <p className="text-[11px] text-amber-500 mt-0.5 font-medium">
+                Ready to publish · will be included in Publish All
+              </p>
+            )}
+            {!isReady && !draft.isPublished && (
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Draw on the canvas · set options · click Save
+              </p>
+            )}
+          </div>
         </div>
+        {!draft.isPublished && canDelete && (
+          <button
+            onClick={onDelete}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-rose-500 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-rose-50"
+          >
+            <X size={14} />
+            <span className="hidden sm:inline">Remove</span>
+          </button>
+        )}
+        {draft.isPublished && (
+          <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2.5 py-1 rounded-full">
+            Published
+          </span>
+        )}
+        {isReady && (
+          <span className="text-xs font-semibold text-amber-600 bg-amber-100 px-2.5 py-1 rounded-full">
+            Ready
+          </span>
+        )}
       </div>
-      {!draft.isPublished && canDelete && (
-        <button
-          onClick={onDelete}
-          className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-rose-500 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-rose-50"
-        >
-          <X size={14} />
-          <span className="hidden sm:inline">Remove</span>
-        </button>
-      )}
-      {draft.isPublished && (
-        <span className="text-xs font-semibold text-emerald-600 bg-emerald-100 px-2.5 py-1 rounded-full">
-          ✓ Saved
-        </span>
+
+      {!draft.isPublished && (
+        <div className="p-4 sm:p-6">
+          <QuizBoard
+            onCancel={onDelete}
+            onSaved={onBoardSaved}
+            isSubmitting={isSubmitting}
+          />
+        </div>
       )}
     </div>
-
-    {!draft.isPublished && (
-      <div className="p-4 sm:p-6">
-        <QuizBoard
-          onCancel={onDelete}
-          onSaved={onBoardSaved}
-          isSubmitting={isSubmitting}
-        />
-      </div>
-    )}
-  </div>
-);
+  );
+};
 
 // ── Main Component ─────────────────────────────────────────────────────────
 const CreateQuizQuestion = () => {
@@ -714,7 +759,8 @@ const CreateQuizQuestion = () => {
   const [drafts, setDrafts] = useState<QuestionDraft[]>([createDraft()]);
   const [isPublishingAll, setIsPublishingAll] = useState(false);
   const [publishProgress, setPublishProgress] = useState<{ done: number; total: number } | null>(null);
-  const [boardSubmitting, setBoardSubmitting] = useState(false);
+  const [boardSubmitting] = useState(false);
+  const [selectModalOpen, setSelectModalOpen] = useState(false);
 
   // ── Admin context state ─────────────────────────────────────────────────
   const [classrooms, setClassrooms] = useState<ApiItem[]>([]);
@@ -895,6 +941,8 @@ const CreateQuizQuestion = () => {
 
         if (topicIdParam && nextTopics.some((t) => t.id === topicIdParam)) {
           setSelectedTopicId(topicIdParam);
+        } else if (nextTopics.length === 1) {
+          setSelectedTopicId(nextTopics[0].id);
         }
       })
       .catch(() => toast.error("Failed to load topics"))
@@ -923,6 +971,8 @@ const CreateQuizQuestion = () => {
     setSubtopics(nextSubtopics);
     if (subTopicParam && nextSubtopics.some((s) => s.id === subTopicParam)) {
       setSelectedSubTopicId(subTopicParam);
+    } else if (nextSubtopics.length === 1) {
+      setSelectedSubTopicId(nextSubtopics[0].id);
     }
     setSubtopicsLoading(false);
   }, [selectedTopicId, subTopicParam, topicsData]);
@@ -964,62 +1014,37 @@ const CreateQuizQuestion = () => {
       return next.length > 0 ? next : [createDraft()];
     });
 
-  // ── Board question saved for a specific draft ────────────────────────────
-  const handleBoardDraftSaved = async (draftId: string, result: BoardQuestionResult) => {
-    if (!selectedClassId) { toast.error("Please select a class."); return; }
-    if (!effectiveSubjectId) { toast.error("Please select a subject."); return; }
-    if (!hasSubTopicContext) { toast.error("Please select a sub-topic."); return; }
-    if (!resolvedTopicName) { toast.error("Please select a topic."); return; }
+  const handleSelectExistingQuestions = (selected: QuestionSummaryDto[]) => {
+    const newDrafts: QuestionDraft[] = selected.map((q) => ({
+      id: crypto.randomUUID(),
+      draftType: "text" as const,
+      questionType: q.questionTypeName as QuestionType ?? "Multiple Choice",
+      question: q.title || "",
+      options: [],
+      correctAnswers: [],
+      difficultyLevel: q.difficultyLevel,
+      imagePreview: null,
+      imageFile: null,
+      isSubmitting: false,
+      isPublished: true,
+      boardData: null,
+      existingQuestionId: q.id,
+      existingData: q,
+    }));
+    setDrafts((prev) => [...prev, ...newDrafts]);
+    toast.success(`${selected.length} existing question${selected.length !== 1 ? "s" : ""} added.`);
+  };
 
-    setBoardSubmitting(true);
-    try {
-      const res = await questionService.createQuestion({
-        clientId: crypto.randomUUID(),
-        originDevice: "web",
-        createdAtDevice: new Date().toISOString(),
-        subjectId: effectiveSubjectId,
-        topicId: effectiveTopicId,
-        topic: resolvedTopicName,
-        subTopic: effectiveSubTopic,
-        title: result.questionText || "Board Question",
-        textContent: result.questionText || "",
-        questionType: QuestionTypeEnum.ImageBased,
-        difficultyLevel: result.difficultyLevel,
-        marksAllocation: 1,
-        correctAnswer: result.options.find((o) => o.isCorrect)?.optionText ?? null,
-        options: result.options,
-        snapshotUrl: result.imageUrl ?? null,
-        snapshotPublicId: null,
-        imageUrl: result.imageUrl,
-        imagePublicId: null,
-        boardSessionId: result.boardSessionId,
-        scanSessionId: scanSessionId || null,
-        isScanned: false,
-        extractedQuestionIndex: null,
-        aiConfidenceScore: null,
-        classroomId: selectedClassId,
-      });
-
-      const meta = getCreateQuestionMeta(res.data);
-      if (!meta.isSuccessful) {
-        throw new Error(meta.responseMessage || "Question creation failed.");
-      }
-
-      if (!meta.isDuplicate) toast.success("Board question saved.");
-      // Mark the board draft published; auto-remove after a moment
-      updateDraft(draftId, { isPublished: true });
-      setTimeout(() => {
-        setDrafts((prev) => {
-          const next = prev.filter((d) => d.id !== draftId);
-          return next.length > 0 ? next : [createDraft()];
-        });
-      }, 1500);
-    } catch (err) {
-      const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
-      toast.error(e?.response?.data?.responseMessage ?? e?.message ?? "Failed to publish board question.");
-    } finally {
-      setBoardSubmitting(false);
+  // ── Finalize: store board data from QuizBoard (triggered by "Add to Question List") ──
+  const handleBoardDraftSaved = (draftId: string, result?: BoardQuestionResult) => {
+    const draft = drafts.find((d) => d.id === draftId);
+    const data = result ?? draft?.boardData;
+    if (!data) {
+      toast.error("Board question data not found. Save the board first.");
+      return;
     }
+    updateDraft(draftId, { boardData: data });
+    toast.success("Board question ready — it will be published with your other questions.");
   };
   // ── Helpers shared by publish flow ─────────────────────────────────────
   const toQuestionTypeEnum = (qt: QuestionType): number => {
@@ -1098,62 +1123,88 @@ const CreateQuizQuestion = () => {
 
   // ── Publish all unpublished drafts at once ──────────────────────────────
   const handlePublishAll = async () => {
-    // Validate context
-    if (!selectedClassId) {
-      toast.error("Please select a class.");
-      return;
-    }
+    try {
+      // ── Pre-flight validation ───────────────────────────────────────────────
+      const errs: string[] = [];
+      if (!selectedClassId) errs.push("Select a Class.");
+      if (!effectiveSubjectId) errs.push("Select a Subject.");
+      if (!hasSubTopicContext) errs.push("Select a Sub-topic.");
+      if (!resolvedTopicName) errs.push("Select a Topic.");
 
-    if (!effectiveSubjectId) {
-      toast.error("Please select a subject.");
-      return;
-    }
+      const pending = drafts.filter((d) => !d.isPublished);
+      if (pending.length === 0) errs.push("No questions to publish.");
 
-    if (!hasSubTopicContext) {
-      toast.error("Please select a sub-topic.");
-      return;
-    }
+      const boardUnfinalized: number[] = [];
+      for (const draft of pending) {
+        if (draft.draftType === "text") {
+          const err = validateDraft(draft, drafts.indexOf(draft) + 1);
+          if (err) errs.push(err);
+        } else if (draft.draftType === "board" && !draft.boardData) {
+          boardUnfinalized.push(drafts.indexOf(draft) + 1);
+        }
+      }
+      if (boardUnfinalized.length > 0) {
+        errs.push(
+          `Board question(s) Q${boardUnfinalized.join(", Q")} must be finalised via "Add to Question List".`
+        );
+      }
 
-    if (!resolvedTopicName) {
-      toast.error("Please select a topic.");
-      return;
-    }
+      if (errs.length > 0) {
+        errs.forEach((e) => toast.error(e));
+        return;
+      }
 
-    const pending = drafts.filter((d) => !d.isPublished && d.draftType === "text");
+      // ── Upload images first (text drafts only) ──────────────────────────────
+      setIsPublishingAll(true);
+      setPublishProgress({ done: 0, total: pending.length });
 
-    // Validate all drafts upfront
-    for (let i = 0; i < pending.length; i++) {
-      const err = validateDraft(pending[i], drafts.indexOf(pending[i]) + 1);
-      if (err) { toast.error(err); return; }
-    }
-
-    setIsPublishingAll(true);
-    setPublishProgress({ done: 0, total: pending.length });
-
-    let successfulSaves = 0;
-    const failedQuestionNumbers: number[] = [];
-
-    for (let i = 0; i < pending.length; i++) {
-      const draft = pending[i];
-      updateDraft(draft.id, { isSubmitting: true });
-
-      try {
-        // Upload image first if present
-        let imageUrl: string | null = null;
-        if (draft.imageFile) {
+      const imageUrls: Record<string, string | null> = {};
+      for (let i = 0; i < pending.length; i++) {
+        const draft = pending[i];
+        if (draft.draftType === "text" && draft.imageFile) {
           try {
-            imageUrl = await uploadImage(draft.imageFile);
+            imageUrls[draft.id] = await uploadImage(draft.imageFile);
           } catch {
-            toast.error(`Q${drafts.indexOf(draft) + 1}: Image upload failed — question skipped.`);
-            failedQuestionNumbers.push(drafts.indexOf(draft) + 1);
-            updateDraft(draft.id, { isSubmitting: false });
-            setPublishProgress({ done: i + 1, total: pending.length });
-            continue;
+            imageUrls[draft.id] = null;
+            toast.error(`Q${i + 1}: Image upload failed — question will be created without image.`);
           }
         }
+      }
 
-        const res = await questionService.createQuestion({
-          clientId: crypto.randomUUID(),
+      // ── Build batch payloads ────────────────────────────────────────────────
+      const payloads = pending.map((draft) => {
+        if (draft.draftType === "board") {
+          const data = draft.boardData!;
+          return {
+            clientId: draft.id,
+            originDevice: "web",
+            createdAtDevice: new Date().toISOString(),
+            subjectId: effectiveSubjectId,
+            topicId: effectiveTopicId,
+            topic: resolvedTopicName,
+            subTopic: effectiveSubTopic,
+            title: data.questionText || "Board Question",
+            textContent: data.questionText || "",
+            questionType: data.questionType ?? QuestionTypeEnum.ImageBased,
+            difficultyLevel: data.difficultyLevel,
+            marksAllocation: 1,
+            correctAnswer: data.options.find((o) => o.isCorrect)?.optionText ?? null,
+            options: data.options,
+            snapshotUrl: data.imageUrl ?? null,
+            snapshotPublicId: null,
+            imageUrl: data.imageUrl,
+            imagePublicId: null,
+            boardSessionId: data.boardSessionId,
+            scanSessionId: scanSessionId || null,
+            isScanned: false,
+            extractedQuestionIndex: null,
+            aiConfidenceScore: null,
+            classroomId: selectedClassId,
+          };
+        }
+
+        return {
+          clientId: draft.id,
           originDevice: "web",
           createdAtDevice: new Date().toISOString(),
           subjectId: effectiveSubjectId,
@@ -1177,61 +1228,74 @@ const CreateQuizQuestion = () => {
           extractedQuestionIndex: null,
           aiConfidenceScore: null,
           classroomId: selectedClassId,
-          imageUrl,
+          imageUrl: imageUrls[draft.id] ?? null,
           imagePublicId: null,
-        });
+        };
+      });
 
-        const meta = getCreateQuestionMeta(res.data);
-        if (!meta.isSuccessful) {
-          throw new Error(
-            `Q${drafts.indexOf(draft) + 1}: ${meta.responseMessage || "Question creation failed."}`,
-          );
-        }
+      // ── Single batch API call ───────────────────────────────────────────────
+      const res = await questionService.createQuestionsBatch(payloads as any[]);
+      const batchData = (res.data as any)?.data;
+      const results: any[] = batchData?.results ?? [];
 
-        const duplicate = meta.isDuplicate;
-        updateDraft(draft.id, { isPublished: true, isSubmitting: false });
-        // Count both new and duplicate responses as successful saves.
-        successfulSaves++;
-        if (duplicate) {
-          toast.success(`Q${drafts.indexOf(draft) + 1}: already existed on server (linked successfully).`);
+      // Collect explicitly failed clientIds from the response
+      const failedClientIds = new Set<string>();
+      for (const r of results) {
+        if (!r.success) {
+          failedClientIds.add(r.clientId);
         }
-      } catch (err) {
-        const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
-        failedQuestionNumbers.push(drafts.indexOf(draft) + 1);
-        toast.error(
-          `Q${drafts.indexOf(draft) + 1}: ${e?.response?.data?.responseMessage ?? e?.message ?? "Failed"}`
-        );
-        updateDraft(draft.id, { isSubmitting: false });
       }
 
-      setPublishProgress({ done: i + 1, total: pending.length });
-    }
+      let successfulSaves = 0;
+      const failedQuestionNumbers: number[] = [];
 
-    setIsPublishingAll(false);
-    setPublishProgress(null);
+      // Treat every draft that is NOT in the failed set as successful
+      for (let i = 0; i < pending.length; i++) {
+        const draft = pending[i];
+        if (!failedClientIds.has(draft.id)) {
+          updateDraft(draft.id, { isPublished: true });
+          successfulSaves++;
+          const result = results.find((r: any) => r.clientId === draft.id);
+          if (result?.isDuplicate) {
+            toast.success(`Q${i + 1}: already existed on server (linked).`);
+          }
+        } else {
+          failedQuestionNumbers.push(i + 1);
+          const result = results.find((r: any) => r.clientId === draft.id);
+          toast.error(`Q${i + 1}: ${result?.message || "Failed to save"}`);
+        }
+        setPublishProgress({ done: i + 1, total: pending.length });
+      }
 
-    const failedCount = pending.length - successfulSaves;
+      setIsPublishingAll(false);
+      setPublishProgress(null);
 
-    if (successfulSaves > 0) {
-      // Remove published items from the list and keep only pending/failed drafts.
-      setDrafts((prev) => {
-        const remaining = prev.filter((d) => !d.isPublished);
-        return remaining.length > 0 ? remaining : [createDraft()];
-      });
-    }
+      const failedCount = failedQuestionNumbers.length;
 
-    if (successfulSaves > 0 && failedCount === 0) {
-      toast.success("Questions created successfully");
-    } else if (successfulSaves > 0 && failedCount > 0) {
-      toast.success(`${successfulSaves} question${successfulSaves !== 1 ? "s" : ""} saved successfully.`);
-      const failedList = failedQuestionNumbers.length > 0
-        ? ` (Q${failedQuestionNumbers.join(", Q")})`
-        : "";
-      toast.error(
-        `${failedCount} question${failedCount !== 1 ? "s were" : " was"} not saved successfully${failedList}. Data for failed question${failedCount !== 1 ? "s has" : " has"} been kept.`,
-      );
-    } else {
-      toast.error("No question was saved successfully. Please fix and retry.");
+      if (successfulSaves > 0) {
+        setDrafts((prev) => {
+          const remaining = prev.filter((d) => !d.isPublished);
+          return remaining.length > 0 ? remaining : [createDraft()];
+        });
+      }
+
+      if (successfulSaves > 0 && failedCount === 0) {
+        toast.success("Questions created successfully");
+      } else if (successfulSaves > 0 && failedCount > 0) {
+        toast.success(`${successfulSaves} question${successfulSaves !== 1 ? "s" : ""} saved successfully.`);
+        const failedList = failedQuestionNumbers.length > 0
+          ? ` (Q${failedQuestionNumbers.join(", Q")})`
+          : "";
+        toast.error(
+          `${failedCount} question${failedCount !== 1 ? "s were" : " was"} not saved successfully${failedList}.`,
+        );
+      } else {
+        toast.error("No question was saved successfully. Please fix and retry.");
+      }
+    } catch (err: any) {
+      toast.error(`Unexpected error: ${err?.message || "Failed to publish"}`);
+      setIsPublishingAll(false);
+      setPublishProgress(null);
     }
   };
 
@@ -1243,12 +1307,12 @@ const CreateQuizQuestion = () => {
       ? `${selectedClassName ? `${selectedClassName} — ` : ""}${selectedSubjectName}${adminTopic ? `: ${adminTopic}` : ""}`
       : topicParam || "Create Quiz Question";
 
-  const unpublishedCount = drafts.filter((d) => !d.isPublished && d.draftType === "text").length;
-  const canPublish = !!selectedClassId && !!effectiveSubjectId && hasSubTopicContext;
+  const unpublishedCount = drafts.filter((d) => !d.isPublished).length;
+  const unpublishedBoardCount = drafts.filter((d) => !d.isPublished && d.draftType === "board").length;
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className=" sm:p-6 font-poppins">
+    <><div className=" sm:p-6 font-poppins">
       <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
         <TitleBar title="question" hasVertical hasBackIcons onBack={() => navigate(-1)} />
 
@@ -1390,17 +1454,31 @@ const CreateQuizQuestion = () => {
           {/* ── Unified Draft List ── */}
           <div className="flex flex-col gap-4">
             {/* Header row */}
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-sm font-semibold text-slate-500">
-                {unpublishedCount} text question{unpublishedCount !== 1 ? "s" : ""} pending
+                {unpublishedCount} question{unpublishedCount !== 1 ? "s" : ""} pending
+                {unpublishedBoardCount > 0 && (
+                  <span className="text-amber-500 ml-1">
+                    ({unpublishedBoardCount} board{unpublishedBoardCount !== 1 ? "s" : ""})
+                  </span>
+                )}
               </span>
-              <Button
-                onClick={addBoardDraft}
-                className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 shadow-sm cursor-pointer"
-              >
-                <PenTool size={14} className="shrink-0" />
-                <span className="hidden sm:inline">Add Board Question</span>
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  onClick={() => setSelectModalOpen(true)}
+                  className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 shadow-sm cursor-pointer"
+                >
+                  <Library size={14} className="shrink-0" />
+                  <span className="hidden sm:inline">Select Questions</span>
+                </Button>
+                <Button
+                  onClick={addBoardDraft}
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 sm:px-4 py-2 rounded-lg transition-all duration-200 shadow-sm cursor-pointer"
+                >
+                  <PenTool size={14} className="shrink-0" />
+                  <span className="hidden sm:inline">Add Board Question</span>
+                </Button>
+              </div>
             </div>
 
             {/* Draft cards — text or board */}
@@ -1437,24 +1515,28 @@ const CreateQuizQuestion = () => {
               Add Text Question
             </button>
 
-            {/* Publish All (text drafts only) */}
+            {/* Publish All */}
             {unpublishedCount > 0 && (
               <div className="flex flex-col gap-2 pt-2 border-t border-[#D9D9D9]">
-                {!canPublish && (
-                  <p className="text-xs text-amber-500 font-medium">
-                    Select a class, subject and sub-topic before publishing.
-                  </p>
-                )}
+                {/* Quick preview of what's pending */}
+                <div className="text-sm text-slate-500 font-medium bg-slate-50 rounded-lg px-3 py-2">
+                  <span>{unpublishedCount} question{unpublishedCount !== 1 ? "s" : ""} pending</span>
+                  {unpublishedBoardCount > 0 && (
+                    <span className="text-amber-600 ml-2">
+                      ({unpublishedBoardCount} board)
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                  <div className="text-sm text-slate-500 font-medium">
+                  <div className="text-xs text-slate-400">
                     {publishProgress
                       ? `Publishing ${publishProgress.done} of ${publishProgress.total}…`
-                      : `${unpublishedCount} question${unpublishedCount !== 1 ? "s" : ""} ready to publish`}
+                      : "Click Publish All to save everything to the server."}
                   </div>
                   <Button
                     onClick={handlePublishAll}
-                    disabled={isPublishingAll || !canPublish}
-                    className="flex items-center justify-center gap-2 px-8 py-5 rounded-xl cursor-pointer bg-chestnut hover:bg-chestnut/90 disabled:opacity-60 disabled:cursor-not-allowed transition-all shadow-sm shadow-chestnut/20 w-full sm:w-auto"
+                    disabled={isPublishingAll}
+                    className="flex items-center justify-center gap-2 px-8 py-5 rounded-xl cursor-pointer bg-chestnut hover:bg-chestnut/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm shadow-chestnut/20 w-full sm:w-auto"
                   >
                     {isPublishingAll ? (
                       <>
@@ -1465,7 +1547,7 @@ const CreateQuizQuestion = () => {
                       </>
                     ) : (
                       <span className="text-white font-semibold text-sm">
-                        Publish {unpublishedCount} Question{unpublishedCount !== 1 ? "s" : ""}
+                        Publish All
                       </span>
                     )}
                   </Button>
@@ -1476,6 +1558,15 @@ const CreateQuizQuestion = () => {
         </div>
       </div>
     </div>
+
+    <SelectQuestionsModal
+      open={selectModalOpen}
+      onClose={() => setSelectModalOpen(false)}
+      onSelect={handleSelectExistingQuestions}
+      classroomId={selectedClassId}
+      subjectId={effectiveSubjectId}
+      subTopicId={effectiveSubTopic}
+    /></>
   );
 };
 
