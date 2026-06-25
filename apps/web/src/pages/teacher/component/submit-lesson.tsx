@@ -618,6 +618,9 @@ const SubmitLesson = () => {
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+
+
   const dragItemIdx = useRef<number | null>(null);
   const [dragTargetIdx, setDragTargetIdx] = useState<number | null>(null);
 
@@ -901,6 +904,7 @@ const SubmitLesson = () => {
       progress: 0,
     }));
 
+
     setUploadFiles((p) => [...p, ...incoming]);
 
     // Get credentials for PDFs (Supabase) and other files (Cloudinary)
@@ -1060,7 +1064,6 @@ const SubmitLesson = () => {
       durationMinutes: durationMinutes ? Number(durationMinutes) : null,
       ...(mediaFiles.length > 0 ? { mediaFiles } : {}),
     };
-
     try {
       await lessonService.saveDraft(payload);
       setServerDraftSaved(true);

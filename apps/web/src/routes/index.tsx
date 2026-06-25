@@ -80,6 +80,12 @@ import IdbViewer from '@/pages/dev/idb-viewer';
 import DraftLessons from '@/pages/teacher/drafts';
 import PendingUploads from '@/pages/teacher/pending-uploads';
 import QuestionBankScan from '@/pages/teacher/question-bank';
+import CourseIndex from '@/pages/student/courses';
+import Course from '@/pages/student/courses/component/course';
+import SubjectList from '@/pages/student/courses/component/subject-list';
+import Onboarding from '@/pages/panel/onboarding';
+import DiscussionIndex from '@/pages/student/Discussion forum';
+import DiscussionLayout from '@/pages/student/Discussion forum/layout';
 
 const router = createBrowserRouter([
     {
@@ -310,8 +316,40 @@ const router = createBrowserRouter([
             { path: "recorded-class/:classId/watch", element: <WatchClass /> },
             { path: "recorded-class/:classId/replay", element: <StudentReplay /> },
             { path: "Quizzes", element: <StudentQuizzes /> },
+
+            {
+                path: 'my-course',
+                element: <CourseIndex />,
+                children: [
+                    {
+                        index: true,
+                        element: <Course />
+                    },
+                    {
+                        path: ':subjectId',
+                        element: <SubjectList />
+                    }
+                ]
+            },
+            {
+                path: "Discussion-Forum",
+                element: <DiscussionIndex />,
+                children: [
+                    {
+                        index: true,
+                        element: <DiscussionLayout />
+                    }
+                ]
+
+            }
+
         ],
     },
+
+    {
+        path: "panel/onboarding",
+        element: <Onboarding />
+    }
 
 ])
 
@@ -321,3 +359,6 @@ export default router
 
 
 // https://www.figma.com/design/FLJ2J0QZCDF6VzsbNWMQPa/arrange-bluett-e-learning-platform?node-id=0-1&p=f&t=Nacbs0o1As3FNd60-0
+
+
+// https://www.figma.com/design/bOHOepOXOscsGLWVnMzHam/student-dashboard?node-id=0-1&p=f&t=xnhs9qKFes6uaBrU-0
