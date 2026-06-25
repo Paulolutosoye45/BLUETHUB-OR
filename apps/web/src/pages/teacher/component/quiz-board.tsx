@@ -4,6 +4,7 @@ import type Konva from "konva";
 import { Button, Input, Label, Textarea } from "@bluethub/ui-kit";
 import {
   Check,
+  ChevronDown,
   Eraser,
   Loader2,
   Pen,
@@ -16,7 +17,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { LessonMediaType, lessonService } from "@/services/lesson";
-import type { CreateOptionPayload } from "@/services/question";
+import { QuestionTypeEnum, type CreateOptionPayload } from "@/services/question";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Tool = "pen" | "eraser";
@@ -42,6 +43,7 @@ export interface BoardQuestionResult {
   correctAnswers: string[];
   difficultyLevel: number;
   imageUrl?: string;
+  questionType: number;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────
@@ -65,6 +67,25 @@ const DIFFICULTY_META = [
 ];
 
 const OPTION_KEYS = ["A", "B", "C", "D", "E", "F"];
+
+const BOARD_QUESTION_TYPES = [
+  "Multiple Choice",
+  "Single Choice",
+  "True/False",
+  "Short Answer",
+  "Essay",
+];
+
+const toBoardQuestionTypeEnum = (qt: string): number => {
+  switch (qt) {
+    case "Multiple Choice": return QuestionTypeEnum.MultipleChoice;
+    case "Single Choice": return QuestionTypeEnum.MultipleChoice;
+    case "True/False": return QuestionTypeEnum.TrueOrFalse;
+    case "Short Answer": return QuestionTypeEnum.ShortAnswer;
+    case "Essay": return QuestionTypeEnum.Essay;
+    default: return QuestionTypeEnum.MultipleChoice;
+  }
+};
 
 // ── StarPicker ─────────────────────────────────────────────────────────────
 const StarPicker = ({
@@ -181,7 +202,8 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
     { key: "D", value: "" },
   ]);
   const [correctAnswers, setCorrectAnswers] = useState<string[]>([]);
-  const [difficultyLevel, setDifficultyLevel] = useState(0);
+  const [difficultyLevel, setDifficultyLevel] = useState(1);
+  const [questionType, setQuestionType] = useState("Multiple Choice");
 
   // ── Responsive width ────────────────────────────────────────────────────
   useEffect(() => {
@@ -334,6 +356,7 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
       correctAnswers,
       difficultyLevel,
       imageUrl,
+      questionType: toBoardQuestionTypeEnum(questionType),
     });
   };
 
@@ -543,6 +566,23 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
         </div>
 
         <div className="flex flex-col gap-5 p-4 sm:p-6">
+            {/* Question Type */}
+            <div className="flex flex-col gap-2">
+              <Label className="text-sm font-medium text-chestnut">Question Type:</Label>
+              <div className="relative">
+                <select
+                  value={questionType}
+                  onChange={(e) => setQuestionType(e.target.value)}
+                  className="w-full appearance-none px-4 py-3 text-sm font-medium border border-black/15 rounded-xl bg-white text-slate-700 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 transition-all duration-200 cursor-pointer"
+                >
+                  {BOARD_QUESTION_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
             {/* Optional question text */}
             <div className="flex flex-col gap-2">
               <Label className="text-sm font-medium text-chestnut">
