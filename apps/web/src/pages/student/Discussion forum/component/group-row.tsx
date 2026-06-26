@@ -1,3 +1,4 @@
+
 import type { Group } from "./StudyGroupsList";
 
 // ── Compact row (sidebar preview) ─────────────────────────────────────────────

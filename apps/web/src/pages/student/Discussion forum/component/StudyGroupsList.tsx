@@ -144,7 +144,7 @@ function StudyGroupsList({ onCreateForum }: { onCreateForum?: () => void }) {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
               activeTab === tab
                 ? "bg-[#4F61E8] text-white"
                 : "text-gray-400 hover:text-gray-600"

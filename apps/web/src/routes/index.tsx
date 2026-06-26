@@ -88,6 +88,8 @@ import SubjectList from '@/pages/student/courses/component/subject-list';
 import Onboarding from '@/pages/panel/onboarding';
 import DiscussionIndex from '@/pages/student/Discussion forum';
 import DiscussionLayout from '@/pages/student/Discussion forum/layout';
+import GroupDetailPanel from '@/pages/student/Discussion forum/group/group-detail-panel';
+import GroupChatRoom from '@/pages/student/Discussion forum/group/chat/group-chat';
 
 const router = createBrowserRouter([
     {
@@ -342,7 +344,12 @@ const router = createBrowserRouter([
                     {
                         index: true,
                         element: <DiscussionLayout />
-                    }
+                    },
+                    {
+                        path: ':groupName',
+                        element: <GroupDetailPanel />
+                    },
+                    { path: ':groupName/:groupId', element: <GroupChatRoom /> },
                 ]
 
             }

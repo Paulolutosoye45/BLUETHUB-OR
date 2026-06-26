@@ -20,9 +20,9 @@ import arrowMenuOpen from "@/assets/svg/arrow_menu_close.svg";
 import registrationIcon from "@/assets/svg/registration.svg";
 import dashboardIcon from "@/assets/svg/element-4.svg";
 import messageIcon from "@/assets/svg/message.svg";
-import studentIcon from "@/assets/svg/student.svg";
-import teacherIcon from "@/assets/svg/teacher.svg";
-import coursesIcon from "@/assets/svg/courses.svg";
+// import studentIcon from "@/assets/svg/student.svg";
+// import teacherIcon from "@/assets/svg/teacher.svg";
+// import coursesIcon from "@/assets/svg/courses.svg";
 import libraryIcon from "@/assets/svg/library.svg";
 import classIcon from "@/assets/svg/class.svg";
 import lessonIcon from "@/assets/svg/lesson.svg";
@@ -56,17 +56,17 @@ const ACADEMICLINKS: NavItem[] = [
         name: "Registration",
         icons: registrationIcon,
         children: [
-            { name: "Register Admin", path: "/admin/registration/admin" },
-            { name: "Admin Permissions", path: "/admin/registration/admin-permissions" },
+            // { name: "Register Admin", path: "/admin/registration/admin" },
+            // { name: "Admin Permissions", path: "/admin/registration/admin-permissions" },
             { name: "Register Student", path: "/admin/registration/student" },
             { name: "Register Teacher", path: "/admin/registration/Teacher" },
             { name: "Register Subject", path: "/admin/registration/courses" },
             { name: "Register Class", path: "/admin/registration/class" },
         ],
     },
-    { name: "Student", icons: studentIcon, path: "/admin/student" },
-    { name: "Teacher", icons: teacherIcon, path: "/admin/teacher" },
-    { name: "Courses", icons: coursesIcon, path: "/admin/courses" },
+    // { name: "Student", icons: studentIcon, path: "/admin/student" },
+    // { name: "Teacher", icons: teacherIcon, path: "/admin/teacher" },
+    // { name: "Courses", icons: coursesIcon, path: "/admin/courses" },
     { name: "Library", icons: libraryIcon, path: "/admin/library" },
     { name: "Class", icons: classIcon, path: "/admin/class" },
     { name: "Lesson Approval", icons: lessonIcon, path: "/admin/lesson-approval" },

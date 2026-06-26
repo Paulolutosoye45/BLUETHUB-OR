@@ -27,7 +27,7 @@ function StudyGroupsHero({
   ];
 
   return (
-    <div className="relative bg-[#4F61E8] rounded-2xl px-6 py-6 overflow-hidden">
+    <div className="relative bg-[#4F61E8] rounded-2xl px-4 py-6 overflow-hidden">
       {/* Decorative circles */}
       <div className="absolute right-0 top-0 w-48 h-48 rounded-full bg-white/10 translate-x-16 -translate-y-10 pointer-events-none" />
       <div className="absolute right-16 bottom-0 w-32 h-32 rounded-full bg-white/10 translate-y-10 pointer-events-none" />

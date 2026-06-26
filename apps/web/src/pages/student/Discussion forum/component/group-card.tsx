@@ -1,10 +1,11 @@
+import { Link } from "react-router-dom";
 import MemberAvatars from "./member-avatars";
 import StatusBadge from "./status-badge";
 import type { Group } from "./StudyGroupsList";
 
 function GroupCard({ group }: { group: Group }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4">
+    <Link to={encodeURIComponent(group.name)} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-4">
       {/* Header */}
       <div className="flex items-start gap-3 mb-3">
         <div className={`w-10 h-10 rounded-xl ${group.iconBg} flex items-center justify-center text-xl flex-shrink-0`}>
@@ -45,7 +46,7 @@ function GroupCard({ group }: { group: Group }) {
           <span>💬</span> {group.lastActivity}
         </p>
       )}
-    </div>
+    </Link>
   );
 }
 
