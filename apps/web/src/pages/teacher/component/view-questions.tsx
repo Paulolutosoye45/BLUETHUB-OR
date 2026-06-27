@@ -54,26 +54,22 @@ const ADMIN_ROLES = ["SuperAdministrator", "Administrator"];
 // ═══════════════════════════════════════════════════════════════════════════════
 // Star difficulty display
 // ═══════════════════════════════════════════════════════════════════════════════
-const DIFFICULTY_META = [
-  { label: "Easy", fill: "#10b981" },
-  { label: "Medium", fill: "#fbbf24" },
-  { label: "Hard", fill: "#f97316" },
-  { label: "Expert", fill: "#ef4444" },
-];
+const DIFFICULTY_LABELS = ["", "Easy", "Medium", "Hard", "Expert"];
+const DIFFICULTY_COLORS = ["", "#10b981", "#fbbf24", "#f97316", "#ef4444"];
 
-const DifficultyBadge = ({ level }: { level: number }) => {
-  const meta = DIFFICULTY_META[level - 1];
-  if (!meta) return null;
-  return (
-    <span
-      className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
-      style={{ color: meta.fill, backgroundColor: `${meta.fill}18` }}
-    >
-      <Star size={9} fill={meta.fill} strokeWidth={0} />
-      {meta.label}
-    </span>
-  );
-};
+const StarRating = ({ level, size = 14 }: { level: number; size?: number }) => (
+  <span className="inline-flex items-center gap-0.5" title={DIFFICULTY_LABELS[level] ?? ""}>
+    {[1, 2, 3, 4, 5].map((star) => (
+      <Star
+        key={star}
+        size={size}
+        fill={star <= level ? DIFFICULTY_COLORS[level] ?? "#e2e8f0" : "#e2e8f0"}
+        strokeWidth={star <= level ? 0 : 1.5}
+        className={star <= level ? "" : "text-slate-200"}
+      />
+    ))}
+  </span>
+);
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Main Component
@@ -102,7 +98,7 @@ const ViewQuestions = () => {
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [questionsTotal, setQuestionsTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 12;
+  const PAGE_SIZE = 30;
   const [searchText, setSearchText] = useState("");
   const [selectedQuestion, setSelectedQuestion] = useState<QuestionSummaryDto | null>(null);
 
@@ -460,54 +456,55 @@ const ViewQuestions = () => {
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {questions.map((q) => (
-                        <button
-                          key={q.id}
-                          onClick={() => setSelectedQuestion(q)}
-                          className="text-left group rounded-xl border border-slate-200 bg-white hover:border-indigo-200 hover:shadow-md transition-all overflow-hidden flex flex-col"
-                        >
-                          {(q.imageUrl || q.boardSnapshotUrl) ? (
-                            <div className="relative h-36 bg-slate-100 overflow-hidden">
-                              <img
-                                src={q.imageUrl || q.boardSnapshotUrl || ""}
-                                alt=""
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                loading="lazy"
-                              />
-                              <div className="absolute top-2 right-2">
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-black/50 text-white backdrop-blur-sm">
-                                  {q.imageUrl ? "Image" : "Board"}
-                                </span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="h-20 bg-gradient-to-br from-indigo-50 to-slate-50 flex items-center justify-center">
-                              <Layers size={24} className="text-indigo-200" />
-                            </div>
-                          )}
-                          <div className="p-3.5 flex flex-col gap-2 flex-1">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className="text-sm font-semibold text-slate-800 leading-snug line-clamp-2 flex-1">
-                                {q.title || "Untitled question"}
-                              </p>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <DifficultyBadge level={q.difficultyLevel} />
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 uppercase tracking-wider">
-                                {q.questionTypeName || `Type ${q.questionType}`}
-                              </span>
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">
-                                {q.marksAllocation} mark{q.marksAllocation !== 1 ? "s" : ""}
-                              </span>
-                            </div>
-                            <div className="mt-auto pt-2 flex items-center justify-between text-[11px] text-slate-400">
-                              <span className="truncate">{q.topicName || q.topic || "No topic"}</span>
-                              <span className="shrink-0">{q.statusName || `Status ${q.status}`}</span>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
+                    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-slate-50 border-b border-slate-200">
+                            <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-widest px-4 py-3 w-12">#</th>
+                            <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-widest px-4 py-3">Question</th>
+                            <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-widest px-4 py-3 w-48">Difficulty</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {questions.map((q, i) => (
+                            <tr
+                              key={q.id}
+                              onClick={() => setSelectedQuestion(q)}
+                              className="border-b border-slate-100 hover:bg-indigo-50/40 transition-colors cursor-pointer"
+                            >
+                              <td className="px-4 py-3.5 text-xs text-slate-400 font-mono">
+                                {(page - 1) * PAGE_SIZE + i + 1}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <div className="flex items-center gap-3">
+                                  {(q.imageUrl || q.boardSnapshotUrl) && (
+                                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+                                      <img
+                                        src={q.imageUrl || q.boardSnapshotUrl || ""}
+                                        alt=""
+                                        className="w-full h-full object-cover"
+                                        loading="lazy"
+                                      />
+                                    </div>
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium text-slate-800 leading-snug line-clamp-1">
+                                      {q.title || "Untitled question"}
+                                    </p>
+                                    <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                                      {q.topicName || q.topic || "No topic"}
+                                      {q.questionTypeName ? ` · ${q.questionTypeName}` : ""}
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <StarRating level={q.difficultyLevel} size={14} />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
 
                     {totalPages > 1 && (
@@ -584,7 +581,7 @@ const ViewQuestions = () => {
                 </span>
                 <span className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600 flex items-center gap-1.5">
                   <Star size={11} />
-                  {selectedQuestion.difficultyLevelName || `Level ${selectedQuestion.difficultyLevel}`}
+                  <StarRating level={selectedQuestion.difficultyLevel} size={12} />
                 </span>
                 <span className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600 flex items-center gap-1.5">
                   <BookOpen size={11} />

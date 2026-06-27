@@ -17,8 +17,8 @@ interface ClassViewProps {
 
 const ClassView = ({ lessons, loading, selectedSubjectLabel, selectedTopicLabel, summary }: ClassViewProps) => {
     return (
-        <div className="space-y-4 pb-5">
-            <section className="rounded-[24px] border border-white/75 bg-white/90 px-5 py-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.5)]">
+        <div className="space-y-3 sm:space-y-4 pb-5">
+            <section className="rounded-[16px] sm:rounded-[24px] border border-white/75 bg-white/90 px-3 sm:px-5 py-3 sm:py-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.5)]">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Classroom lessons</p>
@@ -41,7 +41,7 @@ const ClassView = ({ lessons, loading, selectedSubjectLabel, selectedTopicLabel,
                 )}
             </section>
 
-            <div className="h-[calc(100vh-260px)] overflow-y-auto pb-7 [&::-webkit-scrollbar]:w-1.5
+            <div className="h-[calc(100vh-360px)] sm:h-[calc(100vh-300px)] lg:h-[calc(100vh-260px)] overflow-y-auto pb-7 [&::-webkit-scrollbar]:w-1.5
       [&::-webkit-scrollbar]:h-2.5 
       [&::-webkit-scrollbar-track]:rounded-full
       [&::-webkit-scrollbar-track]:bg-gray-100

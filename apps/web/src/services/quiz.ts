@@ -128,6 +128,29 @@ export interface UpdateAssessmentSetViewModel {
 }
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// GET /api/quiz/lesson/{lessonId} DTOs
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface QuizLessonQuestionDto {
+  questionId: string;
+  title: string;
+  textContent: string;
+  questionType: number;
+  difficultyLevel: number;
+  marksAllocation: number;
+  subjectName: string;
+  topicName: string;
+  displayOrder: number;
+}
+
+export interface QuizLessonResponse {
+  lessonId: string;
+  quizCode: string;
+  questionCount: number;
+  questions: QuizLessonQuestionDto[];
+}
+
 export interface QuizOptionDto {
   optionId: string;
   optionLabel: string;
@@ -145,6 +168,8 @@ export interface QuizQuestionDetailDto {
   topicName: string;
   displayOrder: number;
   options: QuizOptionDto[];
+  imageUrl: string | null;
+  boardSnapshotUrl: string | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -189,6 +214,8 @@ export interface StudentQuizQuestionDto {
   subjectName: string;
   topicName: string;
   options: QuizOptionDto[];
+  imageUrl: string | null;
+  boardSnapshotUrl: string | null;
 }
 
 export interface StudentQuizDisplayDto {
@@ -310,6 +337,23 @@ export interface QuizAnalyticsDto {
   perQuestionStats: QuestionAnalyticsDto[];
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONFIGURE QUIZ DTOs (POST /api/quiz/configure)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface ConfigureQuizPayload {
+  quizCode: string;
+  questionIds: string[];
+  assessmentSetId?: string | null;
+}
+
+export interface QuizConfiguredDto {
+  quizCode: string;
+  assessmentSetId?: string | null;
+  questionCount: number;
+  modifiedAt: string;
+}
+
 export interface StudentQuizHistoryDto {
   attemptId: string;
   quizCode: string;
@@ -320,6 +364,102 @@ export interface StudentQuizHistoryDto {
   isPassed: boolean | null;
   status: string;
   submittedAt: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUBJECT QUIZZES DTO (GET /api/quiz/subject/{subjectId})
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface SubjectQuizItemDto {
+  quizCode: string;
+  lessonTitle: string;
+  totalQuestions: number;
+  totalMarks: number;
+  config: QuizSettingsDisplayDto;
+  attemptStatus: AttemptStatusDisplayDto;
+  bestScorePercent: number | null;
+  bestIsPassed: boolean | null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ASSESSMENT SET DTOs (from server)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface AssessmentSetServerDto {
+  id: string;
+  name: string;
+  label: string;
+  teacherId?: string;
+  schoolId?: string;
+  passMarkPercent?: number;
+  timeLimitMinutes: number | null;
+  allowRetakes: boolean;
+  maxAttempts: number;
+  showResultMode: string;
+  showCorrectAnswers: boolean;
+  allowBoardAnswer: boolean;
+  easyMarks: number;
+  mediumMarks: number;
+  hardMarks: number;
+  examLevelMarks: number;
+  isActive: boolean;
+  creationDate?: string;
+  modifiedDate?: string;
+}
+
+export interface CreateAssessmentSetServerPayload {
+  name: string;
+  label: string;
+  allowRetakes: boolean;
+  maxAttempts: number;
+  passMarkPercent: number;
+  timeLimitMinutes: number | null;
+  autoSubmitOnTimeout: boolean;
+  shuffleQuestions: boolean;
+  showResultMode: string;
+  showCorrectAnswers: boolean;
+  allowBoardAnswer: boolean;
+  easyMarks: number;
+  mediumMarks: number;
+  hardMarks: number;
+  examLevelMarks: number;
+}
+
+export interface LessonAssessmentConfigDto {
+  assessmentSetId: string | null;
+  assessmentSetName: string;
+  allowRetakes: boolean;
+  maxAttempts: number;
+  passMarkPercent: number;
+  timeLimitMinutes: number | null;
+  autoSubmitOnTimeout: boolean;
+  shuffleQuestions: boolean;
+  showResultMode: string;
+  showCorrectAnswers: boolean;
+  allowBoardAnswer: boolean;
+  easyMarks: number;
+  mediumMarks: number;
+  hardMarks: number;
+  examLevelMarks: number;
+  source: "lesson-assessment-set" | "teacher-default" | "system-default";
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ASSESSMENTS (CREATE QUIZ + ASSESSMENT SET)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface CreateQuizAssessmentPayload {
+  questionIds: string[];
+  assessmentSetId: string | null;
+  name: string | null;
+}
+
+export interface CreateQuizAssessmentResponse {
+  quizCode: string;
+  assessmentSetId: string | null;
+  assessmentSetName: string;
+  questionCount: number;
+  createdAt: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -347,8 +487,16 @@ export const quizService = {
 
   // ── Teacher / Student: Get Quiz by Lesson ───────────────────────────────────
   getQuizByLesson: (lessonId: string) =>
-    API.get<TResponse<unknown>>(
+    API.get<TResponse<QuizLessonResponse>>(
       `api/Quiz/lesson/${lessonId}`,
+      { headers },
+    ),
+
+  // ── Teacher: Configure Quiz (replace questions + assessment set) ────────────
+  configureQuiz: (payload: ConfigureQuizPayload) =>
+    API.post<TResponse<QuizConfiguredDto>>(
+      'api/quiz/configure',
+      payload,
       { headers },
     ),
 
@@ -421,6 +569,61 @@ export const quizService = {
   getStudentQuizHistory: (studentId: string) =>
     API.get<TResponse<StudentQuizHistoryDto[]>>(
       `api/Quiz/student/${studentId}/history`,
+      { headers },
+    ),
+
+  // ── Student: Subject Quizzes ─────────────────────────────────────────────────
+  getSubjectQuizzes: (subjectId: string) =>
+    API.get<TResponse<SubjectQuizItemDto[]>>(
+      `api/quiz/subject/${subjectId}`,
+      { headers },
+    ),
+
+  // ── Student: Quiz Attempt Status by Code ──────────────────────────────────
+  getQuizAttemptStatus: (quizCode: string) =>
+    API.get<TResponse<AttemptStatusDisplayDto>>(
+      `api/quiz/code/${quizCode}/attempt-status`,
+      { headers },
+    ),
+
+  // ── Teacher: Create Quiz with Assessment ─────────────────────────────────────
+  createAssessment: (payload: CreateQuizAssessmentPayload) =>
+    API.post<TResponse<CreateQuizAssessmentResponse>>(
+      'api/quiz/assessments',
+      payload,
+      { headers },
+    ),
+
+  // ── Assessment Sets ──────────────────────────────────────────────────────────
+  getAssessmentSets: () =>
+    API.get<TResponse<AssessmentSetServerDto[]>>(
+      'api/quiz/assessment-sets',
+      { headers },
+    ),
+
+  getAssessmentSet: (id: string) =>
+    API.get<TResponse<AssessmentSetServerDto>>(
+      `api/quiz/assessment-sets/${id}`,
+      { headers },
+    ),
+
+  createAssessmentSet: (payload: CreateAssessmentSetServerPayload) =>
+    API.post<TResponse<{ id: string }>>(
+      'api/quiz/assessment-sets',
+      payload,
+      { headers },
+    ),
+
+  deleteAssessmentSet: (id: string) =>
+    API.delete<TResponse<null>>(
+      `api/quiz/assessment-sets/${id}`,
+      { headers },
+    ),
+
+  // ── Lesson Assessment Config ─────────────────────────────────────────────────
+  getLessonAssessmentConfig: (lessonId: string) =>
+    API.get<TResponse<LessonAssessmentConfigDto>>(
+      `api/quiz/lesson/${lessonId}/assessment-config`,
       { headers },
     ),
 };
