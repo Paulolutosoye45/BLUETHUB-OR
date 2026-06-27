@@ -72,7 +72,7 @@ const QuizIndex = () => {
 
         setQuizzes(quizRes.data?.data ?? []);
 
-        const lessonPayload = lessonRes.data?.data as Record<string, unknown> | undefined;
+        const lessonPayload = lessonRes.data?.data as unknown as Record<string, unknown> | undefined;
         const lessonList = (lessonPayload?.lessons ?? lessonPayload?.Lessons ?? []) as StudentPublishedLesson[];
         setLessons(lessonList);
       } catch {
@@ -283,7 +283,6 @@ const QuizIndex = () => {
                     quiz={q}
                     subtopic={quizSubtopicMap[q.quizCode]}
                     onViewDetails={(code, quizData) => navigate(`/teacher/quiz/${code}`, { state: { quiz: quizData } })}
-                    onManage={(code) => navigate(`/teacher/assessment/generate-quiz?quizCode=${code}`)}
                   />
                 ))}
               </div>

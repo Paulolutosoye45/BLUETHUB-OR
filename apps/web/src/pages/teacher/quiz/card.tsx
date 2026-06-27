@@ -11,10 +11,9 @@ interface CardProps {
   quiz: SubjectQuizItemDto;
   subtopic?: SubtopicInfo;
   onViewDetails: (quizCode: string, quiz: SubjectQuizItemDto) => void;
-  onManage: (quizCode: string) => void;
 }
 
-const Card = ({ quiz, subtopic, onViewDetails, onManage }: CardProps) => {
+const Card = ({ quiz, subtopic, onViewDetails }: CardProps) => {
   const handleCopyId = async () => {
     try {
       await navigator.clipboard.writeText(quiz.quizCode);

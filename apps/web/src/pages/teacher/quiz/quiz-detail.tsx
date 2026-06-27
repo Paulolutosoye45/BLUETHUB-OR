@@ -78,9 +78,10 @@ const QuizDetail = () => {
   const timeLimit = quiz?.config.timeLimitMinutes ?? fallback?.config.timeLimitMinutes ?? null;
   const passMark = quiz?.config.passMarkPercent ?? fallback?.config.passMarkPercent ?? 50;
   const completedAttempts = quiz?.attemptStatus.completedAttempts ?? fallback?.attemptStatus.completedAttempts ?? 0;
-  const bestScore = quiz?.attemptStatus.completedAttempts ?? fallback?.attemptStatus.completedAttempts ?? 0 > 0
-    ? fallback?.bestScorePercent
-    : null;
+  const bestScore: number | null =
+    (quiz?.attemptStatus.completedAttempts ?? fallback?.attemptStatus.completedAttempts ?? 0) > 0
+      ? (fallback?.bestScorePercent ?? null)
+      : null;
 
   return (
     <div className="p-4 font-poppins">
