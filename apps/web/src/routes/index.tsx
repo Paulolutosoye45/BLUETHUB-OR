@@ -46,6 +46,7 @@ import CreateclassRoom from '@/pages/student/class-room/create-class-room';
 import WatchClass from '@/pages/student/class/watch-class';
 import StudentReplay from '@/pages/student/class/student-replay';
 import StudentQuizzes from '@/pages/student/quizzes';
+import StudentQuizPage from '@/pages/student/quiz';
 import Assessment from '@/pages/teacher/component/assessment';
 import CreateQuizQuestion from '@/pages/teacher/component/create-quiz';
 import TopicQuestionList from '@/pages/teacher/component/topic-question-list';
@@ -74,6 +75,7 @@ import MyLesson from '@/pages/teacher/component/my-lesson';
 import SubmitLesson from '@/pages/teacher/component/submit-lesson';
 import StartClass from '@/pages/teacher/component/start-class';
 import QuizIndex from '@/pages/teacher/quiz';
+import QuizDetailView from '@/pages/teacher/quiz/quiz-detail';
 import MySyllabus from '@/pages/teacher/Syllabus/my-syllabus';
 import CreateSyllabus from '@/pages/teacher/Syllabus/create-syllabus';
 import ApprovalsPage from '@/pages/admin/approvals';
@@ -275,6 +277,7 @@ const router = createBrowserRouter([
                 ]
             },
             { path: "quiz", element: <QuizIndex /> },
+            { path: "quiz/:quizCode", element: <QuizDetailView /> },
             { path: "syllabus", element: <MySyllabus /> },
             { path: "syllabus/create", element: <CreateSyllabus /> },
             { path: "drafts", element: <DraftLessons /> },
@@ -313,6 +316,7 @@ const router = createBrowserRouter([
             { path: "Settings", element: <StudentSettings /> },
             { path: "recorded-class/:classId/watch", element: <WatchClass /> },
             { path: "recorded-class/:classId/replay", element: <StudentReplay /> },
+            { path: "quiz/:quizCode", element: <StudentQuizPage /> },
             { path: "Quizzes", element: <StudentQuizzes /> },
         ],
     },

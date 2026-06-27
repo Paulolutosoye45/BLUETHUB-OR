@@ -109,6 +109,17 @@ const QuizAttemptPanel = ({ lessonId, quizCode, onClose }: QuizAttemptPanelProps
   const [error, setError] = useState<string | null>(null);
   const startTimeRef = useRef<number>(0);
 
+  const displayQuestionsById = useRef<Record<string, StudentQuizQuestionDto>>({});
+  useEffect(() => {
+    if (preview?.questions) {
+      const map: Record<string, StudentQuizQuestionDto> = {};
+      for (const q of preview.questions) {
+        map[q.questionId] = q;
+      }
+      displayQuestionsById.current = map;
+    }
+  }, [preview?.questions]);
+
   // ── Load preview on mount ──────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
@@ -540,6 +551,21 @@ const QuizAttemptPanel = ({ lessonId, quizCode, onClose }: QuizAttemptPanelProps
               {question.textContent && (
                 <p className="mt-1.5 text-sm text-slate-600">{question.textContent}</p>
               )}
+
+              {(() => {
+                const imgUrl = displayQuestionsById.current[question.questionId]?.imageUrl ?? (question as any).imageUrl ?? null;
+                if (!imgUrl) return null;
+                return (
+                  <div className="mt-3">
+                    <img
+                      src={imgUrl}
+                      alt="Question image"
+                      className="max-h-64 w-full rounded-lg border border-slate-200 object-contain bg-slate-50"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                  </div>
+                );
+              })()}
 
               {isText || !hasOptions ? (
                 <div className="mt-3">

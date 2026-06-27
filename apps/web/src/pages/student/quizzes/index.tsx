@@ -1,214 +1,262 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  BarChart3,
   BookOpen,
   CalendarDays,
-  CheckCircle2,
-  Clock,
   FileQuestion,
+  Flame,
   Loader2,
   PlayCircle,
+  Target,
+  Trophy,
+  Users,
 } from "lucide-react";
 import { Button } from "@bluethub/ui-kit";
+import { useNavigate } from "react-router-dom";
 import StudentAppBar from "../component/app-bar";
-import QuizAttemptPanel from "../component/quiz-attempt-panel";
-import studentService, { type StudentPublishedLesson } from "@/services/student";
+import {
+  quizService,
+  type SubjectQuizItemDto,
+} from "@/services/quiz";
 import { isStudentRoleData, useAuthContext } from "@/contexts/auth-context";
-import toast from "react-hot-toast";
 
-interface LessonWithQuiz {
-  lesson: StudentPublishedLesson;
+interface SubjectInfo {
+  subjectId: string;
   subjectName: string;
 }
 
-const StudentQuizzes = () => {
+const StudentQuizMenu = () => {
+  const navigate = useNavigate();
   const { user } = useAuthContext();
-  const [lessons, setLessons] = useState<LessonWithQuiz[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
+
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [quizzes, setQuizzes] = useState<SubjectQuizItemDto[]>([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
 
   const studentRoleData = user?.roleData && isStudentRoleData(user.roleData)
     ? user.roleData
     : null;
 
-  // Gather all subjects (major + minor + fallback)
-  const subjectIds = (() => {
-    const ids = new Set<string>();
-    (studentRoleData?.majorSubjects ?? []).forEach((s) => ids.add(s.subjectId));
-    (studentRoleData?.minorSubjects ?? []).forEach((s) => ids.add(s.subjectId));
-    (studentRoleData?.subjects ?? []).forEach((s) => ids.add(s.subjectId));
-    return Array.from(ids);
-  })();
-
-  useEffect(() => {
-    const loadQuizzes = async () => {
-      try {
-        setLoading(true);
-        const allLessons: LessonWithQuiz[] = [];
-
-        // Fetch lessons for each subject and keep only those with quizzes
-        await Promise.all(
-          subjectIds.map(async (subjectId) => {
-            try {
-              const res = await studentService.getLessonsBySubject(subjectId);
-              const payload = res.data?.data as {
-                lessons?: StudentPublishedLesson[];
-                Lessons?: StudentPublishedLesson[];
-              } | undefined;
-              const list = payload?.lessons ?? payload?.Lessons ?? [];
-              list.forEach((lesson) => {
-                if (lesson.quizId) {
-                  allLessons.push({ lesson, subjectName: lesson.subjectName });
-                }
-              });
-            } catch {
-              // silently skip failed subject loads
-            }
-          }),
-        );
-
-        setLessons(allLessons);
-      } catch {
-        toast.error("Failed to load quizzes");
-      } finally {
-        setLoading(false);
+  const subjects: SubjectInfo[] = useMemo(() => {
+    const seen = new Set<string>();
+    const list: SubjectInfo[] = [];
+    const add = (s: { subjectId: string; subjectName: string }) => {
+      if (!seen.has(s.subjectId)) {
+        seen.add(s.subjectId);
+        list.push({ subjectId: s.subjectId, subjectName: s.subjectName });
       }
     };
+    (studentRoleData?.majorSubjects ?? []).forEach(add);
+    (studentRoleData?.minorSubjects ?? []).forEach(add);
+    (studentRoleData?.subjects ?? []).forEach(add);
+    return list;
+  }, [studentRoleData]);
 
-    if (subjectIds.length > 0) {
-      void loadQuizzes();
-    } else {
-      setLoading(false);
+  useEffect(() => {
+    if (!selectedSubject) {
+      setQuizzes([]);
+      return;
     }
-  }, [subjectIds.join(",")]);
-
-  const pendingCount = lessons.length; // All are pending until attempt API is wired
-  const completedCount = 0; // Will come from student quiz history later
+    let cancelled = false;
+    const load = async () => {
+      setLoadingQuizzes(true);
+      setQuizzes([]);
+      try {
+        const res = await quizService.getSubjectQuizzes(selectedSubject);
+        if (cancelled) return;
+        setQuizzes(res.data?.data ?? []);
+      } catch {
+        // silently fail
+      } finally {
+        if (!cancelled) setLoadingQuizzes(false);
+      }
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [selectedSubject]);
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-[1400px] flex-col overflow-y-auto rounded-md border border-white/70 bg-white/55 p-3 backdrop-blur-xl transition-all duration-300 md:p-5 lg:p-6 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300">
+    <div className="mx-auto flex min-h-full w-full max-w-[1200px] flex-col overflow-y-auto rounded-md border border-white/70 bg-white/55 p-3 backdrop-blur-xl transition-all duration-300 md:p-5 lg:p-6 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300">
       <StudentAppBar />
 
-      {/* Header */}
       <section className="mt-6 rounded-[28px] border border-white/75 bg-[radial-gradient(circle_at_top_right,_rgba(79,97,232,0.12),_transparent_48%),linear-gradient(180deg,_#ffffff_0%,_#f5f8ff_100%)] px-5 py-5">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#4F61E8]">My Quizzes</p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-900">All Quizzes</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#4F61E8]">
+              Quiz Menu
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-900">My Quizzes</h2>
             <p className="mt-1 text-sm text-slate-500">
-              View and take quizzes attached to your lesson recordings.
+              Select a subject to view and attempt your quizzes.
             </p>
           </div>
           <div className="flex items-center gap-2">
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Pending</p>
-              <p className="text-lg font-semibold text-slate-900">{pendingCount}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                Quizzes
+              </p>
+              <p className="text-lg font-semibold text-slate-900">{quizzes.length}</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Completed</p>
-              <p className="text-lg font-semibold text-slate-900">{completedCount}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                Completed
+              </p>
+              <p className="text-lg font-semibold text-slate-900">
+                {quizzes.filter((q) => q.attemptStatus.completedAttempts > 0).length}
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Quiz List */}
-      <section className="mt-6 space-y-4">
-        {loading ? (
+      <section className="mt-5">
+        <p className="mb-3 text-sm font-semibold text-slate-700">Select Subject</p>
+        {subjects.length === 0 ? (
+          <p className="text-sm text-slate-400">No subjects available.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {subjects.map((sub) => (
+              <button
+                key={sub.subjectId}
+                type="button"
+                onClick={() => setSelectedSubject(sub.subjectId)}
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
+                  selectedSubject === sub.subjectId
+                    ? "border-[#4255db] bg-[#eef2ff] text-[#4255db] shadow-sm"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                {sub.subjectName}
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="mt-6 flex-1">
+        {!selectedSubject ? (
+          <div className="flex flex-col items-center gap-3 rounded-[24px] border border-slate-200 bg-white px-6 py-16 text-center">
+            <div className="rounded-full bg-slate-100 p-4">
+              <BookOpen className="h-8 w-8 text-slate-400" />
+            </div>
+            <p className="text-base font-semibold text-slate-700">Select a subject above</p>
+            <p className="max-w-sm text-sm text-slate-500">
+              Choose a subject to see all quizzes attached to your lessons.
+            </p>
+          </div>
+        ) : loadingQuizzes ? (
           <div className="flex items-center justify-center gap-2 py-16 text-slate-500">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-sm">Loading quizzes…</span>
           </div>
-        ) : lessons.length === 0 ? (
+        ) : quizzes.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-[24px] border border-slate-200 bg-white px-6 py-14 text-center">
             <div className="rounded-full bg-slate-100 p-4">
               <FileQuestion className="h-8 w-8 text-slate-400" />
             </div>
             <p className="text-base font-semibold text-slate-700">No quizzes available</p>
-            <p className="text-sm text-slate-500 max-w-sm">
-              Your teachers haven&apos;t attached any quizzes to your lessons yet. Check back later.
+            <p className="max-w-sm text-sm text-slate-500">
+              No quizzes have been attached to lessons in this subject yet.
             </p>
           </div>
         ) : (
-          lessons.map(({ lesson }) => (
-            <div
-              key={lesson.id}
-              className="rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,_#ffffff_0%,_#f9fbff_100%)] px-5 py-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-30px_rgba(79,97,232,0.5)]"
-            >
-              <div className="flex flex-col md:flex-row md:items-center gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#eef2ff] text-[#4255db]">
-                  <BookOpen className="h-6 w-6" />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className="rounded-full bg-[#eef2ff] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#4255db]">
-                      {lesson.subjectName}
-                    </span>
-                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                      Quiz attached
-                    </span>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {quizzes.map((q) => {
+              const hasCompleted = q.attemptStatus.completedAttempts > 0;
+              return (
+                <div
+                  key={q.quizCode}
+                  className="group rounded-[20px] border border-slate-200 bg-[linear-gradient(180deg,_#ffffff_0%,_#f9fbff_100%)] px-4 py-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-30px_rgba(79,97,232,0.5)]"
+                >
+                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                    {hasCompleted ? (
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                        Completed
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+                        Pending
+                      </span>
+                    )}
+                    {!q.attemptStatus.canStart && q.attemptStatus.maxAttemptsReached && (
+                      <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600">
+                        Max Attempts
+                      </span>
+                    )}
                   </div>
-                  <h3 className="text-base font-semibold text-slate-900 truncate">{lesson.topicName}</h3>
-                  <p className="text-sm text-slate-600 line-clamp-1">
-                    {lesson.description || lesson.aim || "No description available."}
-                  </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+
+                  <h3 className="text-sm font-semibold text-slate-900 truncate">
+                    {q.lessonTitle || q.quizCode}
+                  </h3>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
                     <span className="flex items-center gap-1">
-                      <CalendarDays className="h-3.5 w-3.5" />
-                      {lesson.approvedAt
-                        ? new Date(lesson.approvedAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })
-                        : "N/A"}
+                      <FileQuestion className="h-3.5 w-3.5 text-slate-400" />
+                      {q.totalQuestions} question{q.totalQuestions !== 1 ? "s" : ""}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
-                      {lesson.subTopic || "Sub-topic"}
+                      <Target className="h-3.5 w-3.5 text-slate-400" />
+                      {q.totalMarks} mark{q.totalMarks !== 1 ? "s" : ""}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      Teacher: {lesson.teacherName}
-                    </span>
+                    {q.config.timeLimitMinutes && (
+                      <span className="flex items-center gap-1">
+                        <Flame className="h-3.5 w-3.5 text-slate-400" />
+                        {q.config.timeLimitMinutes} min
+                      </span>
+                    )}
                   </div>
-                </div>
 
-                <div className="shrink-0 flex items-center gap-2">
-                  <Button
-                    onClick={() =>
-                      setActiveLessonId(activeLessonId === lesson.id ? null : lesson.id)
-                    }
-                    className="rounded-full bg-[#4255db] px-5 py-2 text-sm font-semibold text-white hover:bg-[#3447cc]"
-                  >
-                    <PlayCircle className="mr-1.5 h-4 w-4" />
-                    {activeLessonId === lesson.id ? "Hide Quiz" : "Start Quiz"}
-                  </Button>
-                </div>
-              </div>
+                  {q.bestScorePercent !== null && (
+                    <div className="mt-3 flex items-center gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                      <div className="flex items-center gap-1">
+                        <Trophy className="h-3.5 w-3.5 text-amber-500" />
+                        <span className="text-xs font-semibold text-slate-700">
+                          Best: {q.bestScorePercent.toFixed(0)}%
+                        </span>
+                      </div>
+                      {q.attemptStatus.completedAttempts > 0 && (
+                        <div className="flex items-center gap-1 ml-auto">
+                          <Users className="h-3.5 w-3.5 text-slate-400" />
+                          <span className="text-xs text-slate-500">
+                            {q.attemptStatus.completedAttempts} attempt
+                            {q.attemptStatus.completedAttempts !== 1 ? "s" : ""}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-              {/* Inline quiz panel */}
-              {activeLessonId === lesson.id && (
-                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/40 p-4 sm:p-5">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-semibold text-amber-800">Lesson Quiz</p>
-                    <button
-                      type="button"
-                      onClick={() => setActiveLessonId(null)}
-                      className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 hover:text-slate-700"
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-xs text-slate-400">
+                      {q.attemptStatus.hasInProgressAttempt ? (
+                        <span className="flex items-center gap-1 text-amber-600">
+                          <PlayCircle className="h-3.5 w-3.5" />
+                          In progress
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <CalendarDays className="h-3.5 w-3.5" />
+                          {q.attemptStatus.canStart ? "Ready" : "Unavailable"}
+                        </span>
+                      )}
+                    </span>
+                    <Button
+                      onClick={() => navigate(`/student/quiz/${q.quizCode}`)}
+                      disabled={!q.attemptStatus.canStart && !q.attemptStatus.hasInProgressAttempt}
+                      className="rounded-full bg-[#4255db] px-4 py-1.5 text-xs font-semibold text-white hover:bg-[#3447cc] disabled:opacity-50"
                     >
-                      Close
-                    </button>
+                      <PlayCircle className="mr-1 h-3.5 w-3.5" />
+                      {q.attemptStatus.hasInProgressAttempt ? "Resume" : hasCompleted ? "Retake" : "Take Quiz"}
+                    </Button>
                   </div>
-                  <QuizAttemptPanel lessonId={lesson.id} onClose={() => setActiveLessonId(null)} />
                 </div>
-              )}
-            </div>
-          ))
+              );
+            })}
+          </div>
         )}
       </section>
     </div>
   );
 };
 
-export default StudentQuizzes;
+export default StudentQuizMenu;

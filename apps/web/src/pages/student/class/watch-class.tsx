@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@bluethub/ui-kit";
 import { CheckCircle2, Download, Loader2, PlayCircle, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
+import { markLessonWatched } from "@/utils/watched-lessons";
 import boardSessionService from "@/services/board-session";
 import {
   addAudio,
@@ -506,6 +507,7 @@ const WatchClass = () => {
   const handlePrepareAndWatch = useCallback(async () => {
     try {
       await ensureReplayData();
+      if (lessonId) markLessonWatched(lessonId);
       toast.success("Replay ready");
       navigate(`/student/recorded-class/${lessonId}/replay`, {
         state: { sessionId, lessonId },
