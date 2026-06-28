@@ -9,6 +9,7 @@ export const PopoverClose = PopoverPrimitive.Close;
 export * from "./components/ui/color-picker";
 
 export { Slider } from "./components/ui/slider"
+export * from "./components/ui/switch"
 
 export * from "./components/ui/tooltip";
 export * from "./components/ui/tabs";

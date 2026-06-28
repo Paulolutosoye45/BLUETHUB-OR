@@ -326,6 +326,9 @@ export const authService = {
   getAdapterPermissions: (adminUserId: string) => {
     return API.get<TResponse<unknown>>(endpoints.getAdminPermissions, {
       params: { adminUserId },
+       headers: {
+        "X-Tenant-ID":  X_Tenant_ID,
+      },
     });
   },
 

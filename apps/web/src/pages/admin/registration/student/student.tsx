@@ -140,7 +140,7 @@ const Student = () => {
   }
 
     return (
-      <div className="md:p-6 p-3 font-poppins">
+      <div className="md:px-6 p-3 font-poppins">
         <div className="rounded-2xl border border-white/20 overflow-hidden bg-white/75 backdrop-blur-sm">
           <div className="flex items-center justify-between px-5 py-4 sticky top-0 z-30 bg-chestnut">
             <div className="flex items-center gap-2.5 min-w-0">

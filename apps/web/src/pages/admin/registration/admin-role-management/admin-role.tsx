@@ -1,7 +1,7 @@
 import { EllipsisVertical, FilterIcon, Info, Menu, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import AssignRoleDialog from "./admin-role-dialog";
-import { useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -161,9 +161,9 @@ const AdminRole = () => {
 
           {/* Right: actions */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <button className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/50 text-white text-sm font-semibold hover:bg-white/10 transition-colors">
+            <Link to="/admin/registration/admin-permissions" className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/50 text-white text-sm font-semibold hover:bg-white/10 transition-colors">
               Assign Role
-            </button>
+            </Link>
             {/* Assign Role — icon only on mobile */}
             <button className="sm:hidden flex items-center justify-center w-8 h-8 rounded-full border border-white/50 text-white hover:bg-white/10 transition-colors">
               <Plus size={16} />

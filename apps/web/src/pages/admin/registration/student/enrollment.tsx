@@ -141,7 +141,7 @@ const Enrollment = () => {
                     </div>
 
                     {successfully ? (
-                        <StudentRegisteredSuccessfully setSuccessfully={setSuccessfully} onReset={onReset} />
+                        <StudentRegisteredSuccessfully firstName={firstName} lastName={lastName} setSuccessfully={setSuccessfully} onReset={onReset} />
                     ) : (
                         <div className="bg-white/35 backdrop-blur-sm px-8 pb-8 pt-6">
 
@@ -401,7 +401,7 @@ const AnimatedSuccessIcon = () => {
     );
 };
 
-const StudentRegisteredSuccessfully = ({ onReset }: { setSuccessfully: (boolean: false) => void; onReset: () => void }) => {
+const StudentRegisteredSuccessfully = ({ onReset, firstName, lastName }: {firstName: string, lastName: string, setSuccessfully: (boolean: false) => void; onReset: () => void }) => {
     const navigate = useNavigate()
     return (
         <div className="min-h-[80vh] bg-white/35 backdrop-blur-sm flex items-center justify-center px-4">
@@ -417,7 +417,7 @@ const StudentRegisteredSuccessfully = ({ onReset }: { setSuccessfully: (boolean:
                     </h3>
 
                     <p className="text-gray-500 text-sm leading-relaxed">
-                        Tee Wealth has been added to{" "}
+                        {firstName} {lastName} has been added to{" "}
                         <span className="font-medium text-gray-700">
                             JSS 1A Section
                         </span>{" "}
