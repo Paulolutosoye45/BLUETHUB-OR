@@ -39,8 +39,13 @@ const PerformanceOverview = () => {
 
   if (!data) return null;
 
-  const passRateColor = data.passRate >= 70 ? "text-emerald-600" : data.passRate >= 50 ? "text-amber-600" : "text-rose-600";
-  const scoreColor = data.averageScorePercent >= 70 ? "text-emerald-600" : data.averageScorePercent >= 50 ? "text-amber-600" : "text-rose-600";
+  const avgScore = data.averageScorePercent ?? 0;
+  const bestScore = data.bestScorePercent ?? 0;
+  const passRate = data.passRate ?? 0;
+  const recentAttempts = data.recentAttempts ?? [];
+
+  const passRateColor = passRate >= 70 ? "text-emerald-600" : passRate >= 50 ? "text-amber-600" : "text-rose-600";
+  const scoreColor = avgScore >= 70 ? "text-emerald-600" : avgScore >= 50 ? "text-amber-600" : "text-rose-600";
 
   return (
     <div className="space-y-5">
@@ -48,25 +53,25 @@ const PerformanceOverview = () => {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StudentSummaryCard
           label="Total Attempts"
-          value={data.totalAttempts}
+          value={data.totalAttempts ?? 0}
           icon={<BarChart3 className="h-5 w-5 text-blue-500" />}
           bg="bg-blue-50"
         />
         <StudentSummaryCard
           label="Completed"
-          value={data.completedAttempts}
+          value={data.completedAttempts ?? 0}
           icon={<CheckCircle2 className="h-5 w-5 text-emerald-500" />}
           bg="bg-emerald-50"
         />
         <StudentSummaryCard
           label="Avg Score"
-          value={`${data.averageScorePercent.toFixed(1)}%`}
+          value={`${avgScore.toFixed(1)}%`}
           icon={<BarChart3 className={`h-5 w-5 ${scoreColor}`} />}
           bg="bg-amber-50"
         />
         <StudentSummaryCard
           label="Best Score"
-          value={`${data.bestScorePercent.toFixed(1)}%`}
+          value={`${bestScore.toFixed(1)}%`}
           icon={<Trophy className="h-5 w-5 text-yellow-500" />}
           bg="bg-yellow-50"
         />
@@ -76,14 +81,14 @@ const PerformanceOverview = () => {
       <div className="rounded-xl border border-slate-100 bg-white px-4 py-3 shadow-sm">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-slate-700">Overall Pass Rate</p>
-          <p className={`text-lg font-bold ${passRateColor}`}>{data.passRate.toFixed(1)}%</p>
+          <p className={`text-lg font-bold ${passRateColor}`}>{passRate.toFixed(1)}%</p>
         </div>
         <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
           <div
             className={`h-full rounded-full transition-all duration-500 ${
-              data.passRate >= 70 ? "bg-emerald-500" : data.passRate >= 50 ? "bg-amber-500" : "bg-rose-500"
+              passRate >= 70 ? "bg-emerald-500" : passRate >= 50 ? "bg-amber-500" : "bg-rose-500"
             }`}
-            style={{ width: `${Math.min(data.passRate, 100)}%` }}
+            style={{ width: `${Math.min(passRate, 100)}%` }}
           />
         </div>
       </div>
@@ -92,10 +97,10 @@ const PerformanceOverview = () => {
       <section>
         <h3 className="mb-3 text-sm font-bold text-slate-700">Recent Attempts</h3>
         <div className="space-y-2">
-          {data.recentAttempts.map((a) => (
+          {recentAttempts.map((a) => (
             <AttemptCard key={a.attemptId} attempt={a} />
           ))}
-          {data.recentAttempts.length === 0 && (
+          {recentAttempts.length === 0 && (
             <p className="text-sm text-slate-400">No attempts yet.</p>
           )}
         </div>

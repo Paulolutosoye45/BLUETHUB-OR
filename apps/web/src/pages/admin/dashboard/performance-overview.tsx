@@ -51,15 +51,18 @@ const PerformanceOverview = () => {
 
   if (!data) return null;
 
+  const classroomBreakdown = data.classroomBreakdown ?? [];
+  const subjectBreakdown = data.subjectBreakdown ?? [];
+
   return (
     <div className="space-y-5">
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <SummaryCard label="Total Students" value={data.totalStudents} icon={<Users className="h-5 w-5" />} color="text-blue-600" bg="bg-blue-50" />
-        <SummaryCard label="Total Attempts" value={data.totalAttempts} icon={<BarChart3 className="h-5 w-5" />} color="text-violet-600" bg="bg-violet-50" />
-        <SummaryCard label="Completed" value={data.completedAttempts} icon={<GraduationCap className="h-5 w-5" />} color="text-emerald-600" bg="bg-emerald-50" />
-        <SummaryCard label="Avg Score" value={`${data.overallAverageScore.toFixed(1)}%`} icon={<BarChart3 className="h-5 w-5" />} color="text-amber-600" bg="bg-amber-50" />
-        <SummaryCard label="Pass Rate" value={`${data.overallPassRate.toFixed(1)}%`} icon={<BarChart3 className="h-5 w-5" />} color="text-emerald-600" bg="bg-emerald-50" />
+        <SummaryCard label="Total Students" value={data.totalStudents ?? 0} icon={<Users className="h-5 w-5" />} color="text-blue-600" bg="bg-blue-50" />
+        <SummaryCard label="Total Attempts" value={data.totalAttempts ?? 0} icon={<BarChart3 className="h-5 w-5" />} color="text-violet-600" bg="bg-violet-50" />
+        <SummaryCard label="Completed" value={data.completedAttempts ?? 0} icon={<GraduationCap className="h-5 w-5" />} color="text-emerald-600" bg="bg-emerald-50" />
+        <SummaryCard label="Avg Score" value={`${(data.overallAverageScore ?? 0).toFixed(1)}%`} icon={<BarChart3 className="h-5 w-5" />} color="text-amber-600" bg="bg-amber-50" />
+        <SummaryCard label="Pass Rate" value={`${(data.overallPassRate ?? 0).toFixed(1)}%`} icon={<BarChart3 className="h-5 w-5" />} color="text-emerald-600" bg="bg-emerald-50" />
       </div>
 
       {/* Classroom Breakdown */}
@@ -69,7 +72,7 @@ const PerformanceOverview = () => {
           Overall quiz performance for each class across all subjects they offer.
         </p>
         <div className="space-y-2">
-          {data.classroomBreakdown.map((cr) => {
+          {classroomBreakdown.map((cr) => {
             const open = expandedClassrooms.has(cr.classroomId);
             return (
               <div key={cr.classroomId} className="rounded-xl border border-slate-100 bg-white shadow-sm">
@@ -128,7 +131,7 @@ const PerformanceOverview = () => {
               </div>
             );
           })}
-          {data.classroomBreakdown.length === 0 && (
+          {classroomBreakdown.length === 0 && (
             <p className="text-sm text-slate-400">No classroom data available.</p>
           )}
         </div>
@@ -141,7 +144,7 @@ const PerformanceOverview = () => {
           School-wide quiz performance for each subject, aggregating data across all classes.
         </p>
         <div className="space-y-2">
-          {data.subjectBreakdown.map((sb) => {
+          {subjectBreakdown.map((sb) => {
             const key = sb.subjectId;
             const open = expandedSubjects.has(key);
             return (
@@ -201,7 +204,7 @@ const PerformanceOverview = () => {
               </div>
             );
           })}
-          {data.subjectBreakdown.length === 0 && (
+          {subjectBreakdown.length === 0 && (
             <p className="text-sm text-slate-400">No subject data available.</p>
           )}
         </div>
