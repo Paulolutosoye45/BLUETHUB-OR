@@ -84,6 +84,9 @@ import IdbViewer from '@/pages/dev/idb-viewer';
 import DraftLessons from '@/pages/teacher/drafts';
 import PendingUploads from '@/pages/teacher/pending-uploads';
 import QuestionBankScan from '@/pages/teacher/question-bank';
+import AdminAnalytics from '@/pages/admin/dashboard/analytics-page';
+import TeacherAnalytics from '@/pages/teacher/dashboard/analytics-page';
+import GradesProgress from '@/pages/student/component/grades-progress';
 
 const router = createBrowserRouter([
     {
@@ -232,6 +235,10 @@ const router = createBrowserRouter([
             {
                 path: 'approvals',
                 element: <ApprovalsPage />
+            },
+            {
+                path: 'analytics',
+                element: <AdminAnalytics />
             }
         ]
     },
@@ -285,6 +292,7 @@ const router = createBrowserRouter([
             { path: "question-bank", element: <QuestionBankScan /> },
             { path: "approvals", element: <ApprovalsPage /> },
             { path: "create-syllabus", element: <CreateSyllabus /> },
+            { path: "analytics", element: <TeacherAnalytics /> },
         ]
     },
 
@@ -318,6 +326,7 @@ const router = createBrowserRouter([
             { path: "recorded-class/:classId/replay", element: <StudentReplay /> },
             { path: "quiz/:quizCode", element: <StudentQuizPage /> },
             { path: "Quizzes", element: <StudentQuizzes /> },
+            { path: "Grades-Progress", element: <GradesProgress /> },
         ],
     },
 

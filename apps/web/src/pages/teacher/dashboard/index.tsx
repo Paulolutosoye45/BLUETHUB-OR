@@ -9,6 +9,8 @@ import UpcomingDeadlines from "./upcoming-deadlines"
 import PendingUploadsCard from "./pending-uploads-card"
 // import { useState } from "react"
 import { useOutletContext } from "react-router-dom";
+import NavbarStats from "@/component/performance-navbar-stats";
+import PerformanceOverview from "./performance-overview";
 
 
 const TeacherDashboard = () => {
@@ -29,8 +31,10 @@ const TeacherDashboard = () => {
 
         <div className="bg-white p-2 space-y-4 pb-4">
           <TeacherAppBar />
+          <NavbarStats />
           <PendingUploadsCard />
           <Activity />
+          <PerformanceOverview />
 
           <div className="flex flex-col lg:flex-row gap-4">
             {/* Left column */}

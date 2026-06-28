@@ -9,6 +9,8 @@ import { PendingLessonApprovals } from "./component/pending-lesson-approvals";
 import { MobileNav } from "../side-bar";
 import { useState } from "react";
 import { useAuthContext } from "@/contexts/auth-context";
+import NavbarStats from "@/component/performance-navbar-stats";
+import PerformanceOverview from "./performance-overview";
 
 const AdminDashboard = () => {
   const [isOpen, setIsOpen]= useState(false)
@@ -54,8 +56,10 @@ const AdminDashboard = () => {
         {/* ── Page Body ── */}
         <div className="flex flex-col gap-4 p-4 md:p-6 bg-white/70 backdrop-blur-sm">
           <AdminAppbar />
+          <NavbarStats />
           <SchoolProgress />
           <Charts />
+          <PerformanceOverview />
 
           {/* ── Bottom section: stacked on mobile, side-by-side on md+ ── */}
           <div className="flex flex-col gap-4 lg:flex-row">

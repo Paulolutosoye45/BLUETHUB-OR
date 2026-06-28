@@ -446,6 +446,29 @@ const QuizAttemptPanel = ({ lessonId, quizCode, onClose }: QuizAttemptPanelProps
   if (phase === "result" && result) {
     const passed = result.isPassed;
     const didSkip = result.status === "Skipped";
+
+    // Compute corrected score — only count answers that have been graded
+    // (auto-graded questions). Ungraded manual questions are excluded.
+    let gradedTotal = 0;
+    let obtained = 0;
+    let pendingCount = 0;
+    const hasAnswers = Array.isArray(result.answers) && result.answers.length > 0;
+    if (hasAnswers) {
+      for (const a of result.answers) {
+        if (a.marksObtained !== null) {
+          gradedTotal += a.maxMarks;
+          obtained += a.marksObtained;
+        } else {
+          pendingCount++;
+        }
+      }
+    }
+    const useCorrected = hasAnswers && gradedTotal > 0;
+    const displayTotal = useCorrected ? gradedTotal : result.totalMarks;
+    const displayObtained = useCorrected ? obtained : result.autoMarksObtained + result.manualMarksObtained;
+    const displayPercent = useCorrected ? (obtained / gradedTotal) * 100 : result.finalScorePercent;
+    const allPending = hasAnswers && gradedTotal === 0 && pendingCount > 0;
+
     return (
       <div className="flex flex-col items-center gap-5 py-6 text-center">
         {didSkip ? (
@@ -461,13 +484,24 @@ const QuizAttemptPanel = ({ lessonId, quizCode, onClose }: QuizAttemptPanelProps
               <p className="text-xl font-bold text-amber-600">Quiz Skipped</p>
               <p className="mt-1 text-sm text-slate-600">You can retake this quiz later if retakes are allowed.</p>
             </>
+          ) : allPending ? (
+            <>
+              <p className="text-lg font-bold text-amber-600">Awaiting Review</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Your answers have been submitted. The quiz contains questions that require manual grading. Your score will appear once the teacher completes the review.
+              </p>
+            </>
           ) : (
             <>
               <p className={`text-2xl font-bold ${passed ? "text-emerald-600" : "text-rose-600"}`}>
-                {result.finalScorePercent.toFixed(0)}%
+                {displayPercent.toFixed(0)}%
               </p>
               <p className="mt-1 text-sm font-semibold text-slate-700">
-                {result.autoMarksObtained + result.manualMarksObtained} / {result.totalMarks} marks
+                {displayObtained} / {displayTotal} marks{pendingCount > 0 && (
+                  <span className="ml-2 text-xs text-amber-600 font-normal">
+                    ({pendingCount} pending review)
+                  </span>
+                )}
               </p>
               <p className={`mt-2 text-sm font-semibold ${passed ? "text-emerald-600" : "text-rose-500"}`}>
                 {passed ? "Well done — you passed!" : "Better luck next time!"}
