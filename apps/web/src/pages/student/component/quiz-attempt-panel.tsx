@@ -557,7 +557,13 @@ const QuizAttemptPanel = ({ lessonId, quizCode, onClose }: QuizAttemptPanelProps
       <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
         {questions.map((question, qIdx) => {
           const ans = answers[question.questionId];
-          const hasOptions = question.options && question.options.length > 0;
+          const isTrueFalse = question.questionType === 4;
+          const options = question.options && question.options.length > 0
+            ? question.options
+            : isTrueFalse
+              ? [{ optionId: "true", optionLabel: "A", optionText: "True" }, { optionId: "false", optionLabel: "B", optionText: "False" }]
+              : [];
+          const hasOptions = options.length > 0;
           const isText = isTextQuestion(question);
 
           return (
@@ -613,13 +619,19 @@ const QuizAttemptPanel = ({ lessonId, quizCode, onClose }: QuizAttemptPanelProps
                 </div>
               ) : (
                 <div className="mt-3 space-y-2">
-                  {question.options.map((option) => {
-                    const selected = ans?.type === "option" && ans.optionId === option.optionId;
+                  {options.map((option) => {
+                    const selected = isTrueFalse
+                      ? ans?.type === "text" && ans.text === option.optionText
+                      : ans?.type === "option" && ans.optionId === option.optionId;
                     return (
                       <button
                         key={option.optionId}
                         type="button"
-                        onClick={() => handleSelectOption(question.questionId, option.optionId)}
+                        onClick={() =>
+                          isTrueFalse
+                            ? handleTextChange(question.questionId, option.optionText)
+                            : handleSelectOption(question.questionId, option.optionId)
+                        }
                         className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm transition-all ${
                           selected
                             ? "border-[#4255db] bg-[#eef2ff] font-semibold text-[#4255db]"
