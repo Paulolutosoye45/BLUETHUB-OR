@@ -4,6 +4,7 @@ import type Konva from "konva";
 import { Button, Input, Label, Textarea } from "@bluethub/ui-kit";
 import {
   Check,
+  ChevronDown,
   Eraser,
   Loader2,
   Pen,
@@ -15,8 +16,8 @@ import {
   X,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { lessonService } from "@/services/lesson";
-import type { CreateOptionPayload } from "@/services/question";
+import { LessonMediaType, lessonService } from "@/services/lesson";
+import { QuestionTypeEnum, type CreateOptionPayload } from "@/services/question";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 type Tool = "pen" | "eraser";
@@ -27,6 +28,7 @@ interface BoardStroke {
   color: string;
   width: number;
   points: number[]; // flat [x1,y1,x2,y2,…] for Konva Line
+  timestamp: number;
 }
 
 interface OptionRow {
@@ -40,6 +42,8 @@ export interface BoardQuestionResult {
   options: CreateOptionPayload[];
   correctAnswers: string[];
   difficultyLevel: number;
+  imageUrl?: string;
+  questionType: number;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────
@@ -63,6 +67,25 @@ const DIFFICULTY_META = [
 ];
 
 const OPTION_KEYS = ["A", "B", "C", "D", "E", "F"];
+
+const BOARD_QUESTION_TYPES = [
+  "Multiple Choice",
+  "Single Choice",
+  "True/False",
+  "Short Answer",
+  "Essay",
+];
+
+const toBoardQuestionTypeEnum = (qt: string): number => {
+  switch (qt) {
+    case "Multiple Choice": return QuestionTypeEnum.MultipleChoice;
+    case "Single Choice": return QuestionTypeEnum.MultipleChoice;
+    case "True/False": return QuestionTypeEnum.TrueOrFalse;
+    case "Short Answer": return QuestionTypeEnum.ShortAnswer;
+    case "Essay": return QuestionTypeEnum.Essay;
+    default: return QuestionTypeEnum.MultipleChoice;
+  }
+};
 
 // ── StarPicker ─────────────────────────────────────────────────────────────
 const StarPicker = ({
@@ -115,6 +138,35 @@ const StarPicker = ({
   );
 };
 
+// ── Helper: Snapshot Konva stage to PNG Blob ────────────────────────────────
+const captureCanvasAsBlob = async (stage: Konva.Stage | null): Promise<Blob> => {
+  if (!stage) throw new Error("Stage not ready");
+  // Convert Konva stage to canvas data URL
+  const dataUrl = stage.toDataURL({ pixelRatio: 1 });
+  const response = await fetch(dataUrl);
+  return response.blob();
+};
+
+// ── Helper: Upload board snapshot to Cloudinary ─────────────────────────────
+const uploadBoardImage = async (blob: Blob): Promise<string> => {
+  const { data } = await lessonService.getUploadSignature(LessonMediaType.Image);
+  const sig = data.data;
+  const form = new FormData();
+  form.append("file", blob, "board-snapshot.png");
+  form.append("api_key", sig.apiKey);
+  form.append("timestamp", String(sig.timestamp));
+  form.append("signature", sig.signature);
+  form.append("folder", sig.folder);
+  if (sig.uploadPreset) form.append("upload_preset", sig.uploadPreset);
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${sig.cloudName}/${sig.resourceType}/upload`,
+    { method: "POST", body: form }
+  );
+  if (!res.ok) throw new Error("Board image upload failed");
+  const json = await res.json();
+  return json.secure_url as string;
+};
+
 // ── QuizBoard ──────────────────────────────────────────────────────────────
 interface QuizBoardProps {
   onCancel: () => void;
@@ -150,7 +202,8 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
     { key: "D", value: "" },
   ]);
   const [correctAnswers, setCorrectAnswers] = useState<string[]>([]);
-  const [difficultyLevel, setDifficultyLevel] = useState(0);
+  const [difficultyLevel, setDifficultyLevel] = useState(1);
+  const [questionType, setQuestionType] = useState("Multiple Choice");
 
   // ── Responsive width ────────────────────────────────────────────────────
   useEffect(() => {
@@ -183,6 +236,7 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
       color: tool === "eraser" ? "#ffffff" : color,
       width: tool === "eraser" ? width * 4 : width,
       points: pos,
+      timestamp: Date.now(),
     };
     setActiveStroke(stroke);
   }, [tool, color, width]);
@@ -210,32 +264,35 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
   const undo = () => setStrokes((prev) => prev.slice(0, -1));
   const clearBoard = () => { setStrokes([]); setActiveStroke(null); };
 
-  // ── Save board to backend ───────────────────────────────────────────────
+  // ── Save board: capture snapshot and upload as image ──────────────────────
   const handleSaveBoard = async () => {
-    if (strokes.length === 0) {
+    const finalStrokes = activeStroke ? [...strokes, activeStroke] : strokes;
+    if (finalStrokes.length === 0) {
       toast.error("Draw something on the board first.");
       return;
     }
-    const sessionId = crypto.randomUUID();
+
+    if (activeStroke) {
+      setStrokes(finalStrokes);
+      setActiveStroke(null);
+      isDrawing.current = false;
+    }
+
     setIsSaving(true);
     try {
-      await lessonService.submitManifest({
-        sessionId,
-        manifest: {
-          totalDuration: 0,
-          totalBatches: 1,
-          batches: [
-            {
-              id: crypto.randomUUID(),
-              startTime: "0",
-              endTime: "0",
-              hasAudio: false,
-              hasBoard: true,
-            },
-          ],
-        },
-      });
+      // Capture board snapshot as PNG blob
+      const blob = await captureCanvasAsBlob(stageRef.current);
+      
+      // Upload to Cloudinary and get image URL
+      const imageUrl = await uploadBoardImage(blob);
+      
+      // Set the session ID (already have the image URL for later use)
+      const sessionId = crypto.randomUUID();
       setBoardSessionId(sessionId);
+      
+      // Store the image URL in sessionStorage for access in onSaved callback
+      sessionStorage.setItem(`board-snapshot-${sessionId}`, imageUrl);
+      
       toast.success("Board saved. Now add options and publish.");
     } catch (err) {
       const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
@@ -288,12 +345,18 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
       isCorrect: correctAnswers.includes(opt.key),
       orderIndex: idx + 1,
     }));
+    
+    // Retrieve the stored board snapshot image URL
+    const imageUrl = sessionStorage.getItem(`board-snapshot-${boardSessionId}`) || undefined;
+    
     onSaved({
       boardSessionId,
       questionText: questionText.trim(),
       options: payload,
       correctAnswers,
       difficultyLevel,
+      imageUrl,
+      questionType: toBoardQuestionTypeEnum(questionType),
     });
   };
 
@@ -503,6 +566,23 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
         </div>
 
         <div className="flex flex-col gap-5 p-4 sm:p-6">
+            {/* Question Type */}
+            <div className="flex flex-col gap-2">
+              <Label className="text-sm font-medium text-chestnut">Question Type:</Label>
+              <div className="relative">
+                <select
+                  value={questionType}
+                  onChange={(e) => setQuestionType(e.target.value)}
+                  className="w-full appearance-none px-4 py-3 text-sm font-medium border border-black/15 rounded-xl bg-white text-slate-700 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50 transition-all duration-200 cursor-pointer"
+                >
+                  {BOARD_QUESTION_TYPES.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+
             {/* Optional question text */}
             <div className="flex flex-col gap-2">
               <Label className="text-sm font-medium text-chestnut">

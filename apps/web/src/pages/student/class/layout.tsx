@@ -216,32 +216,32 @@ const ClassLayout = () => {
       {/* App Bar */}
       <StudentAppBar />
 
-      <section className="mt-6 rounded-[28px] border border-white/70 bg-[radial-gradient(circle_at_top_right,_rgba(79,97,232,0.15),_transparent_48%),linear-gradient(180deg,_#ffffff_0%,_#f5f8ff_100%)] px-5 py-5 ">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#4F61E8]">Recorded classes</p>
-        <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-semibold text-slate-900">{selectedSubjectLabel}</h2>
-            <p className="mt-1 text-sm text-slate-500">
+      <section className="mt-4 sm:mt-6 rounded-[20px] sm:rounded-[28px] border border-white/70 bg-[radial-gradient(circle_at_top_right,_rgba(79,97,232,0.15),_transparent_48%),linear-gradient(180deg,_#ffffff_0%,_#f5f8ff_100%)] px-4 sm:px-5 py-4 sm:py-5">
+        <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-[0.22em] text-[#4F61E8]">Recorded classes</p>
+        <div className="mt-2 flex flex-col sm:flex-row items-start sm:items-end justify-between gap-3 sm:gap-4">
+          <div className="w-full sm:w-auto">
+            <h2 className="text-xl sm:text-2xl font-semibold text-slate-900 break-words">{selectedSubjectLabel}</h2>
+            <p className="mt-1 text-xs sm:text-sm text-slate-500">
               Browse approved class recordings, then filter by topic to find exactly what you need.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Lessons</p>
-              <p className="text-lg font-semibold text-slate-900">{filteredLessons.length}</p>
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white px-3 sm:px-4 py-1.5 sm:py-2 text-right flex-1 sm:flex-none">
+              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Lessons</p>
+              <p className="text-base sm:text-lg font-semibold text-slate-900">{filteredLessons.length}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-right">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Topics</p>
-              <p className="text-lg font-semibold text-slate-900">{uniqueTopicCount}</p>
+            <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white px-3 sm:px-4 py-1.5 sm:py-2 text-right flex-1 sm:flex-none">
+              <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Topics</p>
+              <p className="text-base sm:text-lg font-semibold text-slate-900">{uniqueTopicCount}</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Main Layout */}
-      <section className="grid grid-cols-1 xl:grid-cols-[330px_minmax(0,1fr)] gap-5 mt-6 justify-center">
+      <section className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] xl:grid-cols-[330px_minmax(0,1fr)] gap-4 sm:gap-5 mt-4 sm:mt-6 justify-center">
         {/* Left Sidebar */}
-        <section className="flex flex-col gap-6">
+        <section className="flex flex-col gap-4 sm:gap-6">
           <SelectSubject
             options={subjectOptions}
             value={selectedSubjectId}

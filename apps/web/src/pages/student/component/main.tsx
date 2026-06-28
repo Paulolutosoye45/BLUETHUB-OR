@@ -5,6 +5,8 @@ import MyCourse from "./my-course";
 import Notification from "./notification";
 import QuickAction from "./quick-action";
 import UpcomingClass from "./up-coming-class";
+import NavbarStats from "@/component/performance-navbar-stats";
+import PerformanceOverview from "./performance-overview";
 
 
 const StudentIndex = () => {
@@ -21,7 +23,9 @@ const StudentIndex = () => {
   dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500"
     >
       <StudentAppBar />
+      <NavbarStats />
       <ExtracurricularActivity />
+      <PerformanceOverview />
 
       <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(320px,0.92fr)]">
         <div className="space-y-6 min-w-0">

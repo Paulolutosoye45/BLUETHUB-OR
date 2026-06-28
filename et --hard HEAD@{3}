@@ -1,0 +1,77 @@
+[33me4f88af[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m HEAD@{0}: reset: moving to ORIG_HEAD
+[33m4301c84[m HEAD@{1}: pull --tags origin master: Merge made by the 'ort' strategy.
+[33me4f88af[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m HEAD@{2}: commit: feat: enhance student and teacher registration pages with mobile navigation and user context
+[33m2094b55[m HEAD@{3}: pull: Fast-forward
+[33m05305e6[m HEAD@{4}: pull: Fast-forward
+[33mcd0cd55[m HEAD@{5}: pull: Fast-forward
+[33m9fec276[m HEAD@{6}: pull: Fast-forward
+[33mb6f4d90[m HEAD@{7}: pull: Fast-forward
+[33m5bd274e[m HEAD@{8}: commit: Refactor MyUploads component for improved readability and consistency
+[33m26932e1[m HEAD@{9}: pull: Fast-forward
+[33md0064ed[m HEAD@{10}: checkout: moving from studen-view-m to master
+[33mdb8cc55[m[33m ([m[1;31morigin/studen-view-m[m[33m, [m[1;32mstuden-view-m[m[33m)[m HEAD@{11}: commit: Refactor teacher syllabus and dashboard components to utilize role data checks for classrooms; improve error handling and UI consistency
+[33md0064ed[m HEAD@{12}: checkout: moving from master to studen-view-m
+[33md0064ed[m HEAD@{13}: checkout: moving from studen-view-m to master
+[33md0064ed[m HEAD@{14}: checkout: moving from master to studen-view-m
+[33md0064ed[m HEAD@{15}: pull: Fast-forward
+[33m81befdd[m HEAD@{16}: pull: Fast-forward
+[33m7a13ae0[m HEAD@{17}: pull: Fast-forward
+[33m1655f45[m HEAD@{18}: commit: feat: update teacher components with school info and layout adjustments
+[33m52ca9d3[m HEAD@{19}: commit: feat: update student and teacher components with school info and layout adjustments
+[33mf5eb883[m HEAD@{20}: reset: moving to HEAD
+[33mf5eb883[m HEAD@{21}: pull: Fast-forward
+[33md332716[m HEAD@{22}: reset: moving to HEAD
+[33md332716[m HEAD@{23}: commit: fix: my lesson route
+[33m4328e14[m HEAD@{24}: commit: fix: my lesson route
+[33md755583[m HEAD@{25}: commit: fix tenant x_id -2
+[33mc32614d[m HEAD@{26}: commit: fix tenant x_id
+[33me2cceb6[m HEAD@{27}: commit: feat: update teacher dashboard and sidebar with mobile navigation
+[33mbe532d0[m HEAD@{28}: commit: Refactor teacher dashboard and sidebar components for improved layout and functionality
+[33mdbf4a9f[m HEAD@{29}: pull origin master: Fast-forward
+[33ma8d0e5d[m HEAD@{30}: reset: moving to HEAD
+[33ma8d0e5d[m HEAD@{31}: reset: moving to HEAD
+[33ma8d0e5d[m HEAD@{32}: pull: Fast-forward
+[33me661317[m HEAD@{33}: commit: refactor: Clean up code formatting and comment out unused Classroom interface in upload-scan.tsx
+[33md821fdf[m HEAD@{34}: pull: Fast-forward
+[33m116952e[m HEAD@{35}: commit: fix : x_id
+[33m1a5619d[m HEAD@{36}: commit: fix : subdomain
+[33m15d2ec6[m HEAD@{37}: commit: refactor: Change enums to const objects for QuestionType and DifficultyLevel
+[33mb7aad2e[m HEAD@{38}: commit (merge): Merge branch 'master' of https://github.com/Paulolutosoye45/BLUETHUB-OR
+[33md2cb108[m HEAD@{39}: commit: feat: Enhance teacher quiz and syllabus management features
+[33m6fd897f[m HEAD@{40}: commit: feat: update SVG dimensions, enhance token refresh logic, and improve layout structure
+[33m07ec2eb[m HEAD@{41}: commit: Syllabus view for teacher
+[33m63ac852[m HEAD@{42}: commit: feat: add SetQuestion component for quiz management
+[33m6866ca0[m HEAD@{43}: pull: Fast-forward
+[33m1aeccdb[m HEAD@{44}: reset: moving to HEAD
+[33m1aeccdb[m HEAD@{45}: commit: feat: redesign login screen
+[33mc7fa09f[m HEAD@{46}: commit: chore: added creaton of teacher
+[33mf3d1c22[m HEAD@{47}: commit: feat: implemented admin creation of users
+[33m9f6f028[m HEAD@{48}: pull: Fast-forward
+[33me4e0e24[m HEAD@{49}: commit: feat: updated ui for admin flow
+[33m1cfb3a8[m HEAD@{50}: pull: Fast-forward
+[33ma3ca918[m HEAD@{51}: commit: feat: new feature update and new screen added - 4
+[33m3a664ff[m HEAD@{52}: pull: Fast-forward
+[33mbe83a5b[m HEAD@{53}: checkout: moving from admin to master
+[33mea693c2[m[33m ([m[1;31morigin/admin[m[33m, [m[1;32madmin[m[33m)[m HEAD@{54}: commit: feat: new feature update and new screen added - 3
+[33mdda3d02[m HEAD@{55}: commit: feat: new feature update and new screen added -2
+[33mc44e909[m HEAD@{56}: commit: feat: new feature update and new screen added
+[33mbe83a5b[m HEAD@{57}: checkout: moving from master to admin
+[33mbe83a5b[m HEAD@{58}: commit: feat: rmv trackMediaInteraction
+[33mb7cda9e[m HEAD@{59}: commit: feat: idb fix
+[33me6e5a25[m HEAD@{60}: commit: feat: improved replay 4
+[33m302bef7[m HEAD@{61}: commit: feat: improved replay 4
+[33m3a08bb3[m HEAD@{62}: commit: feat: improved replay 2.5
+[33m608127d[m HEAD@{63}: commit: feat: improved replay 2
+[33m4b3bc41[m HEAD@{64}: commit: feat: improved replay
+[33m7f5195a[m HEAD@{65}: commit: feat: added use audio recorder
+[33m1f284e8[m HEAD@{66}: commit: feat: fix Canvas Boundaries and eraser
+[33mde47e36[m HEAD@{67}: commit: feat: fix replay width
+[33m2ddca52[m HEAD@{68}: commit: feat: fix replay width
+[33m1f426c1[m HEAD@{69}: commit: feat: fix replay width
+[33m57932b3[m HEAD@{70}: commit: feat: added reply-2
+[33mcb7dddd[m HEAD@{71}: commit: feat: added reply
+[33mf3d17a3[m HEAD@{72}: commit: chore : added netlify redirect
+[33m6d550db[m HEAD@{73}: commit: feat: fix deploy-2
+[33m6834b51[m HEAD@{74}: commit: feat: fix deploy
+[33mdb41614[m HEAD@{75}: commit: feat: added class
+[33m84d0003[m HEAD@{76}: commit (initial): chore: add packageManager field

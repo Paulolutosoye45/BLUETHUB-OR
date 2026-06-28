@@ -672,9 +672,19 @@ Promise.resolve(roleClassrooms)
                         {question.topic || "No topic"}
                       </p>
                     </div>
-                    <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-600">
-                      {question.status}
-                    </span>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-600">
+                        {question.status}
+                      </span>
+                      {(question.imageUrl || question.boardSnapshotUrl) && (
+                        <img
+                          src={question.imageUrl || question.boardSnapshotUrl || ""}
+                          alt=""
+                          className="h-8 w-8 rounded-md object-cover border border-slate-200 mt-0.5"
+                          loading="lazy"
+                        />
+                      )}
+                    </div>
                   </div>
                 </button>
               ))}
@@ -710,6 +720,23 @@ Promise.resolve(roleClassrooms)
                       Status: {selectedQuestion.statusName || `Status ${selectedQuestion.status}`}
                     </span>
                   </div>
+
+                  {/* Image / Board Snapshot preview */}
+                  {(selectedQuestion.imageUrl || selectedQuestion.boardSnapshotUrl) && (
+                    <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50">
+                      <p className="text-[11px] font-semibold text-slate-500 px-3 py-2 border-b border-slate-100 bg-white">
+                        {selectedQuestion.imageUrl ? "Attached Image" : "Board Snapshot"}
+                      </p>
+                      <div className="flex items-center justify-center p-3">
+                        <img
+                          src={selectedQuestion.imageUrl || selectedQuestion.boardSnapshotUrl || ""}
+                          alt="Question media"
+                          className="max-w-full rounded-lg object-contain"
+                          style={{ maxHeight: 320 }}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex justify-end">
                     <Button

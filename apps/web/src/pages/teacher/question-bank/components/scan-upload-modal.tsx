@@ -323,7 +323,7 @@ const jobResult = await questionJobService.submitJob(formData);
       <DialogContent
         showCloseButton={false}
         className={cn(
-          "p-0 gap-0 overflow-hidden",
+          "p-0 gap-0 overflow-y-scroll",
           // Mobile: full screen sheet from bottom
           "fixed inset-x-0 bottom-0 top-auto translate-y-0 translate-x-0 left-0",
           "max-w-full rounded-t-3xl rounded-b-none max-h-[92vh]",

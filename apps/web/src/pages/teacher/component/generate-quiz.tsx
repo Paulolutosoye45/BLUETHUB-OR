@@ -29,6 +29,7 @@ import {
   quizService,
   type CreateQuizResponse,
   type QuizConfigPayload,
+  type QuizConfiguredDto,
 } from "@/services/quiz";
 import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 
@@ -233,6 +234,7 @@ const GenerateQuiz = () => {
   // ── quiz generation ────────────────────────────────────────────────────────
   const [generating, setGenerating] = useState(false);
   const [quizResult, setQuizResult] = useState<CreateQuizResponse | null>(null);
+  const [configuredResult, setConfiguredResult] = useState<QuizConfiguredDto | null>(null);
   const [copied, setCopied] = useState(false);
 
   // ── quiz config ────────────────────────────────────────────────────────────
@@ -241,7 +243,7 @@ const GenerateQuiz = () => {
   const [savingConfig, setSavingConfig] = useState(false);
   const [configExpanded, setConfigExpanded] = useState(true);
   const [configDirty, setConfigDirty] = useState(false);
-  const [_showSavedCheck, setShowSavedCheck] = useState(false);
+  const [showSavedCheck, setShowSavedCheck] = useState(false);
 
   // ── derived ────────────────────────────────────────────────────────────────
   const selectedSubjectName = useMemo(
@@ -557,6 +559,31 @@ const GenerateQuiz = () => {
     }
   };
 
+  // ── configure (update existing quiz questions) ────────────────────────────
+  const handleConfigure = async () => {
+    if (!quizResult?.quizCode) return;
+    if (selectedIds.size === 0) {
+      toast.error("Select at least one question");
+      return;
+    }
+    setGenerating(true);
+    try {
+      const res = await quizService.configureQuiz({
+        quizCode: quizResult.quizCode,
+        questionIds: Array.from(selectedIds),
+      });
+      const raw = res.data as any;
+      const data = (raw?.data ?? raw) as QuizConfiguredDto;
+      setConfiguredResult(data);
+      setSelectedIds(new Set());
+      toast.success("Quiz updated successfully");
+    } catch {
+      toast.error("Failed to update quiz. Please try again.");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const handleCopy = async () => {
     if (!quizResult?.quizCode) return;
     try {
@@ -596,7 +623,7 @@ const GenerateQuiz = () => {
                 <button
                   type="button"
                   disabled={generating}
-                  onClick={handleGenerate}
+                  onClick={quizResult ? handleConfigure : handleGenerate}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-chestnut px-4 py-2.5 text-sm font-semibold text-white hover:bg-chestnut/90 disabled:opacity-60 shrink-0"
                 >
                   {generating ? (
@@ -604,7 +631,7 @@ const GenerateQuiz = () => {
                   ) : (
                     <Check className="w-4 h-4" />
                   )}
-                  Generate Quiz ({selectedIds.size})
+                  {quizResult ? "Update Quiz" : "Generate Quiz"} ({selectedIds.size})
                 </button>
               )}
             </div>
@@ -802,6 +829,11 @@ const GenerateQuiz = () => {
                           <>
                             <Loader2 className="w-4 h-4 animate-spin mr-2" />
                             Saving...
+                          </>
+                        ) : showSavedCheck ? (
+                          <>
+                            <Check className="w-4 h-4 mr-2 text-emerald-500" />
+                            Saved!
                           </>
                         ) : (
                           <>
@@ -1036,13 +1068,13 @@ const GenerateQuiz = () => {
               <Button
                 type="button"
                 disabled={generating}
-                onClick={handleGenerate}
+                onClick={quizResult ? handleConfigure : handleGenerate}
                 className="w-full h-12 rounded-xl bg-chestnut hover:bg-chestnut/90 text-white font-semibold"
               >
                 {generating ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 ) : null}
-                Generate Quiz ({selectedIds.size} questions)
+                {quizResult ? "Update Quiz" : "Generate Quiz"} ({selectedIds.size} questions)
               </Button>
             </div>
           )}
@@ -1051,19 +1083,19 @@ const GenerateQuiz = () => {
 
       {/* ── Success dialog ── */}
       <Dialog
-        open={!!quizResult}
+        open={!!quizResult || !!configuredResult}
         onOpenChange={(open) => {
-          if (!open) setQuizResult(null);
+          if (!open) { setQuizResult(null); setConfiguredResult(null); }
         }}
       >
         <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden mx-4">
           <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff]">
             <DialogTitle className="text-base font-semibold text-slate-800">
-              Quiz Created!
+              {configuredResult ? "Quiz Updated!" : "Quiz Created!"}
             </DialogTitle>
           </div>
 
-          {quizResult && (
+          {(quizResult || configuredResult) && (
             <div className="p-5 space-y-5">
               <div className="text-center">
                 <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-2">
@@ -1071,7 +1103,7 @@ const GenerateQuiz = () => {
                 </p>
                 <div className="flex items-center justify-center gap-3">
                   <span className="text-3xl sm:text-4xl font-bold tracking-[0.2em] text-chestnut font-mono break-all">
-                    {quizResult.quizCode}
+                    {quizResult?.quizCode ?? configuredResult?.quizCode}
                   </span>
                   <button
                     type="button"
@@ -1089,8 +1121,8 @@ const GenerateQuiz = () => {
               </div>
 
               <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-sm text-slate-600 text-center">
-                {quizResult.questionCount} question
-                {quizResult.questionCount !== 1 ? "s" : ""} included. Share this
+                {(configuredResult?.questionCount ?? quizResult?.questionCount)} question
+                {(configuredResult?.questionCount ?? quizResult?.questionCount) !== 1 ? "s" : ""} included. Share this
                 code with students to start the quiz.
               </div>
 
@@ -1104,7 +1136,7 @@ const GenerateQuiz = () => {
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => setQuizResult(null)}
+                  onClick={() => { setQuizResult(null); setConfiguredResult(null); }}
                   className="flex-1 h-10 rounded-xl bg-chestnut hover:bg-chestnut/90 text-white font-semibold text-sm"
                 >
                   Done

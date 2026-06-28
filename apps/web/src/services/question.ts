@@ -52,21 +52,25 @@ export interface CreateQuestionPayload {
   createdAtDevice: string;
   subjectId: string;
   topicId?: string | null;
-  topic?: string;
+  topic: string;
   subTopic: string;
   title: string;
-  textContent?: string;
+  textContent: string;
   questionType: number;
   difficultyLevel: number;
   marksAllocation: number;
+  correctAnswer?: string | null;
   options: CreateOptionPayload[];
   boardSessionId?: string | null;
+  snapshotUrl?: string | null;
+  snapshotPublicId?: string | null;
   scanSessionId?: string | null;
   isScanned: boolean;
   extractedQuestionIndex?: number | null;
   aiConfidenceScore?: string | null;
-  classroomId?: string | null;
+  classroomId: string;
   imageUrl?: string | null;
+  imagePublicId?: string | null;
 }
 
 export interface UpdateQuestionPayload {
@@ -222,6 +226,8 @@ export interface QuestionSummaryDto {
   status: number;
   statusName?: string;
   creationDate: string;
+  imageUrl?: string | null;
+  boardSnapshotUrl?: string | null;
 }
 
 export interface QuestionDetailResponseData {
@@ -229,6 +235,17 @@ export interface QuestionDetailResponseData {
 }
 
 export interface QuestionListResponseData {
+  questions: QuestionSummaryDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
+export interface QuestionListResponse {
+  responseCode: string;
+  responseMessage: string;
+  status: string;
   questions: QuestionSummaryDto[];
   totalCount: number;
   page: number;
@@ -320,6 +337,15 @@ export const questionService = {
       },
     ),
 
+  createQuestionsBatch: (payloads: CreateQuestionPayload[]) =>
+    API.post<TResponse<{ results: { clientId: string; questionId?: string; success: boolean; isDuplicate?: boolean }[]; totalCount: number; successCount: number; failedCount: number }>>(
+      "api/questions/batch",
+      { questions: payloads },
+      {
+        headers: { "X-Tenant-ID": X_Tenant_ID },
+      },
+    ),
+
   // ── QUERY ──────────────────────────────────────────────────────────────────
   getQuestionsByClassroom: (
     classroomId: string,
@@ -363,6 +389,37 @@ export const questionService = {
         params: filter,
         headers: { "X-Tenant-ID": X_Tenant_ID },
       },
+    ),
+
+  getQuestionsByClassroomSubject: (
+    classroomId: string,
+    subjectId: string,
+    params?: { page?: number; pageSize?: number; questionType?: number; difficultyLevel?: number; searchText?: string },
+  ) =>
+    API.get<QuestionListResponse>(
+      `api/questions/classroom/${classroomId}/subject/${subjectId}`,
+      { params, headers: { "X-Tenant-ID": X_Tenant_ID } },
+    ),
+
+  getQuestionsByClassroomSubjectSubTopic: (
+    classroomId: string,
+    subjectId: string,
+    subTopicId: string,
+    params?: { page?: number; pageSize?: number; questionType?: number; difficultyLevel?: number; searchText?: string },
+  ) =>
+    API.get<QuestionListResponse>(
+      `api/questions/classroom/${classroomId}/subject/${subjectId}/subtopic/${subTopicId}`,
+      { params, headers: { "X-Tenant-ID": X_Tenant_ID } },
+    ),
+
+  getQuestionsBySubjectSubTopic: (
+    subjectId: string,
+    subTopicId: string,
+    params?: { page?: number; pageSize?: number; questionType?: number; difficultyLevel?: number; searchText?: string },
+  ) =>
+    API.get<QuestionListResponse>(
+      `api/questions/subject/${subjectId}/subtopic/${subTopicId}`,
+      { params, headers: { "X-Tenant-ID": X_Tenant_ID } },
     ),
 
   getSubjectQuestionSummary: (

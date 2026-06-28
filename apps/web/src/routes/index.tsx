@@ -46,10 +46,13 @@ import CreateclassRoom from '@/pages/student/class-room/create-class-room';
 import WatchClass from '@/pages/student/class/watch-class';
 import StudentReplay from '@/pages/student/class/student-replay';
 import StudentQuizzes from '@/pages/student/quizzes';
+import StudentQuizPage from '@/pages/student/quiz';
 import Assessment from '@/pages/teacher/component/assessment';
 import CreateQuizQuestion from '@/pages/teacher/component/create-quiz';
 import TopicQuestionList from '@/pages/teacher/component/topic-question-list';
 import SubtopicQuestionList from '@/pages/teacher/component/subtopic-question-list';
+import ViewQuestions from '@/pages/teacher/component/view-questions';
+import AssessmentConfig from '@/pages/teacher/component/assessment-config';
 import GenerateQuiz from '@/pages/teacher/component/generate-quiz';
 import Login from '@/pages/auth/login';
 import NewPassword from '@/pages/auth/new-password';
@@ -72,6 +75,7 @@ import MyLesson from '@/pages/teacher/component/my-lesson';
 import SubmitLesson from '@/pages/teacher/component/submit-lesson';
 import StartClass from '@/pages/teacher/component/start-class';
 import QuizIndex from '@/pages/teacher/quiz';
+import QuizDetailView from '@/pages/teacher/quiz/quiz-detail';
 import MySyllabus from '@/pages/teacher/Syllabus/my-syllabus';
 import CreateSyllabus from '@/pages/teacher/Syllabus/create-syllabus';
 import ApprovalsPage from '@/pages/admin/approvals';
@@ -80,6 +84,9 @@ import IdbViewer from '@/pages/dev/idb-viewer';
 import DraftLessons from '@/pages/teacher/drafts';
 import PendingUploads from '@/pages/teacher/pending-uploads';
 import QuestionBankScan from '@/pages/teacher/question-bank';
+import AdminAnalytics from '@/pages/admin/dashboard/analytics-page';
+import TeacherAnalytics from '@/pages/teacher/dashboard/analytics-page';
+import GradesProgress from '@/pages/student/component/grades-progress';
 
 const router = createBrowserRouter([
     {
@@ -228,6 +235,10 @@ const router = createBrowserRouter([
             {
                 path: 'approvals',
                 element: <ApprovalsPage />
+            },
+            {
+                path: 'analytics',
+                element: <AdminAnalytics />
             }
         ]
     },
@@ -248,6 +259,8 @@ const router = createBrowserRouter([
             { path: "resume-class", element: <ResumeClass /> },
             { path: "class-info", element: <ClassInfo /> },
             { path: "assessment", element: <Assessment /> },
+            { path: "assessment/view-questions", element: <ViewQuestions /> },
+            { path: "assessment/config", element: <AssessmentConfig /> },
             { path: "my-lessons", element: <MyLesson /> },
             { path: "submit-lesson", element: <SubmitLesson /> },
             { path: "start-class", element: <StartClass /> },
@@ -271,6 +284,7 @@ const router = createBrowserRouter([
                 ]
             },
             { path: "quiz", element: <QuizIndex /> },
+            { path: "quiz/:quizCode", element: <QuizDetailView /> },
             { path: "syllabus", element: <MySyllabus /> },
             { path: "syllabus/create", element: <CreateSyllabus /> },
             { path: "drafts", element: <DraftLessons /> },
@@ -278,6 +292,7 @@ const router = createBrowserRouter([
             { path: "question-bank", element: <QuestionBankScan /> },
             { path: "approvals", element: <ApprovalsPage /> },
             { path: "create-syllabus", element: <CreateSyllabus /> },
+            { path: "analytics", element: <TeacherAnalytics /> },
         ]
     },
 
@@ -309,7 +324,9 @@ const router = createBrowserRouter([
             { path: "Settings", element: <StudentSettings /> },
             { path: "recorded-class/:classId/watch", element: <WatchClass /> },
             { path: "recorded-class/:classId/replay", element: <StudentReplay /> },
+            { path: "quiz/:quizCode", element: <StudentQuizPage /> },
             { path: "Quizzes", element: <StudentQuizzes /> },
+            { path: "Grades-Progress", element: <GradesProgress /> },
         ],
     },
 
