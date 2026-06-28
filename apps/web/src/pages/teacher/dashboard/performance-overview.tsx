@@ -42,14 +42,16 @@ const PerformanceOverview = () => {
 
   if (!data) return null;
 
+  const classrooms = data.classrooms ?? [];
+
   return (
     <div className="space-y-5">
       {/* Summary */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <TeacherSummaryCard label="Total Students" value={data.totalStudents} color="text-blue-600" bg="bg-blue-50" />
-        <TeacherSummaryCard label="Avg Score" value={`${data.overallAverageScore.toFixed(1)}%`} color="text-amber-600" bg="bg-amber-50" />
-        <TeacherSummaryCard label="Pass Rate" value={`${data.overallPassRate.toFixed(1)}%`} color="text-emerald-600" bg="bg-emerald-50" />
-        <TeacherSummaryCard label="Classes" value={data.classrooms.length} color="text-violet-600" bg="bg-violet-50" />
+        <TeacherSummaryCard label="Total Students" value={data.totalStudents ?? 0} color="text-blue-600" bg="bg-blue-50" />
+        <TeacherSummaryCard label="Avg Score" value={`${(data.overallAverageScore ?? 0).toFixed(1)}%`} color="text-amber-600" bg="bg-amber-50" />
+        <TeacherSummaryCard label="Pass Rate" value={`${(data.overallPassRate ?? 0).toFixed(1)}%`} color="text-emerald-600" bg="bg-emerald-50" />
+        <TeacherSummaryCard label="Classes" value={classrooms.length} color="text-violet-600" bg="bg-violet-50" />
       </div>
 
       {/* Per-classroom breakdown */}
@@ -59,10 +61,10 @@ const PerformanceOverview = () => {
           Quiz performance for your subject in each class you teach.
         </p>
         <div className="space-y-2">
-          {data.classrooms.map((cr) => (
+          {classrooms.map((cr) => (
             <ClassroomCard key={`${cr.classroomId}-${cr.subjectId}`} cr={cr} open={expanded.has(`${cr.classroomId}-${cr.subjectId}`)} onToggle={() => toggle(`${cr.classroomId}-${cr.subjectId}`)} />
           ))}
-          {data.classrooms.length === 0 && (
+          {classrooms.length === 0 && (
             <p className="text-sm text-slate-400">No classroom data available.</p>
           )}
         </div>
