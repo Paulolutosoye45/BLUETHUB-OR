@@ -1,6 +1,7 @@
 import FamiconsChevron from "@/assets/svg/famicons_chevron.svg?react";
 import element from "@/assets/svg/sdashboard.svg?react";
 import classRoom from "@/assets/svg/class_room.svg?react";
+import moduleIcon from "@/assets/svg/class.svg?react";
 import my_course from "@/assets/svg/scourses.svg?react";
 import assignments from "@/assets/svg/assignment.svg?react";
 import quizzes from "@/assets/svg/quizzes.svg?react";
@@ -22,6 +23,7 @@ import { useEffect, useRef, useState } from "react";
 const navLinks = [
     { name: "Dashboard", path: "/student", icons: element },
     { name: "Classrooms", path: "/student/class-room", icons: classRoom },
+    { name: "Module", path: "/student/module", icons: moduleIcon },
     { name: "My Course", path: "/student/my-course", icons: my_course },
     { name: "Assignments", path: "/student/Assignments", icons: assignments },
     { name: "Quizzes", path: "/student/Quizzes", icons: quizzes },

@@ -30,8 +30,8 @@ export const TACADEMICLINKS = [
   },
   {
     icons: classIconIcon,
-    name: "Class",
-    path: "/teacher/class",
+    name: "Module",
+    path: "/teacher/module",
   },
   // {
   //   icons: MonitorPlayIcon,

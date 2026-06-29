@@ -71,7 +71,7 @@ const ACADEMICLINKS: NavItem[] = [
     // { name: "Teacher", icons: teacherIcon, path: "/admin/teacher" },
     // { name: "Courses", icons: coursesIcon, path: "/admin/courses" },
     { name: "Library", icons: libraryIcon, path: "/admin/library" },
-    { name: "Class", icons: classIcon, path: "/admin/class" },
+    { name: "Module", icons: classIcon, path: "/admin/module" },
     { name: "Lesson Approval", icons: lessonIcon, path: "/admin/lesson-approval" },
 ];
 

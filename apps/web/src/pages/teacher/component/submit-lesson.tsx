@@ -185,6 +185,12 @@ function uploadToCloudinary(
     fd.append("timestamp", String(sig.timestamp));
     fd.append("signature", sig.signature);
     fd.append("folder", sig.folder);
+    if (sig.uploadPreset) fd.append("upload_preset", sig.uploadPreset);
+    if (sig.resourceType) fd.append("resource_type", sig.resourceType);
+
+    const uploadUrl = sig.resourceType
+      ? `https://api.cloudinary.com/v1_1/${sig.cloudName}/${sig.resourceType}/upload`
+      : `https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`;
 
     const xhr = new XMLHttpRequest();
     xhr.upload.onprogress = (e) => {
@@ -205,7 +211,7 @@ function uploadToCloudinary(
       }
     };
     xhr.onerror = () => reject(new Error("Network error — check your connection"));
-    xhr.open("POST", `https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`);
+    xhr.open("POST", uploadUrl);
     xhr.send(fd);
   });
 }
