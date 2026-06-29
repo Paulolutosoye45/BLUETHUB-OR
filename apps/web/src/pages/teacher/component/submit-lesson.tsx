@@ -881,7 +881,7 @@ const SubmitLesson = () => {
           publicId: res.public_id,
           fileSizeBytes: res.bytes,
           displayOrder: 0,
-          ...(res.duration != null ? { duration: res.duration } : {}),
+          ...(res.duration != null ? { duration: Math.round(res.duration) } : {}),
         };
       }
 
