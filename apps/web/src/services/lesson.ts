@@ -298,13 +298,13 @@ export const lessonService = {
 
   submitLesson: (payload: SubmitLessonPayload) =>
     API.post<TResponse<SubmitLessonResponse>>("api/lessons/submit", payload, {
-      headers: { "X-Tenant-ID": X_Tenant_ID },
+      headers: { "X-Tenant-ID": X_Tenant_ID, "Content-Type": "application/json" },
     }),
 
   // POST api/lessons/draft — backend sets IsDraft=true, BypassApproval=false
   saveDraft: (payload: DraftLessonPayload) =>
     API.post<TResponse<SubmitLessonResponse>>("api/lessons/draft", payload, {
-      headers: { "X-Tenant-ID": X_Tenant_ID },
+      headers: { "X-Tenant-ID": X_Tenant_ID, "Content-Type": "application/json" },
     }),
 
   // GET api/lessons/my-lessons
