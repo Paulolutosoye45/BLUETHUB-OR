@@ -236,7 +236,9 @@ const router = createBrowserRouter([
             },
             {
                 path: 'module',
-                element: <ModulePage />
+                element: <ModulePage />,
+            },
+            {
                 path: 'admin-permissions',
                 element: <AdminPermissions />
             },
