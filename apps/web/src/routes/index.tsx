@@ -83,6 +83,7 @@ import TeacherProtectedRoute from '@/component/protected-routes/teacher-routes';
 import IdbViewer from '@/pages/dev/idb-viewer';
 import DraftLessons from '@/pages/teacher/drafts';
 import PendingUploads from '@/pages/teacher/pending-uploads';
+import ModulePage from '@/pages/module';
 import QuestionBankScan from '@/pages/teacher/question-bank';
 import AdminAnalytics from '@/pages/admin/dashboard/analytics-page';
 import TeacherAnalytics from '@/pages/teacher/dashboard/analytics-page';
@@ -229,6 +230,10 @@ const router = createBrowserRouter([
 
             },
             {
+                path: 'module',
+                element: <ModulePage />
+            },
+            {
                 path: 'lesson-approval',
                 element: <LessonApproval />
             },
@@ -256,6 +261,7 @@ const router = createBrowserRouter([
                         <TeacherDashboard />
                     </TeacherProtectedRoute>
             },
+            { path: "module", element: <ModulePage /> },
             { path: "resume-class", element: <ResumeClass /> },
             { path: "class-info", element: <ClassInfo /> },
             { path: "assessment", element: <Assessment /> },
@@ -321,6 +327,7 @@ const router = createBrowserRouter([
                     { path: "create", element: <CreateclassRoom /> },
                 ],
             },
+            { path: "module", element: <ModulePage /> },
             { path: "Settings", element: <StudentSettings /> },
             { path: "recorded-class/:classId/watch", element: <WatchClass /> },
             { path: "recorded-class/:classId/replay", element: <StudentReplay /> },
