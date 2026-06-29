@@ -1,7 +1,7 @@
-import { EllipsisVertical, FilterIcon, Info, Menu, Plus } from "lucide-react";
+import { ArrowLeft, EllipsisVertical, FilterIcon, Info, Menu, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import AssignRoleDialog from "./admin-role-dialog";
-import { useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -92,6 +92,8 @@ const AdminRole = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(true);
 
+  const navigate = useNavigate()
+
   // Derived values directly from API fields
   const filteredRows = rows.filter(a =>
     `${a.firstName} ${a.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
@@ -143,7 +145,7 @@ const AdminRole = () => {
   }
 
   return (
-    <div className="lg:p-6 font-poppins">
+    <div className="md:p-3 font-poppins">
       <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20  overflow-hidden">
 
         <div className="flex items-center justify-between px-4 sm:px-5 h-14 sticky top-0 z-30 bg-chestnut">
@@ -154,16 +156,17 @@ const AdminRole = () => {
               className="lg:hidden shrink-0 text-white cursor-pointer"
               onClick={openMobileNav}
             />
-            <span className="text-white font-semibold text-sm sm:text-base truncate">
+            <ArrowLeft  className="lg:hidden text-white"  onClick={() => navigate(-1)}/>
+            <span className="text-white font-medium text-sm sm:text-base truncate">
               Admin Role Management
             </span>
           </div>
 
           {/* Right: actions */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <button className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/50 text-white text-sm font-semibold hover:bg-white/10 transition-colors">
+            {/* <Link to="/admin/registration/admin-permissions" className="hidden sm:flex items-center gap-1.5 px-4 py-2 rounded-full border border-white/50 text-white text-sm font-semibold hover:bg-white/10 transition-colors">
               Assign Role
-            </button>
+            </Link> */}
             {/* Assign Role — icon only on mobile */}
             <button className="sm:hidden flex items-center justify-center w-8 h-8 rounded-full border border-white/50 text-white hover:bg-white/10 transition-colors">
               <Plus size={16} />
@@ -174,7 +177,7 @@ const AdminRole = () => {
         </div>
 
         {/* ── Page Body ─────────────────────────────────────────────── */}
-        <div className="flex flex-col gap-4  p-4 lg:p-8 bg-white/70 backdrop-blur-sm">
+        <div className="flex flex-col gap-4  p-4 bg-white/70 backdrop-blur-sm">
 
           {/* Search + Department filter row */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -194,7 +197,7 @@ const AdminRole = () => {
             </div>
 
             {/* All Department button */}
-            <button className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold bg-chestnut shrink-0">
+            <button className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-medium bg-chestnut shrink-0">
               <FilterIcon className="size-4" />
               <span>All Department</span>
             </button>
@@ -346,11 +349,11 @@ const AdminRole = () => {
                         {admin.roleName}
                       </span>
                     )}
-                    {admin.roleName} && (
+                    {admin.roleName && (
                     <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md capitalize">
                       {admin.roleName}
                     </span>
-                    )
+                    )}
                     {admin.roleName && (
                       <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md capitalize">
                         {admin.roleName}

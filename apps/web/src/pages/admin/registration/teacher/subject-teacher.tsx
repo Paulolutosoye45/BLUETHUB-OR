@@ -7,7 +7,7 @@ import { Label, Input, Button, Popover, PopoverTrigger, PopoverContent, Calendar
 import { yupResolver } from "@hookform/resolvers/yup";
 import { AxiosError } from "axios";
 import { format } from "date-fns";
-import { Upload, User, Camera, Mail, Loader2, Info, CalendarIcon } from "lucide-react";
+import { Upload, User, Camera, Mail, Loader2, Info, CalendarIcon, ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -179,25 +179,26 @@ const SubjectTeacher = () => {
 
   return (
     // "space-y-4 px-6 max-w-full min-w-[80%] mx-auto"
-    <div className="space-y-4 px-6  font-poppins">
+    <div className="space-y-4 lg:p-3 font-poppins">
 
       {/* Main Content */}
-      <div className="bg-white/90 backdrop-blur-sm rounded-2xl border border-white/20 shadow-xl overflow-hidden">
+      <div className="bg-white/90 backdrop-blur-sm lg:rounded-2xl border border-white/20 shadow-xl overflow-hidden">
         {/* Section Header */}
         <div className="bg-linear-to-r from-chestnut to-chestnut/90 px-8 py-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-              <User className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-white/20 rounded-lg  hidden lg:flex items-center justify-center ">
+              <User className="w-5 h-5 text-white " />
             </div>
+            <ArrowLeft  className="lg:hidden text-white"  onClick={() => navigate(-1)}/>
             <div>
-              <h2 className="font-bold text-xl text-white">
+              <h2 className="lg:font-semibold  font-medium text-sm text-white">
                 {isAdminRegistration
                   ? "Admin Details"
                   : isClassTeacherRegistration
                     ? "Class Teacher Details"
                     : "Subject Teacher Details"}
               </h2>
-              <p className="text-white/80 text-sm">
+              <p className="text-white/80 text-xs">
                 Fill in the required information
               </p>
             </div>
@@ -206,10 +207,10 @@ const SubjectTeacher = () => {
 
         {/* Form Content */}
         <form onSubmit={handleSubmit(handleRegister)} className="p-8 bg-linear-to-br from-white/95 to-white/85">
-          <div className="flex gap-12">
+          <div className="flex flex-col lg:flex-row gap-7 md:gap-12">
             {/* Profile Picture Upload */}
             <div className="space-y-3">
-              <Label className="text-chestnut font-semibold text-base flex items-center gap-2">
+              <Label className="text-chestnut font-medium text-sm flex items-center gap-2">
                 <Camera className="w-4 h-4" />
                 Profile Picture*
               </Label>
@@ -221,7 +222,7 @@ const SubjectTeacher = () => {
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
                 className={`group relative flex items-center justify-center flex-col gap-4 
-                  border-2 border-dashed w-60 h-50 rounded-2xl cursor-pointer 
+                  border-2 border-dashed w-full md:w-60 h-50 rounded-2xl cursor-pointer 
                   transition-all duration-300 overflow-hidden
                   ${dragActive
                     ? "border-chestnut bg-chestnut/10 scale-105"
@@ -277,9 +278,9 @@ const SubjectTeacher = () => {
             {/* Form Fields */}
             <div className="flex-1 space-y-4">
               {/* Row 1 */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
                 <div className="space-y-2">
-                  <Label className="text-chestnut font-medium text-base flex items-center gap-2">
+                  <Label className="text-chestnut font-medium text-sm flex items-center gap-2">
                     <User className="w-4 h-4" />
                     First Name
                   </Label>
@@ -288,7 +289,7 @@ const SubjectTeacher = () => {
                       {...register("firstName")}
                       type="text"
                       placeholder="Enter first name"
-                      className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-md transition-all duration-300 hover:ring-chestnut/30"
+                      className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 text-sm placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-md transition-all duration-300 hover:ring-chestnut/30"
                     />
                     {errors.firstName && (
                       <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>
@@ -297,7 +298,7 @@ const SubjectTeacher = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-chestnut font-medium text-base flex items-center gap-2">
+                  <Label className="text-chestnut font-medium text-sm flex items-center gap-2">
                     <User className="w-4 h-4" />
                     Last Name
                   </Label>
@@ -305,7 +306,7 @@ const SubjectTeacher = () => {
                     {...register("lastName")}
                     type="text"
                     placeholder="Enter last name"
-                    className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-md transition-all duration-300 hover:ring-chestnut/30"
+                    className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 text-sm placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-md transition-all duration-300 hover:ring-chestnut/30"
                   />
                   {errors.lastName && (
                     <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>
@@ -314,9 +315,9 @@ const SubjectTeacher = () => {
               </div>
 
               {/* Row 2 */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
                 <div className="space-y-1">
-                  <Label className="text-chestnut font-medium text-base flex items-center gap-2">
+                  <Label className="text-chestnut font-medium text-sm flex items-center gap-2">
                     <User className="w-4 h-4" />
                     Middle Name
                   </Label>
@@ -324,7 +325,7 @@ const SubjectTeacher = () => {
                     {...register("middleName")}
                     type="text"
                     placeholder="Enter middle name"
-                    className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-md transition-all duration-300 hover:ring-chestnut/30"
+                    className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 text-sm placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-md transition-all duration-300 hover:ring-chestnut/30"
                   />
                   {errors.middleName && (
                     <p className="text-red-500 text-sm mt-1">{errors.middleName.message}</p>
@@ -332,7 +333,7 @@ const SubjectTeacher = () => {
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-chestnut font-medium text-base flex items-center gap-2">
+                  <Label className="text-chestnut font-medium text-sm flex items-center gap-2">
                     <User className="w-4 h-4" />
                     Username
                   </Label>
@@ -349,9 +350,9 @@ const SubjectTeacher = () => {
               </div>
 
               {/* Row 3 */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-8">
                 <div className="space-y-1">
-                  <Label className="text-chestnut font-medium text-base flex items-center gap-2">
+                  <Label className="text-chestnut font-medium text-sm flex items-center gap-2">
                     <Mail className="w-4 h-4" />
                     Email
                   </Label>
@@ -359,7 +360,7 @@ const SubjectTeacher = () => {
                     {...register("email")}
                     type="text"
                     placeholder="Enter  email address"
-                    className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 text-base placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-md transition-all duration-300 hover:ring-chestnut/30"
+                    className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 text-xs placeholder:text-chestnut/50 bg-white/80 backdrop-blur-sm rounded-md transition-all duration-300 hover:ring-chestnut/30"
                   />
                   {errors.email && (
                     <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
@@ -414,7 +415,7 @@ const SubjectTeacher = () => {
             </div>
           </div>
 
-          <div className="flex justify-between mt-12 pt-8 border-t border-chestnut/10">
+          <div className="flex justify-between md:mt-12 pt-8 border-t border-chestnut/10">
             {errorMsg && (
               <div
                 role="alert"
@@ -436,7 +437,7 @@ const SubjectTeacher = () => {
             <Button
               type="submit"
               disabled={loading}
-              className="ml-auto bg-linear-to-r from-chestnut to-chestnut/90 hover:from-chestnut/90 hover:to-chestnut text-white font-medium text-lg py-7 px-12 rounded-md shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
+              className="md:ml-auto flex-1 bg-linear-to-r from-chestnut to-chestnut/90 hover:from-chestnut/90 hover:to-chestnut text-white font-medium text-sm py-7 px-7 rounded-md shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
             >
               {loading ? (
                 <>

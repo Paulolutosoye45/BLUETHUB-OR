@@ -59,16 +59,16 @@ const recentActivity = [
 
 const Charts = () => {
   return (
-    <section className="font-poppins space-y-4">
+    <section className="font-poppins space-y-3">
       {/* Top row: enrollment chart + subject performance */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
 
         {/* Enrollment bar chart — takes 3/5 */}
-        <div className="md:col-span-3 bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-5">
+        <div className="md:col-span-3 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-semibold text-gray-900">Student Enrollment</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Last 6 months</p>
+              <h3 className="text-xs font-semibold text-gray-900">Student Enrollment</h3>
+              <p className="text-[10px] text-gray-400 mt-0.5">Last 6 months</p>
             </div>
             <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
               <TrendingUp className="w-3.5 h-3.5" />
@@ -97,10 +97,10 @@ const Charts = () => {
         </div>
 
         {/* Subject performance — takes 2/5 */}
-        <div className="md:col-span-2 bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <div className="mb-5">
-            <h3 className="text-sm font-semibold text-gray-900">Subject Performance</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Average scores this term</p>
+        <div className="md:col-span-2 bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div className="mb-4">
+            <h3 className="text-xs font-semibold text-gray-900">Subject Performance</h3>
+            <p className="text-[10px] text-gray-400 mt-0.5">Average scores this term</p>
           </div>
           <div className="space-y-3.5">
             {subjectPerformance.map((s) => (
@@ -122,12 +122,12 @@ const Charts = () => {
       </div>
 
       {/* Bottom row: recent activity */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-gray-900">Recent Activity</h3>
-          <button className="text-xs text-chestnut font-medium hover:underline">View all</button>
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-semibold text-gray-900">Recent Activity</h3>
+          <button className="text-[11px] text-chestnut font-medium hover:underline">View all</button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
           {recentActivity.map((item) => {
             const Icon = item.icon;
             return (

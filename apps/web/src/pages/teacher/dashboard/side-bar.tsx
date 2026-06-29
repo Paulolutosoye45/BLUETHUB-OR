@@ -14,6 +14,7 @@ import messageIcon from "@/assets/svg/message.svg";
 import calendarIcon from "@/assets/svg/calendar.svg";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import type { schoolInfo } from "@/services";
 
 const MAIN_LINKS: NavItem[] = [
   { name: "Dashboard", icons: dashboardIcon, path: "/teacher" },
@@ -36,7 +37,7 @@ function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
     : undefined;
   const className = classroom?.className;
   const subjects = classroom?.subjects;
-  const subjectNames = subjects?.map((s) => s.subjectName).join(" · ");
+  const subjectNames = subjects?.slice(0,2).map((s) => s.subjectName).join(" · ");
   const subject = subjectNames ? `${subjectNames}` : className ?? "";
   const classLabel = className ? ` ${className}` : "No class assigned";
 
@@ -57,7 +58,7 @@ function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
   if (isCollapsed) {
     return (
       <div className="flex justify-center py-3 px-2">
-        <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+        <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
           {initials}
         </div>
       </div>
@@ -67,12 +68,12 @@ function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
   return (
     <div className="mx-3 mb-2 rounded-xl bg-[#292382] p-3 text-white">
       <div className="flex items-start gap-2.5">
-        <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
+        <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
           {initials}
         </div>
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold truncate">{name}</p>
-          <p className="text-[11px] opacity-70 truncate">{role}</p>
+          <p className="text-xs font-semibold truncate">{name}</p>
+          <p className="text-[10px] opacity-70 truncate">{role}</p>
         </div>
       </div>
       <div className="mt-2.5 flex items-center gap-2 flex-wrap">
@@ -130,8 +131,7 @@ isActive ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
           />
           {!isCollapsed && (
             <span
-              className={`text-sm font-medium truncate ${isActive ? "text-white" : 
-"text-[#292382]"
+              className={`text-xs font-medium truncate ${isActive ? "text-white" :  "text-[#292382]"
                 }`}
             >
               {link.name}
@@ -244,6 +244,8 @@ const TeacherSidebar = () => {
   const navigate = useNavigate();
   const { logout } = useAuthContext();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const school = localData.retrieve("schoolInfo") as schoolInfo
+
 
   useEffect(() => {
     const saved = localData.retrieve<boolean>("navVNextT");
@@ -284,11 +286,12 @@ const TeacherSidebar = () => {
         {!isCollapsed && (
           <img src={bluethub} alt="Bluethub" className="h-6 shrink-0" />
         )}
+
+         {!isCollapsed && (<h2 className="text-chestnut font-medium text-xs">{school.schoolName}</h2>)}
         <button
           type="button"
           onClick={toggleSidebar}
-          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[
-#29238210] transition-colors shrink-0"
+          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#29238210] transition-colors shrink-0"
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           <img
@@ -327,6 +330,7 @@ interface IMobileTeacherNav {
 export const MobileTeacherNav = ({ isOpen, setIsOpen }: IMobileTeacherNav) => {
   const navigate = useNavigate();
   const { logout } = useAuthContext();
+  const school = localData.retrieve("schoolInfo") as schoolInfo
   const drawerRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = () => {
@@ -373,7 +377,9 @@ export const MobileTeacherNav = ({ isOpen, setIsOpen }: IMobileTeacherNav) => {
       >
         {/* Header: logo + close */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-[#29238210] shrink-0">
+          
           <img src={bluethub} alt="Bluethub" className="h-6" />
+          <h2 className="text-chestnut font-medium text-xs">{school.schoolName}</h2>
           <button
             type="button"
             onClick={() => setIsOpen(false)}

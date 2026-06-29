@@ -12,10 +12,12 @@ import {
   ChevronRight,
   Inbox,
   AlertCircle,
+  Menu,
 } from "lucide-react";
 import { lessonService, type ApprovalItemDto } from "@/services/lesson";
 import LessonReviewModal from "./lesson-review-modal";
 import toast from "react-hot-toast";
+import { useOutletContext } from "react-router-dom";
 
 type FilterTab = "all" | "pending" | "approved" | "rejected";
 
@@ -35,6 +37,7 @@ const buildApprovalLessonTitle = (approval: ApprovalItemDto): string => {
 };
 
 const LessonApproval = () => {
+   const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const [approvals, setApprovals] = useState<ApprovalItemDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -138,9 +141,13 @@ const LessonApproval = () => {
       <div className="min-h-screen bg-gray-50/50 p-4 sm:p-6 font-poppins">
         {/* Header */}
         <div className="mb-6">
+            <Menu
+              className="lg:hidden shrink-0 mb-2 text-chestnut cursor-pointer"
+              onClick={openMobileNav}
+            />
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+              <h1 className="text-base font-bold text-gray-900">
                 Lesson Approvals
               </h1>
               <p className="text-sm text-gray-500 mt-1">
