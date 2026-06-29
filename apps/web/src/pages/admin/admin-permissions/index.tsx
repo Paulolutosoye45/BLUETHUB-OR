@@ -10,11 +10,12 @@ import {
   type AdminPermissionDto,
 } from "@/services/admin-permissions";
 import { useAuthContext } from "@/contexts/auth-context";
-import { useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 
-const RegistrationAdmin = () => {
+const AdminPermissions = () => {
   const { user, isLoading: authLoading } = useAuthContext();
-    const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
+  const navigate = useNavigate()
 
   const [permissions, setPermissions] = useState<AdminPermissionDto[]>([]);
   const [loading, setLoading] = useState(false);
@@ -135,9 +136,9 @@ const RegistrationAdmin = () => {
   }
 
   return (
-    <div className="p-3 sm:p-5 md:p-0 lg:p-7 font-poppins">
+    <div className="lg:p-3 font-poppins">
       <div className="lg:rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
-        <TitleBar title="Admin Permissions" hasVertical hasMenu={() => openMobileNav()} />
+        <TitleBar title="Admin Permissions" hasVertical hasBackIcons={true}   onBack={() => navigate(-1)} hasMenu={() => openMobileNav()} />
 
         <div className="p-3 sm:p-5 lg:p-7 space-y-5">
           {/* Header */}
@@ -306,11 +307,10 @@ const RegistrationAdmin = () => {
                         key={page}
                         type="button"
                         onClick={() => setPageNumber(page)}
-                        className={`h-8 rounded-lg text-xs font-semibold px-3 ${
-                          pageNumber === page
+                        className={`h-8 rounded-lg text-xs font-semibold px-3 ${pageNumber === page
                             ? "bg-chestnut text-white"
                             : "border border-slate-300 bg-white hover:bg-slate-100 text-slate-600"
-                        }`}
+                          }`}
                       >
                         {page}
                       </Button>
@@ -352,4 +352,4 @@ const RegistrationAdmin = () => {
   );
 };
 
-export default RegistrationAdmin;
+export default AdminPermissions;

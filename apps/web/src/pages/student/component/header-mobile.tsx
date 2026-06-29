@@ -47,7 +47,7 @@ export function StudentMobileHeader({
           This Week
         </p>
         <p className="text-white font-bold text-lg leading-snug">
-          Good morning, {firstName}! 👋
+          Good morning, {firstName}!👋
         </p>
 
         {/* Stat pills */}

@@ -31,15 +31,15 @@ const AdminDashboard = () => {
   const initials = getInitials(user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : "WA"); 
 
   return (
-    <div className="font-poppins w-full">
+    <div className="font-poppins w-full lg:py-2 lg:px-4">
       <MobileNav isOpen={isOpen} setIsOpen={setIsOpen}/>
-      <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
+      <div className="backdrop-blur-sm lg:rounded-2xl   border border-white/20 overflow-hidden">
 
         {/* ── Top Nav ── */}
-        <div className="flex items-center justify-between px-5 h-14 bg-chestnut">
+        <div className="flex items-center justify-between px-4 h-12 bg-chestnut">
           <div className="flex gap-2 items-center">
             <Menu className="lg:hidden text-white" onClick={() => setIsOpen(true)} />
-            <span className="text-white font-semibold text-base">Dashboard</span>
+            <span className="text-white font-semibold text-sm">Dashboard</span>
           </div>
           <EllipsisVertical className="text-white hidden md:block" />
           <div className="flex gap-[3px] md:hidden items-center justify-between ">
@@ -54,7 +54,7 @@ const AdminDashboard = () => {
         </div>
 
         {/* ── Page Body ── */}
-        <div className="flex flex-col gap-4 p-4 md:p-6 bg-white/70 backdrop-blur-sm">
+        <div className="flex flex-col gap-3 p-3 md:p-4 bg-white/70 backdrop-blur-sm">
           <AdminAppbar />
           <NavbarStats />
           <SchoolProgress />
@@ -62,7 +62,7 @@ const AdminDashboard = () => {
           <PerformanceOverview />
 
           {/* ── Bottom section: stacked on mobile, side-by-side on md+ ── */}
-          <div className="flex flex-col gap-4 lg:flex-row">
+          <div className="flex flex-col gap-3 lg:flex-row">
             <div className="w-full lg:flex-1 min-w-0">
               <PendingLessonApprovals />
             </div>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, ChevronDown, EllipsisVertical, Info, LayoutGrid, Loader2, } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, EllipsisVertical, Info, LayoutGrid, Loader2, } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -85,13 +85,14 @@ const RegisterNewSubject = () => {
 
   return (
     <>
-      <div className=" sm:p-6 font-poppins">
-        <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
+      <div className="md:p-3 font-poppins">
+        <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
 
           {/* ── Top Nav ── */}
           <div className="flex items-center justify-between px-4 sticky top-0 z-30 py-4 sm:py-5 bg-chestnut">
             <div className="flex items-center gap-2.5">
-              <LayoutGrid className="w-5 h-5 sm:w-6 sm:h-6 text-white shrink-0" />
+              <LayoutGrid className="w-5 h-5 sm:w-6 sm:h-6 text-white shrink-0 hidden md:block" />
+              <ArrowLeft  className="lg:hidden text-white"  onClick={() => navigate(-1)}/>
               <div className="space-y-0.5">
                 <p className="text-white font-semibold text-sm leading-tight">Register Subject</p>
                 <p className="text-white/60 text-xs leading-tight">Assign subject details</p>
@@ -169,7 +170,7 @@ const RegisterNewSubject = () => {
 
                 {/* School Level Assignment */}
                 <div className="flex flex-col gap-3 w-full">
-                  <h2 className="text-sm sm:text-base font-semibold text-gray-900">School Level Assignment</h2>
+                  <h2 className="text-sm font-semibold text-gray-900">School Level Assignment</h2>
                   <p className="text-xs font-semibold text-gray-600">Assign to</p>
                   <div className="grid grid-cols-2 gap-3">
                     {levels.map(level => {

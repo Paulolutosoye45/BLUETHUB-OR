@@ -62,7 +62,7 @@ import StudentProtectedRoute from '@/component/protected-routes/student-routes';
 import UploadScan from '@/pages/teacher/component/upload-scan';
 import ReviewQuestion from '@/pages/teacher/component/review-question';
 import MyUploads from '@/pages/teacher/component/my-uploads';
-import RegistrationAdmin from '@/pages/admin/registration';
+import AdminPermissions from '@/pages/admin/admin-permissions';
 import AdminRole from '@/pages/admin/registration/admin-role-management/admin-role';
 import ViewAllSubject from '@/pages/admin/registration/course/class/view-all-subject';
 import RegisterTeacherRole from '@/pages/admin/registration/teacher/assign-role';
@@ -193,10 +193,7 @@ const router = createBrowserRouter([
                         path: 'admin',
                         element: <AdminRole />
                     },
-                    {
-                        path: 'admin-permissions',
-                        element: <RegistrationAdmin />
-                    },
+
                     {
                         path: "courses",
                         element: <CoursesMain />,
@@ -235,6 +232,10 @@ const router = createBrowserRouter([
                     },
                 ],
 
+            },
+            {
+                path: 'admin-permissions',
+                element: <AdminPermissions />
             },
             {
                 path: 'lesson-approval',

@@ -16,6 +16,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ["@bluethub/ui-kit", "chrono-node"],
-  },
+  exclude: ["@bluethub/ui-kit"],
+  include: ["chrono-node"], // keep real node_modules deps here, just not ui-kit
+},
 });

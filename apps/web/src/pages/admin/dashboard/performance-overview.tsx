@@ -55,14 +55,14 @@ const PerformanceOverview = () => {
   const subjectBreakdown = data.subjectBreakdown ?? [];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <SummaryCard label="Total Students" value={data.totalStudents ?? 0} icon={<Users className="h-5 w-5" />} color="text-blue-600" bg="bg-blue-50" />
-        <SummaryCard label="Total Attempts" value={data.totalAttempts ?? 0} icon={<BarChart3 className="h-5 w-5" />} color="text-violet-600" bg="bg-violet-50" />
-        <SummaryCard label="Completed" value={data.completedAttempts ?? 0} icon={<GraduationCap className="h-5 w-5" />} color="text-emerald-600" bg="bg-emerald-50" />
-        <SummaryCard label="Avg Score" value={`${(data.overallAverageScore ?? 0).toFixed(1)}%`} icon={<BarChart3 className="h-5 w-5" />} color="text-amber-600" bg="bg-amber-50" />
-        <SummaryCard label="Pass Rate" value={`${(data.overallPassRate ?? 0).toFixed(1)}%`} icon={<BarChart3 className="h-5 w-5" />} color="text-emerald-600" bg="bg-emerald-50" />
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+        <SummaryCard label="Total Students" value={data.totalStudents ?? 0} icon={<Users className="h-4 w-4" />} color="text-blue-600" bg="bg-blue-50" />
+        <SummaryCard label="Total Attempts" value={data.totalAttempts ?? 0} icon={<BarChart3 className="h-4 w-4" />} color="text-violet-600" bg="bg-violet-50" />
+        <SummaryCard label="Completed" value={data.completedAttempts ?? 0} icon={<GraduationCap className="h-4 w-4" />} color="text-emerald-600" bg="bg-emerald-50" />
+        <SummaryCard label="Avg Score" value={`${(data.overallAverageScore ?? 0).toFixed(1)}%`} icon={<BarChart3 className="h-4 w-4" />} color="text-amber-600" bg="bg-amber-50" />
+        <SummaryCard label="Pass Rate" value={`${(data.overallPassRate ?? 0).toFixed(1)}%`} icon={<BarChart3 className="h-4 w-4" />} color="text-emerald-600" bg="bg-emerald-50" />
       </div>
 
       {/* Classroom Breakdown */}
@@ -214,11 +214,11 @@ const PerformanceOverview = () => {
 };
 
 const SummaryCard = ({ label, value, icon, color, bg }: { label: string; value: string | number; icon: React.ReactNode; color: string; bg: string }) => (
-  <div className={`flex items-center gap-3 rounded-xl border border-slate-100 px-4 py-3 shadow-sm ${bg}`}>
+  <div className={`flex items-center gap-2.5 rounded-lg border border-slate-100 px-3 py-2.5 shadow-sm ${bg}`}>
     <div className={`${color}`}>{icon}</div>
     <div className="min-w-0">
-      <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className="truncate text-base font-bold text-slate-800">{typeof value === "number" ? value.toLocaleString() : value}</p>
+      <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="truncate text-sm font-bold text-slate-800">{typeof value === "number" ? value.toLocaleString() : value}</p>
     </div>
   </div>
 );

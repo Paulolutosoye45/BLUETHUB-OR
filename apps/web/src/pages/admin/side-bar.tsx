@@ -20,6 +20,8 @@ import arrowMenuOpen from "@/assets/svg/arrow_menu_close.svg";
 import registrationIcon from "@/assets/svg/registration.svg";
 import dashboardIcon from "@/assets/svg/element-4.svg";
 import messageIcon from "@/assets/svg/message.svg";
+import UserPlus from "@/assets/svg/user_plus.svg";
+import ShieldCheck from "@/assets/svg/shield_check.svg";
 // import studentIcon from "@/assets/svg/student.svg";
 // import teacherIcon from "@/assets/svg/teacher.svg";
 // import coursesIcon from "@/assets/svg/courses.svg";
@@ -56,14 +58,15 @@ const ACADEMICLINKS: NavItem[] = [
         name: "Registration",
         icons: registrationIcon,
         children: [
-            // { name: "Register Admin", path: "/admin/registration/admin" },
-            // { name: "Admin Permissions", path: "/admin/registration/admin-permissions" },
             { name: "Register Student", path: "/admin/registration/student" },
             { name: "Register Teacher", path: "/admin/registration/Teacher" },
             { name: "Register Subject", path: "/admin/registration/courses" },
             { name: "Register Class", path: "/admin/registration/class" },
         ],
     },
+
+    { name: "Register Admin", path: "/admin/registration/admin", icons: UserPlus },
+{ name: "Admin Permissions", path: "/admin/admin-permissions", icons: ShieldCheck },
     // { name: "Student", icons: studentIcon, path: "/admin/student" },
     // { name: "Teacher", icons: teacherIcon, path: "/admin/teacher" },
     // { name: "Courses", icons: coursesIcon, path: "/admin/courses" },
@@ -149,10 +152,10 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
     //     );
 
     return (
-        <div className="flex flex-col gap-8 pb-6">
+        <div className="flex flex-col gap-4 pb-4">
             {/* ── MAIN MENU ── */}
             <section className="px-3">
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                     {navLink.map((link, idx) => (
                         <NavLink
                             key={link.name + idx}
@@ -161,7 +164,7 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
                             onClick={onNavigate}
                             className={({ isActive }) =>
                                 [
-                                    "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 cursor-pointer group",
+                                    "flex items-center gap-3 px-3 py-1.5 rounded-md transition-all duration-200 cursor-pointer group",
                                     isActive
                                         ? "bg-[#292382] text-white"
                                         : "text-[#292382] hover:bg-[#29238210]",
@@ -174,10 +177,10 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
                                     <img
                                         src={link.icons}
                                         alt={link.name}
-                                        className={`w-[18px] h-[18px] shrink-0 object-contain ${isActive ? "brightness-0 invert" : "opacity-70 group-hover:opacity-100"}`}
+                                        className={`w-[15px] h-[15px] shrink-0 object-contain ${isActive ? "brightness-0 invert" : "opacity-70 group-hover:opacity-100"}`}
                                     />
                                     {!isCollapsed && (
-                                        <span className={`text-sm font-medium truncate ${isActive ? "text-white" : "text-[#292382]"}`}>
+                                        <span className={`text-xs font-medium truncate ${isActive ? "text-white" : "text-[#292382]"}`}>
                                             {link.name}
                                         </span>
                                     )}
@@ -190,7 +193,7 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
 
             {/* ── ACADEMIC MANAGEMENT ── */}
             <section className="px-3">
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                     {ACADEMICLINKS.map((link, idx) => {
                         const isOpen = openDropdownIndex === idx;
 
@@ -202,7 +205,7 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
                                         type="button"
                                         onClick={() => handleDropdownClick(idx)}
                                         className={[
-                                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 cursor-pointer group",
+                                            "w-full flex items-center gap-3 px-3 py-1.5 rounded-md transition-all duration-200 cursor-pointer group",
                                             isOpen
                                                 ? "bg-[#292382] text-white"
                                                 : "text-[#292382] hover:bg-[#29238210]",
@@ -213,10 +216,10 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
                                             <img
                                                 src={link.icons}
                                                 alt={link.name}
-                                                className={`w-[18px] h-[18px] shrink-0 object-contain ${isOpen ? "brightness-0 invert" : "opacity-70 group-hover:opacity-100"}`}
+                                                className={`w-[15px] h-[15px] shrink-0 object-contain ${isOpen ? "brightness-0 invert" : "opacity-70 group-hover:opacity-100"}`}
                                             />
                                             {!isCollapsed && (
-                                                <span className={`text-sm font-medium ${isOpen ? "text-white" : "text-[#292382]"}`}>
+                                                <span className={`text-xs font-medium ${isOpen ? "text-white" : "text-[#292382]"}`}>
                                                     {link.name}
                                                 </span>
                                             )}
@@ -242,7 +245,7 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
                                                 onClick={onNavigate}
                                                 className={({ isActive }) =>
                                                     [
-                                                        "block text-[13px] py-2 px-3 rounded-lg font-medium transition-all duration-150",
+                                                        "block text-[12px] py-1.5 px-3 rounded-lg text-xs font-medium transition-all duration-150",
                                                         isActive
                                                             ? "bg-[#292382] text-white"
                                                             : "text-[#292382] opacity-80 hover:opacity-100 hover:bg-[#29238212]",
@@ -264,7 +267,7 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
                                 onClick={onNavigate}
                                 className={({ isActive }) =>
                                     [
-                                        "flex items-center gap-3 px-3 py-2.5 rounded-[4px] transition-all duration-200 cursor-pointer group",
+                                        "flex items-center gap-3 px-3 py-1.5 rounded-[4px] transition-all duration-200 cursor-pointer group",
                                         isActive
                                             ? "bg-[#292382] text-white"
                                             : "text-[#292382] hover:bg-[#29238210]",
@@ -277,10 +280,10 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
                                         <img
                                             src={link.icons}
                                             alt={link.name}
-                                            className={`w-[18px] h-[18px] shrink-0 object-contain ${isActive ? "brightness-0 invert" : "opacity-70 group-hover:opacity-100"}`}
+                                            className={`w-[15px] h-[15px] shrink-0 object-contain ${isActive ? "brightness-0 invert" : "opacity-70 group-hover:opacity-100"}`}
                                         />
                                         {!isCollapsed && (
-                                            <span className={`text-sm font-medium truncate ${isActive ? "text-white" : "text-[#292382]"}`}>
+                                            <span className={`text-xs font-medium truncate ${isActive ? "text-white" : "text-[#292382]"}`}>
                                                 {link.name}
                                             </span>
                                         )}
@@ -295,7 +298,7 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
 
             {/* ── OTHER MENU ── */}
             <section className="px-3">
-                <div className="space-y-1">
+                <div className="space-y-0.5">
                     {other_menu_Link.map((link, idx) => {
                         const isLogout = link.name === "Log Out";
                         return (
@@ -305,7 +308,7 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
                                 onClick={isLogout ? onLogout : onNavigate}
                                 className={({ isActive }) =>
                                     [
-                                        "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 cursor-pointer group",
+                                        "flex items-center gap-3 px-3 py-1.5 rounded-xl transition-all duration-200 cursor-pointer group",
                                         isLogout
                                             ? "hover:bg-red-50"
                                             : isActive
@@ -320,12 +323,12 @@ export const NavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }
                                         <img
                                             src={link.icons}
                                             alt={link.name}
-                                            className={`w-[18px] h-[18px] shrink-0 object-contain ${isLogout ? "opacity-80" : isActive ? "brightness-0 invert" : "opacity-70 group-hover:opacity-100"
+                                            className={`w-[15px] h-[15px] shrink-0 object-contain ${isLogout ? "opacity-80" : isActive ? "brightness-0 invert" : "opacity-70 group-hover:opacity-100"
                                                 }`}
                                         />
                                         {!isCollapsed && (
                                             <span
-                                                className={`text-sm font-medium ${isLogout ? "text-red-500" : isActive ? "text-white" : "text-[#292382]"
+                                                className={`text-xs font-medium ${isLogout ? "text-red-500" : isActive ? "text-white" : "text-[#292382]"
                                                     }`}
                                             >
                                                 {link.name}

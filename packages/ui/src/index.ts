@@ -75,6 +75,16 @@ export {
   CommandShortcut,
 } from "./components/ui/command"
 
+export {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "./components/ui/pagination"
+
 export { Badge } from "./components/ui/badge"
 
 export {
