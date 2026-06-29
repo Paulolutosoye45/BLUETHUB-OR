@@ -8,22 +8,12 @@ import {
 
 const TeacherAppBar = () => {
   const { user } = useAuthContext();
-
-  const today = new Date();
-
-  const greeting = () => {
-    const hour = today.getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
-  };
-
   const name = `${user?.firstName} ${user?.lastName}`
   return (
     <div>
       <div className="bg-chestnut lg:h-29.5 p-4 rounded-[15px] flex flex-col md:flex-row gap-4 lg:gap-0 md:items-center justify-between">
         <div className="space-y-1">
-          <h2 className="font-medium text-xs md:text-base lg:text-lg  lg:leading-7 text-white">{greeting()}, <span className="">{name}</span></h2>
+          <h2 className="font-medium text-xs md:text-base lg:text-lg  lg:leading-7 text-white">Welcome Back, {name}!👋</h2>
           {/* <p className="text-[#D9D9D9] font-medium text-xs">You have 3 classes today and 5 assessments awaiting submission</p> */}
           {/* <div className="bg-[#D9D9D980] mt-2 lg:mt-0  px-3 py-1 rounded-[15px] flex items-center gap-1.25 w-60">
             <Info className="text-white size-3" />

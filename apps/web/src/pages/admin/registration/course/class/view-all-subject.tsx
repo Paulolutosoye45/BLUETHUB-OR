@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { EllipsisVertical, LayoutGrid, Menu, PlusIcon } from "lucide-react";
+import { ArrowLeft, EllipsisVertical, LayoutGrid, Menu, PlusIcon } from "lucide-react";
 import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@bluethub/ui-kit";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import EditSubjectModal from "./edit-subject-modal";
@@ -84,7 +84,8 @@ const ViewAllSubject = () => {
                     <div className="flex items-center gap-2.5">
                         <LayoutGrid className="w-6 h-6 text-white hidden lg:inline-flex" />
                         <Menu className="lg:hidden text-white" onClick={openMobileNav} />
-                        <span className="text-white font-semibold text-sm">View All Subject</span>
+                        <ArrowLeft  className="lg:hidden text-white"  onClick={() => navigate(-1)}/>
+                        <span className="text-white font-medium text-sm">View All Subject</span>
                     </div>
                     <button className="text-white">
                         <EllipsisVertical size={18} />
@@ -98,10 +99,10 @@ const ViewAllSubject = () => {
                         {/* Page header row */}
                         <div className="flex items-start justify-between mb-4">
                             <div>
-                                <h1 className="sm:text-xl text-base font-medium  lg:font-bold text-blck-b2 leading-tight">
+                                <h1 className="text-base font-medium  lg:font-bold text-blck-b2 leading-tight">
                                     Subject Registry
                                 </h1>
-                                <p className="text-xs sm:text-sm text-[#A0A8C0]  mt-0.5">
+                                <p className="text-xs  text-[#A0A8C0]  mt-0.5">
                                     All subjects registered to {schoolInfo?.schoolName || "Your School"} — Primary to Secondary
                                 </p>
                             </div>
@@ -241,7 +242,7 @@ const ViewAllSubject = () => {
                                                     <TableCell className="text-[11px] text-gray-400">
                                                         {String(i + 1).padStart(2, "0")}
                                                     </TableCell>
-                                                    <TableCell className="text-xs font-semibold text-gray-800">
+                                                    <TableCell className="text-xs font-medium text-gray-800">
                                                         {s.name}
                                                     </TableCell>
                                                     <TableCell>

@@ -65,6 +65,7 @@ const MediaFrame = () => {
     ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(mediaUrl)}`
     : null;
 
+
   const cacheBlobUrlRef = React.useRef<string | null>(null);
   const getActiveLessonId = (): string | null => {
     try {
@@ -266,7 +267,7 @@ const MediaFrame = () => {
             <img
               src={mediaUrl}
               alt={selectedImage.name}
-              className="w-full h-full object-contain"
+              className="w-full h-full object-cover lg:object-contain"
             />
           ) : isVideo && mediaUrl ? (
             <video

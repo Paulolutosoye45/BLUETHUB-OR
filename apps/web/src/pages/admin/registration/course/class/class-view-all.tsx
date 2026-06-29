@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { EllipsisVertical, GalleryVerticalEnd, LayoutGrid, Menu, PlusIcon } from "lucide-react";
+import { ArrowLeft, EllipsisVertical, GalleryVerticalEnd, LayoutGrid, Menu, PlusIcon } from "lucide-react";
 import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@bluethub/ui-kit";
 import { useNavigate, useOutletContext } from "react-router-dom";
 // import EditSubjectModal from "./edit-subject-modal";
@@ -7,6 +7,9 @@ import EditClassModal from "./edit-class-dialog";
 import { AxiosError } from "axios";
 import { schoolService } from "@/services/school";
 import type { Classroom } from "./class-registration";
+import { localData } from "@/utils";
+import type { SchoolInfo } from "@/services";
+
 
 
 export type FilterTab = "All" | "Primary" | "JSS" | "SSS";
@@ -30,6 +33,7 @@ export const levelBadge: Record<SchoolLevel, { bg: string; text: string }> = {
 };
 
 
+
 const ClassviewAll = () => {
     const navigate = useNavigate();
     const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
@@ -39,6 +43,7 @@ const ClassviewAll = () => {
     const [open, setOpen] = useState(false);
     const [, setLoading] = useState(false);
     const [, setErrorMsg] = useState("");
+    const schoolName  =  localData.retrieve("schoolInfo") as SchoolInfo
 
 
 
@@ -83,7 +88,7 @@ const ClassviewAll = () => {
 
     return (
         <>
-            <div className="lg:p-6 font-poppins">
+            <div className="md:p-3 font-poppins">
                 <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20  overflow-hidden">
 
                     {/* ── Top Nav ──────────────────────────────────────────────────── */}
@@ -93,7 +98,8 @@ const ClassviewAll = () => {
                         <div className="flex items-center gap-2.5">
                             <LayoutGrid className="w-5 h-5 text-white lg:inline hidden" />
                             <Menu className="lg:hidden text-white" onClick={openMobileNav} />
-                            <span className="text-white font-semibold text-sm">View All class</span>
+                            <ArrowLeft  className="lg:hidden text-white"  onClick={() => navigate(-1)}/>
+                            <span className="text-white font-medium text-sm">View All class</span>
                         </div>
                         <button className="text-white">
                             <EllipsisVertical size={18} />
@@ -107,11 +113,12 @@ const ClassviewAll = () => {
                             {/* Page header row */}
                             <div className="flex items-start justify-between mb-4">
                                 <div>
-                                    <h1 className="text-sm sm:text-xl font-bold text-blck-b2 leading-tight">
+                                    <h1 className="text-base font-semibold text-blck-b2 leading-tight">
                                         Class Registry
                                     </h1>
                                     <p className=" text-xs sm:text-sm text-[#A0A8C0]  mt-0.5">
-                                        All classes at Greenfield College — Primary to Secondary
+                                        All classes at {schoolName.schoolName} — Primary to Secondary
+                                        
                                     </p>
                                 </div>
                                 <Button

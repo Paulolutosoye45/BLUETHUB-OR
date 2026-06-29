@@ -55,24 +55,23 @@ const stats = [
 
 const SchoolProgress = () => {
   return (
-    <section className="font-poppins mb-6">
-      {/* mobile: horizontal scroll carousel → sm: 2-col → md: 3-col → lg: 5-col */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+    <section className="font-poppins">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
             <div
               key={stat.label}
-              className="bg-white rounded-[13px] p-4 shadow-sm border border-gray-100 flex flex-col gap-3"
+              className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex flex-col gap-2"
             >
-              <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center`}>
-                <Icon className={stat.iconColor} size={18} />
+              <div className={`w-8 h-8 rounded-lg ${stat.bg} flex items-center justify-center`}>
+                <Icon className={stat.iconColor} size={16} />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900 leading-none">{stat.value}</p>
-                <p className="text-xs text-gray-500 mt-1">{stat.label}</p>
+                <p className="text-xl font-bold text-gray-900 leading-none">{stat.value}</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">{stat.label}</p>
               </div>
-              <p className={`text-[11px] font-medium ${stat.positive === true ? "text-emerald-600"
+              <p className={`text-[10px] font-medium ${stat.positive === true ? "text-emerald-600"
                   : stat.positive === false ? "text-red-500"
                     : "text-gray-400"
                 }`}>

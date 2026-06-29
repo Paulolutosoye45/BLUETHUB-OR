@@ -326,6 +326,9 @@ export const authService = {
   getAdapterPermissions: (adminUserId: string) => {
     return API.get<TResponse<unknown>>(endpoints.getAdminPermissions, {
       params: { adminUserId },
+       headers: {
+        "X-Tenant-ID":  X_Tenant_ID,
+      },
     });
   },
 
@@ -359,7 +362,7 @@ export const authService = {
   },
 
   getStudentMinorSubjects: (userId: string, classroomId: string) => {
-    return API.get<TResponse<unknown>>(`api/User/student/${userId}/minor-subjects`, {
+    return API.get<TResponse<unknown>>(`api/User/${userId}/minor-subjects`, {
       params: { classroomId },
       headers: { "X-Tenant-ID": X_Tenant_ID },
     });

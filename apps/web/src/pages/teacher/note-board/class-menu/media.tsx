@@ -27,6 +27,7 @@ const Media = () => {
   const [availableMedia, setAvailableMedia] = useState<IMedia[]>([]);
   const [cachedIds, setCachedIds] = useState<Set<string>>(new Set());
   const MediaTimesRef = useRef({ show: "", close: "" });
+  const [open, setOpen] = useState(false);
   // const { trackMediaInteraction } = useAudioRecorder();
 
   const selectedImage = useSelector((state: RootState) => state.action.selectedImage);
@@ -50,12 +51,18 @@ const Media = () => {
       try {
         // Load lesson media from sessionStorage (set by pre-class modal)
         const resolveMediaType = (mediaType: string, fileExtension: string): "video" | "pdf" | "image" => {
+
           const mt = (mediaType ?? '').toLowerCase();
           const ext = (fileExtension ?? '').toLowerCase().replace(/^\./, '');
 
           // Accept both logical labels (video/document) and MIME-like values.
           if (mt.includes('video') || ['mp4', 'webm', 'mov', 'm4v'].includes(ext)) {
             return 'video';
+          }
+
+          // Check image FIRST and explicitly, before the broad 'document' match
+          if (mt.includes('image') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) {
+            return 'image';
           }
 
           // Treat office documents as document-mode (rendered in frame via iframe fallback).
@@ -78,12 +85,13 @@ const Media = () => {
             const dtos: any[] = active?.media ?? [];
             lessonMedia = dtos
               .filter((m) => m.cloudinaryUrl)
-              .map((m) => ({
+              .map((m) => {
+                return {
                 id: m.id,
                 name: m.originalFileName ?? m.fileName ?? m.id,
                 type: resolveMediaType(m.mediaType, m.fileExtension),
                 url: m.cloudinaryUrl,
-              }));
+          }});
           }
         } catch { /* ignore parse errors */ }
 
@@ -168,9 +176,10 @@ const Media = () => {
     MediaLoader();
   }, []);
 
+
   return (
     <div className={`font-poppins flex items-center justify-center py-2 cursor-pointer hover:bg-forestBlue`}>
-      <Popover>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <div className="bg-none">
             <Tooltip>
@@ -191,7 +200,7 @@ const Media = () => {
         </PopoverTrigger>
         <PopoverContent
           side="right"
-          className="w-52 p-0 ml-3 border border-gray-200 shadow-lg rounded-lg overflow-hidden"
+          className="w-70 p-0 ml-3 border border-gray-200 shadow-lg rounded-lg overflow-hidden"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 bg-linear-to-r from-blue-500 to-blue-600">
@@ -247,10 +256,12 @@ const Media = () => {
                           timerDisplay,
                           elapsedMs,
                         });
+
+                        setOpen((v) => !v)
                         // trackMediaInteraction(mediaWithTime);  // ← record the interaction
                       }}
                     >
-                      <p className="text-sm font-medium text-gray-800">
+                      <p className="text-xs truncate font-medium text-gray-800">
                         {media.name || 'Untitled'}
                       </p>
                       <p className="text-xs text-gray-500">
