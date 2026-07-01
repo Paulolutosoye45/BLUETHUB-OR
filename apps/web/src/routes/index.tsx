@@ -43,6 +43,9 @@ import ClassLayout from '@/pages/student/class/layout';
 import ClassRoomlayout from '@/pages/student/class-room/layout';
 import StudentClassRoom from '@/pages/student/class-room/class-room';
 import CreateclassRoom from '@/pages/student/class-room/create-class-room';
+import ClassQuiz from '@/pages/student/class-room/quiz';
+import ClassAssessment from '@/pages/student/class-room/assessment';
+import ClassSubject from '@/pages/student/class-room/subject';
 import WatchClass from '@/pages/student/class/watch-class';
 import StudentReplay from '@/pages/student/class/student-replay';
 import StudentQuizzes from '@/pages/student/quizzes';
@@ -84,6 +87,11 @@ import IdbViewer from '@/pages/dev/idb-viewer';
 import DraftLessons from '@/pages/teacher/drafts';
 import PendingUploads from '@/pages/teacher/pending-uploads';
 import ModulePage from '@/pages/module';
+import MyClassroomPage from '@/pages/teacher/my-classroom';
+import ModuleQuiz from '@/pages/teacher/module/quiz';
+import ModuleQuizGrading from '@/pages/teacher/module/quiz-grading';
+import ModuleAssessment from '@/pages/teacher/module/assessment';
+import ModuleSubject from '@/pages/teacher/module/subject';
 import QuestionBankScan from '@/pages/teacher/question-bank';
 import AdminAnalytics from '@/pages/admin/dashboard/analytics-page';
 import TeacherAnalytics from '@/pages/teacher/dashboard/analytics-page';
@@ -270,7 +278,11 @@ const router = createBrowserRouter([
                         <TeacherDashboard />
                     </TeacherProtectedRoute>
             },
-            { path: "module", element: <ModulePage /> },
+            { path: "module", element: <MyClassroomPage /> },
+            { path: "module/quiz", element: <ModuleQuiz /> },
+            { path: "module/quiz-grading", element: <ModuleQuizGrading /> },
+            { path: "module/assessment", element: <ModuleAssessment /> },
+            { path: "module/subject", element: <ModuleSubject /> },
             { path: "resume-class", element: <ResumeClass /> },
             { path: "class-info", element: <ClassInfo /> },
             { path: "assessment", element: <Assessment /> },
@@ -334,6 +346,9 @@ const router = createBrowserRouter([
                 children: [
                     { index: true, element: <StudentClassRoom /> },
                     { path: "create", element: <CreateclassRoom /> },
+                    { path: "quiz", element: <ClassQuiz /> },
+                    { path: "assessment", element: <ClassAssessment /> },
+                    { path: "subject", element: <ClassSubject /> },
                 ],
             },
             { path: "module", element: <ModulePage /> },

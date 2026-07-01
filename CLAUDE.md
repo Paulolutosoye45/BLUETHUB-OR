@@ -312,6 +312,34 @@ For web-app-only components: `src/component/` (shared) or per-role `src/pages/{r
 
 ---
 
+## My Classroom (Teacher Module) Page
+
+Located at `apps/web/src/pages/teacher/my-classroom/index.tsx`. Route: `/teacher/module` (uses `MyClassroomPage`, not `ModulePage`).
+
+### What it shows
+- **Classroom tabs** if teacher has multiple classrooms (from `roleData.classrooms`)
+- **Subject pills** within selected classroom — filters student list by subject
+- **Classroom profile card** with performance stats (from `api/performance/classroom/{id}`)
+- **Quick action bar** per subject: View Quizzes, Assessments, Question Bank
+- **Student table** filtered by classroom + subject
+- **Quiz History modal** — on student "Quiz" click, fetches `api/Quiz/student/{id}/history`
+
+### Endpoints used
+| Method | Endpoint | Where |
+|--------|----------|-------|
+| GET | `/api/User/teacher/students` | `moduleService.getTeacherStudents()` — all teacher's students |
+| GET | `api/performance/classroom/{id}` | `performanceService.getClassroomPerformance()` — aggregate stats |
+| GET | `api/Quiz/student/{id}/history` | `quizService.getStudentQuizHistory()` — per-student quiz attempts |
+
+### Role detection
+- `ClassTeacher` / `HeadTeacher` → "Full access" (shows all subjects)
+- `SubjectTeacher` → "Subject access" (only subjects from roleData)
+
+### Nav
+- `shared/constant.ts` sidebar: "Module" renamed to "My Classroom"
+
+---
+
 ## Known Gotchas / Past Bugs Fixed
 
 | Problem | Root Cause | Fix |
