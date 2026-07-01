@@ -26,9 +26,9 @@ const AdminAppbar = () => {
 
   return (
     <>
-      <div className="hidden w-full mx-auto border-0 bg-white rounded-lg md:flex h-[89px]  justify-between items-center  py-5  px-7">
+      <div className="hidden w-full mx-auto border-0 bg-white rounded-lg md:flex h-[64px] justify-between items-center py-3 px-5">
         <section>
-          <h2 className="font-poppins font-medium text-[15px] leading-tight text-chestnut ">
+          <h2 className="font-poppins font-medium text-[13px] leading-tight text-chestnut ">
             Hello, <span className="font-semibold capitalize ">{user?.firstName},</span> Welcome Back!
           </h2>
         </section>

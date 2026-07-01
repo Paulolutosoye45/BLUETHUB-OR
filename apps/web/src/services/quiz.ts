@@ -286,8 +286,9 @@ export interface QuizResultDto {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export interface GradeAnswerPayload {
-  manualMarksObtained: number;
-  teacherFeedback?: string | null;
+  starCount?: number;
+  manualMarksObtained?: number;
+  teacherFeedback?: string;
 }
 
 export interface PendingGradeDto {
@@ -304,6 +305,29 @@ export interface PendingGradeDto {
   audioUrl: string | null;
   maxMarks: number;
   submittedAt: string | null;
+}
+
+export interface GradingDetailDto {
+  answerId: string;
+  attemptId: string;
+  questionId: string;
+  studentId: string;
+  studentName: string;
+  quizCode: string;
+  lessonTitle: string;
+  questionType: number;
+  typedAnswer: string | null;
+  boardSessionId: string | null;
+  audioUrl: string | null;
+  maxMarks: number;
+  submittedAt: string;
+  difficultyLevel: number;
+  questionTitle: string;
+  questionTextContent: string;
+  starMarkEasy: number;
+  starMarkMedium: number;
+  starMarkHard: number;
+  starMarkExpert: number;
 }
 
 export interface LessonQuizResultDto {
@@ -543,8 +567,11 @@ export const quizService = {
     ),
 
   // ── Teacher: Grading ────────────────────────────────────────────────────────
-  getPendingGrades: () =>
+    getPendingGrades: () =>
     API.get<TResponse<PendingGradeDto[]>>('api/Quiz/grading/pending', { headers }),
+
+  getGradingDetail: () =>
+    API.get<TResponse<GradingDetailDto[]>>('api/Quiz/grading/detail', { headers }),
 
   gradeAnswer: (answerId: string, payload: GradeAnswerPayload) =>
     API.post<TResponse<null>>(

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { EllipsisVertical, Camera, Plus, CircleAlert, CalendarIcon, Loader2, Info, LayoutGrid, Menu } from "lucide-react";
+import { EllipsisVertical, Camera, Plus, CircleAlert, CalendarIcon, Loader2, Info, LayoutGrid, Menu, ArrowLeft } from "lucide-react";
 import { format } from "date-fns"
 import { Calendar, Input, Label, Popover, PopoverContent, PopoverTrigger } from "@bluethub/ui-kit";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,8 @@ const Enrollment = () => {
     const [successfully, setSuccessfully] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
     const [loading, setLoading] = useState(false);
+
+    const navigate = useNavigate()
 
 
     const {
@@ -128,20 +130,21 @@ const Enrollment = () => {
 
     return (
         <>
-            <div className="lg:p-6 font-poppins">
+            <div className="lg:p-3 font-poppins">
                 <div className="backdrop-blur-sm lg:rounded-2xl border border-white/70  overflow-hidden">
                     <div
                         className="flex items-center justify-between px-5 h-12 sticky top-0 z-30 bg-chestnut">
                         <div className="flex items-center gap-2.5">
                             <LayoutGrid className="w-5 h-5 text-white lg:inline hidden" />
                             <Menu className="lg:hidden text-white" onClick={openMobileNav} />
+                            <ArrowLeft  className="lg:hidden text-white"  onClick={() => navigate(-1)}/>
                             <span className="text-white font-semibold text-sm">Register Subject</span>
                         </div>
                         <EllipsisVertical className="text-white" />
                     </div>
 
                     {successfully ? (
-                        <StudentRegisteredSuccessfully setSuccessfully={setSuccessfully} onReset={onReset} />
+                        <StudentRegisteredSuccessfully firstName={firstName} lastName={lastName} setSuccessfully={setSuccessfully} onReset={onReset} />
                     ) : (
                         <div className="bg-white/35 backdrop-blur-sm px-8 pb-8 pt-6">
 
@@ -401,7 +404,7 @@ const AnimatedSuccessIcon = () => {
     );
 };
 
-const StudentRegisteredSuccessfully = ({ onReset }: { setSuccessfully: (boolean: false) => void; onReset: () => void }) => {
+const StudentRegisteredSuccessfully = ({ onReset, firstName, lastName }: {firstName: string, lastName: string, setSuccessfully: (boolean: false) => void; onReset: () => void }) => {
     const navigate = useNavigate()
     return (
         <div className="min-h-[80vh] bg-white/35 backdrop-blur-sm flex items-center justify-center px-4">
@@ -417,7 +420,7 @@ const StudentRegisteredSuccessfully = ({ onReset }: { setSuccessfully: (boolean:
                     </h3>
 
                     <p className="text-gray-500 text-sm leading-relaxed">
-                        Tee Wealth has been added to{" "}
+                        {firstName} {lastName} has been added to{" "}
                         <span className="font-medium text-gray-700">
                             JSS 1A Section
                         </span>{" "}

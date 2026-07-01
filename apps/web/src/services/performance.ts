@@ -146,6 +146,22 @@ export interface StudentPerformanceDetailDto {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SUBJECT PERFORMANCE — Classroom breakdown
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface SubjectClassroomPerformanceDto {
+  classroomId: string;
+  classroomName: string;
+  studentCount: number;
+  totalAttempts: number;
+  completedAttempts: number;
+  averageScorePercent: number;
+  passRate: number;
+  lastActivityDate: string | null;
+  computedAt: string;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // SERVICE
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -178,6 +194,12 @@ export const performanceService = {
     API.post<TResponse<null>>(
       "api/performance/refresh",
       null,
+      { headers }
+    ),
+
+  getSubjectClassrooms: (subjectId: string) =>
+    API.get<TResponse<SubjectClassroomPerformanceDto[]>>(
+      `api/Performance/subject/${subjectId}/classrooms`,
       { headers }
     ),
 };

@@ -14,6 +14,29 @@ import messageIcon from "@/assets/svg/message.svg";
 import calendarIcon from "@/assets/svg/calendar.svg";
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import type { schoolInfo } from "@/services";
+
+// ── Chevron Icon ──────────────────────────────────────────────────────────────
+const ChevronIcon = ({ open }: { open: boolean }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.25s ease",
+            flexShrink: 0,
+        }}
+    >
+        <polyline points="6 9 12 15 18 9" />
+    </svg>
+);
 
 const MAIN_LINKS: NavItem[] = [
   { name: "Dashboard", icons: dashboardIcon, path: "/teacher" },
@@ -36,7 +59,7 @@ function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
     : undefined;
   const className = classroom?.className;
   const subjects = classroom?.subjects;
-  const subjectNames = subjects?.map((s) => s.subjectName).join(" · ");
+  const subjectNames = subjects?.slice(0,2).map((s) => s.subjectName).join(" · ");
   const subject = subjectNames ? `${subjectNames}` : className ?? "";
   const classLabel = className ? ` ${className}` : "No class assigned";
 
@@ -57,7 +80,7 @@ function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
   if (isCollapsed) {
     return (
       <div className="flex justify-center py-3 px-2">
-        <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+        <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
           {initials}
         </div>
       </div>
@@ -67,12 +90,12 @@ function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
   return (
     <div className="mx-3 mb-2 rounded-xl bg-[#292382] p-3 text-white">
       <div className="flex items-start gap-2.5">
-        <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
+        <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
           {initials}
         </div>
         <div className="min-w-0">
-          <p className="text-[13px] font-semibold truncate">{name}</p>
-          <p className="text-[11px] opacity-70 truncate">{role}</p>
+          <p className="text-xs font-semibold truncate">{name}</p>
+          <p className="text-[10px] opacity-70 truncate">{role}</p>
         </div>
       </div>
       <div className="mt-2.5 flex items-center gap-2 flex-wrap">
@@ -101,11 +124,74 @@ function NavItem({
   link,
   isCollapsed,
   onNavigate,
+  isOpen,
+  onToggle,
 }: {
   link: NavItem;
   isCollapsed: boolean;
   onNavigate?: () => void;
+  isOpen?: boolean;
+  onToggle?: () => void;
 }) {
+  if (link.children) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={onToggle}
+          className={[
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 cursor-pointer group",
+            isOpen ? "bg-[#292382] text-white" : "text-[#292382] hover:bg-[#29238210]",
+            isCollapsed ? "justify-center" : "justify-between",
+          ].join(" ")}
+        >
+          <div className="flex items-center gap-3">
+            <img
+              src={link.icons}
+              alt={link.name}
+              className={`w-[18px] h-[18px] shrink-0 object-contain transition-all ${
+                isOpen ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
+              }`}
+            />
+            {!isCollapsed && (
+              <span className={`text-xs font-medium truncate ${isOpen ? "text-white" : "text-[#292382]"}`}>
+                {link.name}
+              </span>
+            )}
+          </div>
+          {!isCollapsed && (
+            <span className={isOpen ? "text-white" : "text-[#292382] opacity-60"}>
+              <ChevronIcon open={!!isOpen} />
+            </span>
+          )}
+        </button>
+
+        <div
+          style={{ display: !isCollapsed && isOpen ? "block" : "none" }}
+          className="mt-1 ml-9 border-l-2 border-[#29238225] pl-3 space-y-0.5"
+        >
+          {link.children.map((child) => (
+            <NavLink
+              key={child.name}
+              to={child.path}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                [
+                  "block text-xs py-1.5 px-3 rounded-lg font-medium transition-all duration-150",
+                  isActive
+                    ? "bg-[#292382] text-white"
+                    : "text-[#292382] opacity-80 hover:opacity-100 hover:bg-[#29238212]",
+                ].join(" ")
+              }
+            >
+              {child.name}
+            </NavLink>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <NavLink
       to={link.path!}
@@ -130,8 +216,7 @@ isActive ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
           />
           {!isCollapsed && (
             <span
-              className={`text-sm font-medium truncate ${isActive ? "text-white" : 
-"text-[#292382]"
+              className={`text-xs font-medium truncate ${isActive ? "text-white" :  "text-[#292382]"
                 }`}
             >
               {link.name}
@@ -157,6 +242,15 @@ export const NavContent = ({
   onNavigate,
   onLogout,
 }: NavContentProps) => {
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
+
+  const handleDropdownClick = (idx: number) => {
+    if (isCollapsed) {
+      return;
+    }
+    setOpenDropdownIndex((prev) => (prev === idx ? null : idx));
+  };
+
   return (
     <div className="flex flex-col gap-5 pb-6">
       {/* Profile card */}
@@ -178,8 +272,15 @@ export const NavContent = ({
       {/* ACADEMIC */}
       <section className="px-0">
         <div className="px-3 space-y-0.5">
-          {TACADEMICLINKS.map((link) => (
-            <NavItem key={link.name} link={link} isCollapsed={isCollapsed} onNavigate={onNavigate} />
+          {TACADEMICLINKS.map((link, idx) => (
+            <NavItem
+              key={link.name}
+              link={link}
+              isCollapsed={isCollapsed}
+              onNavigate={onNavigate}
+              isOpen={openDropdownIndex === idx}
+              onToggle={() => handleDropdownClick(idx)}
+            />
           ))}
         </div>
       </section>
@@ -244,6 +345,8 @@ const TeacherSidebar = () => {
   const navigate = useNavigate();
   const { logout } = useAuthContext();
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const school = localData.retrieve("schoolInfo") as schoolInfo
+
 
   useEffect(() => {
     const saved = localData.retrieve<boolean>("navVNextT");
@@ -284,11 +387,12 @@ const TeacherSidebar = () => {
         {!isCollapsed && (
           <img src={bluethub} alt="Bluethub" className="h-6 shrink-0" />
         )}
+
+         {!isCollapsed && school && (<h2 className="text-chestnut font-medium text-xs">{school.schoolName}</h2>)}
         <button
           type="button"
           onClick={toggleSidebar}
-          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[
-#29238210] transition-colors shrink-0"
+          className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#29238210] transition-colors shrink-0"
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           <img
@@ -327,6 +431,7 @@ interface IMobileTeacherNav {
 export const MobileTeacherNav = ({ isOpen, setIsOpen }: IMobileTeacherNav) => {
   const navigate = useNavigate();
   const { logout } = useAuthContext();
+  const school = localData.retrieve("schoolInfo") as schoolInfo
   const drawerRef = useRef<HTMLDivElement>(null);
 
   const handleLogout = () => {
@@ -373,7 +478,9 @@ export const MobileTeacherNav = ({ isOpen, setIsOpen }: IMobileTeacherNav) => {
       >
         {/* Header: logo + close */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-[#29238210] shrink-0">
+          
           <img src={bluethub} alt="Bluethub" className="h-6" />
+          {school && <h2 className="text-chestnut font-medium text-xs">{school.schoolName}</h2>}
           <button
             type="button"
             onClick={() => setIsOpen(false)}

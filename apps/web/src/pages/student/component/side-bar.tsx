@@ -1,6 +1,7 @@
 import FamiconsChevron from "@/assets/svg/famicons_chevron.svg?react";
 import element from "@/assets/svg/sdashboard.svg?react";
 import classRoom from "@/assets/svg/class_room.svg?react";
+import moduleIcon from "@/assets/svg/class.svg?react";
 import my_course from "@/assets/svg/scourses.svg?react";
 import assignments from "@/assets/svg/assignment.svg?react";
 import quizzes from "@/assets/svg/quizzes.svg?react";
@@ -18,10 +19,54 @@ import { useAuthContext } from "@/contexts/auth-context";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface NavChild {
+    name: string;
+    path: string;
+}
+
+interface NavLinkItem {
+    name: string;
+    icons: React.FC<React.SVGProps<SVGSVGElement>>;
+    path?: string;
+    children?: NavChild[];
+}
+
+// ── Chevron Icon ──────────────────────────────────────────────────────────────
+const ChevronIcon = ({ open }: { open: boolean }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.25s ease",
+            flexShrink: 0,
+        }}
+    >
+        <polyline points="6 9 12 15 18 9" />
+    </svg>
+);
+
 // ── Nav links ──────────────────────────────────────────────────────────────────
-const navLinks = [
+const navLinks: NavLinkItem[] = [
     { name: "Dashboard", path: "/student", icons: element },
-    { name: "Classrooms", path: "/student/class-room", icons: classRoom },
+    {
+        name: "Classrooms",
+        icons: classRoom,
+        children: [
+            { name: "Quiz", path: "/student/class-room/quiz" },
+            { name: "Assessment", path: "/student/class-room/assessment" },
+            { name: "Subject", path: "/student/class-room/subject" },
+        ],
+    },
+    { name: "Module", path: "/student/module", icons: moduleIcon },
     { name: "My Course", path: "/student/my-course", icons: my_course },
     { name: "Assignments", path: "/student/Assignments", icons: assignments },
     { name: "Quizzes", path: "/student/Quizzes", icons: quizzes },
@@ -59,46 +104,115 @@ interface StudentNavContentProps {
     onLogout?: () => void;
 }
 
-const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavContentProps) => (
-    <section className="px-4 py-6">
-        <div className="space-y-1">
-            {navLinks.map((link, idx) => {
-                const Icon = link.icons;
-                const isPremium = link.name === "Premium";
+const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavContentProps) => {
+    const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
 
-                return (
-                    <NavLink
-                        key={link.name + idx}
-                        to={link.path}
-                        end={link.path === "/student"}
-                        onClick={onNavigate}
-                        className={({ isActive }) =>
-                            [
-                                "flex items-center gap-4 px-4 py-2.5 rounded-md transition-colors cursor-pointer",
-                                "hover:bg-student-chestnut/10",
-                                isActive ? "bg-student-chestnut/20 border-2 border-student-chestnut" : "border-2 border-transparent",
-                                isCollapsed ? "justify-center" : "",
-                            ].join(" ")
-                        }
-                    >
-                        {({ isActive }) => (
-                            <>
-                                <Icon className="w-5 h-5 shrink-0" />
-                                {!isCollapsed && (
-                                    <span
-                                        className={[
-                                            "text-sm font-medium font-poppins truncate",
-                                            isActive || isPremium ? "text-student-chestnut" : "text-[#3A3A3ABF]",
-                                        ].join(" ")}
-                                    >
-                                        {link.name}
-                                    </span>
-                                )}
-                            </>
-                        )}
-                    </NavLink>
-                );
-            })}
+    const handleDropdownClick = (idx: number) => {
+        setOpenDropdownIndex((prev) => (prev === idx ? null : idx));
+    };
+
+    return (
+        <section className="px-4 py-6">
+            <div className="space-y-1">
+                {navLinks.map((link, idx) => {
+                    const Icon = link.icons;
+                    const isPremium = link.name === "Premium";
+                    const isOpen = openDropdownIndex === idx;
+
+                    if (link.children) {
+                        return (
+                            <div key={link.name + idx}>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDropdownClick(idx)}
+                                    className={[
+                                        "w-full flex items-center gap-4 px-4 py-2.5 rounded-md transition-colors cursor-pointer",
+                                        "hover:bg-student-chestnut/10",
+                                        isOpen
+                                            ? "bg-student-chestnut/20 border-2 border-student-chestnut"
+                                            : "border-2 border-transparent",
+                                        isCollapsed ? "justify-center" : "",
+                                    ].join(" ")}
+                                >
+                                    <Icon className="w-5 h-5 shrink-0" />
+                                    {!isCollapsed && (
+                                        <>
+                                            <span
+                                                className={[
+                                                    "text-sm font-medium font-poppins truncate flex-1 text-left",
+                                                    isOpen ? "text-student-chestnut" : "text-[#3A3A3ABF]",
+                                                ].join(" ")}
+                                            >
+                                                {link.name}
+                                            </span>
+                                            <span className={isOpen ? "text-student-chestnut" : "text-[#3A3A3ABF]"}>
+                                                <ChevronIcon open={isOpen} />
+                                            </span>
+                                        </>
+                                    )}
+                                </button>
+
+                                <div
+                                    style={{
+                                        display: !isCollapsed && isOpen ? "block" : "none",
+                                    }}
+                                    className="mt-1 ml-9 border-l-2 border-student-chestnut/20 pl-3 space-y-0.5"
+                                >
+                                    {link.children.map((child, cIdx) => (
+                                        <NavLink
+                                            key={child.name + cIdx}
+                                            to={child.path}
+                                            onClick={onNavigate}
+                                            className={({ isActive }) =>
+                                                [
+                                                    "block text-sm py-1.5 px-3 rounded-md transition-colors font-medium",
+                                                    isActive
+                                                        ? "bg-student-chestnut/20 text-student-chestnut"
+                                                        : "text-[#3A3A3ABF] hover:bg-student-chestnut/10 hover:text-student-chestnut",
+                                                ].join(" ")
+                                            }
+                                        >
+                                            {child.name}
+                                        </NavLink>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    return (
+                        <NavLink
+                            key={link.name + idx}
+                            to={link.path!}
+                            end={link.path === "/student"}
+                            onClick={onNavigate}
+                            className={({ isActive }) =>
+                                [
+                                    "flex items-center gap-4 px-4 py-2.5 rounded-md transition-colors cursor-pointer",
+                                    "hover:bg-student-chestnut/10",
+                                    isActive ? "bg-student-chestnut/20 border-2 border-student-chestnut" : "border-2 border-transparent",
+                                    isCollapsed ? "justify-center" : "",
+                                ].join(" ")
+                            }
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <Icon className="w-5 h-5 shrink-0" />
+                                    {!isCollapsed && (
+                                        <span
+                                            className={[
+                                                "text-sm font-medium font-poppins truncate",
+                                                isActive || isPremium ? "text-student-chestnut" : "text-[#3A3A3ABF]",
+                                            ].join(" ")}
+                                        >
+                                            {link.name}
+                                        </span>
+                                    )}
+                                </>
+                            )}
+                        </NavLink>
+                    );
+                })}
 
             <button
                 type="button"
@@ -118,7 +232,8 @@ const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavCont
             </button>
         </div>
     </section>
-);
+    );
+};
 
 // ── Desktop sidebar ────────────────────────────────────────────────────────────
 const StudentSideBar = () => {

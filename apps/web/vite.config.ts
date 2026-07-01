@@ -12,10 +12,11 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      // "@bluethub/ui-kit": path.resolve(__dirname, "../../packages/ui/src"),
+      "@bluethub/ui-kit": path.resolve(__dirname, "../../packages/ui/src"),
     },
   },
   optimizeDeps: {
-    include: ["@bluethub/ui-kit", "chrono-node"],
-  },
+  exclude: ["@bluethub/ui-kit"],
+  include: ["chrono-node"], // keep real node_modules deps here, just not ui-kit
+},
 });

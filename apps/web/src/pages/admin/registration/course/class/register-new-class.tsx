@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { X, EllipsisVertical, LayoutGrid, Search, Eye, Info, Loader2 } from "lucide-react";
+import { X, EllipsisVertical, LayoutGrid, Search, Eye, Info, Loader2, ArrowLeft } from "lucide-react";
 import ClassRegistered from "./class-registered";
 import { useNavigate } from "react-router-dom";
 import type { Subject } from "../main";
@@ -141,19 +141,20 @@ const filteredMinor = minorSubjects.filter(s =>
 
     return (
         <>
-            <div className="p-6 font-poppins">
-                <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
+            <div className="md:p-3 font-poppins">
+                <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
                     {/* ── Top Nav ───────────────────────────────────────────── */}
                     <div className="flex items-center justify-between px-4 py-3 sticky top-0 z-30 bg-chestnut">
                         <div className="flex items-center gap-2.5">
-                            <LayoutGrid className="w-6 h-6 text-white" />
+                            <LayoutGrid className="w-6 h-6 text-white hidden md:flex" />
+                            <ArrowLeft  className="lg:hidden text-white"  onClick={() => navigate(-1)}/>
                             <div>
                                 <p className="text-white font-medium text-sm leading-tight">Register New Class</p>
                                 <p className="text-white/60 text-[10px] leading-tight">Assign class details and configure subjects</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button className="flex items-center gap-1.5 bg-[#EC1B2C] px-3 py-1.5 rounded-md text-xs font-semibold text-white hover:opacity-90 transition-opacity">
+                            <button className="hidden lg:flex items-center gap-1.5 bg-[#EC1B2C] px-3 py-1.5 rounded-md text-xs font-semibold text-white hover:opacity-90 transition-opacity">
                                 <Eye className="w-3.5 h-3.5" />
                                 View all Classes
                             </button>
@@ -164,10 +165,10 @@ const filteredMinor = minorSubjects.filter(s =>
                     </div>
 
                     {/* ── Body ──────────────────────────────────────────────── */}
-                    <div className="flex gap-0 bg-white/40 backdrop-blur-sm">
+                    <div className="flex flex-col md:flex-row gap-0 bg-white/40 backdrop-blur-sm">
 
                         {/* ── LEFT PANEL ──────────────────────────────────────── */}
-                        <div className="w-64 shrink-0 border-r border-chestnut/10 p-5 flex flex-col gap-4">
+                        <div className="w-full md:w-64 shrink-0 border-r border-chestnut/10 p-5 flex flex-col gap-4">
 
                             {/* Class Name input */}
                             <div className="space-y-1.5">

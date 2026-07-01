@@ -185,6 +185,12 @@ function uploadToCloudinary(
     fd.append("timestamp", String(sig.timestamp));
     fd.append("signature", sig.signature);
     fd.append("folder", sig.folder);
+    if (sig.uploadPreset) fd.append("upload_preset", sig.uploadPreset);
+    if (sig.resourceType) fd.append("resource_type", sig.resourceType);
+
+    const uploadUrl = sig.resourceType
+      ? `https://api.cloudinary.com/v1_1/${sig.cloudName}/${sig.resourceType}/upload`
+      : `https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`;
 
     const xhr = new XMLHttpRequest();
     xhr.upload.onprogress = (e) => {
@@ -205,7 +211,7 @@ function uploadToCloudinary(
       }
     };
     xhr.onerror = () => reject(new Error("Network error — check your connection"));
-    xhr.open("POST", `https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`);
+    xhr.open("POST", uploadUrl);
     xhr.send(fd);
   });
 }
@@ -618,6 +624,9 @@ const SubmitLesson = () => {
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+
+
   const dragItemIdx = useRef<number | null>(null);
   const [dragTargetIdx, setDragTargetIdx] = useState<number | null>(null);
 
@@ -875,7 +884,7 @@ const SubmitLesson = () => {
           publicId: res.public_id,
           fileSizeBytes: res.bytes,
           displayOrder: 0,
-          ...(res.duration != null ? { duration: res.duration } : {}),
+          ...(res.duration != null ? { duration: Math.round(res.duration) } : {}),
         };
       }
 
@@ -900,6 +909,7 @@ const SubmitLesson = () => {
       status: "idle" as const,
       progress: 0,
     }));
+
 
     setUploadFiles((p) => [...p, ...incoming]);
 
@@ -1060,7 +1070,6 @@ const SubmitLesson = () => {
       durationMinutes: durationMinutes ? Number(durationMinutes) : null,
       ...(mediaFiles.length > 0 ? { mediaFiles } : {}),
     };
-
     try {
       await lessonService.saveDraft(payload);
       setServerDraftSaved(true);

@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useOutletContext } from "react-router-dom";
 import {
     Button,
     Dialog,
@@ -11,7 +11,7 @@ import {
     DropdownMenuTrigger,
 } from "@bluethub/ui-kit";
 import { useState } from "react";
-import { Check, ChevronDown, Loader2, Search, Sparkles, UserCircle, Users } from "lucide-react";
+import {Check, ChevronDown, Loader2, Menu, Search, Sparkles, UserCircle, Users } from "lucide-react";
 import { authService } from "@/services/auth";
 import { UserRole } from "@/utils/validate";
 
@@ -71,6 +71,7 @@ type UserDto = {
 };
 
 const TeacherMain = () => {
+     const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
     const navigate = useNavigate();
     const [selectRole, setSelectRole] = useState<RoleOption | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -121,15 +122,19 @@ const TeacherMain = () => {
     });
 
     return (
-        <div className="px-3 sm:px-5 lg:px-7 py-4 sm:py-6">
-            <section className="relative overflow-hidden rounded-3xl border border-white/20 bg-white/85 shadow-sm">
+        <div className="md:px-5 lg:p-3">
+            <section className="relative overflow-hidden lg:rounded-3xl border border-white/20 bg-white/85 shadow-sm">
                 <div className="pointer-events-none absolute -top-12 -right-14 h-44 w-44 rounded-full bg-chestnut/10 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-14 -left-14 h-44 w-44 rounded-full bg-[#292382]/10 blur-3xl" />
 
-                <section className="relative bg-chestnut px-5 py-4 sm:px-7">
+                <section className="relative bg-chestnut px-5 py-4 sm:px-7 flex gap-4 md:gap-0 md:block">
+                        <Menu
+              className="lg:hidden shrink-0 mb-2 text-white cursor-pointer"
+              onClick={openMobileNav}
+            />
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                            <h1 className="font-poppins text-lg sm:text-xl font-semibold text-white">
+                            <h1 className="font-poppins text-sm font-semibold text-white">
                                 Register Teacher
                             </h1>
                             <p className="mt-1 text-xs sm:text-sm text-white/85">
@@ -146,7 +151,7 @@ const TeacherMain = () => {
                 <div className="relative p-4 sm:p-6 lg:p-8">
                     <div className="grid gap-5 lg:grid-cols-[minmax(280px,1fr)_minmax(0,1.35fr)]">
                         <div className="rounded-2xl border border-chestnut/15 bg-white p-4 sm:p-5 lg:p-6 shadow-sm">
-                            <label className="text-chestnut font-semibold text-sm sm:text-base flex items-center gap-2">
+                            <label className="text-chestnut font-semibold text-sm sm:text-sm flex items-center gap-2">
                                 <UserCircle className="h-4 w-4" />
                                 Role
                             </label>
@@ -155,7 +160,7 @@ const TeacherMain = () => {
                                 <DropdownMenuTrigger asChild>
                                     <Button
                                         variant="outline"
-                                        className={`mt-3 relative h-12 sm:h-13 w-full justify-between rounded-xl border-0 px-4 text-sm sm:text-base font-medium ring-2 transition-all duration-300 ${selectRole
+                                        className={`mt-3 relative h-12 sm:h-13 w-full justify-between rounded-xl border-0 px-4 text-sm sm:text-sm font-medium ring-2 transition-all duration-300 ${selectRole
                                             ? "bg-chestnut/5 text-chestnut ring-chestnut/40"
                                             : "bg-white text-chestnut/60 ring-chestnut/20"
                                             } hover:bg-chestnut/5 hover:ring-chestnut/40 focus:ring-4 focus:ring-chestnut/35`}
@@ -202,13 +207,13 @@ const TeacherMain = () => {
                         <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-[#fff8f3] p-4 sm:p-6 shadow-sm">
                             <div className="mb-4 flex items-center gap-2 text-chestnut">
                                 <Users className="h-4 w-4" />
-                                <h2 className="text-sm sm:text-base font-semibold">Actions</h2>
+                                <h2 className="text-sm  font-semibold">Actions</h2>
                             </div>
 
                             <div className="grid gap-3 sm:grid-cols-2">
                                 {selectRole ? (
                                     <Button
-                                        className="h-12 sm:h-14 rounded-xl bg-chestnut px-5 text-sm sm:text-base font-semibold text-white hover:bg-chestnut/90"
+                                        className="h-12 sm:h-14 rounded-xl bg-chestnut px-5 text-sm  font-semibold text-white hover:bg-chestnut/90"
                                         asChild
                                     >
                                         <Link to={selectRole.path}>
@@ -217,7 +222,7 @@ const TeacherMain = () => {
                                     </Button>
                                 ) : (
                                     <Button
-                                        className="h-12 sm:h-14 rounded-xl bg-chestnut px-5 text-sm sm:text-base font-semibold text-white opacity-60"
+                                        className="h-12 sm:h-14 rounded-xl bg-chestnut px-5 text-sm font-semibold text-white opacity-60"
                                         disabled
                                     >
                                         New User
