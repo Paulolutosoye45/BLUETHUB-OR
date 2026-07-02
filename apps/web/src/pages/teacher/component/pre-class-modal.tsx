@@ -265,14 +265,14 @@ const PreClassModal = ({
         {/* Header */}
         <div className="bg-gradient-to-r from-chestnut via-chestnut/90 to-chestnut/80 px-6 pt-6 pb-5 shrink-0">
           <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
-              <Play size={26} className="text-white" />
+            <div className=" p-3 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+              <Play size={14} className="text-white" />
             </div>
             <div className="min-w-0 flex-1 pr-8">
               <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-1">
                 Ready to Start
               </p>
-              <h2 className="text-white font-bold text-xl leading-tight">
+              <h2 className="text-white font-medium text-base leading-tight">
                 Pre-Class Instructions
               </h2>
               <p className="text-white/60 text-sm mt-1">
@@ -300,13 +300,13 @@ const PreClassModal = ({
 
               {/* Lesson Info Card */}
               {lesson && (
-                <div className="bg-gradient-to-br from-gray-50 to-gray-100/50 rounded-2xl p-4 mb-6 border border-gray-100">
+                <div className="rounded-2xl mb-6  border-gray-100">
                   <div className="flex items-start gap-3">
                     <div className="w-12 h-12 rounded-xl bg-chestnut/10 flex items-center justify-center shrink-0">
                       <BookOpen size={20} className="text-chestnut" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-gray-900 text-base">
+                      <h3 className="font-semibold capitalize text-gray-900 text-base">
                         {lesson.topicName}
                       </h3>
                       <p className="text-sm text-gray-500 mt-0.5">
@@ -355,7 +355,7 @@ const PreClassModal = ({
                     </div>
                     {lessonMediaLinks.length > 0 && (
                       <div className="text-center shrink-0">
-                        <p className="text-2xl font-bold text-chestnut">{lessonMediaLinks.length}</p>
+                        <p className="text-base font-bold text-chestnut">{lessonMediaLinks.length}</p>
                         <p className="text-[10px] text-gray-400 uppercase">Media Files</p>
                       </div>
                     )}
@@ -389,7 +389,7 @@ const PreClassModal = ({
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-4">
                   <AlertTriangle size={16} className="text-amber-500" />
-                  <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wide">
+                  <h3 className="font-semibold text-gray-800 text-sm uppercase tracking-wide">
                     Important Guidelines
                   </h3>
                 </div>
@@ -406,7 +406,7 @@ const PreClassModal = ({
                           <Icon size={18} className={rule.color} />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-semibold text-gray-800 text-sm">
+                          <p className="font-medium text-gray-800 text-sm">
                             {rule.title}
                           </p>
                           <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
@@ -438,7 +438,7 @@ const PreClassModal = ({
                   {understood && <CheckCircle2 size={14} className="text-white" />}
                 </div>
                 <div className="flex-1">
-                  <p className={`font-semibold text-sm ${understood ? "text-emerald-700" : "text-gray-700"}`}>
+                  <p className={`font-medium text-sm ${understood ? "text-emerald-700" : "text-gray-700"}`}>
                     I understand and agree to follow these guidelines
                   </p>
                   <p className="text-xs text-gray-400 mt-0.5">
@@ -471,14 +471,14 @@ const PreClassModal = ({
           <div className="flex items-center gap-3 w-full">
             <button
               onClick={handleClose}
-              className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors"
+              className="flex-1 px-4 py-2 rounded-md text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={handleStartClass}
               disabled={!understood || (isLoading && !lesson) || caching}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold text-white transition-all ${
+              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-bold text-white transition-all ${
                 understood && !(isLoading && !lesson) && lesson && !caching
                   ? "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/25"
                   : "bg-gray-300 cursor-not-allowed"

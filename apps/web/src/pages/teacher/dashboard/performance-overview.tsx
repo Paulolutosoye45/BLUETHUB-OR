@@ -45,9 +45,9 @@ const PerformanceOverview = () => {
   const classrooms = data.classrooms ?? [];
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       {/* Summary */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <TeacherSummaryCard label="Total Students" value={data.totalStudents ?? 0} color="text-blue-600" bg="bg-blue-50" />
         <TeacherSummaryCard label="Avg Score" value={`${(data.overallAverageScore ?? 0).toFixed(1)}%`} color="text-amber-600" bg="bg-amber-50" />
         <TeacherSummaryCard label="Pass Rate" value={`${(data.overallPassRate ?? 0).toFixed(1)}%`} color="text-emerald-600" bg="bg-emerald-50" />
@@ -56,11 +56,11 @@ const PerformanceOverview = () => {
 
       {/* Per-classroom breakdown */}
       <section>
-        <h3 className="mb-3 text-sm font-bold text-slate-700">Your Performance by Subject &amp; Class</h3>
-        <p className="mb-2 text-xs text-slate-400">
-          Quiz performance for your subject in each class you teach.
+        <h3 className="mb-2 text-xs font-bold text-slate-700">Performance by Subject &amp; Class</h3>
+        <p className="mb-1.5 text-[10px] text-slate-400">
+          Quiz performance for your subject in each class.
         </p>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           {classrooms.map((cr) => (
             <ClassroomCard key={`${cr.classroomId}-${cr.subjectId}`} cr={cr} open={expanded.has(`${cr.classroomId}-${cr.subjectId}`)} onToggle={() => toggle(`${cr.classroomId}-${cr.subjectId}`)} />
           ))}
@@ -74,25 +74,25 @@ const PerformanceOverview = () => {
 };
 
 const ClassroomCard = ({ cr, open, onToggle }: { cr: PerformanceClassroomDto; open: boolean; onToggle: () => void }) => (
-  <div className="rounded-xl border border-slate-100 bg-white shadow-sm">
-    <button onClick={onToggle} className="flex w-full items-center justify-between px-4 py-3 text-left">
+  <div className="rounded-lg border border-slate-100 bg-white shadow-sm">
+    <button onClick={onToggle} className="flex w-full items-center justify-between px-3 py-2 text-left">
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-slate-800">
-          {cr.subjectName ?? "Subject"} <span className="text-xs font-normal text-slate-400">— {cr.classroomName}</span>
+        <p className="text-xs font-semibold text-slate-800">
+          {cr.subjectName ?? "Subject"} <span className="text-[10px] font-normal text-slate-400">— {cr.classroomName}</span>
         </p>
-        <p className="text-xs text-slate-400">
+        <p className="text-[10px] text-slate-400">
           {cr.studentCount} students · {cr.totalAttempts} attempts · {cr.averageScorePercent.toFixed(1)}% avg score
         </p>
       </div>
-      <div className="ml-3 shrink-0 text-slate-300">
-        {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      <div className="ml-2 shrink-0 text-slate-300">
+        {open ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
       </div>
     </button>
 
     {open && (
-      <div className="border-t border-slate-50 px-4 py-3 space-y-3">
+      <div className="border-t border-slate-50 px-3 py-2 space-y-2">
         {/* Stats row */}
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
           <MiniStat label="Pass Rate" value={`${cr.passRate.toFixed(1)}%`} />
           <MiniStat label="Completed" value={`${cr.completedAttempts}/${cr.totalAttempts}`} />
           <MiniStat label="Avg Time" value={cr.averageTimeTakenSeconds ? `${Math.round(cr.averageTimeTakenSeconds / 60)}m` : "—"} />
@@ -102,8 +102,8 @@ const ClassroomCard = ({ cr, open, onToggle }: { cr: PerformanceClassroomDto; op
         {/* Quiz breakdown */}
         {cr.quizBreakdown.length > 0 && (
           <div>
-            <p className="mb-1.5 text-xs font-semibold text-slate-500">Quiz Breakdown</p>
-            <table className="w-full text-left text-xs">
+            <p className="mb-1 text-[10px] font-semibold text-slate-500">Quiz Breakdown</p>
+            <table className="w-full text-left text-[10px]">
               <thead>
                 <tr className="text-slate-400">
                   <th className="pb-1 font-semibold">Quiz</th>
@@ -134,21 +134,21 @@ const ClassroomCard = ({ cr, open, onToggle }: { cr: PerformanceClassroomDto; op
 );
 
 const TeacherSummaryCard = ({ label, value, color, bg }: { label: string; value: string | number; color: string; bg: string }) => (
-  <div className={`flex items-center gap-3 rounded-xl border border-slate-100 px-4 py-3 shadow-sm ${bg}`}>
+  <div className={`flex items-center gap-2 rounded-lg border border-slate-100 px-3 py-2 shadow-sm ${bg}`}>
     <div className={`${color}`}>
-      {label === "Total Students" ? <Users className="h-5 w-5" /> : <BarChart3 className="h-5 w-5" />}
+      {label === "Total Students" ? <Users className="h-4 w-4" /> : <BarChart3 className="h-4 w-4" />}
     </div>
     <div className="min-w-0">
-      <p className="truncate text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className="truncate text-base font-bold text-slate-800">{typeof value === "number" ? value.toLocaleString() : value}</p>
+      <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+      <p className="truncate text-sm font-bold text-slate-800">{typeof value === "number" ? value.toLocaleString() : value}</p>
     </div>
   </div>
 );
 
 const MiniStat = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-lg bg-slate-50 px-3 py-2 text-center">
-    <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-    <p className="text-sm font-bold text-slate-700">{value}</p>
+  <div className="rounded-lg bg-slate-50 px-2 py-1.5 text-center">
+    <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+    <p className="text-xs font-bold text-slate-700">{value}</p>
   </div>
 );
 

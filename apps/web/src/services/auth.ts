@@ -95,8 +95,11 @@ export type TResponse<T> = {
   responseCode: string;
   isSuccess: boolean;
   message: string;
-  Tdata: T;
+  data: T;
+  status?: string
 };
+
+
 
 const endpoints = {
   login: "/api/User/login",

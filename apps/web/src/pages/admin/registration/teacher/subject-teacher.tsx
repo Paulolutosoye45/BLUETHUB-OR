@@ -3,11 +3,11 @@ import { authService, type IcreateUserRequest } from "@/services/auth";
 import { Hashing, localData } from "@/utils";
 import type { Tuser } from "@/utils/decode";
 import { regUserSchema, UserRole, type RegisterFormData } from "@/utils/validate";
-import { Label, Input, Button, Popover, PopoverTrigger, PopoverContent, Calendar  } from "@bluethub/ui-kit";
+import { Label, Input, Button, Popover, PopoverTrigger, PopoverContent, Calendar } from "@bluethub/ui-kit";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { AxiosError } from "axios";
 import { format } from "date-fns";
-import { Upload, User, Camera, Mail, Loader2, Info, CalendarIcon, ArrowLeft } from "lucide-react";
+import { Upload, User, Camera, Mail, Loader2, Info, CalendarIcon, ArrowLeft, Check } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -19,6 +19,8 @@ const SubjectTeacher = () => {
   const [user, setUser] = useState<Tuser | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [open, setOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   const location = useLocation();
   const navigate = useNavigate()
@@ -47,7 +49,13 @@ const SubjectTeacher = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFileName(e.target.files[0].name);
+      const file = e.target.files[0];
+
+      setFileName(file.name);
+
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
     }
   };
 
@@ -88,11 +96,17 @@ const SubjectTeacher = () => {
   useEffect(() => {
     if (isEdit) return; // skip auto-generation in edit mode
     if (firstName || lastName) {
-      const generated = `${firstName ?? ''}.${lastName ?? ''}`.toLowerCase().trim();
+      const generated = `${firstName?.trim() ?? ''}.${lastName?.trim() ?? ''}`.toLowerCase().trim();
       setValue("username", generated);
       setValue("password", generated);
     }
   }, [firstName, lastName, setValue, isEdit]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
 
   // Pre-fill form when in edit mode
   useEffect(() => {
@@ -189,7 +203,7 @@ const SubjectTeacher = () => {
             <div className="w-10 h-10 bg-white/20 rounded-lg  hidden lg:flex items-center justify-center ">
               <User className="w-5 h-5 text-white " />
             </div>
-            <ArrowLeft  className="lg:hidden text-white"  onClick={() => navigate(-1)}/>
+            <ArrowLeft className="lg:hidden text-white" onClick={() => navigate(-1)} />
             <div>
               <h2 className="lg:font-semibold  font-medium text-sm text-white">
                 {isAdminRegistration
@@ -203,6 +217,8 @@ const SubjectTeacher = () => {
               </p>
             </div>
           </div>
+
+          <ArrowLeft className="md:block hidden  text-white" onClick={() => navigate(-1)} />
         </div>
 
         {/* Form Content */}
@@ -222,9 +238,9 @@ const SubjectTeacher = () => {
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
                 className={`group relative flex items-center justify-center flex-col gap-4 
-                  border-2 border-dashed w-full md:w-60 h-50 rounded-2xl cursor-pointer 
-                  transition-all duration-300 overflow-hidden
-                  ${dragActive
+      border-2 border-dashed w-full md:w-60 h-50 rounded-2xl cursor-pointer 
+      transition-all duration-300 overflow-hidden
+      ${dragActive
                     ? "border-chestnut bg-chestnut/10 scale-105"
                     : fileName
                       ? "border-green-500 bg-green-50"
@@ -239,40 +255,52 @@ const SubjectTeacher = () => {
                   accept="image/*"
                 />
 
-                <div className="absolute inset-0 bg-linear-to-br from-chestnut/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                {previewUrl ? (
+                  <>
+                    {/* Actual image preview fills the drop zone */}
+                    <img
+                      src={previewUrl}
+                      alt="Profile preview"
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
 
-                <div
-                  className={`p-4 rounded-full transition-all duration-300 ${fileName
-                    ? "bg-green-500"
-                    : "bg-chestnut/10 group-hover:bg-chestnut/20"
-                    }`}
-                >
-                  {fileName ? (
-                    <Camera className="w-8 h-8 text-white" />
-                  ) : (
-                    <Upload className="w-8 h-8 text-chestnut" />
-                  )}
-                </div>
+                    {/* Dark overlay + info on hover so the box still reads as "click to change" */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors duration-300 flex items-center justify-center">
+                      <p className="opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-white text-xs font-semibold px-3 text-center">
+                        Click or drag to change image
+                      </p>
+                    </div>
 
-                <div className="text-center px-4 space-y-1">
-                  <p
-                    className={`font-semibold text-sm transition-colors ${fileName
-                      ? "text-green-700"
-                      : "text-chestnut group-hover:text-chestnut/80"
-                      }`}
-                  >
-                    {fileName ? "Image Selected" : "Upload Image"}
-                  </p>
-                  <p className="text-xs text-chestnut/60 font-medium">
-                    {fileName || "Click or drag to select file"}
-                  </p>
-                  {fileName && (
-                    <p className="text-xs text-green-600 font-medium truncate max-w-50">
-                      {fileName}
-                    </p>
-                  )}
-                </div>
+                    {/* Small "selected" badge, always visible */}
+                    <div className="absolute top-2 right-2 bg-green-500 rounded-full p-1 shadow-md">
+                      <Check className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="absolute inset-0 bg-linear-to-br from-chestnut/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
+                    <div className="p-4 rounded-full transition-all duration-300 bg-chestnut/10 group-hover:bg-chestnut/20">
+                      <Upload className="w-8 h-8 text-chestnut" />
+                    </div>
+
+                    <div className="text-center px-4 space-y-1">
+                      <p className="font-semibold text-sm text-chestnut group-hover:text-chestnut/80 transition-colors">
+                        Upload Image
+                      </p>
+                      <p className="text-xs text-chestnut/60 font-medium">
+                        Click or drag to select file
+                      </p>
+                    </div>
+                  </>
+                )}
               </label>
+
+              {fileName && (
+                <p className="text-xs text-green-600 font-medium truncate max-w-60">
+                  {fileName}
+                </p>
+              )}
             </div>
 
             {/* Form Fields */}
@@ -371,45 +399,51 @@ const SubjectTeacher = () => {
                   name="dateOfBirth"
                   control={control}
                   rules={{ required: "Date of birth is required" }}
-                  render={({ field }) => (
-                    <div className="space-y-1.5">
-                      <Label className="text-chestnut text-base font-medium">
-                        Date of Birth
-                      </Label>
+                  render={({ field }) => {
 
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <div
-                            className={cn(
-                              "w-full ring-2 ring-chestnut/40 bg-transparent rounded-md px-3 py-2 text-sm font-medium flex items-center gap-2 outline-none hover:ring-chestnut/50 transition",
-                              field.value ? "text-chestnut" : "text-chestnut/30"
-                            )}
-                          >
-                            <CalendarIcon className="w-4 h-4 text-chestnut/50 shrink-0" />
-                            {field.value
-                              ? format(new Date(field.value), "dd MMM yyyy")  // ← wrap in new Date() to be safe
-                              : "Select date of birth"}
 
-                          </div>
-                        </PopoverTrigger>
+                    return (
+                      <div className="space-y-1.5">
+                        <Label className="text-chestnut text-base font-medium">
+                          Date of Birth
+                        </Label>
 
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                            captionLayout="dropdown"
-                            fromYear={1990}
-                            toYear={new Date().getFullYear()}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      {errors.dateOfBirth && (
-                        <p className="text-red-500 text-xs mt-1 pl-2">{errors.dateOfBirth.message}</p>
-                      )}
-                    </div>
-                  )}
+                        <Popover open={open} onOpenChange={setOpen}>
+                          <PopoverTrigger asChild>
+                            <div
+                              className={cn(
+                                "w-full ring-2 ring-chestnut/40 bg-transparent rounded-md px-3 py-2 text-sm font-medium flex items-center gap-2 outline-none hover:ring-chestnut/50 transition cursor-pointer",
+                                field.value ? "text-chestnut" : "text-chestnut/30"
+                              )}
+                            >
+                              <CalendarIcon className="w-4 h-4 text-chestnut/50 shrink-0" />
+                              {field.value
+                                ? format(new Date(field.value), "dd MMM yyyy")
+                                : "Select date of birth"}
+                            </div>
+                          </PopoverTrigger>
+
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={field.value ? new Date(field.value) : undefined}
+                              onSelect={(date) => {
+                                field.onChange(date);
+                                setOpen(false); // close popover right after picking a date
+                              }}
+                              initialFocus
+                              captionLayout="dropdown"
+                              fromYear={1990}
+                              toYear={new Date().getFullYear()}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        {errors.dateOfBirth && (
+                          <p className="text-red-500 text-xs mt-1 pl-2">{errors.dateOfBirth.message}</p>
+                        )}
+                      </div>
+                    );
+                  }}
                 />
               </div>
             </div>
@@ -437,7 +471,7 @@ const SubjectTeacher = () => {
             <Button
               type="submit"
               disabled={loading}
-              className="md:ml-auto flex-1 bg-linear-to-r from-chestnut to-chestnut/90 hover:from-chestnut/90 hover:to-chestnut text-white font-medium text-sm py-7 px-7 rounded-md shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
+              className="md:ml-auto flex-1 md:flex-0 bg-linear-to-r from-chestnut to-chestnut/90 hover:from-chestnut/90 hover:to-chestnut text-white font-medium text-sm py-7 px-7 rounded-md shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
             >
               {loading ? (
                 <>

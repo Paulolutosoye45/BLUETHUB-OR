@@ -82,7 +82,7 @@ const StudentClassRoom = () => {
   }, [loading, subjects.length])
 
   return (
-    <div className="my-4 sm:my-6 md:my-10 border border-white rounded-2xl bg-white/70">
+    <div className="border border-white rounded-2xl bg-white/70">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[#D9D9D9] py-3 px-4">
         <div className="flex items-center gap-2">
           <People className="text-student-chestnut/75 w-5 h-5" />

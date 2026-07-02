@@ -66,94 +66,94 @@ const StudentAppBar = () => {
   };
 
   return (
-    <>
+    <div className="mb-4">
       <StudentMobileHeader
         studentName={studentName}
         className={className}
         initials={initials}
         openMobileNav={openMobileNav}
         stats={{
-          classesLeft: 4,
-          quizzesDue: 7,
-          assignments: 9,
+          classesLeft: 0,
+          quizzesDue: 0,
+          assignments: 0,
         }}
       />
 
     
-      <section className="hidden overflow-hidden rounded-md lg:rounded-[28px] border border-white/70 bg-gradient-to-br from-[#ffffff] via-[#eef2ff] to-[#dfe8ff] lg:p-6 md:p-4 md:flex md:flex-col md:gap-6 lg:flex-row lg:items-start lg:justify-between">
+      <section className="hidden overflow-hidden rounded-md lg:rounded-[20px] border border-white/70 bg-gradient-to-br from-[#ffffff] via-[#eef2ff] to-[#dfe8ff] lg:p-4 md:p-3 md:flex md:flex-col md:gap-3 lg:flex-row lg:items-start lg:justify-between">
 
-        <div className="hidden md:flex lg:hidden items-center gap-3 rounded-md bg-gradient-to-r from-[#3246c5] via-[#4F61E8] to-[#6e7df0] px-4 py-4">
+        <div className="hidden md:flex lg:hidden items-center gap-2 rounded-md bg-gradient-to-r from-[#3246c5] via-[#4F61E8] to-[#6e7df0] px-3 py-3">
         <button
           type="button"
-          className="rounded-full bg-white/15 p-2"
+          className="rounded-full bg-white/15 p-1.5"
           onClick={openMobileNav}
         >
-          <Menu className="text-white w-5 h-5" />
+          <Menu className="text-white w-4 h-4" />
         </button>
 
         <div className="flex items-center gap-[5px]">
-          <div className="flex items-center justify-center h-[38px] w-[38px] rounded-full bg-white/15 uppercase text-white font-semibold text-xs">
+          <div className="flex items-center justify-center h-[32px] w-[32px] rounded-full bg-white/15 uppercase text-white font-semibold text-[10px]">
             {initials}
           </div>
           <div>
-            <h2 className="text-white font-semibold text-sm leading-[16px]">
+            <h2 className="text-white font-semibold text-xs leading-[14px]">
               {studentName}
             </h2>
-            <p className="text-white/70 font-medium text-[10px] leading-[14px]">
+            <p className="text-white/70 font-medium text-[9px] leading-[12px]">
               {className}
             </p>
           </div>
         </div>
       </div>
       
-        <div className="max-w-2xl space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#ced7ff] bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-[#4F61E8]">
+        <div className="max-w-2xl space-y-2">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-[#ced7ff] bg-white/80 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#4F61E8]">
             Student dashboard
           </div>
-          <div className="flex items-center gap-3">
-            <h2 className="text-3xl font-semibold text-[#1c2556]">
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-semibold text-[#1c2556]">
               Welcome back, {user?.firstName || "Student"}
             </h2>
-            <WaveHand className="h-8 w-8" />
+            <WaveHand className="h-6 w-6" />
           </div>
-          <p className="max-w-xl text-sm leading-6 text-slate-600">
-            Stay on top of your classes, assignments, and announcements from one place. Your week is already arranged for you.
+          <p className="max-w-xl text-xs leading-5 text-slate-600">
+            Stay on top of your classes, assignments, and announcements.
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {quickFacts.map((fact) => (
-              <span key={fact} className="rounded-full border border-white/70 bg-white/80 px-3 py-2 text-xs font-medium text-slate-700">
+              <span key={fact} className="rounded-full border border-white/70 bg-white/80 px-2.5 py-1 text-[10px] font-medium text-slate-700">
                 {fact}
               </span>
             ))}
           </div>
         </div>
-        <div className="ml-auto flex w-full max-w-md flex-col gap-4 rounded-[24px] border border-white/75 bg-white/72 p-4">
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+        <div className="ml-auto flex w-full max-w-md flex-col gap-3 rounded-[20px] border border-white/75 bg-white/72 p-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">
               {dayName},
               <span className="ml-1 font-medium tracking-normal text-slate-700">{formattedDate}</span>
             </p>
 
-            <div className="rounded-full border border-slate-200 bg-white p-2 text-slate-500">
+            <div className="rounded-full border border-slate-200 bg-white p-1.5 text-slate-500">
               <Notification />
             </div>
           </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild className="border-none  cursor-pointer">
-              <div className="flex items-center justify-between gap-4 rounded-[22px] border border-slate-200/80 bg-white/90 p-4">
-                <div className="flex items-center gap-3">
+              <div className="flex items-center justify-between gap-3 rounded-[18px] border border-slate-200/80 bg-white/90 p-3">
+                <div className="flex items-center gap-2.5">
                   <div className="flex justify-center items-center rounded-full border-2 border-[#34A9FF] bg-[#D9D9D9]">
-                    <img src={test_profile} alt="" className="h-10 w-10 rounded-full object-cover" />
+                    <img src={test_profile} alt="" className="h-8 w-8 rounded-full object-cover" />
                   </div>
                   <div>
-                    <p className="text-base font-semibold text-[#1c2556] capitalize">
+                    <p className="text-sm font-semibold text-[#1c2556] capitalize">
                       {studentName}
                     </p>
-                    <p className="text-xs text-slate-500">{className}</p>
+                    <p className="text-[10px] text-slate-500">{className}</p>
                   </div>
                 </div>
-                <ChevronRight className="size-5 text-slate-400" />
+                <ChevronRight className="size-4 text-slate-400" />
               </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-77 h-96 rounded-2xl px-5 py-2.5 border border-white  m-2.5 ">
@@ -248,7 +248,7 @@ const StudentAppBar = () => {
           </DropdownMenu>
         </div>
       </section>
-    </>
+    </div>
   );
 };
 

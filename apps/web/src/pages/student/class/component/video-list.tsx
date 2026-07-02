@@ -27,7 +27,7 @@ const VideoLessonList = ({ lessons, loading }: VideoLessonListProps) => {
     }
 
     return (
-        <div className="space-y-7">
+        <div className="space-y-4">
             {lessons.map((lesson) => (
                 <VideoLessonCard key={lesson.id} lesson={lesson} />
             ))}

@@ -1,7 +1,7 @@
 import { ArrowLeft, Bell, Menu } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 
-function MyCourseAppBar() {
+function MyCourseAppBar({title}: {title: string}) {
   const navigate = useNavigate();
   const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
 
@@ -15,7 +15,7 @@ function MyCourseAppBar() {
         <button className="text-white" onClick={() => navigate(-1)}>
           <ArrowLeft size={20}/>
         </button>
-        <span className="text-white font-semibold text-base">My Course</span>
+        <span className="text-white font-semibold text-base">{title}</span>
       </div>
 
       {/* Right */}

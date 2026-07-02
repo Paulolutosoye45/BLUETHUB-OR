@@ -23,6 +23,7 @@ import {
   Search,
   Star,
   X,
+  ArrowLeft,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
@@ -247,19 +248,19 @@ const ViewQuestions = () => {
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="sm:p-4 lg:p-6 font-poppins min-h-screen">
+    <div className="md:p-2 font-poppins min-h-screen">
       <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden bg-white/70">
         {/* Header */}
         <div className="bg-gradient-to-r from-chestnut to-chestnut/90 px-4 sm:px-6 py-4 sm:py-5 lg:rounded-t-lg flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <Menu className="lg:hidden w-5 h-5 text-white" onClick={openMobileNav} />
-            <h2 className="font-semibold text-lg text-white leading-none">Question Bank</h2>
+            <h2 className="font-semibold text-sm text-white leading-none">Question Bank</h2>
           </div>
           <button
             onClick={() => navigate("/teacher/assessment")}
             className="text-white/80 hover:text-white text-sm font-medium transition-colors"
           >
-            Back
+          <ArrowLeft />
           </button>
         </div>
 
@@ -545,7 +546,7 @@ const ViewQuestions = () => {
               onClick={() => setSelectedQuestion(null)}
               className="p-1 rounded-md hover:bg-slate-100 transition-colors"
             >
-              <X size={18} className="text-slate-500" />
+              {/* <X size={18} className="text-slate-500" /> */}
             </button>
           </div>
 
@@ -599,7 +600,7 @@ const ViewQuestions = () => {
               </div>
 
               <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setSelectedQuestion(null)} className="h-10 rounded-xl px-4">
+                <Button type="button" variant="outline" onClick={() => setSelectedQuestion(null)} className="h-10 rounded-md px-4">
                   Close
                 </Button>
                 <Button
@@ -608,9 +609,9 @@ const ViewQuestions = () => {
                     setSelectedQuestion(null);
                     navigate(`/teacher/assessment/questionlist?subjectId=${selectedSubjectId}&topicId=${selectedQuestion.id}`);
                   }}
-                  className="h-10 rounded-xl bg-chestnut hover:bg-chestnut/90 text-white px-4 flex items-center gap-1.5"
+                  className="h-10 rounded-md bg-chestnut hover:bg-chestnut/90 text-white px-2 text-sm font-medium flex items-center gap-1.5"
                 >
-                  <Eye size={14} />
+                  <Eye size={10} />
                   View in List
                 </Button>
               </div>

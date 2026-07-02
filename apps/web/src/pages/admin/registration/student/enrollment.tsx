@@ -441,7 +441,7 @@ const StudentRegisteredSuccessfully = ({ onReset, firstName, lastName }: {firstN
                         Add Another Student
                     </button>
 
-                    <button onClick={() => navigate("/admin/registration/student/students")} className="w-full py-3 rounded-xl bg-chestnut text-white font-medium text-sm hover:opacity-90 transition">
+                    <button onClick={() => navigate("/admin/registration/student")} className="w-full py-3 rounded-xl bg-chestnut text-white font-medium text-sm hover:opacity-90 transition">
                         View All Students
                     </button>
                 </div>

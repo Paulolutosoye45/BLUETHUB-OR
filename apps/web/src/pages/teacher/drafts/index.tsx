@@ -221,7 +221,7 @@ export default function DraftLessons() {
           <div>
   <div className="flex items-center gap-3">
     <Menu className="lg:hidden w-5 h-5 text-black cursor-pointer" onClick={openMobileNav} />
-    <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+    <h1 className="text-2xl font-bold text-gray-900 sm:text-xl">
       My Drafts
     </h1>
   </div>
@@ -280,7 +280,7 @@ export default function DraftLessons() {
             </p>
             <button
               onClick={() => navigate("/teacher/start-class")}
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-chestnut px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+              className="mt-6 inline-flex items-center gap-2 rounded-md bg-chestnut px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
             >
               <Play className="h-4 w-4" />
               Start New Class

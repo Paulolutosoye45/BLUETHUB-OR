@@ -18,6 +18,7 @@ import { schoolService } from "@/services/school";
 import { useAuthContext, isTeacherRoleData } from "@/contexts/auth-context";
 import { Button, Dialog, DialogContent, DialogTitle } from "@bluethub/ui-kit";
 import TitleBar from "@/shared/title-bar";
+import { useNavigate } from "react-router-dom";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface SelectItem { id: string; name: string; }
@@ -201,7 +202,7 @@ const SummaryCard = ({
   return (
     <div className={`rounded-xl border p-3 flex flex-col gap-1 ${cls}`}>
       <p className="text-[11px] font-semibold uppercase tracking-widest opacity-70">{label}</p>
-      <p className="text-2xl font-bold">{value}</p>
+      <p className="text-base font-bold">{value}</p>
     </div>
   );
 };
@@ -346,6 +347,7 @@ const PreviewModal = ({
 
 // ── Main component ─────────────────────────────────────────────────────────
 const MyUploads = () => {
+  const navigate= useNavigate()
   const { user, isLoading: authLoading } = useAuthContext();
   const [jobs, setJobs] = useState<JobSummaryDto[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
@@ -896,13 +898,13 @@ const MyUploads = () => {
   }, [topicId, topicsData]);
 
   return (
-    <div className=" sm:p-5 font-poppins">
+    <div className="font-poppins">
       <div className="lg:rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
-        <TitleBar title="My Uploads" hasVertical />
+        <TitleBar title="My Uploads" hasVertical hasBackIcons onBack={() => navigate(-1)} />
 
-        <div className="p-3 sm:p-5 lg:p-7 space-y-5">
+        <div className="p-3 space-y-5">
           <div className="rounded-2xl bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff] border border-[#f3dccb] p-4 sm:p-5">
-            <h1 className="text-lg sm:text-xl font-bold text-chestnut leading-tight">Question Upload Status</h1>
+            <h1 className="text-sm font-bold text-chestnut leading-tight">Question Upload Status</h1>
             <p className="text-xs sm:text-sm text-slate-500 mt-1">
               Track pending, processing, completed and failed question extraction jobs.
             </p>
@@ -1011,7 +1013,7 @@ const MyUploads = () => {
                           type="button"
                           onClick={() => void handleOpenJobPreview(job)}
                           disabled={!canViewQuestions}
-                          className="h-8 rounded-lg bg-chestnut hover:bg-chestnut/90 text-white text-xs font-semibold px-3 disabled:bg-slate-200 disabled:text-slate-500"
+                          className="h-8 rounded-md bg-chestnut hover:bg-chestnut/90 text-white text-xs font-semibold px-3 disabled:bg-slate-200 disabled:text-slate-500"
                         >
                           View Questions
                         </Button>

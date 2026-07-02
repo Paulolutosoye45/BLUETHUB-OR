@@ -364,13 +364,13 @@ const UploadScan = () => {
   }
 
   return (
-    <div className="lg:p-6 md:p-3 font-poppins">
+    <div className="font-poppins">
       <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
         <TitleBar title="Upload and scan" hasVertical hasBackIcons onBack={() => navigate(-1)} />
 
-        <div className="p-6 sm:p-8 bg-white/70 backdrop-blur-sm">
+        <div className="p-3 sm:p-4 bg-white/70 backdrop-blur-sm">
           <div className="mb-6">
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">
+            <h1 className="text-sm font-bold text-slate-800">
               AI Question Scanner
             </h1>
             <p className="text-sm text-slate-500 mt-1">

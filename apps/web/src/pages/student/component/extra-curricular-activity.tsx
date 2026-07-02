@@ -38,15 +38,15 @@ const ExtracurricularActivity = () => {
 
   if (loading) {
     return (
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
         {[...Array(4)].map((_, i) => (
           <div
             key={i}
-            className="animate-pulse rounded-[24px] border border-white/80 bg-white/80 p-5 shadow-sm"
+            className="animate-pulse rounded-[16px] border border-white/80 bg-white/80 p-3 shadow-sm"
           >
-            <div className="mb-3 h-11 w-11 rounded-2xl bg-slate-200" />
-            <div className="mb-2 h-6 w-12 rounded bg-slate-200" />
-            <div className="h-4 w-28 rounded bg-slate-100" />
+            <div className="mb-2 h-8 w-8 rounded-xl bg-slate-200" />
+            <div className="mb-1 h-5 w-10 rounded bg-slate-200" />
+            <div className="h-3 w-24 rounded bg-slate-100" />
           </div>
         ))}
       </div>
@@ -98,8 +98,8 @@ const ExtracurricularActivity = () => {
   ];
 
   return (
-    <div className="mt-6 space-y-4">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+    <div className="space-y-3 p-2 md:p-0">
+      <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
         {statCards.map((card) => {
           const Icon = card.icon;
           return (
@@ -107,13 +107,13 @@ const ExtracurricularActivity = () => {
               key={card.label}
               onClick={card.onClick}
               className={cn(
-                "group relative overflow-hidden rounded-md border p-5 text-left transition-all duration-300",
-                "border-white/80 bg-white/80  hover:-translate-y-1 hover:shadow-[0_26px_55px_-30px_rgba(53,70,160,0.45)] active:scale-[0.99]",
+                "group relative overflow-hidden rounded-md border p-3 text-left transition-all duration-300",
+                "border-white/80 bg-white/80 shadow-[0_26px_20px_-30px_rgba(53,70,160,0.45)]",
                 card.highlight && "ring-2 ring-amber-200"
               )}
             >
               <div className={cn(
-                "absolute inset-x-0 top-0 h-1 opacity-80",
+                "absolute inset-x-0 top-0 h-0.5 opacity-80",
                 card.label === "Classes" && "bg-[#7d8eff]",
                 card.label === "Quizzes" && "bg-[#76b7ff]",
                 card.label === "Assessments" && "bg-[#6ee7b7]",
@@ -121,32 +121,32 @@ const ExtracurricularActivity = () => {
               )} />
 
               <div className={cn(
-                "mb-4 flex h-12 w-12 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105",
+                "mb-3 flex h-9 w-9 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105",
                 card.iconBg
               )}>
-                <Icon className={cn("w-5 h-5", card.color)} />
+                <Icon className={cn("w-4 h-4", card.color)} />
               </div>
 
               <p className={cn(
-                "text-3xl font-semibold tracking-tight",
+                "text-2xl font-semibold tracking-tight",
                 card.value > 0 ? "text-slate-900" : "text-slate-400"
               )}>
                 {card.value}
               </p>
 
-              <p className="mt-3 text-sm font-semibold leading-tight text-slate-800">
+              <p className="mt-2 text-xs font-semibold leading-tight text-slate-800">
                 {card.label}
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-[10px] text-slate-500">
                 {card.sublabel}
               </p>
 
-              <p className="mt-4 text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+              <p className="mt-2 text-[10px] font-medium uppercase tracking-[0.2em] text-slate-400">
                 Open panel
               </p>
 
               {card.highlight && card.value > 0 && (
-                <div className="absolute top-3 right-3 w-2.5 h-2.5 bg-amber-500 rounded-full animate-pulse" />
+                <div className="absolute top-2 right-2 w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
               )}
             </button>
           );
@@ -157,27 +157,27 @@ const ExtracurricularActivity = () => {
         <button
           onClick={() => navigate(`/student/live-class/${stats.ongoingClass?.lessonId}`)}
           className={cn(
-            "flex w-full items-center justify-between rounded-[26px] bg-gradient-to-r from-[#f2485b] via-[#f65a63] to-[#ff7b59] p-5 text-white",
+            "flex w-full items-center justify-between rounded-[20px] bg-gradient-to-r from-[#f2485b] via-[#f65a63] to-[#ff7b59] p-3 text-white",
             "shadow-[0_22px_45px_-24px_rgba(242,72,91,0.7)] transition-transform active:scale-[0.99]"
           )}
         >
-          <div className="flex items-center gap-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
-              <Play className="w-6 h-6 text-white" />
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+              <Play className="w-5 h-5 text-white" />
             </div>
             <div className="text-left">
-              <p className="text-base font-bold">Live Class Now</p>
-              <p className="text-sm text-red-100">
+              <p className="text-sm font-bold">Live Class Now</p>
+              <p className="text-xs text-red-100">
                 {stats.ongoingClass.subjectName} • {stats.ongoingClass.teacherName}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="relative flex h-3 w-3">
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-white" />
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
             </span>
-            <span className="font-semibold text-sm">Join</span>
+            <span className="font-semibold text-xs">Join</span>
           </div>
         </button>
       )}

@@ -68,14 +68,14 @@ const SubtopicQuestionList = () => {
   }, [classroomId, subjectId, topicId]);
 
   return (
-    <div className="p-3 sm:p-5 font-poppins">
-      <div className="rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
+    <div className="font-poppins">
+      <div className="lg:rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
         <TitleBar title="question" hasVertical hasBackIcons onBack={() => navigate(-1)} />
 
-        <div className="p-3 sm:p-5 lg:p-7 space-y-4">
+        <div className="md:p-3 space-y-4">
           <div className="rounded-2xl border border-[#f3dccb] bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff] p-4 sm:p-5">
-            <p className="text-xs uppercase tracking-widest text-slate-500">Subtopic Questions</p>
-            <h1 className="text-xl sm:text-2xl font-bold text-chestnut mt-1">{subTopicName}</h1>
+            <p className="text-xs font-medium uppercase tracking-widest text-slate-500">Subtopic Questions</p>
+            <h1 className="text-base font-bold text-chestnut mt-1">{subTopicName}</h1>
             <p className="text-sm text-slate-500 mt-1">
               {subjectNameParam || questions[0]?.subjectName || "Subject"}
             </p>
