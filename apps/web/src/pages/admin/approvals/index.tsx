@@ -5,8 +5,9 @@ import {
   Loader2,
   Menu,
 } from "lucide-react";
+import { Button } from "@bluethub/ui-kit";
 import toast from "react-hot-toast";
-import { approvalService, type Approval, type ApprovalPayload } from "@/services/approval";
+import { approvalService, type Approval } from "@/services/approval";
 import { useOutletContext } from "react-router-dom";
 import ApprovalReviewModal from "./approval-review-modal";
 

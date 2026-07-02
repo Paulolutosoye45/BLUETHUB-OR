@@ -16,6 +16,28 @@ import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { schoolInfo } from "@/services";
 
+// ── Chevron Icon ──────────────────────────────────────────────────────────────
+const ChevronIcon = ({ open }: { open: boolean }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.25s ease",
+            flexShrink: 0,
+        }}
+    >
+        <polyline points="6 9 12 15 18 9" />
+    </svg>
+);
+
 const MAIN_LINKS: NavItem[] = [
   { name: "Dashboard", icons: dashboardIcon, path: "/teacher" },
   { name: "Message", icons: messageIcon, path: "/teacher/message" },
@@ -102,11 +124,74 @@ function NavItem({
   link,
   isCollapsed,
   onNavigate,
+  isOpen,
+  onToggle,
 }: {
   link: NavItem;
   isCollapsed: boolean;
   onNavigate?: () => void;
+  isOpen?: boolean;
+  onToggle?: () => void;
 }) {
+  if (link.children) {
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={onToggle}
+          className={[
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 cursor-pointer group",
+            isOpen ? "bg-[#292382] text-white" : "text-[#292382] hover:bg-[#29238210]",
+            isCollapsed ? "justify-center" : "justify-between",
+          ].join(" ")}
+        >
+          <div className="flex items-center gap-3">
+            <img
+              src={link.icons}
+              alt={link.name}
+              className={`w-[18px] h-[18px] shrink-0 object-contain transition-all ${
+                isOpen ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
+              }`}
+            />
+            {!isCollapsed && (
+              <span className={`text-xs font-medium truncate ${isOpen ? "text-white" : "text-[#292382]"}`}>
+                {link.name}
+              </span>
+            )}
+          </div>
+          {!isCollapsed && (
+            <span className={isOpen ? "text-white" : "text-[#292382] opacity-60"}>
+              <ChevronIcon open={!!isOpen} />
+            </span>
+          )}
+        </button>
+
+        <div
+          style={{ display: !isCollapsed && isOpen ? "block" : "none" }}
+          className="mt-1 ml-9 border-l-2 border-[#29238225] pl-3 space-y-0.5"
+        >
+          {link.children.map((child) => (
+            <NavLink
+              key={child.name}
+              to={child.path}
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                [
+                  "block text-xs py-1.5 px-3 rounded-lg font-medium transition-all duration-150",
+                  isActive
+                    ? "bg-[#292382] text-white"
+                    : "text-[#292382] opacity-80 hover:opacity-100 hover:bg-[#29238212]",
+                ].join(" ")
+              }
+            >
+              {child.name}
+            </NavLink>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <NavLink
       to={link.path!}
@@ -157,6 +242,15 @@ export const NavContent = ({
   onNavigate,
   onLogout,
 }: NavContentProps) => {
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
+
+  const handleDropdownClick = (idx: number) => {
+    if (isCollapsed) {
+      return;
+    }
+    setOpenDropdownIndex((prev) => (prev === idx ? null : idx));
+  };
+
   return (
     <div className="flex flex-col gap-2 pb-4">
       {/* Profile card */}
@@ -178,8 +272,15 @@ export const NavContent = ({
       {/* ACADEMIC */}
       <section className="px-0">
         <div className="px-3 space-y-0.5">
-          {TACADEMICLINKS.map((link) => (
-            <NavItem key={link.name} link={link} isCollapsed={isCollapsed} onNavigate={onNavigate} />
+          {TACADEMICLINKS.map((link, idx) => (
+            <NavItem
+              key={link.name}
+              link={link}
+              isCollapsed={isCollapsed}
+              onNavigate={onNavigate}
+              isOpen={openDropdownIndex === idx}
+              onToggle={() => handleDropdownClick(idx)}
+            />
           ))}
         </div>
       </section>

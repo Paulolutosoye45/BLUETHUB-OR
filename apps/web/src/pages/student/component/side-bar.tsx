@@ -1,6 +1,7 @@
 import FamiconsChevron from "@/assets/svg/famicons_chevron.svg?react";
 import element from "@/assets/svg/sdashboard.svg?react";
 import classRoom from "@/assets/svg/class_room.svg?react";
+import moduleIcon from "@/assets/svg/class.svg?react";
 import my_course from "@/assets/svg/scourses.svg?react";
 import assignments from "@/assets/svg/assignment.svg?react";
 import quizzes from "@/assets/svg/quizzes.svg?react";
@@ -18,10 +19,54 @@ import { useAuthContext } from "@/contexts/auth-context";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface NavChild {
+    name: string;
+    path: string;
+}
+
+interface NavLinkItem {
+    name: string;
+    icons: React.FC<React.SVGProps<SVGSVGElement>>;
+    path?: string;
+    children?: NavChild[];
+}
+
+// ── Chevron Icon ──────────────────────────────────────────────────────────────
+const ChevronIcon = ({ open }: { open: boolean }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.25s ease",
+            flexShrink: 0,
+        }}
+    >
+        <polyline points="6 9 12 15 18 9" />
+    </svg>
+);
+
 // ── Nav links ──────────────────────────────────────────────────────────────────
-const navLinks = [
+const navLinks: NavLinkItem[] = [
     { name: "Dashboard", path: "/student", icons: element },
-    { name: "Classrooms", path: "/student/class-room", icons: classRoom },
+    {
+        name: "Classrooms",
+        icons: classRoom,
+        children: [
+            { name: "Quiz", path: "/student/class-room/quiz" },
+            { name: "Assessment", path: "/student/class-room/assessment" },
+            { name: "Subject", path: "/student/class-room/subject" },
+        ],
+    },
+    { name: "Module", path: "/student/module", icons: moduleIcon },
     { name: "My Course", path: "/student/my-course", icons: my_course },
     { name: "Assignments", path: "/student/Assignments", icons: assignments },
     { name: "Quizzes", path: "/student/Quizzes", icons: quizzes },
@@ -118,7 +163,8 @@ const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavCont
             </button>
         </div>
     </section>
-);
+    );
+};
 
 // ── Desktop sidebar ────────────────────────────────────────────────────────────
 const StudentSideBar = () => {

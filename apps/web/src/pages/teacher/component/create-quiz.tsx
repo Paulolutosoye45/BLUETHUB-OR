@@ -911,7 +911,7 @@ const CreateQuizQuestion = () => {
 
   // ── Fetch topics when subject changes ───────────────────────────────────
   useEffect(() => {
-    if (!selectedSubjectId) {
+    if (!selectedSubjectId || !selectedClassId) {
       setTopics([]);
       setSubtopics([]);
       setTopicsData([]);
@@ -926,7 +926,8 @@ const CreateQuizQuestion = () => {
     setTopicsData([]);
     setTopicsLoading(true);
 
-    schoolService.getSubjectCurriculum(selectedSubjectId as string, selectedClassId ?? '')
+    schoolService
+      .getSubjectCurriculum(selectedSubjectId, selectedClassId)
       .then((res) => {
         const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
         const rawTopics: any[] = raw.Topics ?? raw.topics ?? [];

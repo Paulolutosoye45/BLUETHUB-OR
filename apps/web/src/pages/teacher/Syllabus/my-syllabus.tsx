@@ -33,6 +33,7 @@ interface CurriculumData {
 interface SubjectItem {
     subjectId: string;
     subjectName: string;
+    classroomId: string;
 }
 
 // ── TopicRow ─────────────────────────────────────────────────────────────────
@@ -101,10 +102,10 @@ const MySyllabus = () => {
         const result: SubjectItem[] = [];
 
         for (const cls of classrooms) {
-            for (const s of cls.subjects) {
+            for (const s of cls.subjects ?? []) {
                 if (!seen.has(s.subjectId)) {
                     seen.add(s.subjectId);
-                    result.push({ subjectId: s.subjectId, subjectName: s.subjectName });
+                    result.push({ subjectId: s.subjectId, subjectName: s.subjectName, classroomId: cls.classroomId });
                 }
             }
         }
@@ -151,10 +152,8 @@ const MySyllabus = () => {
         setError(null);
         setCurriculum(null);
 
-        const classroomId = (user?.roleData && isTeacherRoleData(user.roleData) 
-            ? user.roleData.classrooms[0]?.classroomId 
-            : fallbackClassrooms[0]?.classroomId) ?? "";
-        schoolService.getSubjectCurriculum(selectedSubjectId, classroomId)
+        const selectedSubject = subjects.find((s) => s.subjectId === selectedSubjectId);
+        schoolService.getSubjectCurriculum(selectedSubjectId, selectedSubject?.classroomId)
             .then((res) => {
                 const data = (res.data as any)?.data;
                 if (data) {

@@ -693,7 +693,7 @@ const StudentReplay = () => {
         Back to Lessons
       </button> */}
       <Provider store={store}>
-        <Replay />
+        <Replay sessionId={sessionId} />
       </Provider>
     </div>
   );

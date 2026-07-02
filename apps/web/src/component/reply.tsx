@@ -13,7 +13,7 @@ import {
   Loader,
 } from 'lucide-react';
 import type { AudioBatch, CompressedStroke, IActions, IActiveMedia, Stroke } from '@/utils/constant';
-import { clearAudio, clearClass, getAudio, getClass } from '@/utils/db';
+import { clearAudio, clearClass, getAudio, getClass, getAudioBySession, getClassBySession } from '@/utils/db';
 import { getImage } from '@/services/class-media';
 import { base64ToUint8 } from '@/utils';
 import { gzipDecompress } from '@/utils/gzip';
@@ -188,7 +188,11 @@ const buildMediaEventsFromManifest = (raw: string | null): Array<{
   });
 };
 
-export default function Replay() {
+interface ReplayProps {
+  sessionId?: string;
+}
+
+export default function Replay({ sessionId }: ReplayProps = {}) {
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -221,9 +225,11 @@ export default function Replay() {
   );
 
   // Keep replay scoped to one session to avoid cross-session mixing.
-  // We prefer the most recently updated audio session; if audio is absent,
-  // we fall back to the most recent stroke session.
+  // When an explicit sessionId prop is provided (e.g. from student-replay),
+  // we use it directly. Otherwise we fall back to localStorage / heuristic.
   const activeSessionId = useMemo(() => {
+    if (sessionId) return sessionId;
+
     const preferredSessionId = localStorage.getItem('replaySessionId') ?? '';
     if (preferredSessionId) {
       const hasPreferredAudio = audioList.some((a) => a.sessionId === preferredSessionId);
@@ -243,7 +249,7 @@ export default function Replay() {
       .sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
 
     return strokeWithSession[0]?.sessionId ?? null;
-  }, [audioList, strokesList]);
+  }, [sessionId, audioList, strokesList]);
 
   const sessionAudioList = useMemo(
     () => (activeSessionId ? audioList.filter((a) => a.sessionId === activeSessionId) : audioList),
@@ -536,7 +542,9 @@ export default function Replay() {
     (async () => {
       try {
         setLoading(true);
-        const [classData, audioData] = await Promise.all([getClass(), getAudio()]);
+        const [classData, audioData] = sessionId
+          ? await Promise.all([getClassBySession(sessionId), getAudioBySession(sessionId)])
+          : await Promise.all([getClass(), getAudio()]);
         if (!mounted) return;
         setStrokesList(classData);
         setAudioList(audioData);
@@ -548,7 +556,7 @@ export default function Replay() {
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [sessionId]);
 
   useEffect(() => {
     const refreshTimeline = () => {
