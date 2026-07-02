@@ -164,7 +164,7 @@ const UploadScan = () => {
     setTopicsLoading(true);
 
     schoolService
-      .getSubjectCurriculum(subjectId)
+      .getSubjectCurriculum(subjectId, classroomId)
       .then((res) => {
         const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
         const nextTopics: any[] = raw.Topics ?? raw.topics ?? [];

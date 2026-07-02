@@ -47,11 +47,11 @@ const RegisterTeacherRole = () => {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [isRoleOpen, setIsRoleOpen] = useState(false);
     const [classes, setClasses] = useState<Classroom[]>([]);
-    const [isClassOpen, setIsClassOpen] = useState(false);
-    const [selectedClass, setSelectedClass] = useState<Classroom | null>(null);
+    const [selectedClasses, setSelectedClasses] = useState<Classroom[]>([]);
+    const [isClassDialogOpen, setIsClassDialogOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState("");
-    const [, setClassroomError] = useState("");
+    const [classroomError, setClassroomError] = useState("");
     // subject
     const [majorSubjects, setMajorSubjects] = useState<Subject[]>([]);
     const [minorSubjects, setMinorSubjects] = useState<Subject[]>([]);
@@ -65,6 +65,7 @@ const RegisterTeacherRole = () => {
     const navigate = useNavigate();
 
     const isChecked = (id: string) => selectedSubjects.some(s => s.id === id);
+    const isClassChecked = (id: string) => selectedClasses.some((c) => c.id === id);
     const fetchSubjects = async () => {
         setSubjectErrorMsg("")
         try {
@@ -102,6 +103,7 @@ const RegisterTeacherRole = () => {
                     error.response?.data?.message ??
                     error.message
                     : (error as Error).message;
+            console.error("Failed to fetch classrooms:", msg);
             setClassroomError(msg);
         } finally {
             setLoading(false);
@@ -148,11 +150,27 @@ const RegisterTeacherRole = () => {
         );
     };
 
+    const handleRemoveClass = (id: string) => {
+        setSelectedClasses(prev => prev.filter(c => c.id !== id));
+    };
+
+    const toggleClass = (classroom: Classroom) => {
+        setSelectedClasses(prev =>
+            prev.some(c => c.id === classroom.id)
+                ? prev.filter(c => c.id !== classroom.id)
+                : [...prev, classroom]
+        );
+    };
+
+    const handleSubmitClasses = () => {
+        setIsClassDialogOpen(false);
+    };
+
 
     const handleSave = async () => {
         setErrorMsg("")
         if (!role) { setErrorMsg("Please select a role"); return; }
-        if (!selectedClass) { setErrorMsg("Please select a class"); return; }
+        if (selectedClasses.length === 0) { setErrorMsg("Please select at least one class"); return; }
         if (selectedSubjects.length === 0) { setErrorMsg("Please add at least one subject"); return; }
         if (!selectedLineManager) { setErrorMsg("Please add line Manager"); return; }
 
@@ -165,8 +183,11 @@ const RegisterTeacherRole = () => {
         const finalPayload: IcreateUserRequest = {
             ...teacherPayload,
             lineManagerId: selectedLineManager?.id,
-            userClassroomsId: [selectedClass.id],
+            userClassroomsId: selectedClasses.map((c) => c.id),
             userSubjects: selectedSubjects.map(s => s.id),
+            userSubjectClassrooms: selectedClasses.flatMap((c) =>
+                selectedSubjects.map((s) => ({ subjectId: s.id, classroomId: c.id }))
+            ),
         };
 
         try {
@@ -275,38 +296,51 @@ const RegisterTeacherRole = () => {
 
                                 {/* Class */}
                                 <div className="space-y-2">
-                                    <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">Class</Label>
-                                    <DropdownMenu onOpenChange={setIsClassOpen}>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                className={`w-full justify-between font-medium border-0 ring-2 py-2.5 px-4 text-sm rounded-xl transition-all ${selectedClass
-                                                    ? "ring-chestnut/30 text-chestnut bg-chestnut/5"
-                                                    : "ring-gray-200 text-gray-400 bg-white"
-                                                    } hover:ring-chestnut/40`}
-                                            >
-                                                <span className={selectedClass ? "font-semibold text-chestnut" : ""}>
-                                                    {selectedClass ? selectedClass.name : "Select class"}
-                                                </span>
-                                                <ChevronDown className={`w-4 h-4 text-chestnut/50 transition-transform duration-200 ${isClassOpen ? "rotate-180" : ""}`} />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) h-50 rounded-xl border border-gray-100 shadow-lg bg-white p-1.5" align="start" sideOffset={6}>
-                                            <DropdownMenuGroup className="space-y-0.5">
-                                                {classes.map((classroom) => (
-                                                    <DropdownMenuItem
-                                                        key={classroom.id}
-                                                        onClick={() => setSelectedClass(classroom)}
-                                                        className={`text-sm py-2.5 px-3 rounded-lg cursor-pointer ${selectedClass?.id === classroom.id ? "bg-chestnut text-white" : "text-gray-700 hover:bg-chestnut/5 hover:text-chestnut"
-                                                            }`}
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">
+                                            Classrooms
+                                        </Label>
+                                        {selectedClasses.length > 0 && (
+                                            <span className="text-[10px] font-semibold text-chestnut/50">
+                                                {selectedClasses.length} selected
+                                            </span>
+                                        )}
+                                    </div>
+                                    {classroomError && (
+                                        <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2 text-xs">
+                                            <Info className="w-3.5 h-3.5 mt-0.5 shrink-0 text-red-500" />
+                                            <span>{classroomError}</span>
+                                        </div>
+                                    )}
+                                    <div className="min-h-10 ring-2 ring-gray-200 focus-within:ring-chestnut/30 rounded-xl bg-gray-50/60 px-3 py-2.5 flex flex-wrap gap-1.5 transition-all">
+                                        {selectedClasses.length === 0 ? (
+                                            <span className="text-xs text-gray-400 w-full text-center self-center py-2">
+                                                No classrooms selected — click below to add
+                                            </span>
+                                        ) : (
+                                            selectedClasses.map(classroom => (
+                                                <span
+                                                    key={classroom.id}
+                                                    className="inline-flex items-center gap-1 bg-chestnut/10 text-chestnut text-xs font-semibold px-2.5 py-1 rounded-full"
+                                                >
+                                                    {classroom.name}
+                                                    <button
+                                                        onClick={() => handleRemoveClass(classroom.id)}
+                                                        className="hover:text-red-500 transition-colors ml-0.5"
                                                     >
-                                                        <span className="flex-1">{classroom.name}</span>
-                                                        {selectedClass?.id === classroom.id && <Check className="w-3.5 h-3.5" />}
-                                                    </DropdownMenuItem>
-                                                ))}
-                                            </DropdownMenuGroup>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                </span>
+                                            ))
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => setIsClassDialogOpen(true)}
+                                        className="flex items-center gap-1.5 text-xs font-semibold text-chestnut hover:opacity-70 transition-opacity mt-1"
+                                    >
+                                        <Plus className="w-3.5 h-3.5" />
+                                        Add classrooms
+                                    </button>
                                 </div>
                             </div>
 
@@ -517,6 +551,63 @@ const RegisterTeacherRole = () => {
                             <Button
                                 className="text-white text-xs font-semibold rounded-lg px-5 py-2 hover:opacity-90 transition-opacity bg-chestnut"
                                 onClick={handleSubmitSubjects}
+                            >
+                                Confirm
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* ── Select Classroom Dialog ──────────────────────────────── */}
+            <Dialog open={isClassDialogOpen} onOpenChange={setIsClassDialogOpen}>
+                <DialogContent className="max-w-lg rounded-2xl p-0 overflow-hidden">
+                    <div className="px-6 py-5 border-b border-gray-100">
+                        <DialogTitle className="text-sm font-bold text-chestnut">
+                            Select Classrooms
+                        </DialogTitle>
+                        <p className="text-[11px] text-gray-400 mt-0.5">Choose one or more classrooms for this teacher</p>
+                    </div>
+
+                    <div className="px-6 py-5">
+                        <div className="flex flex-col gap-0.5 max-h-60 overflow-y-auto pr-1">
+                            {classes.map((classroom) => (
+                                <label
+                                    key={classroom.id}
+                                    onClick={() => toggleClass(classroom)}
+                                    className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
+                                >
+                                    <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors ${isClassChecked(classroom.id) ? "border-chestnut bg-chestnut" : "border-gray-300 bg-white"
+                                        }`}>
+                                        {isClassChecked(classroom.id) && (
+                                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        )}
+                                    </span>
+                                    <span className={`text-xs select-none ${isClassChecked(classroom.id) ? "text-chestnut font-semibold" : "text-gray-600 font-medium"}`}>
+                                        {classroom.name}
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+                        <span className="text-[11px] text-gray-400 font-medium">
+                            {selectedClasses.length} classroom{selectedClasses.length !== 1 ? "s" : ""} selected
+                        </span>
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                className="border border-gray-200 text-gray-600 text-xs font-semibold rounded-lg px-5 py-2 hover:bg-gray-50"
+                                onClick={() => setIsClassDialogOpen(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                className="text-white text-xs font-semibold rounded-lg px-5 py-2 hover:opacity-90 transition-opacity bg-chestnut"
+                                onClick={handleSubmitClasses}
                             >
                                 Confirm
                             </Button>

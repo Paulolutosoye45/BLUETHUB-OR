@@ -165,6 +165,7 @@ export interface IcreateUserRequest {
   role: number;
   userClassroomsId?: string[];
   userSubjects?: string[];
+  userSubjectClassrooms?: { subjectId: string; classroomId: string }[];
   removeSubjects?: string[];
   removeClassroom?: string[];
 }
