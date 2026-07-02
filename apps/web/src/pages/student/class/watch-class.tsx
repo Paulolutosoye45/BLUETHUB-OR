@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { Button } from "@bluethub/ui-kit";
-import { CheckCircle2, Download, Loader2, PlayCircle, RefreshCw } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, Loader2, Menu, PlayCircle, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 import { markLessonWatched } from "@/utils/watched-lessons";
 import boardSessionService from "@/services/board-session";
@@ -16,6 +16,7 @@ import {
 import type { AudioBatch, IActions, IBatch } from "@/utils/constant";
 import type { MediaType } from "@/utils/constant";
 import { LESSON_MEDIA_CACHE, buildLessonScopedCacheKey } from "@/utils/lesson-media-cache";
+import { AxiosError } from "axios";
 
 interface ReplayCheckpoint {
   sessionId: string;
@@ -215,6 +216,7 @@ const buildReplayBatches = (
 
 const WatchClass = () => {
   const navigate = useNavigate();
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
   const { classId } = useParams();
   const location = useLocation();
   const locationState = (location.state as WatchLocationState | null) ?? null;
@@ -513,9 +515,13 @@ const WatchClass = () => {
         state: { sessionId, lessonId },
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to prepare replay.";
-      setStatusText(message);
-      toast.error(message);
+      const errorMessage = error instanceof AxiosError
+        ? error.response?.data?.responseMessage ??
+        error.response?.data?.message ??
+        error.message
+        : (error as Error).message;
+      setStatusText(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsRunning(false);
     }
@@ -524,11 +530,16 @@ const WatchClass = () => {
   const completedLabel = checkpoint?.completed ? "Cached locally" : "Not fully cached";
 
   return (
-    <div className="min-h-screen overflow-y-auto bg-slate-50 md:py-6 sm:px-6">
-      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="min-h-screen overflow-y-auto bg-slate-50">
+      <div className="mx-auto w-full min-h-screen bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
+          <Menu
+            className="lg:hidden w-5 h-5 text-black cursor-pointer"
+            onClick={openMobileNav}  // ✅ not onClick={() => openMobileNav()}
+          />
+          <ArrowLeft className="lg:hidden text-black" onClick={() => navigate(-1)} />
           <div>
-            <h1 className="text-xl font-semibold text-slate-900">Recorded Class Replay</h1>
+            <h1 className="text-base font-semibold text-slate-900">Recorded Class Replay</h1>
             <p className="mt-1 text-sm text-slate-500">Session: {sessionId || "N/A"}</p>
           </div>
           <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
@@ -548,7 +559,7 @@ const WatchClass = () => {
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-sm text-slate-500">{statusText}</p>
+          <p className="text-sm text-red-500">{statusText}</p>
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">

@@ -39,31 +39,31 @@ const UpcomingDeadlines = () => {
 
     if (loading) {
         return (
-            <div className="border border-[#E8E8E3] rounded-2xl p-5 bg-white">
-                <div className="mb-4">
-                    <h3 className="text-[#0F0F0E] font-semibold text-sm">Upcoming deadlines</h3>
+            <div className="border border-[#E8E8E3] rounded-xl p-4 bg-white">
+                <div className="mb-3">
+                    <h3 className="text-[#0F0F0E] font-semibold text-xs">Upcoming deadlines</h3>
                 </div>
-                <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-chestnut" />
+                <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-5 h-5 animate-spin text-chestnut" />
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="border border-[#E8E8E3] rounded-2xl p-5 bg-white">
+        <div className="border border-[#E8E8E3] rounded-xl p-4 bg-white">
             {/* Header */}
-            <div className="mb-4">
-                <h3 className="text-[#0F0F0E] font-semibold text-sm">Upcoming deadlines</h3>
+            <div className="mb-3">
+                <h3 className="text-[#0F0F0E] font-semibold text-xs">Upcoming deadlines</h3>
             </div>
 
             {/* Empty state */}
             {deadlines.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                    <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                        <Inbox className="w-6 h-6 text-gray-400" />
+                <div className="flex flex-col items-center justify-center py-6 text-center">
+                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mb-2">
+                        <Inbox className="w-5 h-5 text-gray-400" />
                     </div>
-                    <p className="text-sm text-gray-500">No upcoming deadlines</p>
+                    <p className="text-xs text-gray-500">No upcoming deadlines</p>
                 </div>
             ) : (
                 /* List */
@@ -77,19 +77,19 @@ const UpcomingDeadlines = () => {
                         const month = format(dueDate, "MMM").toUpperCase();
 
                         return (
-                            <div key={d.id} className="flex items-center justify-between py-3.5 hover:bg-gray-50/50 transition-colors rounded-lg px-1 -mx-1">
+                            <div key={d.id} className="flex items-center justify-between py-2.5 hover:bg-gray-50/50 transition-colors rounded-lg px-1 -mx-1">
                                 {/* Left */}
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2.5">
                                     {/* Date block */}
-                                    <div className={`${style.dateBg} rounded-xl w-12 h-12 flex flex-col items-center justify-center shrink-0`}>
-                                        <span className={`font-bold text-base leading-none ${style.dateText}`}>{day}</span>
-                                        <span className={`font-semibold text-[9px] mt-0.5 ${style.dateText}`}>{month}</span>
+                                    <div className={`${style.dateBg} rounded-lg w-10 h-10 flex flex-col items-center justify-center shrink-0`}>
+                                        <span className={`font-bold text-sm leading-none ${style.dateText}`}>{day}</span>
+                                        <span className={`font-semibold text-[8px] mt-0.5 ${style.dateText}`}>{month}</span>
                                     </div>
 
                                     {/* Title */}
                                     <div>
-                                        <h3 className="text-[#0F0F0E] font-semibold text-sm leading-tight">{d.title}</h3>
-                                        <p className="text-[#A8A8A4] font-normal text-[11px] mt-0.5">
+                                        <h3 className="text-[#0F0F0E] font-semibold text-xs leading-tight">{d.title}</h3>
+                                        <p className="text-[#A8A8A4] font-normal text-[10px] mt-0">
                                             {d.className} · {daysLeft === 0 ? "Due today" : `${daysLeft} days left`}
                                             {d.submissionCount > 0 && ` · ${d.submissionCount}/${d.totalStudents} submitted`}
                                         </p>
@@ -97,7 +97,7 @@ const UpcomingDeadlines = () => {
                                 </div>
 
                                 {/* Status pill */}
-                                <span className={`inline-block rounded-full py-1 px-3 text-[11px] font-semibold shrink-0 ${style.bg} ${style.text}`}>
+                                <span className={`inline-block rounded-full py-0.5 px-2 text-[10px] font-semibold shrink-0 ${style.bg} ${style.text}`}>
                                     {status}
                                 </span>
                             </div>

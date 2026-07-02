@@ -104,7 +104,7 @@ const QuizDetail = () => {
         <div className="rounded-[20px] border border-[#E8E8E3] bg-white p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h1 className="text-xl font-bold text-[#0F0F0E]">Quiz {quizCode}</h1>
+              <h1 className="text-sm font-bold text-[#0F0F0E]">Quiz {quizCode}</h1>
               <p className="text-sm text-[#A0A09C] mt-0.5">
                 {totalQuestions} question{totalQuestions !== 1 ? "s" : ""}
                 {totalMarks > 0 && ` · ${totalMarks} mark${totalMarks !== 1 ? "s" : ""}`}
@@ -124,7 +124,7 @@ const QuizDetail = () => {
             ].map((stat) => (
               <div key={stat.label} className="border border-[#E8E8E3] rounded-[12px] p-4">
                 <stat.icon className="h-5 w-5 mb-2 text-chestnut" />
-                <p className="text-xl font-bold text-[#0F0F0E]">{stat.value}</p>
+                <p className="text-base font-bold text-[#0F0F0E]">{stat.value}</p>
                 <p className="text-xs text-[#A0A09C]">{stat.label}</p>
               </div>
             ))}

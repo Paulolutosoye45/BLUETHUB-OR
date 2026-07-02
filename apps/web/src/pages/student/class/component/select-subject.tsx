@@ -26,7 +26,7 @@ const SelectSubject = ({ options, value, onChange }: SelectSubjectProps) => {
   const selectedLabel = options.find((option) => option.value === value)?.label;
 
   return (
-    <div className="rounded-[16px] sm:rounded-[24px] border border-white/70 bg-white/90 px-3 sm:px-5 py-3 sm:py-5 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.42)]">
+    <div className="rounded-[16px] sm:rounded-[24px] border border-white/70 bg-white/90 px-3 sm:px-5 py-3 sm:py-5">
       <Label className="mb-3 sm:mb-4 block text-xs sm:text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
         Select Subject
       </Label>

@@ -18,11 +18,11 @@ interface ClassViewProps {
 const ClassView = ({ lessons, loading, selectedSubjectLabel, selectedTopicLabel, summary }: ClassViewProps) => {
     return (
         <div className="space-y-3 sm:space-y-4 pb-5">
-            <section className="rounded-[16px] sm:rounded-[24px] border border-white/75 bg-white/90 px-3 sm:px-5 py-3 sm:py-4 shadow-[0_18px_40px_-34px_rgba(15,23,42,0.5)]">
+            <section className="rounded-[16px] sm:rounded-[24px] border border-white/75 bg-white/90 px-3 sm:px-5 py-3 sm:py-4">
                 <div className="flex flex-wrap items-end justify-between gap-3">
                     <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Classroom lessons</p>
-                        <h2 className="text-lg font-semibold text-slate-900 capitalize">{selectedSubjectLabel}</h2>
+                        <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">Classroom lessons</p>
+                        <h2 className="text-base font-semibold text-slate-900 capitalize">{selectedSubjectLabel}</h2>
                         <p className="mt-1 text-sm text-slate-500">
                             {selectedTopicLabel ? `Filtered by topic: ${selectedTopicLabel}` : "All topics in this subject"}
                         </p>

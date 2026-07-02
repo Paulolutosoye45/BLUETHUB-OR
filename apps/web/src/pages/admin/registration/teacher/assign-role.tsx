@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ChevronRight, Check, X, LayoutGrid, Users, ChevronDown, Plus, Info, Loader2 } from "lucide-react";
+import { ChevronRight, Check, X, LayoutGrid, Users, ChevronDown, Plus, Info, Loader2, ArrowLeft } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -38,14 +38,11 @@ interface LineManager {
 }
 
 
-const ROLE_OPTIONS = ["Class Teacher", "Subject Teacher", "Admin"];
 
 const RegisterTeacherRole = () => {
-    const [, setPhoto] = useState<File | null>(null);
-    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [role, setRole] = useState<string>("");
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [isRoleOpen, setIsRoleOpen] = useState(false);
+    const [, setIsRoleOpen] = useState(false);
     const [classes, setClasses] = useState<Classroom[]>([]);
     const [isClassOpen, setIsClassOpen] = useState(false);
     const [selectedClass, setSelectedClass] = useState<Classroom | null>(null);
@@ -63,6 +60,13 @@ const RegisterTeacherRole = () => {
     const [selectedLineManager, setSelectedLineManager] = useState<LineManager | null>(null);
 
     const navigate = useNavigate();
+
+    const selectRole = localData.retrieve("selectRole") as string | null;
+    useEffect(() => {
+        if (selectRole) {
+            setRole(selectRole);
+        }
+    }, [selectRole]);
 
     const isChecked = (id: string) => selectedSubjects.some(s => s.id === id);
     const fetchSubjects = async () => {
@@ -120,12 +124,12 @@ const RegisterTeacherRole = () => {
         init();
     }, []);
 
-    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setPhoto(file);
-        setPhotoPreview(URL.createObjectURL(file));
-    };
+    // const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    //     const file = e.target.files?.[0];
+    //     if (!file) return;
+    //     setPhoto(file);
+    //     setPhotoPreview(URL.createObjectURL(file));
+    // };
 
     const handleOpenDialog = () => {
         setDialogOpen(true);
@@ -189,7 +193,7 @@ const RegisterTeacherRole = () => {
 
 
     return (
-        <div className="p-6 font-poppins">
+        <div className="md:p-6 p-3 lg:max-w-2xl lg:mx-auto  font-poppins">
             <div className="rounded-2xl border border-gray-100 overflow-hidden shadow-sm bg-white">
 
                 {/* ── Top Nav ─────────────────────────────────────────────── */}
@@ -199,44 +203,17 @@ const RegisterTeacherRole = () => {
                         <span>Register Teacher's Role</span>
                         <ChevronRight className="w-4 h-4 text-white/40" />
                     </div>
+                    <ArrowLeft className="text-white" onClick={() => navigate(-1)} />
                 </div>
 
                 {/* ── Body ────────────────────────────────────────────────── */}
-                <div className="p-8">
+                <div className="lg:p-8 p-6 min-h-screen md:h-auto">
                     <div className="flex gap-10">
-
-                        {/* ── Left Column ─────────────────────────────────── */}
-                        <div className="flex flex-col gap-6 w-48 shrink-0">
-                            {/* Photo Upload */}
-                            <div className="space-y-2">
-                                <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">
-                                    Photo
-                                </Label>
-                                <label className="flex flex-col items-center justify-center w-full h-44 border-2 border-dashed border-chestnut/20 rounded-2xl cursor-pointer hover:border-chestnut/40 hover:bg-chestnut/2 transition-all bg-gray-50/60 overflow-hidden group">
-                                    {photoPreview ? (
-                                        <img src={photoPreview} alt="preview" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="flex flex-col items-center gap-2">
-                                            <div className="w-10 h-10 rounded-xl bg-chestnut/10 flex items-center justify-center group-hover:bg-chestnut/20 transition-colors">
-                                                <svg className="w-5 h-5 text-chestnut/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" />
-                                                </svg>
-                                            </div>
-                                            <span className="text-xs font-semibold text-chestnut/60">Upload photo</span>
-                                            <span className="text-[10px] text-chestnut/30 text-center px-2">Click to select image file</span>
-                                        </div>
-                                    )}
-                                    <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-                                </label>
-                            </div>
-
-                        </div>
-
                         {/* ── Right Column ────────────────────────────────── */}
                         <div className="flex-1 space-y-6">
 
                             {/* Row 1 — Role + Class */}
-                            <div className="grid grid-cols-2 gap-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 {/* Role */}
                                 <div className="space-y-2">
                                     <Label className="text-xs font-bold text-chestnut uppercase tracking-wide">Role</Label>
@@ -250,26 +227,11 @@ const RegisterTeacherRole = () => {
                                                     } hover:ring-chestnut/40`}
                                             >
                                                 <span className={role ? "font-semibold text-chestnut" : ""}>
-                                                    {role || "Select role"}
+                                                    {selectRole}
                                                 </span>
-                                                <ChevronDown className={`w-4 h-4 text-chestnut/50 transition-transform duration-200 ${isRoleOpen ? "rotate-180" : ""}`} />
+                                                {/* <ChevronDown className={`w-4 h-4 text-chestnut/50 transition-transform duration-200 ${isRoleOpen ? "rotate-180" : ""}`} /> */}
                                             </Button>
                                         </DropdownMenuTrigger>
-                                        <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) rounded-xl border border-gray-100 shadow-lg bg-white p-1.5" align="start" sideOffset={6}>
-                                            <DropdownMenuGroup className="space-y-0.5">
-                                                {ROLE_OPTIONS.map((option) => (
-                                                    <DropdownMenuItem
-                                                        key={option}
-                                                        className={`text-sm py-2.5 px-3 rounded-lg cursor-pointer ${role === option ? "bg-chestnut text-white" : "text-gray-700 hover:bg-chestnut/5 hover:text-chestnut"
-                                                            }`}
-                                                        onClick={() => setRole(option)}
-                                                    >
-                                                        <span className="flex-1">{option}</span>
-                                                        {role === option && <Check className="w-3.5 h-3.5" />}
-                                                    </DropdownMenuItem>
-                                                ))}
-                                            </DropdownMenuGroup>
-                                        </DropdownMenuContent>
                                     </DropdownMenu>
                                 </div>
 
@@ -413,7 +375,7 @@ const RegisterTeacherRole = () => {
                                 <Button
                                     onClick={handleSave}
                                     disabled={loading}
-                                    className="flex ml-auto items-center gap-2 text-white text-sm font-semibold rounded-xl px-8 py-2.5 transition-opacity hover:opacity-90 bg-chestnut shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                                    className="flex md:ml-auto flex-1 md:flex-0 items-center gap-2 text-white text-sm font-semibold rounded-md px-8 py-2.5 transition-opacity hover:opacity-90 bg-chestnut shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     {loading ? (
                                         <>
@@ -435,7 +397,7 @@ const RegisterTeacherRole = () => {
 
             {/* ── Select Subject Dialog ──────────────────────────────────── */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-w-lg rounded-2xl p-0 overflow-hidden">
+                <DialogContent className="md:max-w-lg w-[90%] rounded-2xl p-0 overflow-hidden">
                     {/* Dialog header */}
                     <div className="px-6 py-5 border-b border-gray-100">
                         <DialogTitle className="text-sm font-bold text-chestnut">
@@ -444,7 +406,7 @@ const RegisterTeacherRole = () => {
                         <p className="text-[11px] text-gray-400 mt-0.5">Choose major and minor subjects for this teacher</p>
                     </div>
 
-                    <div className="flex gap-0 px-6 py-5">
+                    <div className="flex gap-0 m px-6 py-5">
                         {/* Major Column */}
                         <div className="flex-1 pr-5 border-r border-gray-100">
                             <p className="text-[10px] font-bold text-chestnut mb-3 uppercase tracking-wide flex items-center gap-1.5">

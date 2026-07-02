@@ -60,8 +60,8 @@ interface StudentNavContentProps {
 }
 
 const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavContentProps) => (
-    <section className="px-4 py-6">
-        <div className="space-y-1">
+    <section className="px-3 py-3">
+        <div className="space-y-3">
             {navLinks.map((link, idx) => {
                 const Icon = link.icons;
                 const isPremium = link.name === "Premium";
@@ -74,20 +74,20 @@ const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavCont
                         onClick={onNavigate}
                         className={({ isActive }) =>
                             [
-                                "flex items-center gap-4 px-4 py-2.5 rounded-md transition-colors cursor-pointer",
+                                "flex items-center gap-3 px-3  py-3 rounded-md transition-colors cursor-pointer",
                                 "hover:bg-student-chestnut/10",
-                                isActive ? "bg-student-chestnut/20 border-2 border-student-chestnut" : "border-2 border-transparent",
+                                isActive ? "bg-student-chestnut/20 border border-student-chestnut" : "border border-transparent",
                                 isCollapsed ? "justify-center" : "",
                             ].join(" ")
                         }
                     >
                         {({ isActive }) => (
                             <>
-                                <Icon className="w-5 h-5 shrink-0" />
+                                <Icon className="w-4 h-4 shrink-0" />
                                 {!isCollapsed && (
                                     <span
                                         className={[
-                                            "text-sm font-medium font-poppins truncate",
+                                            "text-xs font-medium font-poppins truncate",
                                             isActive || isPremium ? "text-student-chestnut" : "text-[#3A3A3ABF]",
                                         ].join(" ")}
                                     >
@@ -104,14 +104,14 @@ const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavCont
                 type="button"
                 onClick={onLogout}
                 className={[
-                    "w-full flex items-center gap-4 px-4 py-2.5 rounded-md transition-colors cursor-pointer",
+                    "w-full flex items-center gap-3 px-3 py-1.5 rounded-md transition-colors cursor-pointer",
                     "hover:bg-red-50",
                     isCollapsed ? "justify-center" : "",
                 ].join(" ")}
             >
-                <LogOutIcon className="w-5 h-5 shrink-0 text-[#EC1B2C]" />
+                <LogOutIcon className="w-4 h-4 shrink-0 text-[#EC1B2C]" />
                 {!isCollapsed && (
-                    <span className="text-sm font-medium font-poppins truncate text-[#EC1B2C]">
+                    <span className="text-xs font-medium font-poppins truncate text-[#EC1B2C]">
                         Log Out
                     </span>
                 )}
@@ -142,7 +142,7 @@ const StudentSideBar = () => {
             {/* Header */}
             <div
                 className={[
-                    "flex items-center px-4 py-4 border-b-2 border-[#3A3A3A33] shrink-0",
+                    "flex items-center px-3 py-2 border-b border-[#3A3A3A33] shrink-0",
                     isCollapsed ? "justify-center" : "justify-between",
                 ].join(" ")}
             >
@@ -240,14 +240,13 @@ export const MobileStudentNav = ({ isOpen, setIsOpen }: IMobileStudentNav) => {
                 ].join(" ")}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-4 border-b-2 border-[#3A3A3A33] shrink-0">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-[#3A3A3A33] shrink-0">
                     <button
                         type="button"
-                        // onClick={() => setIsCollapsed(false)}
                         className="cursor-pointer hover:opacity-80 transition-opacity"
                         aria-label="Expand sidebar"
                     >
-                        <B_2 className="size-8" />
+                        <B_2 className="size-7" />
                     </button>
                     <button
                         type="button"

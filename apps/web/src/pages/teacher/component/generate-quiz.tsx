@@ -596,8 +596,8 @@ const GenerateQuiz = () => {
   };
 
   return (
-    <div className="p-2 sm:p-4 md:p-5 lg:p-6 font-poppins min-h-screen">
-      <div className="max-w-6xl mx-auto rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
+    <div className="font-poppins min-h-screen">
+      <div className="max-w-6xl mx-auto lg:rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
         <TitleBar
           title="Generate Quiz"
           hasVertical
@@ -605,12 +605,12 @@ const GenerateQuiz = () => {
           onBack={() => navigate(-1)}
         />
 
-        <div className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-4 sm:space-y-5 md:space-y-6">
+        <div className="lg:p-6 p-3 space-y-4 sm:space-y-5 md:space-y-6">
           {/* ── Header card ── */}
           <div className="rounded-2xl bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff] border border-[#f3dccb] p-4 sm:p-5 md:p-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-base sm:text-lg md:text-xl font-bold text-chestnut leading-tight">
+                <h1 className="text-sm font-bold text-chestnut leading-tight">
                   {selectedSubjectName ?? "Generate Quiz"}
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1">
@@ -646,7 +646,7 @@ const GenerateQuiz = () => {
             >
               <div className="flex items-center gap-2.5">
                 <Settings2 className="w-4 h-4 text-chestnut" />
-                <span className="text-sm sm:text-base font-bold text-slate-800">
+                <span className="text-sm  font-bold text-slate-800">
                   Quiz Settings
                 </span>
                 {configDirty && (
@@ -815,7 +815,7 @@ const GenerateQuiz = () => {
                         type="button"
                         variant="outline"
                         onClick={handleResetConfig}
-                        className="h-10 rounded-xl border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50 font-semibold text-sm"
+                        className="h-10 rounded-md border-slate-200 text-slate-600 hover:text-slate-800 hover:bg-slate-50 font-semibold text-sm"
                       >
                         Reset to Defaults
                       </Button>
@@ -823,7 +823,7 @@ const GenerateQuiz = () => {
                         type="button"
                         disabled={savingConfig}
                         onClick={handleSaveConfig}
-                        className="h-10 rounded-xl bg-chestnut hover:bg-chestnut/90 text-white font-semibold text-sm"
+                        className="h-10 rounded-md bg-chestnut hover:bg-chestnut/90 text-white font-semibold text-sm"
                       >
                         {savingConfig ? (
                           <>
@@ -837,7 +837,7 @@ const GenerateQuiz = () => {
                           </>
                         ) : (
                           <>
-                            <Check className="w-4 h-4 mr-2" />
+                            <Check className="w-4 h-4 mr-1" />
                             Save Settings
                           </>
                         )}

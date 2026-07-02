@@ -202,7 +202,7 @@ const ClassLayout = () => {
 
   return (
     <div
-      className="px-2 md:px-0 lg:px-7 h-screen transition-all duration-300 border-none 
+      className="px-2 md:px-0 lg:px-7 min-h-screen transition-all duration-300 border-none 
       overflow-y-auto 
       [&::-webkit-scrollbar]:w-1
       [&::-webkit-scrollbar]:h-2.5 
@@ -226,11 +226,11 @@ const ClassLayout = () => {
             </p>
           </div>
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white px-3 sm:px-4 py-1.5 sm:py-2 text-right flex-1 sm:flex-none">
+            <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white px-3 sm:px-4 py-1.5 sm:py-2 flex items-center lg:gap-4 justify-between  flex-1 sm:flex-none">
               <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Lessons</p>
               <p className="text-base sm:text-lg font-semibold text-slate-900">{filteredLessons.length}</p>
             </div>
-            <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white px-3 sm:px-4 py-1.5 sm:py-2 text-right flex-1 sm:flex-none">
+            <div className="rounded-xl sm:rounded-2xl border border-slate-200 bg-white px-3 sm:px-4 py-1.5 sm:py-2 flex items-center lg:gap-4  justify-between flex-1 sm:flex-none">
               <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Topics</p>
               <p className="text-base sm:text-lg font-semibold text-slate-900">{uniqueTopicCount}</p>
             </div>

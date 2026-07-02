@@ -313,7 +313,7 @@ const CreateSyllabus = () => {
         if (!selectedSubject) return;
 
         setLoadingCurriculum(true);
-        schoolService.getSubjectCurriculum(selectedSubject.id)
+        schoolService.getSubjectCurriculum(selectedSubject.id, classes.find(c => c.id === selectedClass?.id)?.id ?? "")
             .then((res) => {
                 const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
                 const existingTopics: any[] = raw.Topics ?? raw.topics ?? [];

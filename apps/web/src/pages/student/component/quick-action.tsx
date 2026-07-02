@@ -31,13 +31,13 @@ const QuickAction = () => {
 
   return (
     <div className="overflow-hidden rounded-md border border-white/75 bg-white/82">
-        <div className="border-b border-slate-100 p-6">
-          <h2 className="font-poppins text-lg font-semibold text-slate-900 capitalize">
-            Quick Action{" "}
+        <div className="border-b border-slate-100 px-4 py-3">
+          <h2 className="font-poppins text-sm font-semibold text-slate-900 capitalize">
+            Quick Action
           </h2>
-          <p className="mt-1 text-sm text-slate-500">Jump into the things students use most.</p>
+          <p className="mt-0.5 text-xs text-slate-500">Jump into what students use most.</p>
         </div>
-        <div className="grid grid-cols-2 gap-3 p-4">
+        <div className="grid grid-cols-2 gap-2 p-3">
           {actions.map((action) => {
             const Icon = action.icon;
 
@@ -45,12 +45,12 @@ const QuickAction = () => {
               <button
                 key={action.label}
                 type="button"
-                className={`flex flex-col items-start justify-between gap-4 rounded-[22px] border border-slate-100 bg-gradient-to-br ${action.cardClassName} px-4 py-5 text-left shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_30px_-24px_rgba(79,97,232,0.5)]`}
+                className={`flex flex-col items-start justify-between gap-3 rounded-[16px] border border-slate-100 bg-gradient-to-br ${action.cardClassName} px-3 py-3 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_30px_-24px_rgba(79,97,232,0.5)]`}
               >
-                <div className={`rounded-2xl bg-white p-3 shadow-sm ${action.iconClassName}`}>
+                <div className={`rounded-xl bg-white p-2 shadow-sm ${action.iconClassName}`}>
                   <Icon className={action.iconClassName} />
                 </div>
-                <p className="text-sm font-semibold leading-snug text-slate-800">
+                <p className="text-xs font-semibold leading-snug text-slate-800">
                   {action.label}
                 </p>
               </button>

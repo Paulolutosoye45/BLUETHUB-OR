@@ -10,10 +10,11 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@bluethub/ui-kit";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {Check, ChevronDown, Loader2, Menu, Search, Sparkles, UserCircle, Users } from "lucide-react";
 import { authService } from "@/services/auth";
 import { UserRole } from "@/utils/validate";
+import { localData } from "@/utils";
 
 type RoleOption = {
     label: string;
@@ -74,6 +75,7 @@ const TeacherMain = () => {
      const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
     const navigate = useNavigate();
     const [selectRole, setSelectRole] = useState<RoleOption | null>(null);
+    console.log("selectRole", selectRole?.label);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [editOpen, setEditOpen] = useState(false);
     const [editLoading, setEditLoading] = useState(false);
@@ -120,6 +122,12 @@ const TeacherMain = () => {
             u.emailAddress?.toLowerCase().includes(q)
         );
     });
+
+    useEffect(() => {
+        if (selectRole) {
+            localData.save("selectRole", selectRole?.label);
+        }
+    }, [selectRole]);
 
     return (
         <div className="md:px-5 lg:p-3">

@@ -136,14 +136,15 @@ export const schoolService = {
     });
   },
 
-  getSubjectCurriculum: (subjectId: string) => {
-    return API.get(`/api/School/subjects/${subjectId}/curriculum`, {
-      headers: {
-        "X-Tenant-ID": X_Tenant_ID,
-        Authorization: `Bearer ${token.getToken()}`,
-      },
-    });
-  },
+ getSubjectCurriculum: (subjectId: string, classroomId: string) => {
+  return API.get(`/api/School/subjects/${subjectId}/curriculum`, {
+    params: { classroomId },
+    headers: {
+      "X-Tenant-ID": X_Tenant_ID,
+      Authorization: `Bearer ${token.getToken()}`,
+    },
+  });
+},
 
   addSubTopicsToTopic: (topicId: string, subTopics: string[]) => {
     return API.post(`/api/topic/subtopics/add`, 

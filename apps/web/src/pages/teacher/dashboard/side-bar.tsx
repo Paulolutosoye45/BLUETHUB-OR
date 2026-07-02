@@ -57,8 +57,8 @@ function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
 
   if (isCollapsed) {
     return (
-      <div className="flex justify-center py-3 px-2">
-        <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center text-white text-sm font-bold shrink-0">
+      <div className="flex justify-center py-2 px-2">
+        <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
           {initials}
         </div>
       </div>
@@ -66,21 +66,21 @@ function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
   }
 
   return (
-    <div className="mx-3 mb-2 rounded-xl bg-[#292382] p-3 text-white">
-      <div className="flex items-start gap-2.5">
-        <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+    <div className="mx-2 mb-1 rounded-xl bg-[#292382] p-2 text-white">
+      <div className="flex items-start gap-2">
+        <div className="w-9 h-9 rounded-full bg-amber-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
           {initials}
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-semibold truncate">{name}</p>
-          <p className="text-[10px] opacity-70 truncate">{role}</p>
+          <p className="text-[11px] font-semibold truncate">{name}</p>
+          <p className="text-[9px] opacity-70 truncate">{role}</p>
         </div>
       </div>
-      <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-        <span className="bg-white/20 text-white text-[11px] font-semibold px-2 py-0.5 rounded-md">
+      <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+        <span className="bg-white/20 text-white text-[10px] font-semibold px-1.5 py-0.5 rounded-md">
           {classLabel}
         </span>
-        <span className="text-[11px] opacity-70 truncate">{subject}</span>
+        <span className="text-[10px] opacity-70 truncate">{subject}</span>
       </div>
     </div>
   );
@@ -89,9 +89,9 @@ function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
 // ── Section Label ─────────────────────────────────────────────────────────────
 function SectionLabel({ label, isCollapsed }: { label: string; isCollapsed: boolean
  }) {
-  if (isCollapsed) return <div className="my-2 border-t border-[#29238215]" />;
+  if (isCollapsed) return <div className="my-1 border-t border-[#29238215]" />;
   return (
-    <p className="px-3 mb-2 text-[10px] font-bold tracking-widest text-[#29238260] uppercase">
+    <p className="px-3 mb-1 text-[9px] font-bold tracking-widest text-[#29238260] uppercase">
       {label}
     </p>
   );
@@ -114,7 +114,7 @@ function NavItem({
       onClick={onNavigate}
       className={({ isActive }) =>
         [
-          "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 cursor-pointer group",
+          "flex items-center gap-2.5 px-3 py-1.5 rounded-md transition-all duration-200 cursor-pointer group",
           isActive ? "bg-[#292382] text-white" : "text-[#292382] hover:bg-[#29238210]",
           isCollapsed ? "justify-center" : "",
         ].join(" ")
@@ -125,13 +125,13 @@ function NavItem({
           <img
             src={link.icons}
             alt={link.name}
-            className={`w-[18px] h-[18px] shrink-0 object-contain transition-all ${
+            className={`w-[16px] h-[16px] shrink-0 object-contain transition-all ${
 isActive ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
               }`}
           />
           {!isCollapsed && (
             <span
-              className={`text-xs font-medium truncate ${isActive ? "text-white" :  "text-[#292382]"
+              className={`text-[11px] font-medium truncate ${isActive ? "text-white" :  "text-[#292382]"
                 }`}
             >
               {link.name}
@@ -158,7 +158,7 @@ export const NavContent = ({
   onLogout,
 }: NavContentProps) => {
   return (
-    <div className="flex flex-col gap-5 pb-6">
+    <div className="flex flex-col gap-2 pb-4">
       {/* Profile card */}
       <ProfileCard isCollapsed={isCollapsed} />
 
@@ -198,7 +198,7 @@ export const NavContent = ({
               onClick={isLogout ? onLogout : onNavigate}
               className={({ isActive }) =>
                 [
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 cursor-pointer group",
+                  "flex items-center gap-2.5 px-3 py-1.5 rounded-md transition-all duration-200 cursor-pointer group",
                   isLogout
                     ? "hover:bg-red-50"
                     : isActive
@@ -213,7 +213,7 @@ export const NavContent = ({
                   <img
                     src={link.icons}
                     alt={link.name}
-                    className={`w-[18px] h-[18px] shrink-0 object-contain ${isLogout
+                    className={`w-[16px] h-[16px] shrink-0 object-contain ${isLogout
                       ? "opacity-80"
                       : isActive
                         ? "brightness-0 invert"
@@ -222,7 +222,7 @@ export const NavContent = ({
                   />
                   {!isCollapsed && (
                     <span
-                      className={`text-sm font-medium ${isLogout ? "text-red-500" :
+                      className={`text-[11px] font-medium ${isLogout ? "text-red-500" :
  isActive ? "text-white" : "text-[#292382]"
                         }`}
                     >
@@ -280,14 +280,14 @@ const TeacherSidebar = () => {
     >
       {/* Header: logo + collapse toggle */}
       <div
-        className={`flex items-center px-4 py-4 border-b border-[#29238210] shrink-0 ${isCollapsed ? "justify-center" : "justify-between"
+        className={`flex items-center px-3 py-2 border-b border-[#29238210] shrink-0 ${isCollapsed ? "justify-center" : "justify-between"
           }`}
       >
         {!isCollapsed && (
-          <img src={bluethub} alt="Bluethub" className="h-6 shrink-0" />
+          <img src={bluethub} alt="Bluethub" className="h-5 shrink-0" />
         )}
 
-         {!isCollapsed && (<h2 className="text-chestnut font-medium text-xs">{school.schoolName}</h2>)}
+         {!isCollapsed && (<h2 className="text-chestnut font-medium text-[10px]">{school.schoolName}</h2>)}
         <button
           type="button"
           onClick={toggleSidebar}
@@ -304,7 +304,7 @@ const TeacherSidebar = () => {
 
       {/* Scrollable nav */}
       <div
-        className="flex-1 overflow-y-auto overflow-x-hidden py-4
+        className="flex-1 overflow-y-auto overflow-x-hidden py-2
           [&::-webkit-scrollbar]:w-1
           [&::-webkit-scrollbar-track]:bg-transparent
           [&::-webkit-scrollbar-thumb]:rounded-full
@@ -376,23 +376,23 @@ export const MobileTeacherNav = ({ isOpen, setIsOpen }: IMobileTeacherNav) => {
         ].join(" ")}
       >
         {/* Header: logo + close */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-[#29238210] shrink-0">
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[#29238210] shrink-0">
           
-          <img src={bluethub} alt="Bluethub" className="h-6" />
-          <h2 className="text-chestnut font-medium text-xs">{school.schoolName}</h2>
+          <img src={bluethub} alt="Bluethub" className="h-5" />
+          <h2 className="text-chestnut font-medium text-[10px]">{school.schoolName}</h2>
           <button
             type="button"
             onClick={() => setIsOpen(false)}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#29238210] text-[#292382] transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-[#29238210] text-[#292382] transition-colors"
             aria-label="Close navigation"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
         {/* Scrollable nav — reuses exact same NavContent as desktop */}
         <div
-          className="flex-1 overflow-y-auto py-4
+          className="flex-1 overflow-y-auto py-2
             [&::-webkit-scrollbar]:w-1
             [&::-webkit-scrollbar-track]:bg-transparent
             [&::-webkit-scrollbar-thumb]:rounded-full

@@ -390,7 +390,7 @@ const QuizAttemptPanel = ({ lessonId, quizCode, onClose }: QuizAttemptPanelProps
         {isBlocked && status ? (
           <div className="space-y-2">
             <div className="flex items-center justify-center gap-2 text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3 text-sm font-semibold">
-              <Lock className="h-4 w-4" />
+              <Lock className="h-10 w-10 md:w-4 md:h-4" />
               {status.maxAttemptsReached
                 ? "Maximum attempts reached. You cannot retake this quiz."
                 : status.hasInProgressAttempt

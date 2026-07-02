@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import {
-  ChevronRight,
   EllipsisVertical,
   Plus,
   Loader2,
@@ -102,7 +101,7 @@ function StatCard({ count, label, sub, subColor = "text-gray-400", highlight }: 
   return (
     <div className={`rounded-2xl p-5 transition hover:shadow-md ${highlight ? "bg-chestnut border border-chestnut" : "bg-white border border-[#D9D9D9]"
       }`}>
-      <p className={`font-bold text-3xl leading-none tracking-tight text-center w-full ${highlight ? "text-white" : "text-[#0F0F0E]"}`}>
+      <p className={`font-semibold text-xl leading-none tracking-tight text-center w-full ${highlight ? "text-white" : "text-[#0F0F0E]"}`}>
         {count}
       </p>
       <p className={`text-xs mt-2 text-center w-full ${highlight ? "text-white/70" : "text-[#3A3A3A80]"}`}>{label}</p>
@@ -295,10 +294,8 @@ const MyLesson = () => {
           {/* Header bar */}
           <div className="flex items-center justify-between px-4 sm:px-6 py-5 bg-chestnut">
             <h3 className="flex items-center gap-2 text-white font-semibold text-sm">
-              <span className="text-white/60 hidden lg:inline">Teaching</span>
-              <Menu className="lg:hidden  w-5 h-5 text-white" onClick={openMobileNav} />
-              <ChevronRight size={16} className="hidden lg:inline" />
-              <span>My Lessons</span>
+              <Menu className="lg:hidden  w-5 h-5 text-white " onClick={openMobileNav} />
+              <span className="text-sm">My Lessons</span>
             </h3>
             <button className="text-white p-1 rounded hover:bg-white/10 transition">
               <EllipsisVertical size={18} />
@@ -310,7 +307,7 @@ const MyLesson = () => {
             {/* Title row */}
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="font-bold text-lg leading-7 text-[#0F0F0E]">Lesson approvals</h2>
+                <h2 className="font-semibold text-base leading-7 text-[#0F0F0E]">Lesson approvals</h2>
                 <p className="text-[#666666] font-medium text-xs mt-0.5">
                   Track your submitted lessons and their approval status
                 </p>
@@ -342,9 +339,9 @@ const MyLesson = () => {
                 <button
                   key={f.value}
                   onClick={() => handleFilterChange(f.value)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-all ${activeFilter === f.value
-                      ? "bg-chestnut text-white shadow-sm"
-                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                  className={`px-4 py-1.5 rounded-full text-xs font-med transition-all ${activeFilter === f.value
+                    ? "bg-chestnut text-white shadow-sm"
+                    : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                     }`}
                 >
                   {f.label}
@@ -405,11 +402,11 @@ const MyLesson = () => {
                                 className={`hover:bg-gray-50/60 transition-colors border-l-[3px] ${style.border}`}
                               >
                                 <TableCell className="px-5 py-3.5">
-                                  <p className="text-[#0F0F0E] font-semibold text-sm leading-tight line-clamp-1">
+                                  <p className="text-[#0F0F0E] font-medium text-sm leading-tight line-clamp-1">
                                     {buildLessonTitle(lesson)}
                                   </p>
                                   {lesson.subjectName && (
-                                    <p className="text-[11px] font-semibold text-chestnut/70 mt-0.5">
+                                    <p className="text-[11px] font-medium text-chestnut/70 mt-0.5">
                                       {lesson.subjectName}
                                     </p>
                                   )}
@@ -421,7 +418,7 @@ const MyLesson = () => {
                                   {formatDate(lesson.createdAt)}
                                 </TableCell>
                                 <TableCell>
-                                  <span className={`inline-flex items-center gap-1.5 rounded-full py-1 px-2.5 text-[11px] font-semibold ${style.badge}`}>
+                                  <span className={`inline-flex items-center gap-1.5 rounded-full py-1 px-2.5 text-[11px] font-medium ${style.badge}`}>
                                     <span className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
                                     {statusLabel(lesson.status)}
                                   </span>
@@ -434,7 +431,7 @@ const MyLesson = () => {
                                         <button
                                           onClick={() => handleStartClassWithChecks(lesson)}
                                           disabled={isChecking}
-                                          className={`flex items-center gap-1.5 text-white text-xs font-semibold
+                                          className={`flex items-center gap-1.5 text-white text-xs font-medium
                                             px-3 py-1.5 rounded-lg transition-all shadow-sm ${isChecking
                                               ? "bg-gray-300 cursor-not-allowed"
                                               : "bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
@@ -506,8 +503,8 @@ const MyLesson = () => {
                                     onClick={() => handleStartClassWithChecks(lesson)}
                                     disabled={isChecking}
                                     className={`flex items-center gap-1 text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg ${isChecking
-                                        ? "bg-gray-300 cursor-not-allowed"
-                                        : "bg-gradient-to-r from-emerald-500 to-emerald-600"
+                                      ? "bg-gray-300 cursor-not-allowed"
+                                      : "bg-gradient-to-r from-emerald-500 to-emerald-600"
                                       }`}
                                   >
                                     {isChecking ? (
@@ -540,7 +537,7 @@ const MyLesson = () => {
                     <p className="text-xs text-gray-400">
                       Showing {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, totalCount)} of {totalCount}
                     </p>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center md:gap-1">
                       <button
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                         disabled={page === 1}

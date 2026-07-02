@@ -298,7 +298,7 @@ const AssessmentConfigPage = () => {
   }, [config]);
 
   return (
-    <div className="sm:p-4 lg:p-6 font-poppins min-h-screen">
+    <div className="font-poppins min-h-screen">
       <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden bg-white/70">
         {/* Header */}
         <div className="bg-gradient-to-r from-chestnut to-chestnut/90 px-4 sm:px-6 py-4 sm:py-5 lg:rounded-t-lg flex items-center justify-between">
@@ -306,11 +306,11 @@ const AssessmentConfigPage = () => {
             <Menu className="lg:hidden w-5 h-5 text-white" onClick={openMobileNav} />
             <button
               onClick={() => navigate(-1)}
-              className="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 transition-colors"
+              className="p-1.5"
             >
               <ArrowLeft size={16} className="text-white" />
             </button>
-            <h2 className="font-semibold text-lg text-white leading-none">Assessment Settings</h2>
+            <h2 className="font-semibold text-base text-white leading-none">Assessment Settings</h2>
           </div>
           <div className="flex items-center gap-2">
             {saved && (
@@ -380,7 +380,7 @@ const AssessmentConfigPage = () => {
             <section id="grading" className="space-y-5">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
                 <Trophy size={18} className="text-indigo-500" />
-                <h3 className="text-base font-bold text-slate-800">Grading & Marks</h3>
+                <h3 className="text-sm font-bold text-slate-800">Grading & Marks</h3>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -424,7 +424,7 @@ const AssessmentConfigPage = () => {
             <section id="timing" className="space-y-5">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
                 <Clock size={18} className="text-indigo-500" />
-                <h3 className="text-base font-bold text-slate-800">Time & Duration</h3>
+                <h3 className="text-sm font-bold text-slate-800">Time & Duration</h3>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -454,7 +454,7 @@ const AssessmentConfigPage = () => {
             <section id="behaviour" className="space-y-3">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
                 <SlidersHorizontal size={18} className="text-indigo-500" />
-                <h3 className="text-base font-bold text-slate-800">Quiz Behaviour</h3>
+                <h3 className="text-sm font-bold text-slate-800">Quiz Behaviour</h3>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white divide-y divide-slate-100 px-4">

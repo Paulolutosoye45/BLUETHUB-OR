@@ -58,7 +58,7 @@ const TitleBar = ({
                         onClick={hasMenu}  // ✅ not onClick={() => openMobileNav()}
                     />
                 )}
-                <h2 className="font-semibold font-poppins text-lg text-white leading-none">
+                <h2 className="font-semibold font-poppins text-base text-white leading-none">
                     {title}
                 </h2>
                 {hasArrowIcons && (

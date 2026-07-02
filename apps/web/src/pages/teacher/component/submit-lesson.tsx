@@ -811,7 +811,7 @@ const SubmitLesson = () => {
     setTopics([]); setSubTopics([]); setTopicsData([]);
     setLoadingTopics(true);
 
-    schoolService.getSubjectCurriculum(subjectId)
+    schoolService.getSubjectCurriculum(subjectId, classroomId)
       .then((res) => {
         const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
         // Support both PascalCase (curriculum API) and camelCase
@@ -1252,7 +1252,7 @@ const SubmitLesson = () => {
                     {step1Done ? <Check className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
                   </div>
                   <div>
-                    <h2 className="font-semibold text-gray-900">Class & Topic</h2>
+                    <h2 className="font-semibold text-sm text-gray-900">Class & Topic</h2>
                     <p className="text-xs text-gray-500">Select the class and topic for this lesson</p>
                   </div>
                 </div>
@@ -1347,7 +1347,7 @@ const SubmitLesson = () => {
                       <Clock className="w-5 h-5" />
                     </div>
                     <div>
-                      <h2 className="font-semibold text-gray-900">Schedule & Duration</h2>
+                      <h2 className="font-semibold text-sm text-gray-900">Schedule & Duration</h2>
                       <p className="text-xs text-gray-500">Optional — set when and how long the class runs</p>
                     </div>
                   </div>
@@ -1443,7 +1443,7 @@ const SubmitLesson = () => {
                     {step2Done ? <Check className="w-4 h-4" /> : <BookOpen className="w-4 h-4" />}
                   </div>
                   <div>
-                    <h2 className="font-semibold text-gray-900">Lesson Content</h2>
+                    <h2 className="font-semibold text-sm text-gray-900">Lesson Content</h2>
                     <p className="text-xs text-gray-500">Describe the lesson objectives and content</p>
                   </div>
                 </div>
@@ -1490,7 +1490,7 @@ const SubmitLesson = () => {
                       {step3Done ? <Check className="w-4 h-4" /> : <FolderOpen className="w-4 h-4" />}
                     </div>
                     <div>
-                      <h2 className="font-semibold text-gray-900">Media Files</h2>
+                      <h2 className="font-semibold text-sm text-gray-900">Media Files</h2>
                       <p className="text-xs text-gray-500">Upload lesson materials</p>
                     </div>
                   </div>

@@ -82,7 +82,7 @@ const PendingUploadsCard = () => {
     <div
       onClick={() => navigate("/teacher/pending-uploads")}
       className={cn(
-        "rounded-xl border-2 p-4 cursor-pointer transition-all hover:shadow-md",
+        "rounded-lg border-2 p-2.5 cursor-pointer transition-all hover:shadow-md",
         hasFailed
           ? "border-red-200 bg-red-50/50 hover:border-red-300"
           : hasPending
@@ -94,7 +94,7 @@ const PendingUploadsCard = () => {
         <div className="flex items-center gap-3">
           <div
             className={cn(
-              "w-10 h-10 rounded-xl flex items-center justify-center",
+              "w-8 h-8 rounded-lg flex items-center justify-center",
               hasFailed
                 ? "bg-red-100 text-red-600"
                 : hasPending
@@ -114,11 +114,11 @@ const PendingUploadsCard = () => {
           </div>
 
           <div>
-            <h4 className="font-semibold text-gray-900 text-sm">Pending Uploads</h4>
+            <h4 className="font-semibold text-gray-900 text-xs">Pending Uploads</h4>
             {loading ? (
-              <p className="text-xs text-gray-500">Loading...</p>
+              <p className="text-[10px] text-gray-500">Loading...</p>
             ) : hasPending ? (
-              <p className="text-xs text-gray-600">
+              <p className="text-[10px] text-gray-600">
                 {stats.totalSessions} session{stats.totalSessions !== 1 ? "s" : ""} •{" "}
                 {stats.totalPending} pending
                 {hasFailed && (
@@ -126,20 +126,20 @@ const PendingUploadsCard = () => {
                 )}
               </p>
             ) : (
-              <p className="text-xs text-green-600">All uploads complete</p>
+              <p className="text-[10px] text-green-600">All uploads complete</p>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {hasPending && !loading && (
-            <span className="text-xs text-gray-500 hidden sm:inline">
+            <span className="text-[10px] text-gray-500 hidden sm:inline">
               {formatBytes(stats.totalSizeBytes)}
             </span>
           )}
           <ChevronRight
             className={cn(
-              "w-5 h-5",
+              "w-4 h-4",
               hasFailed ? "text-red-400" : hasPending ? "text-amber-400" : "text-green-400"
             )}
           />
@@ -148,8 +148,8 @@ const PendingUploadsCard = () => {
 
       {/* Progress indicator for pending */}
       {hasPending && !loading && (
-        <div className="mt-3 flex items-center gap-2">
-          <div className="flex-1 h-1.5 bg-white/80 rounded-full overflow-hidden">
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <div className="flex-1 h-1 bg-white/80 rounded-full overflow-hidden">
             <div
               className={cn(
                 "h-full rounded-full transition-all",

@@ -75,28 +75,28 @@ const StudentQuizMenu = () => {
   }, [selectedSubject]);
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-[1200px] flex-col overflow-y-auto rounded-md border border-white/70 bg-white/55 p-3 backdrop-blur-xl transition-all duration-300 md:p-5 lg:p-6 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300">
+    <div className="mx-auto flex min-h-full w-full max-w-[1200px] flex-col overflow-y-auto rounded-md border border-white/70 bg-white/55  backdrop-blur-xl transition-all duration-300 md:p-5 lg:p-6 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-300">
       <StudentAppBar />
 
-      <section className="mt-6 rounded-[28px] border border-white/75 bg-[radial-gradient(circle_at_top_right,_rgba(79,97,232,0.12),_transparent_48%),linear-gradient(180deg,_#ffffff_0%,_#f5f8ff_100%)] px-5 py-5">
+      <section className="mt-6 border border-white/75 bg-[radial-gradient(circle_at_top_right,_rgba(79,97,232,0.12),_transparent_48%),linear-gradient(180deg,_#ffffff_0%,_#f5f8ff_100%)] px-5 py-5">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#4F61E8]">
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-[#4F61E8]">
               Quiz Menu
             </p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-900">My Quizzes</h2>
+            <h2 className="mt-2 text-xl font-semibold text-slate-900">My Quizzes</h2>
             <p className="mt-1 text-sm text-slate-500">
               Select a subject to view and attempt your quizzes.
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-right">
+            <div className="rounded-2xl flex border border-slate-200 bg-white px-4 py-2 items-center gap-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
                 Quizzes
               </p>
               <p className="text-lg font-semibold text-slate-900">{quizzes.length}</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-right">
+            <div className="rounded-2xl flex border border-slate-200 bg-white px-4 py-2 items-center gap-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
                 Completed
               </p>
@@ -108,7 +108,7 @@ const StudentQuizMenu = () => {
         </div>
       </section>
 
-      <section className="mt-5">
+      <section className="mt-5 px-3">
         <p className="mb-3 text-sm font-semibold text-slate-700">Select Subject</p>
         {subjects.length === 0 ? (
           <p className="text-sm text-slate-400">No subjects available.</p>
@@ -159,7 +159,7 @@ const StudentQuizMenu = () => {
             </p>
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 px-2">
             {quizzes.map((q) => {
               const hasCompleted = q.attemptStatus.completedAttempts > 0;
               return (

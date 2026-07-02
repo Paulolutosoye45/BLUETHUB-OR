@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useParams, useLocation, useNavigate } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import { Provider } from "react-redux";
-import { Loader2, AlertCircle, ArrowLeft } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import Replay from "@/component/reply";
 import { markLessonWatched } from "@/utils/watched-lessons";
 import { store } from "@/store";
@@ -234,16 +234,22 @@ const setupReplayLocalStorage = (
 const StudentReplay = () => {
   const { classId } = useParams<{ classId: string }>();
   const location = useLocation();
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const state = (location.state as LocationState | null) ?? null;
 
   const sessionId = state?.sessionId ?? classId ?? "";
   const lessonId = state?.lessonId ?? classId ?? "";
 
-  const handleBackToLessons = () => {
+  // const handleBackToLessons = () => {
+  //   if (lessonId) markLessonWatched(lessonId);
+  //   navigate("/student/recorded-class");
+  // };
+
+  useEffect(() => {
+  return () => {
     if (lessonId) markLessonWatched(lessonId);
-    navigate("/student/recorded-class");
   };
+}, [lessonId]);
 
   const [isReady, setIsReady] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -679,13 +685,13 @@ const StudentReplay = () => {
 
   return (
     <div className="relative">
-      <button
+      {/* <button
         onClick={handleBackToLessons}
         className="fixed top-4 left-4 z-50 flex items-center gap-1.5 rounded-full bg-black/60 px-3.5 py-2 text-xs font-semibold text-white backdrop-blur-sm hover:bg-black/75 transition-colors"
       >
         <ArrowLeft size={14} />
         Back to Lessons
-      </button>
+      </button> */}
       <Provider store={store}>
         <Replay />
       </Provider>

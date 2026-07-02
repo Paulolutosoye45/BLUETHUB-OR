@@ -1,4 +1,4 @@
-import { CalendarDays, Clock, Signal } from "lucide-react";
+import { CalendarDays, CircleArrowDown, Clock, Loader2, Signal } from "lucide-react";
 import { Button } from "@bluethub/ui-kit";
 import Play from '@/assets/svg/play.svg?react'
 import { useNavigate } from "react-router-dom";
@@ -16,6 +16,8 @@ const VideoLessonCard = ({ lesson }: VideoLessonCardProps) => {
     const [showMediaPanel, setShowMediaPanel] = useState(false);
     const [activeMediaIndex, setActiveMediaIndex] = useState(0);
     const [quizMeta, setQuizMeta] = useState<{ questionCount: number; timeLimitMinutes: number | null } | null>(null);
+    const [downloadingId, setDownloadingId] = useState<string | number | null>(null);
+    const [isDownloadingError, setIsDownloadingError] = useState(false);
 
     const mediaFiles = useMemo(
         () => [...(lesson.media ?? [])].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)),
@@ -41,6 +43,13 @@ const VideoLessonCard = ({ lesson }: VideoLessonCardProps) => {
         void fetchMeta();
         return () => { cancelled = true; };
     }, [lesson.quizCode]);
+
+    useEffect(() => {
+        if (!isDownloadingError) return;
+        const timer = window.setTimeout(() => setIsDownloadingError(false), 5000);
+        return () => window.clearTimeout(timer);
+    }, [isDownloadingError]);
+
     const approvedDate = (lesson.approvedAt || lesson.createdAt)
         ? new Date(lesson.approvedAt || lesson.createdAt || "").toLocaleDateString("en-US", {
             weekday: "long",
@@ -65,6 +74,35 @@ const VideoLessonCard = ({ lesson }: VideoLessonCardProps) => {
 
     const activeMediaType = (activeMedia?.mediaType ?? "").toLowerCase();
     const activeMediaExtension = (activeMedia?.fileExtension ?? "").toLowerCase();
+
+
+    const handleDownload = async (e: React.MouseEvent, media: typeof mediaFiles[number]) => {
+        setIsDownloadingError(false);
+        e.stopPropagation(); // don't let it also select the media row
+        const id = media.mediaId ?? media.mediaName;
+        if (downloadingId === id) return;
+
+        setDownloadingId(id);
+        try {
+            const res = await fetch(media.url);
+            if (!res.ok) throw new Error("Download failed");
+            const blob = await res.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = blobUrl;
+            link.download = media.mediaName || "lesson-media";
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            console.error("Failed to download media:", err);
+            setIsDownloadingError(true);
+            // optionally toast.error("Could not download file")
+        } finally {
+            setDownloadingId(null);
+        }
+    };
 
     const renderMediaPreview = () => {
         if (!activeMedia) {
@@ -106,7 +144,7 @@ const VideoLessonCard = ({ lesson }: VideoLessonCardProps) => {
     };
 
     return (
-        <div className="group rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,_#ffffff_0%,_#f9fbff_100%)] px-4 py-5 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_40px_-34px_rgba(79,97,232,0.65)]">
+        <div className="group rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,_#ffffff_0%,_#f9fbff_100%)] px-4 py-5 shadow-sm transition-all duration-300">
             <div className="flex flex-col md:flex-row items-start md:items-center gap-3 sm:gap-4">
                 <div className="relative h-24 w-full overflow-hidden rounded-[12px] sm:rounded-[14px] sm:h-28 md:h-24 sm:md:w-38">
                     <img src={enginerring} alt={lesson.topicName} className="h-full w-full rounded-[14px] object-cover" />
@@ -207,6 +245,11 @@ const VideoLessonCard = ({ lesson }: VideoLessonCardProps) => {
                 <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4">
                     <div className="mb-3 flex items-center justify-between">
                         <p className="text-sm font-semibold text-slate-700">Lesson media files ({mediaFiles.length})</p>
+                        {isDownloadingError && (
+                            <p className="text-xs font-medium text-rose-600">
+                                Failed to download file. Please try again.
+                            </p>
+                            )}
                         <button
                             type="button"
                             onClick={() => setShowMediaPanel(false)}
@@ -221,26 +264,46 @@ const VideoLessonCard = ({ lesson }: VideoLessonCardProps) => {
                             No media files attached to this lesson.
                         </p>
                     ) : (
-                        <div className="grid gap-4 grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
+                        <div className="grid gap-4 grid-cols-1">
                             <div className="space-y-2">
-                                {mediaFiles.map((media, index) => (
-                                    <button
-                                        key={media.mediaId ?? `${media.mediaName}-${index}`}
-                                        type="button"
-                                        onClick={() => setActiveMediaIndex(index)}
-                                        className={`w-full rounded-xl border px-3 py-3 text-left transition ${
-                                            activeMediaIndex === index
+                                {mediaFiles.map((media, index) => {
+                                    const id = media.mediaId ?? media.mediaName;
+                                    const isDownloading = downloadingId === id;
+
+                                    return (
+                                        <button
+                                            key={id ?? index}
+                                            type="button"
+                                            onClick={() => setActiveMediaIndex(index)}
+                                            className={`w-full rounded-xl flex justify-between border px-3 py-3 text-left transition ${activeMediaIndex === index
                                                 ? "border-[#4255db] bg-[#eef2ff]"
                                                 : "border-slate-200 bg-white hover:bg-slate-50"
-                                        }`}
-                                    >
-                                        <p className="text-sm font-semibold text-slate-800">{media.mediaName}</p>
-                                        <p className="mt-1 text-xs text-slate-500">
-                                            {media.mediaType ?? media.fileExtension ?? "File"}{" "}
-                                            {media.fileSizeBytes ? `• ${(media.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB` : ""}
-                                        </p>
-                                    </button>
-                                ))}
+                                                }`}
+                                        >
+                                            <div>
+                                                <p className="text-sm font-semibold text-slate-800">{media.mediaName}</p>
+                                                <p className="mt-1 text-xs text-slate-500">
+                                                    {media.mediaType ?? media.fileExtension ?? "File"}{" "}
+                                                    {media.fileSizeBytes ? `• ${(media.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB` : ""}
+                                                </p>
+                                            </div>
+
+                                            <button
+                                                type="button"
+                                                onClick={(e) => handleDownload(e, media)}
+                                                disabled={isDownloading}
+                                                className="flex items-center justify-center shrink-0 disabled:opacity-60"
+                                                aria-label={`Download ${media.mediaName}`}
+                                            >
+                                                {isDownloading ? (
+                                                    <Loader2 className="text-[#4255db] w-5 h-5 animate-spin" />
+                                                ) : (
+                                                    <CircleArrowDown className="text-[#4255db]" />
+                                                )}
+                                            </button>
+                                        </button>
+                                    );
+                                })}
                             </div>
 
                             <div className="space-y-2">
