@@ -136,8 +136,11 @@ export const schoolService = {
     });
   },
 
-  getSubjectCurriculum: (subjectId: string) => {
+  getSubjectCurriculum: (subjectId: string, classroomId?: string) => {
+    const params: Record<string, string> = {};
+    if (classroomId) params.classroomId = classroomId;
     return API.get(`/api/School/subjects/${subjectId}/curriculum`, {
+      params,
       headers: {
         "X-Tenant-ID": X_Tenant_ID,
         Authorization: `Bearer ${token.getToken()}`,

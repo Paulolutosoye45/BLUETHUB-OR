@@ -101,7 +101,7 @@ const MySyllabus = () => {
         const result: SubjectItem[] = [];
 
         for (const cls of classrooms) {
-            for (const s of cls.subjects) {
+            for (const s of cls.subjects ?? []) {
                 if (!seen.has(s.subjectId)) {
                     seen.add(s.subjectId);
                     result.push({ subjectId: s.subjectId, subjectName: s.subjectName });

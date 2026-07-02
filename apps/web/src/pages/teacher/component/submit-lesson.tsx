@@ -817,7 +817,7 @@ const SubmitLesson = () => {
     setTopics([]); setSubTopics([]); setTopicsData([]);
     setLoadingTopics(true);
 
-    schoolService.getSubjectCurriculum(subjectId)
+    schoolService.getSubjectCurriculum(subjectId, classroomId)
       .then((res) => {
         const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
         // Support both PascalCase (curriculum API) and camelCase
@@ -830,7 +830,7 @@ const SubmitLesson = () => {
       })
       .catch(() => { setTopics([]); toast.error("Could not load topics"); })
       .finally(() => setLoadingTopics(false));
-  }, [subjectId]);
+  }, [subjectId, classroomId]);
 
   useEffect(() => {
     if (!topicId) { setSubTopics([]); return; }
