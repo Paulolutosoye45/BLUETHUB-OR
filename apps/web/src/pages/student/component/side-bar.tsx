@@ -33,26 +33,26 @@ interface NavLinkItem {
 }
 
 // ── Chevron Icon ──────────────────────────────────────────────────────────────
-const ChevronIcon = ({ open }: { open: boolean }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.25s ease",
-            flexShrink: 0,
-        }}
-    >
-        <polyline points="6 9 12 15 18 9" />
-    </svg>
-);
+// const ChevronIcon = ({ open }: { open: boolean }) => (
+//     <svg
+//         xmlns="http://www.w3.org/2000/svg"
+//         width="16"
+//         height="16"
+//         viewBox="0 0 24 24"
+//         fill="none"
+//         stroke="currentColor"
+//         strokeWidth="2.5"
+//         strokeLinecap="round"
+//         strokeLinejoin="round"
+//         style={{
+//             transform: open ? "rotate(180deg)" : "rotate(0deg)",
+//             transition: "transform 0.25s ease",
+//             flexShrink: 0,
+//         }}
+//     >
+//         <polyline points="6 9 12 15 18 9" />
+//     </svg>
+// );
 
 // ── Nav links ──────────────────────────────────────────────────────────────────
 const navLinks: NavLinkItem[] = [
@@ -111,6 +111,8 @@ const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavCont
                 const Icon = link.icons;
                 const isPremium = link.name === "Premium";
 
+                if (!link.path) return null;
+
                 return (
                     <NavLink
                         key={link.name + idx}
@@ -164,7 +166,6 @@ const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavCont
         </div>
     </section>
     );
-};
 
 // ── Desktop sidebar ────────────────────────────────────────────────────────────
 const StudentSideBar = () => {
