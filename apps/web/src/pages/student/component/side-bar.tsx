@@ -194,13 +194,13 @@ const StudentSideBar = () => {
             >
                 {isCollapsed ? (
                     <button
-                            type="button"
-                            onClick={() => setIsCollapsed(false)}
-                            className="cursor-pointer hover:opacity-80 transition-opacity shrink-0"
-                            aria-label="Collapse sidebar"
-                        >
-                            <FamiconsChevron />
-                        </button>
+                        type="button"
+                        onClick={() => setIsCollapsed(false)}
+                        className="cursor-pointer hover:opacity-80 transition-opacity shrink-0"
+                        aria-label="Collapse sidebar"
+                    >
+                        <FamiconsChevron />
+                    </button>
                 ) : (
                     <>
                         <BluethubLogo />
