@@ -23,7 +23,7 @@ const Assessment = () => {
   }, [])
 
   return (
-    <div className="sm:p-4 lg:p-6 font-poppins">
+    <div className="lg:p-2 font-poppins">
       <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20  overflow-hidden">
         {/* <TitleBar title="" hasVertical /> */}
         <div className={`bg-linear-to-r from-chestnut to-chestnut/90 px-4 sm:px-6 py-4 sm:py-5 lg:rounded-t-lg flex items-center justify-between`}>
@@ -73,34 +73,19 @@ const Assessment = () => {
 
         </div>
 
-        <div className="flex-1 p-3 sm:p-6 lg:p-8 bg-white/70 backdrop-blur-sm">
+        <div className="flex-1 p-3 bg-white/70 backdrop-blur-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6" >
             <div>
-              <h1 className="text-[22px] sm:text-[26px] font-bold text-[#1A1C5E] m-0 tracking-[-0.3px]">
+              <h1 className="text-base sm:text-xl font-bold text-[#1A1C5E] m-0 tracking-[-0.3px]">
                 Question Journey
               </h1>
-              <p className="text-[13px] sm:text-[13.5px] text-[#7B7FA8] mt-1.5 font-normal">
+              <p className="text-[13px] sm:text-[13.5px] text-[#7B7FA8] font-normal">
                 Choose how you want to add questions to your assessment.
               </p>
             </div>
             <button
               onClick={() => navigate('/teacher/assessment/questionlist')}
-              className="w-full sm:w-auto"
-              style={{
-              background: "#E8302C",
-              color: "#fff",
-              border: "none",
-              borderRadius: 8,
-              padding: "11px 22px",
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: "pointer",
-              boxShadow: "0 3px 10px rgba(232,48,44,0.28)",
-              letterSpacing: 0.2,
-              transition: "transform 0.15s",
-            }}
-              onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-1px)")}
-              onMouseLeave={e => (e.currentTarget.style.transform = "translateY(0)")}
+              className="w-full sm:w-auto capitalize bg-[#E8302C] text-white border-none rounded-lg px-4 py-[11px] font-semibold text-sm tracking-wide cursor-pointer shadow-[0_3px_10px_rgba(232,48,44,0.28)] transition-transform duration-150 hover:-translate-y-px"
             >
               View Existing Questions
             </button>

@@ -71,7 +71,7 @@ const subjects: SelectItem[] = useMemo(() => {
 
     setLoadingTopics(true);
     try {
-      const res = await schoolService.getSubjectCurriculum(activeSubjectId);
+      const res = await schoolService.getSubjectCurriculum(activeSubjectId, classroomId);
       const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
       const apiTopics = raw.Topics ?? raw.topics ?? [];
 

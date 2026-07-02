@@ -7,7 +7,7 @@ const DiscussionIndex = () => {
    const [,setMobileNavOpen] = useState(false);
   return (
     <div>
-      <MyCourseAppBar />
+      <MyCourseAppBar title="Discussion Forum" />
       <div>
         <Outlet context={{ openMobileNav: () => setMobileNavOpen(true) }} />
       </div>

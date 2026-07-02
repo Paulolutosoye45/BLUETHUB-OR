@@ -911,7 +911,7 @@ const CreateQuizQuestion = () => {
 
   // ── Fetch topics when subject changes ───────────────────────────────────
   useEffect(() => {
-    if (!selectedSubjectId) {
+    if (!selectedSubjectId || !selectedClassId) {
       setTopics([]);
       setSubtopics([]);
       setTopicsData([]);
@@ -927,7 +927,7 @@ const CreateQuizQuestion = () => {
     setTopicsLoading(true);
 
     schoolService
-      .getSubjectCurriculum(selectedSubjectId)
+      .getSubjectCurriculum(selectedSubjectId, selectedClassId)
       .then((res) => {
         const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
         const rawTopics: any[] = raw.Topics ?? raw.topics ?? [];
@@ -1312,16 +1312,16 @@ const CreateQuizQuestion = () => {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <><div className=" sm:p-6 font-poppins">
+    <><div className="mfont-poppins">
       <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
         <TitleBar title="question" hasVertical hasBackIcons onBack={() => navigate(-1)} />
 
-        <div className="flex-1 p-4 sm:p-6 lg:p-8 bg-white/70 backdrop-blur-sm">
+        <div className="flex-1 p-3 lg:p-6 bg-white/70 backdrop-blur-sm">
 
           {/* ── Page Header ── */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
             <div>
-              <h1 className="text-chestnut font-bold text-xl sm:text-2xl tracking-tight leading-tight">
+              <h1 className="text-chestnut text-sm font-bold md:text-base tracking-tight leading-tight">
                 {contextLabel}
               </h1>
               <p className="text-[13px] text-[#7B7FA8] mt-1 font-normal">
@@ -1330,7 +1330,7 @@ const CreateQuizQuestion = () => {
             </div>
             <Link
               to="/teacher/assessment/questionlist"
-              className="inline-flex items-center justify-center self-start sm:self-auto bg-chestnut text-white text-sm font-semibold rounded-lg px-5 py-2.5 shadow-sm hover:-translate-y-0.5 transition-transform duration-150 whitespace-nowrap"
+              className="inline-flex items-center justify-center self-start sm:self-auto bg-chestnut text-white text-sm font-semibold rounded-lg px-4 py-2.5 shadow-sm hover:-translate-y-0.5 transition-transform duration-150 whitespace-nowrap"
             >
               View Past Questions
             </Link>

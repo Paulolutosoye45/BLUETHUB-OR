@@ -167,13 +167,13 @@ const StartClass = () => {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50/50 p-4 sm:p-6 font-poppins">
+      <div className="min-h-screen bg-gray-50/50 p-3 font-poppins">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
               <Menu className="lg:hidden  w-5 h-5 text-black inline" onClick={openMobileNav} />
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 inline ml-3">
+              <h1 className="text-sm sm:text-xl font-bold text-gray-900 inline ml-3">
                 Start a Class
               </h1>
               <p className="text-sm text-gray-500 mt-1">
@@ -202,7 +202,7 @@ const StartClass = () => {
                 Ready
               </span>
             </div>
-            <p className="text-3xl font-bold">{approvedLessons.length}</p>
+            <p className="md:text-2xl text-base  font-bold">{approvedLessons.length}</p>
             <p className="text-white/70 text-xs mt-1">Approved lessons ready to teach</p>
           </div>
 
@@ -212,7 +212,7 @@ const StartClass = () => {
                 <BookOpen size={18} className="text-blue-500" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-gray-900">{lessons.length}</p>
+            <p className="md:text-2xl text-base font-bold text-gray-900">{lessons.length}</p>
             <p className="text-gray-400 text-xs mt-1">Total lessons</p>
           </div>
 
@@ -222,7 +222,7 @@ const StartClass = () => {
                 <Play size={18} className="text-purple-500" />
               </div>
             </div>
-            <p className="text-3xl font-bold text-gray-900">0</p>
+            <p className="md:text-2xl text-base font-bold text-gray-900">0</p>
             <p className="text-gray-400 text-xs mt-1">Classes taught this week</p>
           </div>
         </div>
@@ -278,19 +278,19 @@ const StartClass = () => {
                     <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
                       <CheckCircle2 size={22} className="text-emerald-500" />
                     </div>
-                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-wider">
+                    <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-wider">
                       Approved
                     </span>
                   </div>
 
                   {/* Topic */}
-                  <h3 className="font-bold text-gray-900 text-base mb-2 line-clamp-2">
+                  <h3 className="font-medium text-gray-900 text-base mb-2 line-clamp-2">
                     {buildLessonTitle(lesson)}
                   </h3>
 
                   {/* Aim preview */}
                   {lesson.aim && (
-                    <p className="text-xs text-gray-400 mb-4 line-clamp-2">
+                    <p className="text-xs font-medium text-gray-400 mb-4 line-clamp-2">
                       {lesson.aim}
                     </p>
                   )}
@@ -315,7 +315,7 @@ const StartClass = () => {
                   <button
                     onClick={() => handleStartClass(lesson)}
                     disabled={isChecking}
-                    className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-white text-sm font-bold transition-all ${
+                    className={`w-full flex items-center justify-center gap-2 px-4 py-2 rounded-md text-white text-sm font-medium transition-all ${
                       isChecking
                         ? "bg-gray-300 cursor-not-allowed"
                         : "bg-gradient-to-r from-chestnut to-chestnut/90 hover:from-chestnut/90 hover:to-chestnut/80 shadow-lg shadow-chestnut/20"

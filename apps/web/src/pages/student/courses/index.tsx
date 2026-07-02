@@ -8,7 +8,7 @@ const CourseIndex = () => {
     const [,setMobileNavOpen] = useState(false);
   return (
     <div>
-      <MyCourseAppBar />
+      <MyCourseAppBar title="My Courses" />
       <div>
         <Outlet context={{ openMobileNav: () => setMobileNavOpen(true) }} />
       </div>

@@ -419,15 +419,15 @@ Promise.resolve(roleClassrooms)
   }, [selectedClassId, selectedSubjectId, selectedSubtopic, selectedTopicId]);
 
   return (
-    <div className="sm:p-5 font-poppins">
+    <div className="font-poppins">
       <div className="lg:rounded-2xl border border-white/20 overflow-hidden bg-white/80 backdrop-blur-sm">
         <TitleBar title="question" hasVertical hasBackIcons onBack={() => navigate(-1)} />
 
-        <div className="p-3 sm:p-5 lg:p-7 space-y-4 sm:space-y-5">
+        <div className="md:p-5 space-y-4 sm:space-y-5">
           <div className="rounded-2xl bg-gradient-to-r from-[#fff4ec] via-[#fff] to-[#eef6ff] border border-[#f3dccb] p-4 sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-lg sm:text-xl font-bold text-chestnut leading-tight">
+                <h1 className="text-sm sm:text-base font-bold text-chestnut leading-tight">
                   {selectedSubjectName ?? "Question Library"}
                 </h1>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1">
@@ -436,7 +436,7 @@ Promise.resolve(roleClassrooms)
               </div>
               <Link
                 to={createQuizHref}
-                className="inline-flex items-center justify-center rounded-xl bg-chestnut px-4 py-2.5 text-sm font-semibold text-white hover:bg-chestnut/90"
+                className="inline-flex items-center justify-center rounded-md bg-chestnut px-4 py-2.5 text-sm font-medium text-white hover:bg-chestnut/90"
               >
                 Upload Question
               </Link>

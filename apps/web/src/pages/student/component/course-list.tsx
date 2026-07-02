@@ -17,7 +17,7 @@ const CourseList = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {courses.map((course, idx) => {
         const Icon = course.displayImage;
         const { start, end } = getProgressColor(course.progress);
@@ -25,25 +25,25 @@ const CourseList = () => {
         return (
           <div
             key={idx}
-            className="flex flex-col gap-4 rounded-[22px] border border-slate-100 bg-[linear-gradient(180deg,_rgba(255,255,255,0.95),_rgba(243,246,255,0.95))] px-5 py-5  transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_30px_-24px_rgba(79,97,232,0.7)] sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-2 rounded-[16px] border border-slate-100 bg-[linear-gradient(180deg,_rgba(255,255,255,0.95),_rgba(243,246,255,0.95))] px-3 py-3 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_30px_-24px_rgba(79,97,232,0.7)] sm:flex-row sm:items-center sm:justify-between"
           >
-            <div className="flex items-center gap-3">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 ring-1 ring-slate-100">
-                <Icon className="h-10 w-10" />
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 ring-1 ring-slate-100">
+                <Icon className="h-7 w-7" />
               </div>
 
-              <div className="space-y-1">
-                <h3 className="font-poppins text-base font-semibold text-slate-900">
+              <div>
+                <h3 className="font-poppins text-xs font-semibold text-slate-900">
                   {course.subject}
                 </h3>
-                <p className="font-poppins text-sm font-medium text-slate-500">
+                <p className="font-poppins text-[10px] font-medium text-slate-500">
                   Progress: {course.progress}%
                 </p>
               </div>
             </div>
 
-            <div className="w-full sm:max-w-[220px]">
-              <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+            <div className="w-full sm:max-w-[180px]">
+              <div className="mb-1 flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
                 <span>Completion</span>
                 <span className={cn(
                   course.progress <= 40 && "text-rose-500",
@@ -51,7 +51,7 @@ const CourseList = () => {
                   course.progress > 70 && "text-[#4F61E8]"
                 )}>{course.progress}%</span>
               </div>
-              <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200/80">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200/80">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{

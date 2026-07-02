@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import {
+  ArrowLeft,
   Check,
   CircleHelp,
   EllipsisVertical,
   LayoutGrid,
   Loader2,
+  Menu,
   PlusIcon,
   SquareChartGantt,
   UserRound,
@@ -24,6 +26,7 @@ interface SubtopicInfo {
 const QuizIndex = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
+  const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
 
   const [quizzes, setQuizzes] = useState<SubjectQuizItemDto[]>([]);
   const [lessons, setLessons] = useState<StudentPublishedLesson[]>([]);
@@ -137,13 +140,19 @@ const QuizIndex = () => {
   const totalAttempts = filteredQuizzes.reduce((s, q) => s + q.attemptStatus.completedAttempts, 0);
 
   return (
-    <div className="p-3 font-poppins">
-      <div className="backdrop-blur-sm rounded-2xl border border-white/20 overflow-hidden">
+    <div className="font-poppins">
+      <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
         {/* ── Top Nav ──────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-4 py-5 sticky top-0 z-30 bg-chestnut">
+          
           <div className="flex items-center gap-2.5">
-            <LayoutGrid className="w-6 h-6 text-white" />
-            <span className="text-white font-semibold text-sm">Quiz</span>
+            <LayoutGrid className="w-6 h-6 text-white hidden lg:block" />
+            <Menu
+            className="lg:hidden w-5 h-5 text-white cursor-pointer"
+            onClick={openMobileNav}  // ✅ not onClick={() => openMobileNav()}
+          />
+          <ArrowLeft className="lg:hidden text-white" onClick={() => navigate(-1)} />
+            <span className="text-white font-bold text-sm">Quiz</span>
           </div>
           <button className="text-white">
             <EllipsisVertical size={18} />
@@ -156,7 +165,7 @@ const QuizIndex = () => {
             {/* Page header row */}
             <div className="flex items-start justify-between mb-4">
               <div>
-                <h1 className="text-xl font-bold text-blck-b2 leading-tight">My Quizzes</h1>
+                <h1 className="text-base font-bold text-blck-b2 leading-tight">My Quizzes</h1>
                 <p className="text-sm text-[#A0A8C0] mt-0.5">
                   View quizzes by subject and subtopic
                 </p>
@@ -178,11 +187,10 @@ const QuizIndex = () => {
                     key={sub.subjectId}
                     type="button"
                     onClick={() => { setSelectedSubject(sub.subjectId); setSelectedSubtopic(null); }}
-                    className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all ${
-                      selectedSubject === sub.subjectId
+                    className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-all ${selectedSubject === sub.subjectId
                         ? "border-chestnut bg-chestnut/10 text-chestnut"
                         : "border-[#E8E8E3] bg-white text-[#5A5A5A] hover:border-chestnut/40"
-                    }`}
+                      }`}
                   >
                     {sub.subjectName}
                   </button>
@@ -196,11 +204,10 @@ const QuizIndex = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedSubtopic(null)}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all ${
-                    !selectedSubtopic
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all ${!selectedSubtopic
                       ? "border-chestnut bg-chestnut/10 text-chestnut"
                       : "border-[#E8E8E3] bg-white text-[#5A5A5A] hover:border-chestnut/40"
-                  }`}
+                    }`}
                 >
                   All ({quizzes.length})
                 </button>
@@ -209,11 +216,10 @@ const QuizIndex = () => {
                     key={st.key}
                     type="button"
                     onClick={() => setSelectedSubtopic(st.key)}
-                    className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all ${
-                      selectedSubtopic === st.key
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-all ${selectedSubtopic === st.key
                         ? "border-chestnut bg-chestnut/10 text-chestnut"
                         : "border-[#E8E8E3] bg-white text-[#5A5A5A] hover:border-chestnut/40"
-                    }`}
+                      }`}
                   >
                     {st.name} ({st.count})
                   </button>
@@ -222,7 +228,7 @@ const QuizIndex = () => {
             )}
 
             {/* Stats grid */}
-            <div className="grid grid-cols-4 gap-[14px] my-[28px]">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-[14px] my-[28px]">
               <div className="border border-[#E8E8E3] bg-white rounded-[13px] py-[18px] px-5 space-y-1">
                 <div className="bg-[#EEF1FB] rounded-[9px] w-9 h-9 flex items-center justify-center">
                   <CircleHelp className="text-chestnut" />

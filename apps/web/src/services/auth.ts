@@ -95,8 +95,11 @@ export type TResponse<T> = {
   responseCode: string;
   isSuccess: boolean;
   message: string;
-  Tdata: T;
+  data: T;
+  status?: string
 };
+
+
 
 const endpoints = {
   login: "/api/User/login",
@@ -165,6 +168,7 @@ export interface IcreateUserRequest {
   role: number;
   userClassroomsId?: string[];
   userSubjects?: string[];
+  userSubjectClassrooms?: { subjectId: string; classroomId: string }[];
   removeSubjects?: string[];
   removeClassroom?: string[];
 }

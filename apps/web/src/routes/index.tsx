@@ -104,6 +104,7 @@ import DiscussionIndex from '@/pages/student/Discussion forum';
 import DiscussionLayout from '@/pages/student/Discussion forum/layout';
 import GroupDetailPanel from '@/pages/student/Discussion forum/group/group-detail-panel';
 import GroupChatRoom from '@/pages/student/Discussion forum/group/chat/group-chat';
+import SuperAdminDashboard from '@/pages/panel/dashboard/SuperAdminDashboard';
 
 const router = createBrowserRouter([
     {
@@ -394,10 +395,24 @@ const router = createBrowserRouter([
     },
 
     {
-        path: "panel/onboarding",
-        element: <Onboarding />
-    }
+        path: "/panel",
+        element: <SuperAdminDashboard />,
+        children: [
+            {
+                index: true,
+                element: <Navigate to="/dashboard" replace />,
+            },
+            //   {
+            //     path: "dashboard",
+            //     element: <DashboardPage />,
+            //   },
+        ],
+    },
 
+    {
+        path: "/panel/onboarding",
+        element: <Onboarding />,
+    },
 ])
 
 

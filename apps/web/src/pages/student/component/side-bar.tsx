@@ -33,26 +33,26 @@ interface NavLinkItem {
 }
 
 // ── Chevron Icon ──────────────────────────────────────────────────────────────
-const ChevronIcon = ({ open }: { open: boolean }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.25s ease",
-            flexShrink: 0,
-        }}
-    >
-        <polyline points="6 9 12 15 18 9" />
-    </svg>
-);
+// const ChevronIcon = ({ open }: { open: boolean }) => (
+//     <svg
+//         xmlns="http://www.w3.org/2000/svg"
+//         width="16"
+//         height="16"
+//         viewBox="0 0 24 24"
+//         fill="none"
+//         stroke="currentColor"
+//         strokeWidth="2.5"
+//         strokeLinecap="round"
+//         strokeLinejoin="round"
+//         style={{
+//             transform: open ? "rotate(180deg)" : "rotate(0deg)",
+//             transition: "transform 0.25s ease",
+//             flexShrink: 0,
+//         }}
+//     >
+//         <polyline points="6 9 12 15 18 9" />
+//     </svg>
+// );
 
 // ── Nav links ──────────────────────────────────────────────────────────────────
 const navLinks: NavLinkItem[] = [
@@ -104,128 +104,61 @@ interface StudentNavContentProps {
     onLogout?: () => void;
 }
 
-const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavContentProps) => {
-    const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
+const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavContentProps) => (
+    <section className="px-3 py-3">
+        <div className="space-y-3">
+            {navLinks.map((link, idx) => {
+                const Icon = link.icons;
+                const isPremium = link.name === "Premium";
 
-    const handleDropdownClick = (idx: number) => {
-        setOpenDropdownIndex((prev) => (prev === idx ? null : idx));
-    };
+                if (!link.path) return null;
 
-    return (
-        <section className="px-4 py-6">
-            <div className="space-y-1">
-                {navLinks.map((link, idx) => {
-                    const Icon = link.icons;
-                    const isPremium = link.name === "Premium";
-                    const isOpen = openDropdownIndex === idx;
-
-                    if (link.children) {
-                        return (
-                            <div key={link.name + idx}>
-                                <button
-                                    type="button"
-                                    onClick={() => handleDropdownClick(idx)}
-                                    className={[
-                                        "w-full flex items-center gap-4 px-4 py-2.5 rounded-md transition-colors cursor-pointer",
-                                        "hover:bg-student-chestnut/10",
-                                        isOpen
-                                            ? "bg-student-chestnut/20 border-2 border-student-chestnut"
-                                            : "border-2 border-transparent",
-                                        isCollapsed ? "justify-center" : "",
-                                    ].join(" ")}
-                                >
-                                    <Icon className="w-5 h-5 shrink-0" />
-                                    {!isCollapsed && (
-                                        <>
-                                            <span
-                                                className={[
-                                                    "text-sm font-medium font-poppins truncate flex-1 text-left",
-                                                    isOpen ? "text-student-chestnut" : "text-[#3A3A3ABF]",
-                                                ].join(" ")}
-                                            >
-                                                {link.name}
-                                            </span>
-                                            <span className={isOpen ? "text-student-chestnut" : "text-[#3A3A3ABF]"}>
-                                                <ChevronIcon open={isOpen} />
-                                            </span>
-                                        </>
-                                    )}
-                                </button>
-
-                                <div
-                                    style={{
-                                        display: !isCollapsed && isOpen ? "block" : "none",
-                                    }}
-                                    className="mt-1 ml-9 border-l-2 border-student-chestnut/20 pl-3 space-y-0.5"
-                                >
-                                    {link.children.map((child, cIdx) => (
-                                        <NavLink
-                                            key={child.name + cIdx}
-                                            to={child.path}
-                                            onClick={onNavigate}
-                                            className={({ isActive }) =>
-                                                [
-                                                    "block text-sm py-1.5 px-3 rounded-md transition-colors font-medium",
-                                                    isActive
-                                                        ? "bg-student-chestnut/20 text-student-chestnut"
-                                                        : "text-[#3A3A3ABF] hover:bg-student-chestnut/10 hover:text-student-chestnut",
-                                                ].join(" ")
-                                            }
-                                        >
-                                            {child.name}
-                                        </NavLink>
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    }
-
-                    return (
-                        <NavLink
-                            key={link.name + idx}
-                            to={link.path!}
-                            end={link.path === "/student"}
-                            onClick={onNavigate}
-                            className={({ isActive }) =>
-                                [
-                                    "flex items-center gap-4 px-4 py-2.5 rounded-md transition-colors cursor-pointer",
-                                    "hover:bg-student-chestnut/10",
-                                    isActive ? "bg-student-chestnut/20 border-2 border-student-chestnut" : "border-2 border-transparent",
-                                    isCollapsed ? "justify-center" : "",
-                                ].join(" ")
-                            }
-                        >
-                            {({ isActive }) => (
-                                <>
-                                    <Icon className="w-5 h-5 shrink-0" />
-                                    {!isCollapsed && (
-                                        <span
-                                            className={[
-                                                "text-sm font-medium font-poppins truncate",
-                                                isActive || isPremium ? "text-student-chestnut" : "text-[#3A3A3ABF]",
-                                            ].join(" ")}
-                                        >
-                                            {link.name}
-                                        </span>
-                                    )}
-                                </>
-                            )}
-                        </NavLink>
-                    );
-                })}
+                return (
+                    <NavLink
+                        key={link.name + idx}
+                        to={link.path}
+                        end={link.path === "/student"}
+                        onClick={onNavigate}
+                        className={({ isActive }) =>
+                            [
+                                "flex items-center gap-3 px-3  py-3 rounded-md transition-colors cursor-pointer",
+                                "hover:bg-student-chestnut/10",
+                                isActive ? "bg-student-chestnut/20 border border-student-chestnut" : "border border-transparent",
+                                isCollapsed ? "justify-center" : "",
+                            ].join(" ")
+                        }
+                    >
+                        {({ isActive }) => (
+                            <>
+                                <Icon className="w-4 h-4 shrink-0" />
+                                {!isCollapsed && (
+                                    <span
+                                        className={[
+                                            "text-xs font-medium font-poppins truncate",
+                                            isActive || isPremium ? "text-student-chestnut" : "text-[#3A3A3ABF]",
+                                        ].join(" ")}
+                                    >
+                                        {link.name}
+                                    </span>
+                                )}
+                            </>
+                        )}
+                    </NavLink>
+                );
+            })}
 
             <button
                 type="button"
                 onClick={onLogout}
                 className={[
-                    "w-full flex items-center gap-4 px-4 py-2.5 rounded-md transition-colors cursor-pointer",
+                    "w-full flex items-center gap-3 px-3 py-1.5 rounded-md transition-colors cursor-pointer",
                     "hover:bg-red-50",
                     isCollapsed ? "justify-center" : "",
                 ].join(" ")}
             >
-                <LogOutIcon className="w-5 h-5 shrink-0 text-[#EC1B2C]" />
+                <LogOutIcon className="w-4 h-4 shrink-0 text-[#EC1B2C]" />
                 {!isCollapsed && (
-                    <span className="text-sm font-medium font-poppins truncate text-[#EC1B2C]">
+                    <span className="text-xs font-medium font-poppins truncate text-[#EC1B2C]">
                         Log Out
                     </span>
                 )}
@@ -233,7 +166,6 @@ const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavCont
         </div>
     </section>
     );
-};
 
 // ── Desktop sidebar ────────────────────────────────────────────────────────────
 const StudentSideBar = () => {
@@ -257,19 +189,19 @@ const StudentSideBar = () => {
             {/* Header */}
             <div
                 className={[
-                    "flex items-center px-4 py-4 border-b-2 border-[#3A3A3A33] shrink-0",
+                    "flex items-center px-3 py-2 border-b border-[#3A3A3A33] shrink-0",
                     isCollapsed ? "justify-center" : "justify-between",
                 ].join(" ")}
             >
                 {isCollapsed ? (
                     <button
-                            type="button"
-                            onClick={() => setIsCollapsed(false)}
-                            className="cursor-pointer hover:opacity-80 transition-opacity shrink-0"
-                            aria-label="Collapse sidebar"
-                        >
-                            <FamiconsChevron />
-                        </button>
+                        type="button"
+                        onClick={() => setIsCollapsed(false)}
+                        className="cursor-pointer hover:opacity-80 transition-opacity shrink-0"
+                        aria-label="Collapse sidebar"
+                    >
+                        <FamiconsChevron />
+                    </button>
                 ) : (
                     <>
                         <BluethubLogo />
@@ -355,14 +287,13 @@ export const MobileStudentNav = ({ isOpen, setIsOpen }: IMobileStudentNav) => {
                 ].join(" ")}
             >
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-4 border-b-2 border-[#3A3A3A33] shrink-0">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-[#3A3A3A33] shrink-0">
                     <button
                         type="button"
-                        // onClick={() => setIsCollapsed(false)}
                         className="cursor-pointer hover:opacity-80 transition-opacity"
                         aria-label="Expand sidebar"
                     >
-                        <B_2 className="size-8" />
+                        <B_2 className="size-7" />
                     </button>
                     <button
                         type="button"

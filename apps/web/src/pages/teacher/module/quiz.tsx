@@ -96,7 +96,10 @@ const ModuleQuiz = () => {
       .catch((e) => { console.warn("getSubjectClassrooms failed", e); setClassroomsData([]); });
 
     // Load curriculum (topic/subtopic tree)
-    schoolService.getSubjectCurriculum(selectedSubjectId)
+    const firstClassroomId = classrooms.find((c) =>
+      c.subjects.some((s) => s.subjectId === selectedSubjectId)
+    )?.classroomId;
+    schoolService.getSubjectCurriculum(selectedSubjectId, firstClassroomId)
       .then((res) => {
         const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
         const topicsRaw: any[] = raw.Topics ?? raw.topics ?? [];

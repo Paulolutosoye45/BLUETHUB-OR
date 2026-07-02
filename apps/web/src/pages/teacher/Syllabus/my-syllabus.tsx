@@ -2,7 +2,7 @@ import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { authService } from "@/services/auth";
 import { schoolService } from "@/services/school";
 import { cn } from "@/lib/utils";
-import { BookOpen, ChevronDown, ChevronRight, Layers, Loader2, Menu, PlusIcon } from "lucide-react";
+import { ArrowLeft, BookOpen, ChevronDown, ChevronRight, Layers, Loader2, Menu, PlusIcon } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 
@@ -33,6 +33,7 @@ interface CurriculumData {
 interface SubjectItem {
     subjectId: string;
     subjectName: string;
+    classroomId: string;
 }
 
 // ── TopicRow ─────────────────────────────────────────────────────────────────
@@ -101,10 +102,10 @@ const MySyllabus = () => {
         const result: SubjectItem[] = [];
 
         for (const cls of classrooms) {
-            for (const s of cls.subjects) {
+            for (const s of cls.subjects ?? []) {
                 if (!seen.has(s.subjectId)) {
                     seen.add(s.subjectId);
-                    result.push({ subjectId: s.subjectId, subjectName: s.subjectName });
+                    result.push({ subjectId: s.subjectId, subjectName: s.subjectName, classroomId: cls.classroomId });
                 }
             }
         }
@@ -151,7 +152,8 @@ const MySyllabus = () => {
         setError(null);
         setCurriculum(null);
 
-        schoolService.getSubjectCurriculum(selectedSubjectId)
+        const selectedSubject = subjects.find((s) => s.subjectId === selectedSubjectId);
+        schoolService.getSubjectCurriculum(selectedSubjectId, selectedSubject?.classroomId)
             .then((res) => {
                 const data = (res.data as any)?.data;
                 if (data) {
@@ -183,7 +185,7 @@ const MySyllabus = () => {
     const selectedSubjectName = subjects.find((s) => s.subjectId === selectedSubjectId)?.subjectName ?? "";
 
     return (
-        <div className="md:p-3 font-poppins">
+        <div className="font-poppins">
             <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
 
                 {/* ── Top Nav ──────────────────────────────────────────────────── */}
@@ -193,6 +195,7 @@ const MySyllabus = () => {
                             className="lg:hidden w-5 h-5 text-white cursor-pointer"
                             onClick={openMobileNav}  // ✅ not onClick={() => openMobileNav()}
                         />
+                         <ArrowLeft  className="lg:hidden text-white"  onClick={() => navigate(-1)}/>
                         <span className="text-white font-semibold text-sm">My Syllabus</span>
                     </div>
                     <button
@@ -225,7 +228,7 @@ const MySyllabus = () => {
                                     Subjects
                                 </p>
                                 {/* mobile: horizontal scroll row; md+: vertical stack */}
-                                <div className="flex gap-2 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0 md:space-y-1
+                                <div className="flex gap-2 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0
       [&::-webkit-scrollbar]:hidden">
                                     {subjects.map((s) => (
                                         <button

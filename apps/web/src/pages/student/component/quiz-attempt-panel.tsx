@@ -274,6 +274,32 @@ const QuizAttemptPanel = ({ lessonId, quizCode, onClose }: QuizAttemptPanelProps
   const isTextQuestion = (q: QuizQuestionDetailDto | StudentQuizQuestionDto) =>
     q.questionType === 2 || q.questionType === 3;
 
+  const handleRetake = async () => {
+    try {
+      setPhase("loading");
+      setResult(null);
+      setAnswers({});
+      let res;
+      if (quizCode) {
+        res = await quizService.getStudentQuizDisplayByCode(quizCode);
+      } else if (lessonId) {
+        res = await quizService.getStudentQuizDisplay(lessonId);
+      } else {
+        throw new Error("No lessonId or quizCode provided.");
+      }
+      const data = res.data?.data;
+      if (!data) {
+        throw new Error(res.data?.responseMessage || "Quiz not available.");
+      }
+      setPreview(data);
+      setPhase(data.attemptStatus.canStart ? "preview" : "blocked");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to reload quiz.";
+      toast.error(msg);
+      setPhase("preview");
+    }
+  };
+
   // ═════════════════════════════════════════════════════════════════════════════
   // PREVIEW / START SCREEN
   // ═════════════════════════════════════════════════════════════════════════════
@@ -390,7 +416,7 @@ const QuizAttemptPanel = ({ lessonId, quizCode, onClose }: QuizAttemptPanelProps
         {isBlocked && status ? (
           <div className="space-y-2">
             <div className="flex items-center justify-center gap-2 text-amber-600 bg-amber-50 border border-amber-100 rounded-lg px-4 py-3 text-sm font-semibold">
-              <Lock className="h-4 w-4" />
+              <Lock className="h-10 w-10 md:w-4 md:h-4" />
               {status.maxAttemptsReached
                 ? "Maximum attempts reached. You cannot retake this quiz."
                 : status.hasInProgressAttempt
@@ -509,9 +535,19 @@ const QuizAttemptPanel = ({ lessonId, quizCode, onClose }: QuizAttemptPanelProps
             </>
           )}
         </div>
-        <Button variant="outline" onClick={onClose} className="rounded-full border-slate-300 px-6 text-sm text-slate-600">
-          Close
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={onClose} className="rounded-full border-slate-300 px-6 text-sm text-slate-600">
+            Close
+          </Button>
+          {preview?.config.allowRetakes && (
+            <Button
+              onClick={() => void handleRetake()}
+              className="rounded-full bg-[#4255db] px-6 text-sm font-semibold text-white hover:bg-[#3447cc]"
+            >
+              Try Again
+            </Button>
+          )}
+        </div>
       </div>
     );
   }

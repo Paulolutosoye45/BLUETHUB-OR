@@ -33,15 +33,15 @@ const AssignmentList = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {assignments.map((assignment, idx) => (
         <div
           key={idx}
-          className="flex flex-col gap-4 rounded-[22px] border border-slate-100 bg-[linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(249,250,255,0.96))] px-5 py-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_30px_-24px_rgba(234,179,8,0.5)] sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-2 rounded-[16px] border border-slate-100 bg-[linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(249,250,255,0.96))] px-3 py-3 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_30px_-24px_rgba(234,179,8,0.5)] sm:flex-row sm:items-center sm:justify-between"
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <div
-              className={`size-2.5 rounded-full ${
+              className={`size-2 rounded-full ${
                 assignment.type === "Urgent"
                   ? "bg-red-500"
                   : assignment.type === "Pending"
@@ -49,17 +49,17 @@ const AssignmentList = () => {
                   : "bg-green-500"
               }`}
             ></div>
-            <div className="space-y-1">
-              <h3 className="font-poppins text-base font-semibold text-slate-900">
+            <div>
+              <h3 className="font-poppins text-xs font-semibold text-slate-900">
                 {assignment.name}
               </h3>
-              <p className="font-poppins text-sm font-medium text-slate-500">
+              <p className="font-poppins text-[10px] font-medium text-slate-500">
                 Due: {assignment.duedate}
               </p>
             </div>
           </div>
 
-          <Badge className={`${getBadgeStyle(assignment.type)} rounded-full px-3 py-1 text-xs font-semibold`}>
+          <Badge className={`${getBadgeStyle(assignment.type)} rounded-full px-2 py-0.5 text-[10px] font-semibold`}>
             {assignment.type}
           </Badge>
         </div>

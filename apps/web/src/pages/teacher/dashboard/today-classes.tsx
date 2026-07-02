@@ -60,44 +60,44 @@ const TodayClasses = () => {
 
   if (loading) {
     return (
-      <div className="border border-[#E8E8E3] rounded-2xl bg-white overflow-hidden">
-        <div className="border-b border-[#E8E8E3] flex justify-between items-center py-4 px-5">
+      <div className="border border-[#E8E8E3] rounded-xl bg-white overflow-hidden">
+        <div className="border-b border-[#E8E8E3] flex justify-between items-center py-3 px-4">
           <div>
-            <h2 className="text-[#0F0F0E] font-semibold text-sm">Today's classes</h2>
-            <p className="text-[#A8A8A4] font-normal text-xs mt-0.5">
+            <h2 className="text-[#0F0F0E] font-semibold text-xs">Today's classes</h2>
+            <p className="text-[#A8A8A4] font-normal text-[10px] mt-0.5">
               {format(new Date(), "EEEE, dd MMMM yyyy")}
             </p>
           </div>
         </div>
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-6 h-6 animate-spin text-chestnut" />
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-5 h-5 animate-spin text-chestnut" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="border border-[#E8E8E3] rounded-2xl bg-white overflow-hidden">
+    <div className="border border-[#E8E8E3] rounded-xl bg-white overflow-hidden">
       {/* Header */}
-      <div className="border-b border-[#E8E8E3] flex justify-between items-center py-4 px-5">
+      <div className="border-b border-[#E8E8E3] flex justify-between items-center py-3 px-4">
         <div>
-          <h2 className="text-[#0F0F0E] font-semibold text-sm">Today's classes</h2>
-          <p className="text-[#A8A8A4] font-normal text-xs mt-0.5">
+          <h2 className="text-[#0F0F0E] font-semibold text-xs">Today's classes</h2>
+          <p className="text-[#A8A8A4] font-normal text-[10px] mt-0.5">
             {format(new Date(), "EEEE, dd MMMM yyyy")}
           </p>
         </div>
-        <span className="bg-[#EEF1FB] rounded-full py-1 px-3 text-[#1A2558] font-semibold text-[11px]">
+        <span className="bg-[#EEF1FB] rounded-full py-0.5 px-2.5 text-[#1A2558] font-semibold text-[10px]">
           {classes.length} classes
         </span>
       </div>
 
       {/* Empty state */}
       {classes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-            <Calendar className="w-6 h-6 text-gray-400" />
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center mb-2">
+            <Calendar className="w-5 h-5 text-gray-400" />
           </div>
-          <p className="text-sm text-gray-500">No classes scheduled for today</p>
+          <p className="text-xs text-gray-500">No classes scheduled for today</p>
         </div>
       ) : (
         /* Class rows */
@@ -109,33 +109,33 @@ const TodayClasses = () => {
           return (
             <div
               key={cls.id}
-              className={`flex items-center justify-between px-5 py-4 transition-colors hover:bg-gray-50/60 ${
+              className={`flex items-center justify-between px-4 py-3 transition-colors hover:bg-gray-50/60 ${
                 i < classes.length - 1 ? "border-b border-[#E8E8E3]" : ""
               }`}
             >
               {/* Left — time + divider + subject */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 {/* Time block */}
-                <div className="w-12 shrink-0 text-center">
-                  <p className={`font-bold text-[13px] ${config.timeColor}`}>{timeStr}</p>
-                  <p className="text-[#A8A8A4] font-normal text-[10px] mt-0.5">{config.timeLabel}</p>
+                <div className="w-10 shrink-0 text-center">
+                  <p className={`font-bold text-xs ${config.timeColor}`}>{timeStr}</p>
+                  <p className="text-[#A8A8A4] font-normal text-[9px] mt-0">{config.timeLabel}</p>
                 </div>
 
                 {/* Vertical divider */}
                 <div
-                  className={`h-9 w-[2px] rounded-full shrink-0 ${
+                  className={`h-8 w-[1.5px] rounded-full shrink-0 ${
                     cls.status === "ongoing" ? "bg-green-400" : "bg-[#E8E8E3]"
                   }`}
                 />
 
                 {/* Dot + subject */}
-                <div className="flex items-center gap-3">
-                  <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${config.dot}`} />
+                <div className="flex items-center gap-2">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${config.dot}`} />
                   <div>
-                    <h3 className="text-[#0F0F0E] font-semibold text-sm leading-tight">
+                    <h3 className="text-[#0F0F0E] font-semibold text-xs leading-tight">
                       {cls.subjectName}
                     </h3>
-                    <p className="text-[#A8A8A4] font-normal text-[11px] mt-0.5">
+                    <p className="text-[#A8A8A4] font-normal text-[10px] mt-0">
                       {cls.className} · {cls.topic}
                     </p>
                   </div>
@@ -145,7 +145,7 @@ const TodayClasses = () => {
               {/* Right — status */}
               <div className="text-right shrink-0">
                 <span
-                  className={`inline-block rounded-full py-1 px-2.5 text-[11px] font-semibold ${config.bg} ${config.text}`}
+                  className={`inline-block rounded-full py-0.5 px-2 text-[10px] font-semibold ${config.bg} ${config.text}`}
                 >
                   {config.label}
                 </span>

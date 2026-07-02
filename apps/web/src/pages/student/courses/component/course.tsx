@@ -88,7 +88,7 @@ const Course = () => {
 
 
   return (
-    <div className="pt-[13px] font-Poppins">
+    <div className="pt-[13px] px-2 lg:px-0 font-Poppins">
       <div className="space-y-[3px]">
         <h2 className="text-[#3A3A3A] font-medium text-xs leading-5">
           Choose a Subject

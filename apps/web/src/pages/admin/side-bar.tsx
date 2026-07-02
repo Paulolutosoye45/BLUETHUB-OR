@@ -58,15 +58,21 @@ const ACADEMICLINKS: NavItem[] = [
         name: "Registration",
         icons: registrationIcon,
         children: [
-            { name: "Register Student", path: "/admin/registration/student" },
-            { name: "Register Teacher", path: "/admin/registration/Teacher" },
-            { name: "Register Subject", path: "/admin/registration/courses" },
-            { name: "Register Class", path: "/admin/registration/class" },
+            { name: "Student", path: "/admin/registration/student" },
+            { name: "User", path: "/admin/registration/Teacher" },
+            { name: "Subject", path: "/admin/registration/courses" },
+            { name: "Class", path: "/admin/registration/class" },
         ],
     },
 
-    { name: "Register Admin", path: "/admin/registration/admin", icons: UserPlus },
-{ name: "Admin Permissions", path: "/admin/admin-permissions", icons: ShieldCheck },
+    { name: "Admin Role", path: "/admin/registration/admin", icons: UserPlus },
+    {
+        name: "Admin Permissions",
+        icons: ShieldCheck,
+        children: [
+            { name: "Manage Permissions", path: "/admin/admin-permissions" },
+        ],
+    },
     // { name: "Student", icons: studentIcon, path: "/admin/student" },
     // { name: "Teacher", icons: teacherIcon, path: "/admin/teacher" },
     // { name: "Courses", icons: coursesIcon, path: "/admin/courses" },
