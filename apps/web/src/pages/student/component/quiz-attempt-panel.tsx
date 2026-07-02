@@ -274,6 +274,32 @@ const QuizAttemptPanel = ({ lessonId, quizCode, onClose }: QuizAttemptPanelProps
   const isTextQuestion = (q: QuizQuestionDetailDto | StudentQuizQuestionDto) =>
     q.questionType === 2 || q.questionType === 3;
 
+  const handleRetake = async () => {
+    try {
+      setPhase("loading");
+      setResult(null);
+      setAnswers({});
+      let res;
+      if (quizCode) {
+        res = await quizService.getStudentQuizDisplayByCode(quizCode);
+      } else if (lessonId) {
+        res = await quizService.getStudentQuizDisplay(lessonId);
+      } else {
+        throw new Error("No lessonId or quizCode provided.");
+      }
+      const data = res.data?.data;
+      if (!data) {
+        throw new Error(res.data?.responseMessage || "Quiz not available.");
+      }
+      setPreview(data);
+      setPhase(data.attemptStatus.canStart ? "preview" : "blocked");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to reload quiz.";
+      toast.error(msg);
+      setPhase("preview");
+    }
+  };
+
   // ═════════════════════════════════════════════════════════════════════════════
   // PREVIEW / START SCREEN
   // ═════════════════════════════════════════════════════════════════════════════
@@ -509,9 +535,19 @@ const QuizAttemptPanel = ({ lessonId, quizCode, onClose }: QuizAttemptPanelProps
             </>
           )}
         </div>
-        <Button variant="outline" onClick={onClose} className="rounded-full border-slate-300 px-6 text-sm text-slate-600">
-          Close
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={onClose} className="rounded-full border-slate-300 px-6 text-sm text-slate-600">
+            Close
+          </Button>
+          {preview?.config.allowRetakes && (
+            <Button
+              onClick={() => void handleRetake()}
+              className="rounded-full bg-[#4255db] px-6 text-sm font-semibold text-white hover:bg-[#3447cc]"
+            >
+              Try Again
+            </Button>
+          )}
+        </div>
       </div>
     );
   }
