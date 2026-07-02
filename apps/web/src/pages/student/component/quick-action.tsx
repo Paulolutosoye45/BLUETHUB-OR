@@ -8,24 +8,28 @@ const QuickAction = () => {
       icon: Downloadbtn,
       iconClassName: "text-[#319F43]",
       cardClassName: "from-[#edfdf1] to-white",
+      link: "/student/download-recorded-session",
     },
     {
       label: "Download Media (PDF, MP4)",
       icon: Downloadbtn,
       iconClassName: "text-[#6C30D4]",
       cardClassName: "from-[#f6efff] to-white",
+      link: "/student/download-media",
     },
     {
       label: "Chatroom",
       icon: Chatroom,
       iconClassName: "text-[#dd9b16]",
       cardClassName: "from-[#fff8e8] to-white",
+      link: "/student/Discussion-Forum",
     },
     {
       label: "Settings",
       icon: Settings,
       iconClassName: "text-[#ef4444]",
       cardClassName: "from-[#fff1f2] to-white",
+      link: "/student/Settings",
     },
   ];
 
@@ -45,6 +49,7 @@ const QuickAction = () => {
               <button
                 key={action.label}
                 type="button"
+                onClick={() => window.location.assign(action.link)}
                 className={`flex flex-col items-start justify-between gap-3 rounded-[16px] border border-slate-100 bg-gradient-to-br ${action.cardClassName} px-3 py-3 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_30px_-24px_rgba(79,97,232,0.5)]`}
               >
                 <div className={`rounded-xl bg-white p-2 shadow-sm ${action.iconClassName}`}>

@@ -183,18 +183,25 @@ const ClassDialog = ({
 
         try {
             setLoading(true);
-            await authService.createUser(finalPayload);
-            localData.remove("th_student");
+            const res = await authService.createUser(finalPayload);
+            
+
+            const isFailed = res.data?.status=== "failed" || res.data?.isSuccess === false;
+            if (isFailed) {
+                const resp: any = res.data;
+                setErrorMsg(resp?.responseMessage || resp?.message || "Failed to register student");
+                return;
+            }
+
+           localData.remove("th_student");
+
             onSave?.(finalPayload);
             onOpenChange(false);
-        } catch (error) {
-            const msg =
-                error instanceof AxiosError
-                    ? error.response?.data?.responseMessage ??
-                    error.response?.data?.message ??
-                    error.message
-                    : (error as Error).message;
-            setErrorMsg(msg);
+        } catch (err: any) {
+            console.error("Student registration error:", err);
+            const errData: any = err?.response?.data;
+            const apiMessage = errData?.responseMessage || errData?.message || "Failed to register student";
+            setErrorMsg(apiMessage);
         } finally {
             setLoading(false);
         }
@@ -400,9 +407,9 @@ const ClassDialog = ({
                                                     className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg cursor-pointer hover:bg-chestnut/5 transition-colors"
                                                 >
                                                     <span className="w-4 h-4 rounded flex items-center justify-center shrink-0 border-2 transition-colors border-chestnut bg-chestnut">
-                                                            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                                            </svg>
+                                                        <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                        </svg>
                                                     </span>
                                                     <span className="text-xs select-none text-chestnut font-bold">
                                                         {s.subject}
