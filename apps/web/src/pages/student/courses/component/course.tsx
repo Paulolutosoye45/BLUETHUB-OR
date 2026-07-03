@@ -1,7 +1,7 @@
 import { Input } from "@bluethub/ui-kit"
 import { Link } from "react-router-dom";
 import { isStudentRoleData, useAuthContext } from "@/contexts/auth-context";
-import { studentService, type StudentSubjectItem } from "@/services/student";
+import { studentService, type StudentSubjectItem, type SubjectStatsResponse } from "@/services/student";
 import { useEffect, useState } from "react";
 
 const subjectStyles: Record<string, { icon: string; bg: string; badgeBg: string; badgeText: string }> = {
@@ -27,11 +27,14 @@ const Course = () => {
   const [subjects, setSubjects] = useState<StudentSubjectItem[]>([]);
   const [totalSubjects, setTotalSubjects] = useState(0);
   const [search, setSearch] = useState("");
+  const [stats, setStats] = useState<Record<string, SubjectStatsResponse>>({});
 
   useEffect(() => {
     const load = async () => {
+      let classroomId: string | null = null;
       const roleData = user?.roleData;
       if (roleData && isStudentRoleData(roleData)) {
+        classroomId = roleData.classroom?.classroomId ?? null;
         const major = (roleData.majorSubjects ?? []).map(s => ({
           subjectId: s.subjectId,
           subjectName: s.subjectName,
@@ -48,6 +51,9 @@ const Course = () => {
         if (all.length > 0) {
           setSubjects(all);
           setTotalSubjects(roleData.totalSubjects ?? all.length);
+          if (classroomId) {
+            fetchStats(all, classroomId);
+          }
           return;
         }
       }
@@ -56,8 +62,12 @@ const Course = () => {
         const res = await studentService.getRegisteredSubjects();
         const data = res?.data?.data;
         if (data) {
-          setSubjects([...data.major, ...data.minor]);
+          const all = [...data.major, ...data.minor];
+          setSubjects(all);
           setTotalSubjects(data.totalSubjects);
+          if (classroomId) {
+            fetchStats(all, classroomId);
+          }
         }
       } catch (err) {
         console.error("Failed to load subjects", err);
@@ -65,6 +75,23 @@ const Course = () => {
     };
     load();
   }, [user]);
+
+  const fetchStats = async (subjectList: StudentSubjectItem[], classroomId: string) => {
+    try {
+      const results = await Promise.allSettled(
+        subjectList.map(s => studentService.getSubjectStats(s.subjectId, classroomId))
+      );
+      const statsMap: Record<string, SubjectStatsResponse> = {};
+      results.forEach((r, i) => {
+        if (r.status === "fulfilled" && r.value?.data?.data) {
+          statsMap[subjectList[i].subjectId] = r.value.data.data;
+        }
+      });
+      setStats(statsMap);
+    } catch (err) {
+      console.error("Failed to fetch subject stats", err);
+    }
+  };
 
   const filtered = subjects.filter(s =>
     s.subjectName.toLowerCase().includes(search.toLowerCase())
@@ -120,6 +147,17 @@ const Course = () => {
                   <h3 className="text-[#3A3A3A] font-medium text-[13px] leading-[20px] mt-[20px] capitalize">
                     {subject.subjectName}
                   </h3>
+
+                  {stats[subject.subjectId] && (
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <span className="text-[10px] text-[#6B6B85]">
+                        📚 {stats[subject.subjectId].lessonCount} Lessons
+                      </span>
+                      <span className="text-[10px] text-[#6B6B85]">
+                        📝 {stats[subject.subjectId].quizCount} Quizzes
+                      </span>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-2 mt-1">
                     <h2 className="text-[#6B6B85] text-[11px] flex-1 min-w-0 truncate">
