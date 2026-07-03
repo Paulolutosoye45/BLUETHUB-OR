@@ -119,11 +119,10 @@ const StudentQuizMenu = () => {
                 key={sub.subjectId}
                 type="button"
                 onClick={() => setSelectedSubject(sub.subjectId)}
-                className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
-                  selectedSubject === sub.subjectId
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${selectedSubject === sub.subjectId
                     ? "border-[#4255db] bg-[#eef2ff] text-[#4255db] shadow-sm"
                     : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 {sub.subjectName}
               </button>
@@ -165,7 +164,7 @@ const StudentQuizMenu = () => {
               return (
                 <div
                   key={q.quizCode}
-                  className="group rounded-[20px] border border-slate-200 bg-[linear-gradient(180deg,_#ffffff_0%,_#f9fbff_100%)] px-4 py-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-30px_rgba(79,97,232,0.5)]"
+                  className="group rounded-[20px]  border border-slate-200 bg-[linear-gradient(180deg,_#ffffff_0%,_#f9fbff_100%)] px-4 py-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-[0_18px_40px_-30px_rgba(79,97,232,0.5)]"
                 >
                   <div className="flex flex-wrap items-center gap-1.5 mb-2">
                     {hasCompleted ? (
@@ -184,9 +183,12 @@ const StudentQuizMenu = () => {
                     )}
                   </div>
 
-                  <h3 className="text-sm font-semibold text-slate-900 truncate">
+                  <div className="min-w-0 ">
+                  <h3 className="text-sm font-semibold  text-slate-900">
                     {q.lessonTitle || q.quizCode}
                   </h3>
+                  </div>
+
 
                   <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
                     <span className="flex items-center gap-1">

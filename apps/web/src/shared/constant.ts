@@ -21,12 +21,14 @@ export const TACADEMICLINKS = [
     icons: studentIcon,
     name: "Student",
     path: "/teacher/student",
+    disabled: true
   },
 
   {
     icons: coursesIcon,
     name: "Courses",
     path: "/teacher/courses",
+    disabled: true
   },
   {
     icons: classIconIcon,

@@ -39,6 +39,7 @@ import type { schoolInfo } from "@/services";
 export interface NavChild {
     name: string;
     path: string;
+    disabled?: boolean;
 }
 
 export interface NavItem {
@@ -46,6 +47,7 @@ export interface NavItem {
     icons: string;
     path?: string;
     children?: NavChild[];
+    disabled?: boolean;
 }
 
 const navLink: NavItem[] = [

@@ -18,7 +18,7 @@ const TeacherDashboard = () => {
   return (
     <div className="">
       <div className="lg:rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 bg-chestnut">
+        <div className="flex lg:hidden items-center justify-between px-4 py-2 bg-chestnut">
           <div className="flex gap-2 items-center">
             <Menu className="lg:hidden text-white" onClick={openMobileNav} />
             <span className="text-white font-medium md:py-2 text-sm">Dashboard</span>
