@@ -23,6 +23,7 @@ import { useEffect, useRef, useState } from "react";
 interface NavChild {
     name: string;
     path: string;
+    disabled?: boolean;
 }
 
 interface NavLinkItem {
@@ -30,6 +31,7 @@ interface NavLinkItem {
     icons: React.FC<React.SVGProps<SVGSVGElement>>;
     path?: string;
     children?: NavChild[];
+    disabled?: boolean;
 }
 
 // ── Chevron Icon ──────────────────────────────────────────────────────────────
@@ -75,16 +77,16 @@ const navLinks: NavLinkItem[] = [
     },
     { name: "My Classroom", path: "/student/module", icons: moduleIcon },
     { name: "My Course", path: "/student/my-course", icons: my_course },
-    { name: "Assignments", path: "/student/Assignments", icons: assignments },
+    { name: "Assignments", path: "/student/Assignments", icons: assignments, disabled: true  },
     { name: "Quizzes", path: "/student/Quizzes", icons: quizzes },
     { name: "Discussion Forum", path: "/student/Discussion-Forum", icons: discussion },
-    { name: "Live Classes", path: "/student/Live-Classes", icons: live_classes },
-    { name: "Calendar", path: "/student/calendar", icons: Calendar },
+    { name: "Live Classes", path: "/student/Live-Classes", icons: live_classes, disabled: true  },
+    { name: "Calendar", path: "/student/calendar", icons: Calendar, disabled: true  },
     { name: "Recorded Class", path: "/student/recorded-class", icons: recorded_class },
-    { name: "Premium", path: "/student/Premium", icons: premium },
-    { name: "Grades & Progress", path: "/student/Grades-Progress", icons: grades },
-    { name: "Bluethub AI", path: "/student/Bluethub-Ai", icons: bluethub_ai },
-    { name: "Settings", path: "/student/Settings", icons: settings },
+    { name: "Premium", path: "/student/Premium", icons: premium , disabled: true },
+    { name: "Grades & Progress", path: "/student/Grades-Progress", icons: grades, disabled: true  },
+    { name: "Bluethub AI", path: "/student/Bluethub-Ai", icons: bluethub_ai, disabled: true },
+    { name: "Settings", path: "/student/Settings", icons: settings, disabled: true  },
 ];
 
 // ── Bluethub wordmark SVG ──────────────────────────────────────────────────────
@@ -160,6 +162,7 @@ const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavCont
                 {navLinks.map((link, idx) => {
                     const Icon = link.icons;
                     const isPremium = link.name === "Premium";
+                    const isDisabled = link.disabled;
 
                     if (link.children) {
                         const isOpen = expandedMenus.has(link.name);
@@ -220,6 +223,28 @@ const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavCont
 
                     if (!link.path) return null;
 
+                    if (isDisabled) {
+                        return (
+                            <div
+                                key={link.name + idx}
+                                aria-disabled="true"
+                                title="Coming soon"
+                                className={[
+                                    "flex items-center gap-3 px-3 py-3 rounded-md border border-transparent",
+                                    "cursor-not-allowed opacity-40 select-none",
+                                    isCollapsed ? "justify-center" : "",
+                                ].join(" ")}
+                            >
+                                <Icon className="w-4 h-4 shrink-0" />
+                                {!isCollapsed && (
+                                    <span className="text-xs font-medium font-poppins truncate text-[#3A3A3ABF]">
+                                        {link.name}
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    }
+
                     return (
                         <NavLink
                             key={link.name + idx}
@@ -228,7 +253,7 @@ const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavCont
                             onClick={onNavigate}
                             className={({ isActive }) =>
                                 [
-                                    "flex items-center gap-3 px-3  py-3 rounded-md transition-colors cursor-pointer",
+                                    "flex items-center gap-3 px-3 py-3 rounded-md transition-colors cursor-pointer",
                                     "hover:bg-student-chestnut/10",
                                     isActive ? "bg-student-chestnut/20 border border-student-chestnut" : "border border-transparent",
                                     isCollapsed ? "justify-center" : "",

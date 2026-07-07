@@ -154,11 +154,10 @@ const StudentQuizMenu = () => {
                 key={sub.subjectId}
                 type="button"
                 onClick={() => setSelectedSubject(sub.subjectId)}
-                className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${
-                  selectedSubject === sub.subjectId
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition-all ${selectedSubject === sub.subjectId
                     ? "border-[#4255db] bg-[#eef2ff] text-[#4255db] shadow-sm"
                     : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-                }`}
+                  }`}
               >
                 {sub.subjectName}
               </button>

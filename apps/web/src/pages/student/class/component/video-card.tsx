@@ -1,4 +1,4 @@
-import { CalendarDays, CircleArrowDown, Clock, Loader2, Signal } from "lucide-react";
+import { CalendarDays, Clock, Download, Loader2, Signal } from "lucide-react";
 import { Button } from "@bluethub/ui-kit";
 import Play from '@/assets/svg/play.svg?react'
 import { useNavigate } from "react-router-dom";
@@ -9,6 +9,41 @@ import quizService from "@/services/quiz";
 
 interface VideoLessonCardProps {
     lesson: StudentPublishedLesson;
+}
+
+import { File, FileImage, FileText, FileVideo } from "lucide-react";
+
+function FileIcon({ ext }: { ext: string }) {
+  if (ext.includes("pdf")) return (
+    <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+      <FileText className="w-5 h-5 text-red-500" />
+    </div>
+  );
+
+  if (ext.includes("mp4") || ext.includes("mov") || ext.includes("avi") || ext.includes("video")) return (
+    <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
+      <FileVideo className="w-5 h-5 text-purple-500" />
+    </div>
+  );
+
+  if (ext.includes("jpg") || ext.includes("jpeg") || ext.includes("png") || ext.includes("webp") || ext.includes("image")) return (
+    <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+      <FileImage className="w-5 h-5 text-blue-500" />
+    </div>
+  );
+
+  if (ext.includes("doc") || ext.includes("docx") || ext.includes("note")) return (
+    <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+      <FileText className="w-5 h-5 text-amber-500" />
+    </div>
+  );
+
+  // fallback
+  return (
+    <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+      <File className="w-5 h-5 text-slate-400" />
+    </div>
+  );
 }
 
 const VideoLessonCard = ({ lesson }: VideoLessonCardProps) => {
@@ -24,7 +59,7 @@ const VideoLessonCard = ({ lesson }: VideoLessonCardProps) => {
         [lesson.media],
     );
 
-    const activeMedia = mediaFiles[activeMediaIndex] ?? null;
+    // const activeMedia = mediaFiles[activeMediaIndex] ?? null;
 
     useEffect(() => {
         if (!lesson.quizCode) { setQuizMeta(null); return; }
@@ -72,8 +107,10 @@ const VideoLessonCard = ({ lesson }: VideoLessonCardProps) => {
     const durationLabel = `${Math.max(1, lesson.mediaCount)} file${lesson.mediaCount === 1 ? "" : "s"}`;
     const lessonDuration = lesson.durationMinutes ? `${lesson.durationMinutes} min` : "Flexible";
 
-    const activeMediaType = (activeMedia?.mediaType ?? "").toLowerCase();
-    const activeMediaExtension = (activeMedia?.fileExtension ?? "").toLowerCase();
+    // const activeMediaType = (activeMedia?.mediaType ?? "").toLowerCase();
+    // const activeMediaExtension = (activeMedia?.fileExtension ?? "").toLowerCase();
+
+    
 
 
     const handleDownload = async (e: React.MouseEvent, media: typeof mediaFiles[number]) => {
@@ -104,44 +141,44 @@ const VideoLessonCard = ({ lesson }: VideoLessonCardProps) => {
         }
     };
 
-    const renderMediaPreview = () => {
-        if (!activeMedia) {
-            return (
-                <div className="flex h-52 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
-                    Select a lesson media file to preview.
-                </div>
-            );
-        }
+    // const renderMediaPreview = () => {
+    //     if (!activeMedia) {
+    //         return (
+    //             <div className="flex h-52 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-sm text-slate-500">
+    //                 Select a lesson media file to preview.
+    //             </div>
+    //         );
+    //     }
 
-        if (activeMediaType.includes("video") || activeMediaExtension === "mp4" || activeMediaExtension === "webm") {
-            return <video controls className="h-48 sm:h-64 w-full rounded-xl bg-black" src={activeMedia.url} />;
-        }
+    //     if (activeMediaType.includes("video") || activeMediaExtension === "mp4" || activeMediaExtension === "webm") {
+    //         return <video controls className="h-48 sm:h-64 w-full rounded-xl bg-black" src={activeMedia.url} />;
+    //     }
 
-        if (activeMediaType.includes("image") || ["jpg", "jpeg", "png", "webp", "gif"].includes(activeMediaExtension)) {
-            return <img src={activeMedia.url} alt={activeMedia.mediaName} className="h-48 sm:h-64 w-full rounded-xl object-cover" />;
-        }
+    //     if (activeMediaType.includes("image") || ["jpg", "jpeg", "png", "webp", "gif"].includes(activeMediaExtension)) {
+    //         return <img src={activeMedia.url} alt={activeMedia.mediaName} className="h-48 sm:h-64 w-full rounded-xl object-cover" />;
+    //     }
 
-        if (activeMediaType.includes("pdf") || activeMediaExtension === "pdf") {
-            return (
-                <iframe
-                    src={activeMedia.url}
-                    title={activeMedia.mediaName}
-                    className="h-56 sm:h-72 w-full rounded-xl border border-slate-200 bg-white"
-                />
-            );
-        }
+    //     if (activeMediaType.includes("pdf") || activeMediaExtension === "pdf") {
+    //         return (
+    //             <iframe
+    //                 src={activeMedia.url}
+    //                 title={activeMedia.mediaName}
+    //                 className="h-56 sm:h-72 w-full rounded-xl border border-slate-200 bg-white"
+    //             />
+    //         );
+    //     }
 
-        return (
-            <div className="flex h-52 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-center">
-                <div>
-                    <p className="text-sm font-semibold text-slate-700">Preview not available</p>
-                    <a href={activeMedia.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm font-medium text-[#4255db] underline">
-                        Open {activeMedia.mediaName}
-                    </a>
-                </div>
-            </div>
-        );
-    };
+    //     return (
+    //         <div className="flex h-52 items-center justify-center rounded-xl border border-dashed border-slate-300 bg-slate-50 text-center">
+    //             <div>
+    //                 <p className="text-sm font-semibold text-slate-700">Preview not available</p>
+    //                 <a href={activeMedia.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm font-medium text-[#4255db] underline">
+    //                     Open {activeMedia.mediaName}
+    //                 </a>
+    //             </div>
+    //         </div>
+    //     );
+    // };
 
     return (
         <div className="group rounded-[24px] border border-slate-200 bg-[linear-gradient(180deg,_#ffffff_0%,_#f9fbff_100%)] px-4 py-5 shadow-sm transition-all duration-300">
@@ -249,7 +286,7 @@ const VideoLessonCard = ({ lesson }: VideoLessonCardProps) => {
                             <p className="text-xs font-medium text-rose-600">
                                 Failed to download file. Please try again.
                             </p>
-                            )}
+                        )}
                         <button
                             type="button"
                             onClick={() => setShowMediaPanel(false)}
@@ -265,50 +302,50 @@ const VideoLessonCard = ({ lesson }: VideoLessonCardProps) => {
                         </p>
                     ) : (
                         <div className="grid gap-4 grid-cols-1">
-                            <div className="space-y-2">
+                            <div className="divide-y divide-slate-100 space-y-2">
                                 {mediaFiles.map((media, index) => {
                                     const id = media.mediaId ?? media.mediaName;
                                     const isDownloading = downloadingId === id;
+                                    const isActive = activeMediaIndex === index;
+
+                                    // pick icon based on type
+                                    const ext = (media.fileExtension ?? media.mediaType ?? "").toLowerCase();
+                
 
                                     return (
                                         <button
                                             key={id ?? index}
                                             type="button"
                                             onClick={() => setActiveMediaIndex(index)}
-                                            className={`w-full rounded-xl flex justify-between border px-3 py-3 text-left transition ${activeMediaIndex === index
-                                                ? "border-[#4255db] bg-[#eef2ff]"
-                                                : "border-slate-200 bg-white hover:bg-slate-50"
+                                            className={`w-full flex items-center gap-4 px-2  md:px-4 md:py-4 text-left transition ${isActive ? "bg-indigo-50/60 p-2 rounded-md" : "bg-white hover:bg-slate-50"
                                                 }`}
                                         >
-                                            <div>
-                                                <p className="text-sm font-semibold text-slate-800">{media.mediaName}</p>
-                                                <p className="mt-1 text-xs text-slate-500">
-                                                    {media.mediaType ?? media.fileExtension ?? "File"}{" "}
-                                                    {media.fileSizeBytes ? `• ${(media.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB` : ""}
-                                                </p>
+                                            {/* File icon tile */}
+                                           <FileIcon ext={ext} />
+
+                                            {/* Name + meta */}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-slate-800 truncate">{media.mediaName}</p>
+                                                
                                             </div>
 
+                                            {/* Download */}
                                             <button
                                                 type="button"
                                                 onClick={(e) => handleDownload(e, media)}
                                                 disabled={isDownloading}
-                                                className="flex items-center justify-center shrink-0 disabled:opacity-60"
+                                                className="shrink-0 text-slate-400 hover:text-[#4255db] transition-colors disabled:opacity-50"
                                                 aria-label={`Download ${media.mediaName}`}
                                             >
                                                 {isDownloading ? (
-                                                    <Loader2 className="text-[#4255db] w-5 h-5 animate-spin" />
+                                                    <Loader2 className="w-5 h-5 animate-spin text-[#4255db]" />
                                                 ) : (
-                                                    <CircleArrowDown className="text-[#4255db]" />
+                                                    <Download className="w-5 h-5" />
                                                 )}
                                             </button>
                                         </button>
                                     );
                                 })}
-                            </div>
-
-                            <div className="space-y-2">
-                                <p className="text-sm font-semibold text-slate-700">{activeMedia?.mediaName ?? "Media preview"}</p>
-                                {renderMediaPreview()}
                             </div>
                         </div>
                     )}
