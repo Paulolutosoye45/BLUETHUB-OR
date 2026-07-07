@@ -10,7 +10,10 @@ import {
   AlertTriangle,
   Send,
   FileQuestion,
+  Pencil,
+  Type,
 } from "lucide-react";
+import StudentAnswerBoard, { type AnswerBoardMeta } from "./student-answer-board";
 
 const AttemptPage = () => {
   const { assessmentId, attemptId } = useParams<{ assessmentId: string; attemptId: string }>();
@@ -26,6 +29,12 @@ const AttemptPage = () => {
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [submitResult, setSubmitResult] = useState<any>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── Drawing board state ────────────────────────────────────────────────────
+  const [drawModeByQuestion, setDrawModeByQuestion] = useState<Record<string, boolean>>({});
+  const [questionBoardMeta, setQuestionBoardMeta] = useState<
+    Record<string, AnswerBoardMeta[]>
+  >({});
 
   useEffect(() => {
     if (!attemptId) return;
@@ -62,34 +71,53 @@ const AttemptPage = () => {
   const answeredCount = useMemo(() => {
     let count = 0;
     for (const q of questions) {
-      if (q.questionType === 0) {
+      if (q.options.length > 0) {
         if (selectedOptions[q.questionId]) count++;
       } else {
-        if (typedAnswers[q.questionId]?.trim()) count++;
+        const isDrawMode = drawModeByQuestion[q.questionId];
+        const boardsMeta = questionBoardMeta[q.questionId] ?? [];
+        const hasBoardAnswer = boardsMeta.length > 0;
+        if (isDrawMode) {
+          if (hasBoardAnswer || typedAnswers[q.questionId]?.trim()) count++;
+        } else {
+          if (typedAnswers[q.questionId]?.trim()) count++;
+        }
       }
     }
     return count;
-  }, [questions, selectedOptions, typedAnswers]);
+  }, [questions, selectedOptions, typedAnswers, drawModeByQuestion, questionBoardMeta]);
 
   const submitAnswer = useCallback(async (questionId: string) => {
     if (!attemptId) return;
     const q = questions.find((x) => x.questionId === questionId);
     if (!q) return;
 
+    const isDrawMode = drawModeByQuestion[questionId];
+    const boardsMeta = questionBoardMeta[questionId] ?? [];
+    const hasBoardAnswer = boardsMeta.length > 0;
+
     const payload: any = {
       attemptId,
       questionId,
-      selectedOptionId: q.questionType === 0 ? (selectedOptions[questionId] ?? null) : null,
-      typedAnswer: q.questionType !== 0 ? (typedAnswers[questionId] ?? null) : null,
-      isSkipped: !selectedOptions[questionId] && !typedAnswers[questionId]?.trim(),
+      selectedOptionId: q.options.length > 0 ? (selectedOptions[questionId] ?? null) : null,
+      typedAnswer: q.options.length === 0 && !isDrawMode ? (typedAnswers[questionId] ?? null) : null,
+      isSkipped: q.options.length > 0
+        ? !selectedOptions[questionId]
+        : isDrawMode
+          ? !hasBoardAnswer && !typedAnswers[questionId]?.trim()
+          : !typedAnswers[questionId]?.trim(),
     };
+
+    if (isDrawMode && hasBoardAnswer) {
+      payload.boards = boardsMeta;
+    }
 
     try {
       await assessmentService.submitAnswer(payload);
     } catch {
       // silently fail
     }
-  }, [attemptId, questions, selectedOptions, typedAnswers]);
+  }, [attemptId, questions, selectedOptions, typedAnswers, drawModeByQuestion, questionBoardMeta]);
 
   const handleNext = async () => {
     if (currentQuestion) await submitAnswer(currentQuestion.questionId);
@@ -231,9 +259,14 @@ const AttemptPage = () => {
         <div className="p-5 md:p-6">
           <div className="flex gap-2 mb-4">
             {questions.map((q, i) => {
-              const isAnswered = q.questionType === 0
+              const isDrawMode = drawModeByQuestion[q.questionId];
+              const boardsMeta = questionBoardMeta[q.questionId] ?? [];
+              const hasBoardAnswer = boardsMeta.length > 0;
+              const isAnswered = q.options.length > 0
                 ? !!selectedOptions[q.questionId]
-                : !!typedAnswers[q.questionId]?.trim();
+                : isDrawMode
+                  ? hasBoardAnswer || !!typedAnswers[q.questionId]?.trim()
+                  : !!typedAnswers[q.questionId]?.trim();
               return (
                 <button
                   key={q.questionId}
@@ -255,7 +288,7 @@ const AttemptPage = () => {
           <div className="border-t border-slate-100 pt-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-semibold text-slate-400 uppercase">
-                {currentQuestion.questionType === 0 ? "Objective" : "Theory"} Question
+                {currentQuestion.options.length > 0 ? "Objective" : "Theory"} Question
               </span>
               <span className="text-[11px] font-semibold text-slate-400">
                 {currentQuestion.marksAllocation} mark{currentQuestion.marksAllocation !== 1 ? "s" : ""}
@@ -265,7 +298,29 @@ const AttemptPage = () => {
             <h3 className="text-sm font-semibold text-slate-800 mb-1">{currentQuestion.title}</h3>
             <p className="text-sm text-slate-600 mb-4">{currentQuestion.textContent}</p>
 
-            {currentQuestion.questionType === 0 ? (
+            {currentQuestion.imageUrl && (
+              <div className="mb-4">
+                <img
+                  src={currentQuestion.imageUrl}
+                  alt="Question image"
+                  className="max-w-full max-h-64 rounded-xl border border-slate-200 object-contain"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              </div>
+            )}
+
+            {currentQuestion.boardSnapshotUrl && (
+              <div className="mb-4">
+                <img
+                  src={currentQuestion.boardSnapshotUrl}
+                  alt="Board snapshot"
+                  className="max-w-full max-h-64 rounded-xl border border-slate-200 object-contain"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              </div>
+            )}
+
+            {currentQuestion.options.length > 0 ? (
               <div className="space-y-2">
                 {currentQuestion.options.map((opt) => {
                   const isSelected = selectedOptions[currentQuestion.questionId] === opt.optionId;
@@ -290,13 +345,70 @@ const AttemptPage = () => {
                 })}
               </div>
             ) : (
-              <textarea
-                value={typedAnswers[currentQuestion.questionId] ?? ""}
-                onChange={(e) => setTypedAnswers((prev) => ({ ...prev, [currentQuestion.questionId]: e.target.value }))}
-                placeholder="Type your answer here..."
-                rows={5}
-                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 outline-none focus:border-[#4255db] focus:ring-1 focus:ring-[#4255db]/30 resize-none"
-              />
+              <div className="space-y-3">
+                {/* Mode toggle */}
+                <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 w-fit">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDrawModeByQuestion((prev) => ({
+                        ...prev,
+                        [currentQuestion.questionId]: false,
+                      }))
+                    }
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                      !drawModeByQuestion[currentQuestion.questionId]
+                        ? "bg-[#4255db] text-white"
+                        : "text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    <Type className="w-3.5 h-3.5" />
+                    Type Answer
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDrawModeByQuestion((prev) => ({
+                        ...prev,
+                        [currentQuestion.questionId]: true,
+                      }))
+                    }
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                      drawModeByQuestion[currentQuestion.questionId]
+                        ? "bg-[#4255db] text-white"
+                        : "text-slate-500 hover:bg-slate-50"
+                    }`}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Draw Answer
+                  </button>
+                </div>
+
+                {!drawModeByQuestion[currentQuestion.questionId] ? (
+                  <textarea
+                    value={typedAnswers[currentQuestion.questionId] ?? ""}
+                    onChange={(e) =>
+                      setTypedAnswers((prev) => ({
+                        ...prev,
+                        [currentQuestion.questionId]: e.target.value,
+                      }))
+                    }
+                    placeholder="Type your answer here..."
+                    rows={5}
+                    className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 outline-none focus:border-[#4255db] focus:ring-1 focus:ring-[#4255db]/30 resize-none"
+                  />
+                ) : (
+                  <StudentAnswerBoard
+                    questionId={currentQuestion.questionId}
+                    onBoardsChange={(meta) =>
+                      setQuestionBoardMeta((prev) => ({
+                        ...prev,
+                        [currentQuestion.questionId]: meta,
+                      }))
+                    }
+                  />
+                )}
+              </div>
             )}
 
             <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-100">

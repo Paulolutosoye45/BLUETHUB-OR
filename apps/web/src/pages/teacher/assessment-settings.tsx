@@ -185,6 +185,7 @@ const AssessmentConfigPage = () => {
   const [mediumMarks, setMediumMarks] = useState(2);
   const [hardMarks, setHardMarks] = useState(3);
   const [examLevelMarks, setExamLevelMarks] = useState(4);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
   // ── filters ────────────────────────────────────────────────────────────────
   const [selectedClassId, setSelectedClassId] = useState<string | undefined>(
@@ -474,6 +475,7 @@ const AssessmentConfigPage = () => {
         mediumMarks,
         hardMarks,
         examLevelMarks,
+        expiresAt,
         questionIds: Array.from(selectedIds),
       };
       const res = await assessmentService.create(payload);
@@ -688,6 +690,59 @@ const AssessmentConfigPage = () => {
                   min={0}
                   max={100}
                 />
+              </div>
+
+              {/* ── Expiry Date/Time ── */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest">
+                    Expiry Date & Time
+                  </Label>
+                  {expiresAt && (
+                    <button
+                      type="button"
+                      onClick={() => setExpiresAt(null)}
+                      className="text-[11px] font-semibold text-red-500 hover:text-red-600"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="datetime-local"
+                    value={expiresAt ?? ""}
+                    onChange={(e) => setExpiresAt(e.target.value || null)}
+                    className="h-11 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-chestnut/15 focus:border-chestnut"
+                  />
+                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                    {[
+                      { label: "+30 min", minutes: 30 },
+                      { label: "+1 hr", minutes: 60 },
+                      { label: "+24 hrs", minutes: 1440 },
+                      { label: "+7 days", minutes: 10080 },
+                    ].map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={() => {
+                          const d = new Date(Date.now() + preset.minutes * 60_000);
+                          const pad = (n: number) => n.toString().padStart(2, "0");
+                          const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                          setExpiresAt(iso);
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-slate-200 bg-white text-slate-600 hover:border-chestnut/40 hover:text-chestnut transition-all"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  {expiresAt
+                    ? `Students must start before ${new Date(expiresAt).toLocaleString()}`
+                    : "No expiry — assessment stays open indefinitely."}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1038,10 +1093,18 @@ const AssessmentConfigPage = () => {
                   <UserPlus className="w-4 h-4" />
                   Assign to Classroom
                 </Button>
+                  <Button
+                    type="button"
+                    onClick={() => navigate(`/teacher/assessment/assign-student?code=${createdCode ?? ""}`)}
+                    className="w-full h-10 rounded-xl border border-chestnut text-chestnut bg-white hover:bg-chestnut/5 font-semibold text-sm flex items-center justify-center gap-2"
+                  >
+                  <UserPlus className="w-4 h-4" />
+                  Assign to Students
+                </Button>
                 <Button
                   type="button"
                   onClick={handleCopy}
-                  className="w-full h-10 rounded-xl border border-chestnut text-chestnut bg-white hover:bg-chestnut/5 font-semibold text-sm"
+                  className="w-full h-10 rounded-xl border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 font-semibold text-sm"
                 >
                   {copied ? "Copied!" : "Copy Code"}
                 </Button>

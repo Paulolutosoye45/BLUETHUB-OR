@@ -69,6 +69,8 @@ export const TACADEMICLINKS = [
     name: "Assessment",
     children: [
       { name: "Assessment", path: "/teacher/assessment/config" },
+      { name: "Manage Assessments", path: "/teacher/assessment/manage" },
+      { name: "Assign to Students", path: "/teacher/assessment/assign-student" },
       { name: "Assessment Grading", path: "/teacher/module/assessment" },
     ],
   },

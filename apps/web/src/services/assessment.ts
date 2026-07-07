@@ -19,6 +19,7 @@ export interface CreateAssessmentPayload {
   mediumMarks: number;
   hardMarks: number;
   examLevelMarks: number;
+  expiresAt?: string | null;
   questionIds: string[];
 }
 
@@ -28,12 +29,19 @@ export interface AssignAssessmentPayload {
   targetIds: string[];
 }
 
+export interface AnswerBoard {
+  boardSessionId: string;
+  boardIndex: number;
+  boardLabel: string;
+}
+
 export interface SubmitAnswerPayload {
   attemptId: string;
   questionId: string;
   selectedOptionId?: string | null;
   typedAnswer?: string | null;
   boardSessionId?: string | null;
+  boards?: AnswerBoard[];
   audioUrl?: string | null;
   isSkipped: boolean;
 }
@@ -71,6 +79,8 @@ export interface AssessmentQuestion {
   marksAllocation: number;
   displayOrder: number;
   options: AssessmentQuestionOption[];
+  imageUrl?: string | null;
+  boardSnapshotUrl?: string | null;
 }
 
 export interface AssessmentDetail {
@@ -82,6 +92,7 @@ export interface AssessmentDetail {
   passMarkPercent: number;
   shuffleQuestions: boolean;
   showResultImmediately: boolean;
+  expiresAt?: string | null;
   questionCount: number;
   totalMarks: number;
   questions: AssessmentQuestion[];
@@ -144,6 +155,35 @@ export interface AttemptHistoryItem {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// TEACHER LIST & ASSIGNMENTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface TeacherAssessmentItem {
+  assessmentId: string;
+  code: string;
+  title: string;
+  description: string;
+  timeLimitMinutes: number;
+  passMarkPercent: number;
+  shuffleQuestions: boolean;
+  showResultImmediately: boolean;
+  questionCount: number;
+  totalMarks: number;
+  expiresAt?: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface AssessmentAssignmentItem {
+  assignmentId: string;
+  assessmentId: string;
+  targetType: "Student" | "Subject" | "Classroom";
+  targetId: string;
+  targetName: string;
+  assignedAt: string;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // SERVICE
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -160,6 +200,9 @@ export const assessmentService = {
   getDetail: (assessmentId: string) =>
     API.get<TResponse<AssessmentDetail>>(`api/Assessment/${assessmentId}/detail`, { headers }),
 
+  getDetailByCode: (code: string) =>
+    API.get<TResponse<AssessmentDetail>>(`api/Assessment/code/${encodeURIComponent(code)}/detail`, { headers }),
+
   startAttempt: (assessmentId: string) =>
     API.post<TResponse<StartAttemptData>>(`api/Assessment/${assessmentId}/start`, null, { headers }),
 
@@ -174,4 +217,10 @@ export const assessmentService = {
 
   getHistory: (assessmentId: string) =>
     API.get<TResponse<AttemptHistoryItem[]>>(`api/Assessment/${assessmentId}/history`, { headers }),
+
+  getTeacherList: () =>
+    API.get<TResponse<TeacherAssessmentItem[]>>("api/Assessment/teacher/list", { headers }),
+
+  getAssignments: (assessmentId: string) =>
+    API.get<TResponse<AssessmentAssignmentItem[]>>(`api/Assessment/${assessmentId}/assignments`, { headers }),
 };
