@@ -1,91 +1,101 @@
 import { Input } from "@bluethub/ui-kit"
 import { Link } from "react-router-dom";
+import { isStudentRoleData, useAuthContext } from "@/contexts/auth-context";
+import { studentService, type StudentSubjectItem, type SubjectStatsResponse } from "@/services/student";
+import { useEffect, useState } from "react";
+
+const subjectStyles: Record<string, { icon: string; bg: string; badgeBg: string; badgeText: string }> = {
+  mathematics: { icon: "📐", bg: "#EEF0FF", badgeBg: "#EEF0FF", badgeText: "#4F61E8" },
+  "basic science": { icon: "🔬", bg: "#E8FAF0", badgeBg: "#E8FAF0", badgeText: "#22A56F" },
+  english: { icon: "📖", bg: "#FDEBED", badgeBg: "#FDEBED", badgeText: "#E85D75" },
+  geography: { icon: "🌍", bg: "#FFF6E5", badgeBg: "#FFF6E5", badgeText: "#D99800" },
+  economics: { icon: "📊", bg: "#E8FAF0", badgeBg: "#E8FAF0", badgeText: "#22A56F" },
+  business: { icon: "💼", bg: "#FFF6E5", badgeBg: "#FFF6E5", badgeText: "#D99800" },
+  french: { icon: "🇫🇷", bg: "#E8FAF0", badgeBg: "#E8FAF0", badgeText: "#22A56F" },
+  yoruba: { icon: "🌍", bg: "#FFF6E5", badgeBg: "#FFF6E5", badgeText: "#D99800" },
+};
+
+const defaultStyle = { icon: "📚", bg: "#F0F2FA", badgeBg: "#F0F2FA", badgeText: "#6B6B85" };
+
+function getSubjectStyle(name: string) {
+  const key = Object.keys(subjectStyles).find(k => name.toLowerCase().includes(k));
+  return key ? subjectStyles[key] : defaultStyle;
+}
 
 const Course = () => {
+  const { user } = useAuthContext();
+  const [subjects, setSubjects] = useState<StudentSubjectItem[]>([]);
+  const [totalSubjects, setTotalSubjects] = useState(0);
+  const [search, setSearch] = useState("");
+  const [stats, setStats] = useState<Record<string, SubjectStatsResponse>>({});
 
-  const subjects = [
-    {
-      id: 1,
-      title: "Mathematics",
-      teacher: "Mr. Emeka Nwosu",
-      topics: "8 topics - 24 lessons",
-      iconBg: "#EEF0FF",
-      badgeBg: "#EEF0FF",
-      badgeText: "#4F61E8",
-      icon: "📐",
-    },
-    {
-      id: 2,
-      title: "Basic - Science",
-      teacher: "Mr. Emeka Nwosu",
-      topics: "6 topics - 18 lessons",
-      iconBg: "#E8FAF0",
-      badgeBg: "#E8FAF0",
-      badgeText: "#22A56F",
-      icon: "🔬",
-    },
-    {
-      id: 3,
-      title: "English Language",
-      teacher: "Mrs Aisha Abu",
-      topics: "8 topics - 24 lessons",
-      iconBg: "#FDEBED",
-      badgeBg: "#FDEBED",
-      badgeText: "#E85D75",
-      icon: "📖",
-    },
-    {
-      id: 4,
-      title: "Geography",
-      teacher: "Mrs Taiwo Bola",
-      topics: "8 topics - 24 lessons",
-      iconBg: "#FFF6E5",
-      badgeBg: "#FFF6E5",
-      badgeText: "#D99800",
-      icon: "🌍",
-    },
-    {
-      id: 5,
-      title: "Economics",
-      teacher: "Mrs Ngozi Eze",
-      topics: "8 topics - 24 lessons",
-      iconBg: "#E8FAF0",
-      badgeBg: "#E8FAF0",
-      badgeText: "#22A56F",
-      icon: "📖",
-    },
-    {
-      id: 6,
-      title: "Business studies",
-      teacher: "Mrs Taiwo Bola",
-      topics: "8 topics - 24 lessons",
-      iconBg: "#FFF6E5",
-      badgeBg: "#FFF6E5",
-      badgeText: "#D99800",
-      icon: "🌍",
-    },
-    {
-      id: 7,
-      title: "French",
-      teacher: "Mrs Pascal",
-      topics: "2 topics - 5 lessons",
-      iconBg: "#E8FAF0",
-      badgeBg: "#E8FAF0",
-      badgeText: "#22A56F",
-      icon: "📖",
-    },
-    {
-      id: 8,
-      title: "Yoruba",
-      teacher: "Mrs Taiwo Bola",
-      topics: "8 topics - 24 lessons",
-      iconBg: "#FFF6E5",
-      badgeBg: "#FFF6E5",
-      badgeText: "#D99800",
-      icon: "🌍",
-    },
-  ];
+  useEffect(() => {
+    const load = async () => {
+      let classroomId: string | null = null;
+      const roleData = user?.roleData;
+      if (roleData && isStudentRoleData(roleData)) {
+        classroomId = roleData.classroom?.classroomId ?? null;
+        const major = (roleData.majorSubjects ?? []).map(s => ({
+          subjectId: s.subjectId,
+          subjectName: s.subjectName,
+          category: s.subjectCategory,
+          subjectType: "Major" as const,
+        }));
+        const minor = (roleData.minorSubjects ?? []).map(s => ({
+          subjectId: s.subjectId,
+          subjectName: s.subjectName,
+          category: s.subjectCategory,
+          subjectType: "Minor" as const,
+        }));
+        const all = [...major, ...minor];
+        if (all.length > 0) {
+          setSubjects(all);
+          setTotalSubjects(roleData.totalSubjects ?? all.length);
+          if (classroomId) {
+            fetchStats(all, classroomId);
+          }
+          return;
+        }
+      }
 
+      try {
+        const res = await studentService.getRegisteredSubjects();
+        const data = res?.data?.data;
+        if (data) {
+          const all = [...data.major, ...data.minor];
+          setSubjects(all);
+          setTotalSubjects(data.totalSubjects);
+          if (classroomId) {
+            fetchStats(all, classroomId);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load subjects", err);
+      }
+    };
+    load();
+  }, [user]);
+
+  const fetchStats = async (subjectList: StudentSubjectItem[], classroomId: string) => {
+    try {
+      const results = await Promise.allSettled(
+        subjectList.map(s => studentService.getSubjectStats(s.subjectId, classroomId))
+      );
+      const statsMap: Record<string, SubjectStatsResponse> = {};
+      results.forEach((r, i) => {
+        if (r.status === "fulfilled" && r.value?.data?.data) {
+          statsMap[subjectList[i].subjectId] = r.value.data.data;
+        }
+      });
+      setStats(statsMap);
+    } catch (err) {
+      console.error("Failed to fetch subject stats", err);
+    }
+  };
+
+  const filtered = subjects.filter(s =>
+    s.subjectName.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div className="pt-[13px] px-2 lg:px-0 font-Poppins">
@@ -102,6 +112,8 @@ const Course = () => {
         <Input
           className="rounded-[10px] border border-[#6B6B8580] bg-white leading-5 text-[#6B6B85] text-sm"
           placeholder="Search subjects or topics....."
+          value={search}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
         />
       </div>
 
@@ -111,47 +123,61 @@ const Course = () => {
             All Subjects
           </h2>{" "}
           <h4 className="bg-[#4F61E81A] inline rounded-[15px] px-[10px] py-[4px] text-[#4F61E8] font-medium uppercase text-[10px]">
-            10 new
+            {totalSubjects}
           </h4>
         </div>
 
         <div className="grid grid-cols-2 gap-[12px] mb-5">
-          {subjects.map((subject) => (
-            <Link
-              to={`${subject.id}`}
-              key={subject.id}
-              className="block"
-            >
-              <div className="bg-[#FFFFFF] border border-[#E4E4EC] p-[14px] rounded-[16px] hover:shadow-sm transition">
-                <div
-                  className="rounded-[9px] h-[34px] w-[34px] flex items-center justify-center text-[16px]"
-                  style={{ backgroundColor: subject.iconBg }}
-                >
-                  {subject.icon}
-                </div>
-
-                <h3 className="text-[#3A3A3A] font-medium text-[13px] leading-[20px] mt-[20px] capitalize">
-                  {subject.title}
-                </h3>
-
-                <div className="flex items-center gap-2 mt-1">
-                  <h2 className="text-[#6B6B85] text-[11px] flex-1 min-w-0 truncate">
-                    {subject.teacher}
-                  </h2>
-
-                  <h4
-                    className="rounded-[15px] px-[10px] py-[4px] text-[10px] font-medium whitespace-nowrap shrink-0"
-                    style={{
-                      backgroundColor: subject.badgeBg,
-                      color: subject.badgeText,
-                    }}
+          {filtered.map((subject) => {
+            const style = getSubjectStyle(subject.subjectName);
+            return (
+              <Link
+                to={subject.subjectId}
+                key={subject.subjectId}
+                className="block"
+              >
+                <div className="bg-[#FFFFFF] border border-[#E4E4EC] p-[14px] rounded-[16px] hover:shadow-sm transition">
+                  <div
+                    className="rounded-[9px] h-[34px] w-[34px] flex items-center justify-center text-[16px]"
+                    style={{ backgroundColor: style.bg }}
                   >
-                    {subject.topics}
-                  </h4>
+                    {style.icon}
+                  </div>
+
+                  <h3 className="text-[#3A3A3A] font-medium text-[13px] leading-[20px] mt-[20px] capitalize">
+                    {subject.subjectName}
+                  </h3>
+
+                  {stats[subject.subjectId] && (
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <span className="text-[10px] text-[#6B6B85]">
+                        📚 {stats[subject.subjectId].lessonCount} Lessons
+                      </span>
+                      <span className="text-[10px] text-[#6B6B85]">
+                        📝 {stats[subject.subjectId].quizCount} Quizzes
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 mt-1">
+                    <h2 className="text-[#6B6B85] text-[11px] flex-1 min-w-0 truncate">
+                      {subject.category}
+                    </h2>
+
+                    <h4
+                      className="rounded-[15px] px-[10px] py-[4px] text-[10px] font-medium whitespace-nowrap shrink-0"
+                      style={{
+                        backgroundColor: style.badgeBg,
+                        color: style.badgeText,
+                      }}
+                    >
+                      {subject.subjectType}
+                    </h4>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>

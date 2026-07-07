@@ -68,18 +68,22 @@ export const TACADEMICLINKS = [
   },
   {
     icons: AssignmentIcon,
-    name: "Question/Assessment",
-    path: "/teacher/assessment",
+    name: "Assessment",
+    children: [
+      { name: "Assessment", path: "/teacher/assessment/config" },
+      { name: "Manage Assessments", path: "/teacher/assessment/manage" },
+      { name: "Assign to Students", path: "/teacher/assessment/assign-student" },
+      { name: "Assessment Grading", path: "/teacher/module/assessment" },
+    ],
   },
   {
     icons: QuizzesIcon,
     name: "Question Bank",
-    path: "/teacher/question-bank",
-  },
-  {
-    icons: QuizzesIcon,
-    name: "Quiz",
-    path: "/teacher/quiz",
+    children: [
+      { name: "Question Bank", path: "/teacher/question-bank" },
+      { name: "Question/Assessment", path: "/teacher/assessment" },
+      { name: "Quiz", path: "/teacher/quiz" },
+    ],
   },
   {
     icons: BookTextIcon,

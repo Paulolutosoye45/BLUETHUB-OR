@@ -55,6 +55,8 @@ const Assessment = () => {
                   { label: "Type Question", link: '/teacher/assessment/createQuiz' },
                   { label: "My Uploads", link: '/teacher/assessments/My-Uploads' },
                   { label: "Assessment Settings", link: '/teacher/assessment/config' },
+                  { label: "Manage Assessments", link: '/teacher/assessment/manage' },
+                  { label: "Assign to Students", link: '/teacher/assessment/assign-student' },
                 ].map((item) => (
                   <button
                     key={item.label}
