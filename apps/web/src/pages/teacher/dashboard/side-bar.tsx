@@ -338,6 +338,19 @@ export const NavContent = ({
       <section className="px-3 space-y-0.5">
         {OTHER_LINKS.map((link) => {
           const isLogout = link.name === "Log Out";
+          const isDisabled = link.disabled;
+          if (isDisabled) {
+              return (
+                <div
+                  key={link.name}
+                  aria-disabled="true"
+                  title="Coming soon"
+                  className="block text-xs py-1.5 px-3 rounded-lg font-medium text-[#292382] opacity-40 cursor-not-allowed select-none"
+                >
+                  {link.name}
+                </div>
+              );
+            }
           return (
             <NavLink
               key={link.name}
@@ -369,8 +382,7 @@ export const NavContent = ({
                   />
                   {!isCollapsed && (
                     <span
-                      className={`text-[11px] font-medium ${isLogout ? "text-red-500" :
- isActive ? "text-white" : "text-[#292382]"
+                      className={`text-[11px] font-medium ${isLogout ? "text-red-500" : isActive ? "text-white" : "text-[#292382]"
                         }`}
                     >
                       {link.name}

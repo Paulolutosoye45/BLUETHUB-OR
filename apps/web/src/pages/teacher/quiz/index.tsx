@@ -282,7 +282,7 @@ const QuizIndex = () => {
                 No quizzes found for this selection.
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {filteredQuizzes.map((q) => (
                   <Card
                     key={q.quizCode}

@@ -465,7 +465,7 @@ const CreateSyllabus = () => {
                 </div>
             </header>
 
-            <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 pb-32 sm:pb-8 space-y-5">
+            <main className="md:max-w-3xl md:mx-auto sm:px-6 py-6 pb-32 sm:pb-8 space-y-5">
                 <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                     <div className="px-5 py-4 bg-gradient-to-r from-chestnut/8 to-transparent border-b border-gray-100">
                         <div className="flex items-center gap-3">
@@ -531,7 +531,7 @@ const CreateSyllabus = () => {
                                             </span>
                                         )}
                                     </h2>
-                                    <p className="text-xs text-gray-400">
+                                    <p className="text-[11px]  text-gray-400">
                                         {loadingCurriculum
                                             ? "Loading existing topics…"
                                             : existingTopicsCount > 0
@@ -550,14 +550,14 @@ const CreateSyllabus = () => {
                                     </div>
                                 </div>
                             </div>
-                            <button
-                                onClick={addTopic}
-                                disabled={loadingCurriculum}
-                                className="flex items-center gap-1.5 text-xs font-semibold text-chestnut bg-chestnut/8 hover:bg-chestnut/15 px-3.5 py-2 rounded-xl transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                                <Plus className="w-3.5 h-3.5" />
-                                New Topic
-                            </button>
+                                <button
+                                    onClick={addTopic}
+                                    disabled={loadingCurriculum}
+                                    className="flex items-center gap-1.5 text-xs font-semibold text-chestnut bg-chestnut/8 hover:bg-chestnut/15 px-3.5 py-2 rounded-xl transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    New Topic
+                                </button>
                         </div>
                     </div>
 
