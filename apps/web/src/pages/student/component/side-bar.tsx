@@ -16,7 +16,7 @@ import settings from "@/assets/svg/settings (1).svg?react";
 import B_2 from "@/assets/svg/B_2.svg?react";
 import LogOutIcon from "@/assets/svg/log-out-04.svg?react";
 import { useAuthContext } from "@/contexts/auth-context";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -68,7 +68,14 @@ const navLinks: NavLinkItem[] = [
             { name: "Subject", path: "/student/class-room/subject" },
         ],
     },
-    { name: "Module", path: "/student/module", icons: moduleIcon },
+    {
+        name: "Assessment",
+        icons: moduleIcon,
+        children: [
+            { name: "My Assessments", path: "/student/assessment" },
+        ],
+    },
+    { name: "My Classroom", path: "/student/module", icons: moduleIcon },
     { name: "My Course", path: "/student/my-course", icons: my_course },
     { name: "Assignments", path: "/student/Assignments", icons: assignments, disabled: true  },
     { name: "Quizzes", path: "/student/Quizzes", icons: quizzes },
@@ -99,6 +106,28 @@ const BluethubLogo = () => (
     </svg>
 );
 
+// ── Chevron Icon ──────────────────────────────────────────────────────────────
+const ChevronIcon = ({ open }: { open: boolean }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform 0.25s ease",
+            flexShrink: 0,
+        }}
+    >
+        <polyline points="6 9 12 15 18 9" />
+    </svg>
+);
+
 // ── Shared nav content ─────────────────────────────────────────────────────────
 interface StudentNavContentProps {
     isCollapsed: boolean;
@@ -106,92 +135,170 @@ interface StudentNavContentProps {
     onLogout?: () => void;
 }
 
-const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavContentProps) => (
-    <section className="px-3 py-3">
-        <div className="space-y-3">
-            {navLinks.map((link, idx) => {
-                const Icon = link.icons;
-                const isPremium = link.name === "Premium";
-                const isDisabled = link.disabled;
+const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavContentProps) => {
+    const location = useLocation();
+    const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => {
+        const set = new Set<string>();
+        for (const link of navLinks) {
+            if (link.children?.some((c) => location.pathname.startsWith(c.path))) {
+                set.add(link.name);
+            }
+        }
+        return set;
+    });
 
-                if (!link.path) return null;
+    const toggleMenu = (name: string) => {
+        setExpandedMenus((prev) => {
+            const next = new Set(prev);
+            if (next.has(name)) next.delete(name);
+            else next.add(name);
+            return next;
+        });
+    };
 
-                // Disabled: render a static, non-clickable item
-                if (isDisabled) {
-                    return (
-                        <div
-                            key={link.name + idx}
-                            aria-disabled="true"
-                            title="Coming soon"
-                            className={[
-                                "flex items-center gap-3 px-3 py-3 rounded-md border border-transparent",
-                                "cursor-not-allowed opacity-40 select-none",
-                                isCollapsed ? "justify-center" : "",
-                            ].join(" ")}
-                        >
-                            <Icon className="w-4 h-4 shrink-0" />
-                            {!isCollapsed && (
-                                <span className="text-xs font-medium font-poppins truncate text-[#3A3A3ABF]">
-                                    {link.name}
-                                </span>
-                            )}
-                        </div>
-                    );
-                }
+    return (
+        <section className="px-3 py-3">
+            <div className="space-y-3">
+                {navLinks.map((link, idx) => {
+                    const Icon = link.icons;
+                    const isPremium = link.name === "Premium";
+                    const isDisabled = link.disabled;
 
-                return (
-                    <NavLink
-                        key={link.name + idx}
-                        to={link.path}
-                        end={link.path === "/student"}
-                        onClick={onNavigate}
-                        className={({ isActive }) =>
-                            [
-                                "flex items-center gap-3 px-3  py-3 rounded-md transition-colors cursor-pointer",
-                                "hover:bg-student-chestnut/10",
-                                isActive ? "bg-student-chestnut/20 border border-student-chestnut" : "border border-transparent",
-                                isCollapsed ? "justify-center" : "",
-                            ].join(" ")
-                        }
-                    >
-                        {({ isActive }) => (
-                            <>
+                    if (link.children) {
+                        const isOpen = expandedMenus.has(link.name);
+                        return (
+                            <div key={link.name + idx}>
+                                <button
+                                    type="button"
+                                    onClick={() => toggleMenu(link.name)}
+                                    className={[
+                                        "w-full flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 cursor-pointer group",
+                                        isOpen ? "bg-student-chestnut/20 border border-student-chestnut" : "border border-transparent hover:bg-student-chestnut/10",
+                                        isCollapsed ? "justify-center" : "justify-between",
+                                    ].join(" ")}
+                                >
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <Icon className="w-4 h-4 shrink-0" />
+                                        {!isCollapsed && (
+                                            <span className={[
+                                                "text-xs font-medium font-poppins truncate",
+                                                isOpen ? "text-student-chestnut" : "text-[#3A3A3ABF]",
+                                            ].join(" ")}>
+                                                {link.name}
+                                            </span>
+                                        )}
+                                    </div>
+                                    {!isCollapsed && (
+                                        <span className="text-[#3A3A3A]/60">
+                                            <ChevronIcon open={isOpen} />
+                                        </span>
+                                    )}
+                                </button>
+
+                                <div
+                                    style={{ display: !isCollapsed && isOpen ? "block" : "none" }}
+                                    className="mt-1 ml-9 border-l-2 border-[#29238225] pl-3 space-y-1"
+                                >
+                                    {link.children.map((child) => (
+                                        <NavLink
+                                            key={child.name}
+                                            to={child.path}
+                                            onClick={onNavigate}
+                                            className={({ isActive }) =>
+                                                [
+                                                    "block text-xs py-2 px-3 rounded-md font-medium transition-all duration-150",
+                                                    isActive
+                                                        ? "bg-student-chestnut/20 text-student-chestnut border border-student-chestnut"
+                                                        : "text-[#3A3A3ABF] hover:text-student-chestnut hover:bg-student-chestnut/10",
+                                                ].join(" ")
+                                            }
+                                        >
+                                            {child.name}
+                                        </NavLink>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    }
+
+                    if (!link.path) return null;
+
+                    if (isDisabled) {
+                        return (
+                            <div
+                                key={link.name + idx}
+                                aria-disabled="true"
+                                title="Coming soon"
+                                className={[
+                                    "flex items-center gap-3 px-3 py-3 rounded-md border border-transparent",
+                                    "cursor-not-allowed opacity-40 select-none",
+                                    isCollapsed ? "justify-center" : "",
+                                ].join(" ")}
+                            >
                                 <Icon className="w-4 h-4 shrink-0" />
                                 {!isCollapsed && (
-                                    <span
-                                        className={[
-                                            "text-xs font-medium font-poppins truncate",
-                                            isActive || isPremium ? "text-student-chestnut" : "text-[#3A3A3ABF]",
-                                        ].join(" ")}
-                                    >
+                                    <span className="text-xs font-medium font-poppins truncate text-[#3A3A3ABF]">
                                         {link.name}
                                     </span>
                                 )}
-                            </>
-                        )}
-                    </NavLink>
-                );
-            })}
+                            </div>
+                        );
+                    }
 
-            <button
-                type="button"
-                onClick={onLogout}
-                className={[
-                    "w-full flex items-center gap-3 px-3 py-1.5 rounded-md transition-colors cursor-pointer",
-                    "hover:bg-red-50",
-                    isCollapsed ? "justify-center" : "",
-                ].join(" ")}
-            >
-                <LogOutIcon className="w-4 h-4 shrink-0 text-[#EC1B2C]" />
-                {!isCollapsed && (
-                    <span className="text-xs font-medium font-poppins truncate text-[#EC1B2C]">
-                        Log Out
-                    </span>
-                )}
-            </button>
-        </div>
-    </section>
-);
+                    return (
+                        <NavLink
+                            key={link.name + idx}
+                            to={link.path}
+                            end={link.path === "/student"}
+                            onClick={onNavigate}
+                            className={({ isActive }) =>
+                                [
+                                    "flex items-center gap-3 px-3 py-3 rounded-md transition-colors cursor-pointer",
+                                    "hover:bg-student-chestnut/10",
+                                    isActive ? "bg-student-chestnut/20 border border-student-chestnut" : "border border-transparent",
+                                    isCollapsed ? "justify-center" : "",
+                                ].join(" ")
+                            }
+                        >
+                            {({ isActive }) => (
+                                <>
+                                    <Icon className="w-4 h-4 shrink-0" />
+                                    {!isCollapsed && (
+                                        <span
+                                            className={[
+                                                "text-xs font-medium font-poppins truncate",
+                                                isActive || isPremium ? "text-student-chestnut" : "text-[#3A3A3ABF]",
+                                            ].join(" ")}
+                                        >
+                                            {link.name}
+                                        </span>
+                                    )}
+                                </>
+                            )}
+                        </NavLink>
+                    );
+                })}
+
+                <button
+                    type="button"
+                    onClick={onLogout}
+                    className={[
+                        "w-full flex items-center gap-3 px-3 py-1.5 rounded-md transition-colors cursor-pointer",
+                        "hover:bg-red-50",
+                        isCollapsed ? "justify-center" : "",
+                    ].join(" ")}
+                >
+                    <LogOutIcon className="w-4 h-4 shrink-0 text-[#EC1B2C]" />
+                    {!isCollapsed && (
+                        <span className="text-xs font-medium font-poppins truncate text-[#EC1B2C]">
+                            Log Out
+                        </span>
+                    )}
+                </button>
+            </div>
+        </section>
+    );
+};
 
 // ── Desktop sidebar ────────────────────────────────────────────────────────────
 const StudentSideBar = () => {
