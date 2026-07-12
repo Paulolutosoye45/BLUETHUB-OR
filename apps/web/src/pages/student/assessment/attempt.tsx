@@ -305,10 +305,10 @@ const AttemptPage = () => {
             })}
           </div>
 
-          <div className="border-t border-slate-100 pt-4">
+            <div className="border-t border-slate-100 pt-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-[11px] font-semibold text-slate-400 uppercase">
-                {currentQuestion.options.length > 0 ? "Objective" : "Theory"} Question
+                {currentQuestion.questionType === 4 ? "True / False" : currentQuestion.options.length > 0 ? "Objective" : "Theory"} Question
               </span>
               <span className="text-[11px] font-semibold text-slate-400">
                 {currentQuestion.marksAllocation} mark{currentQuestion.marksAllocation !== 1 ? "s" : ""}
@@ -340,9 +340,15 @@ const AttemptPage = () => {
               </div>
             )}
 
-            {currentQuestion.options.length > 0 ? (
+            {currentQuestion.options.length > 0 || currentQuestion.questionType === 4 ? (
               <div className="space-y-2">
-                {currentQuestion.options.map((opt) => {
+                {(currentQuestion.options.length > 0
+                  ? currentQuestion.options
+                  : [
+                      { questionId: currentQuestion.questionId, optionId: "true", optionLabel: "A", optionText: "True" },
+                      { questionId: currentQuestion.questionId, optionId: "false", optionLabel: "B", optionText: "False" },
+                    ]
+                ).map((opt: any) => {
                   const isSelected = selectedOptions[currentQuestion.questionId] === opt.optionId;
                   return (
                     <button
