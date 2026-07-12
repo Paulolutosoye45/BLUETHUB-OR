@@ -182,6 +182,34 @@ export interface StudentSummaryDto {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// STUDENT SUBJECT SCORES — Per-subject average for student
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface StudentSubjectScoreDto {
+  subjectId: string;
+  subjectName: string;
+  averageScore: number;
+  quizCount: number;
+  position: number;
+  totalStudents: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STUDENT SUBTOPIC SCORES — Per-subtopic average for student
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface StudentSubtopicScoreDto {
+  subtopicId: string | null;
+  subjectId: string;
+  subjectName: string;
+  subTopicName: string;
+  averageScore: number;
+  quizCount: number;
+  position: number;
+  totalStudents: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // SUBJECT PERFORMANCE — Classroom breakdown
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -242,6 +270,18 @@ export const performanceService = {
   getStudentSummary: () =>
     API.get<TResponse<StudentSummaryDto>>(
       "api/performance/student-summary",
+      { headers }
+    ),
+
+  getStudentSubjectScores: () =>
+    API.get<TResponse<StudentSubjectScoreDto[]>>(
+      "api/performance/student/subject-scores",
+      { headers }
+    ),
+
+  getStudentSubtopicScores: () =>
+    API.get<TResponse<StudentSubtopicScoreDto[]>>(
+      "api/performance/student/subtopic-scores",
       { headers }
     ),
 };

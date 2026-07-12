@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { assessmentService, type AssessmentDetail } from "@/services/assessment";
 import toast from "react-hot-toast";
@@ -12,7 +12,15 @@ import {
   AlertCircle,
   ArrowLeft,
   TimerOff,
+  Sparkles,
 } from "lucide-react";
+
+const DIFFICULTY_META = [
+  { label: "Easy", color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-200" },
+  { label: "Medium", color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
+  { label: "Hard", color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
+  { label: "Expert", color: "text-red-600", bg: "bg-red-50", border: "border-red-200" },
+];
 
 const AssessmentDetailPage = () => {
   const { assessmentId } = useParams<{ assessmentId: string }>();
@@ -40,6 +48,23 @@ const AssessmentDetailPage = () => {
   }, [assessmentId]);
 
   const isExpired = detail?.expiresAt ? new Date(detail.expiresAt) < new Date() : false;
+
+  const difficultyBreakdown = useMemo(() => {
+    if (!detail?.questions?.length) return [];
+    const groups: Record<number, { count: number; totalMarks: number }> = {};
+    for (const q of detail.questions) {
+      if (!groups[q.difficultyLevel]) groups[q.difficultyLevel] = { count: 0, totalMarks: 0 };
+      groups[q.difficultyLevel].count++;
+      groups[q.difficultyLevel].totalMarks += q.marksAllocation;
+    }
+    return Object.entries(groups)
+      .map(([level, data]) => ({
+        level: Number(level),
+        meta: DIFFICULTY_META[Number(level) - 1] ?? { label: `Level ${level}`, color: "text-slate-600", bg: "bg-slate-50", border: "border-slate-200" },
+        ...data,
+      }))
+      .sort((a, b) => a.level - b.level);
+  }, [detail?.questions]);
 
   const handleStart = async () => {
     if (!assessmentId) return;
@@ -170,9 +195,26 @@ const AssessmentDetailPage = () => {
             )}
             <li className="flex items-start gap-2">
               <span className="text-slate-300 mt-0.5">•</span>
-              <span>Contains <strong>{detail.questionCount} questions</strong> worth <strong>{detail.totalMarks} marks</strong>.</span>
+              <span><strong>{detail.questionCount} questions</strong> · <strong>{detail.totalMarks} marks total</strong></span>
             </li>
           </ul>
+
+          {difficultyBreakdown.length > 0 && (
+            <div className="mt-3 space-y-1.5">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Marks by Difficulty</p>
+              {difficultyBreakdown.map(({ level, meta, count, totalMarks }) => (
+                <div key={level} className={`flex items-center justify-between rounded-lg border ${meta.border} ${meta.bg} px-3 py-1.5`}>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className={`size-3 ${meta.color}`} />
+                    <span className={`text-xs font-semibold ${meta.color}`}>{meta.label}</span>
+                  </div>
+                  <span className="text-xs text-slate-600">
+                    {count} question{count > 1 ? "s" : ""} × {totalMarks / count} mark{(totalMarks / count) > 1 ? "s" : ""} = <strong>{totalMarks} marks</strong>
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {isExpired && (

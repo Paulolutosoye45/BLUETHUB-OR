@@ -210,7 +210,7 @@ export const assessmentService = {
     API.post<TResponse<null>>("api/Assessment/answer", payload, { headers }),
 
   submitAttempt: (attemptId: string) =>
-    API.post<TResponse<SubmitAttemptResult>>(`api/Assessment/${attemptId}/submit`, null, { headers }),
+    API.post<TResponse<SubmitAttemptResult>>(`api/Assessment/${attemptId}/submit`, {}, { headers }),
 
   getResult: (attemptId: string) =>
     API.get<TResponse<AttemptResult>>(`api/Assessment/result/${attemptId}`, { headers }),
