@@ -1,6 +1,7 @@
-import { ClipboardCopy } from "lucide-react";
+import { Check, ClipboardCopy } from "lucide-react";
 import toast from "react-hot-toast";
 import type { SubjectQuizItemDto } from "@/services/quiz";
+import { useState } from "react";
 
 interface SubtopicInfo {
   name: string;
@@ -14,10 +15,14 @@ interface CardProps {
 }
 
 const Card = ({ quiz, subtopic, onViewDetails }: CardProps) => {
+  const [copied, setCopied] = useState(false);
+
   const handleCopyId = async () => {
     try {
       await navigator.clipboard.writeText(quiz.quizCode);
+      setCopied(true);
       toast.success("Quiz code copied!");
+      setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error("Failed to copy");
     }
@@ -30,12 +35,10 @@ const Card = ({ quiz, subtopic, onViewDetails }: CardProps) => {
           <h3 className="text-[#0A5C43] font-bold text-[10px] rounded-[6px] bg-[#E6F7F2] py-1 px-2">
             {quiz.quizCode}
           </h3>
-          <div className={`flex items-center gap-1.5 rounded-[20px] py-1 px-2.5 ${
-            quiz.attemptStatus.completedAttempts > 0 ? "bg-[#E6F7F2]" : "bg-amber-50"
-          }`}>
-            <span className={`w-[5px] h-[5px] rounded-full p-[5px] ${
-              quiz.attemptStatus.completedAttempts > 0 ? "bg-[#0A5C43]" : "bg-amber-500"
-            }`} />
+          <div className={`flex items-center gap-1.5 rounded-[20px] py-1 px-2.5 ${quiz.attemptStatus.completedAttempts > 0 ? "bg-[#E6F7F2]" : "bg-amber-50"
+            }`}>
+            <span className={`w-[5px] h-[5px] rounded-full p-[5px] ${quiz.attemptStatus.completedAttempts > 0 ? "bg-[#0A5C43]" : "bg-amber-500"
+              }`} />
             <h3 className={`font-medium text-xs ${quiz.attemptStatus.completedAttempts > 0 ? "text-[#0A5C43]" : "text-amber-700"}`}>
               {quiz.attemptStatus.completedAttempts > 0 ? "Attempted" : "Pending"}
             </h3>
@@ -85,11 +88,23 @@ const Card = ({ quiz, subtopic, onViewDetails }: CardProps) => {
         </button>
         <button
           onClick={handleCopyId}
-          className="bg-chestnut rounded-[7px] py-[4px] px-3"
+          className={`rounded-[7px] py-[4px] px-3 transition-all duration-200 ${copied
+              ? "bg-green-600"
+              : "bg-chestnut hover:bg-chestnut/90 active:scale-95"
+            }`}
         >
           <span className="text-white font-medium text-xs flex items-center gap-1">
-            <ClipboardCopy className="h-3 w-3" />
-            Copy ID
+            {copied ? (
+              <>
+                <Check className="h-3 w-3" />
+                Copied!
+              </>
+            ) : (
+              <>
+                <ClipboardCopy className="h-3 w-3" />
+                Copy ID
+              </>
+            )}
           </span>
         </button>
       </div>

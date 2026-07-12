@@ -1,4 +1,3 @@
-import Edit from "@/assets/svg/edit.svg?react";
 import { Button } from "@bluethub/ui-kit";
 import test_profile from "@/assets/png/test_profile.png";
 const Profile = () => {
@@ -18,9 +17,6 @@ const Profile = () => {
                   className="object-cover w-full h-full"
                 />
               </div>
-              <button className="absolute bottom-0 right-0 bg-white rounded-full w-7 h-7 flex justify-center items-center border border-gray-300 shadow">
-                <Edit className="text-blck-b2" />
-              </button>
             </div>
             <div>
               <p className="capitalize text-base font-medium text-gray-800">
@@ -29,9 +25,6 @@ const Profile = () => {
               <p className="text-sm text-gray-500 mt-1">ID: 32424662778</p>
             </div>
           </div>
-          <button>
-            <Edit className="text-blck-b2" />
-          </button>
         </div>
 
         <div className="my-6 space-y-6 w-full">

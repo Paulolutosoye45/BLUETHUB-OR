@@ -171,13 +171,13 @@ const StudentAppBar = () => {
 
                 {/* Profile */}
                 <DropdownMenuItem className="p-2.5  ">
-                  <div className="flex justify-between items-center w-full">
+                  <Link to="/student/profile" className="flex justify-between items-center w-full">
                     <div className="flex items-center gap-2.5">
                       <User className="size-6" />
                       <Link to="/student/profile" className="text-blck-b2 font-poppins text-sm leading-5">My Profile</Link>
                     </div>
                     <ChevronRight className="size-6" />
-                  </div>
+                  </Link>
                 </DropdownMenuItem>
 
                 {/* Settings */}

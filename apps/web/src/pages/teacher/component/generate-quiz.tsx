@@ -134,15 +134,13 @@ const Toggle = ({
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={`relative shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${
-        checked ? "bg-chestnut" : "bg-slate-300"
-      }`}
+      className={`relative shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${checked ? "bg-chestnut" : "bg-slate-300"
+        }`}
       aria-pressed={checked}
     >
       <span
-        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${
-          checked ? "translate-x-5" : ""
-        }`}
+        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200 ${checked ? "translate-x-5" : ""
+          }`}
       />
     </button>
   </div>
@@ -619,21 +617,6 @@ const GenerateQuiz = () => {
                     : "Select a class and subject to browse questions"}
                 </p>
               </div>
-              {selectedIds.size > 0 && (
-                <button
-                  type="button"
-                  disabled={generating}
-                  onClick={quizResult ? handleConfigure : handleGenerate}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-chestnut px-4 py-2.5 text-sm font-semibold text-white hover:bg-chestnut/90 disabled:opacity-60 shrink-0"
-                >
-                  {generating ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Check className="w-4 h-4" />
-                  )}
-                  {quizResult ? "Update Quiz" : "Generate Quiz"} ({selectedIds.size})
-                </button>
-              )}
             </div>
           </div>
 
@@ -884,11 +867,10 @@ const GenerateQuiz = () => {
                       setSelectedTopicId(undefined);
                       setSelectedSubTopicId(undefined);
                     }}
-                    className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${
-                      !selectedTopicId
+                    className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${!selectedTopicId
                         ? "bg-chestnut text-white border-chestnut"
                         : "bg-white text-slate-600 border-slate-200 hover:border-chestnut/40"
-                    }`}
+                      }`}
                   >
                     All topics
                   </button>
@@ -900,11 +882,10 @@ const GenerateQuiz = () => {
                         setSelectedTopicId(t.topicId);
                         setSelectedSubTopicId(undefined);
                       }}
-                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${
-                        selectedTopicId === t.topicId
+                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${selectedTopicId === t.topicId
                           ? "bg-chestnut text-white border-chestnut"
                           : "bg-white text-slate-600 border-slate-200 hover:border-chestnut/40"
-                      }`}
+                        }`}
                     >
                       {t.topicName} ({t.questionCount})
                     </button>
@@ -924,11 +905,10 @@ const GenerateQuiz = () => {
                     <button
                       type="button"
                       onClick={() => setSelectedSubTopicId(undefined)}
-                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${
-                        !selectedSubTopicId
+                      className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${!selectedSubTopicId
                           ? "bg-chestnut text-white border-chestnut"
                           : "bg-white text-slate-600 border-slate-200 hover:border-chestnut/40"
-                      }`}
+                        }`}
                     >
                       All
                     </button>
@@ -937,11 +917,10 @@ const GenerateQuiz = () => {
                         key={s.id}
                         type="button"
                         onClick={() => setSelectedSubTopicId(s.id)}
-                        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${
-                          selectedSubTopicId === s.id
+                        className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold border transition-colors ${selectedSubTopicId === s.id
                             ? "bg-chestnut text-white border-chestnut"
                             : "bg-white text-slate-600 border-slate-200 hover:border-chestnut/40"
-                        }`}
+                          }`}
                       >
                         {s.name} ({s.questionCount})
                       </button>
@@ -1021,9 +1000,8 @@ const GenerateQuiz = () => {
                     key={question.id}
                     type="button"
                     onClick={() => toggleQuestion(question.id)}
-                    className={`w-full text-left px-3 sm:px-4 py-3 sm:py-4 transition-colors flex items-start gap-3 ${
-                      isSelected ? "bg-chestnut/5" : "hover:bg-slate-50"
-                    }`}
+                    className={`w-full text-left px-3 sm:px-4 py-3 sm:py-4 transition-colors flex items-start gap-3 ${isSelected ? "bg-chestnut/5" : "hover:bg-slate-50"
+                      }`}
                   >
                     <span className="mt-0.5 shrink-0 text-chestnut">
                       {isSelected ? (
@@ -1063,7 +1041,7 @@ const GenerateQuiz = () => {
           </div>
 
           {/* ── Mobile generate button ── */}
-          {selectedIds.size > 0 && (
+          {/* {selectedIds.size > 0 && (
             <div className="sm:hidden">
               <Button
                 type="button"
@@ -1077,9 +1055,24 @@ const GenerateQuiz = () => {
                 {quizResult ? "Update Quiz" : "Generate Quiz"} ({selectedIds.size} questions)
               </Button>
             </div>
-          )}
+          )} */}
         </div>
       </div>
+      {selectedIds.size > 0 && (
+        <button
+          type="button"
+          disabled={generating}
+          onClick={quizResult ? handleConfigure : handleGenerate}
+          className="fixed bottom-6 right-4 sm:right-10 z-50 inline-flex items-center justify-center gap-2 rounded-xl bg-chestnut px-4 py-2.5 text-sm font-semibold text-white shadow-lg hover:bg-chestnut/90 disabled:opacity-60"
+        >
+          {generating ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Check className="w-4 h-4" />
+          )}
+          {quizResult ? "Update Quiz" : "Generate Quiz"} ({selectedIds.size})
+        </button>
+      )}
 
       {/* ── Success dialog ── */}
       <Dialog
@@ -1147,6 +1140,7 @@ const GenerateQuiz = () => {
         </DialogContent>
       </Dialog>
     </div>
+
   );
 };
 

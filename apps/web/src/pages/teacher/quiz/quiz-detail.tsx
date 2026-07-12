@@ -84,11 +84,11 @@ const QuizDetail = () => {
       : null;
 
   return (
-    <div className="p-4 font-poppins">
+    <div className="md:p-4 font-poppins">
       <div className="max-w-4xl mx-auto">
         <button
           onClick={() => navigate("/teacher/quiz")}
-          className="flex items-center gap-1.5 text-sm text-chestnut font-semibold mb-4 hover:underline"
+          className="flex mt-5 md:mt-0 items-center gap-1.5 text-sm text-chestnut font-semibold mb-4 hover:underline"
         >
           <ArrowLeft className="h-4 w-4" />
           Back to Quizzes
@@ -115,7 +115,7 @@ const QuizDetail = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             {[
               { label: "Questions", value: totalQuestions, icon: FileQuestion },
               { label: "Total Marks", value: totalMarks, icon: Target },
@@ -146,7 +146,7 @@ const QuizDetail = () => {
               <div className="space-y-3">
                 {quiz.questions.map((q, i) => (
                   <div key={q.questionId} className="rounded-[12px] border border-[#E8E8E3] bg-[#FAFAFA] p-4">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-[#0F0F0E]">
                           <span className="text-chestnut mr-1.5">Q{i + 1}.</span>
