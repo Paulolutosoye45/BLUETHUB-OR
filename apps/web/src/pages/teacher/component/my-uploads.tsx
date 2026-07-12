@@ -401,6 +401,35 @@ const MyUploads = () => {
     }
   };
 
+  const autoDetectFilters = async (job: JobSummaryDto) => {
+    const roleData = user?.roleData;
+    if (!roleData || !isTeacherRoleData(roleData)) return;
+    const topicName = job.topicName?.toLowerCase().trim();
+    if (!topicName) return;
+    for (const classroom of roleData.classrooms) {
+      const cId = String(classroom.classroomId);
+      const subjects = classroom.subjects ?? [];
+      for (const subject of subjects) {
+        const sId = String(subject.subjectId);
+        try {
+          const { data } = await schoolService.getTopicsWithSubTopics(sId, cId);
+          const raw = (data as any)?.data ?? data ?? [];
+          const list = Array.isArray(raw) ? raw : [];
+          const match = list.find((t: any) =>
+            String(t?.name ?? t?.topicName ?? "").toLowerCase().trim() === topicName
+          );
+          if (match) {
+            setClassroomId(cId);
+            setSubjectId(sId);
+            setTopicId(String(match?.id ?? match?.topicId ?? ""));
+            setSubTopicId("");
+            return;
+          }
+        } catch { /* continue searching */ }
+      }
+    }
+  };
+
   const handleOpenJobPreview = async (job: JobSummaryDto) => {
     setPreviewJob(job);
     setIsEditMode(false);
@@ -456,6 +485,7 @@ const MyUploads = () => {
         };
       });
       setEditableQuestions(mapped);
+      void autoDetectFilters(job);
     } catch (err) {
       const e = err as AxiosError<{ responseMessage?: string }>;
       toast.error(e.response?.data?.responseMessage ?? "Failed to load job questions");

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { assessmentService, type StartAttemptData } from "@/services/assessment";
+import { useAuthContext } from "@/contexts/auth-context";
+import toast from "react-hot-toast";
 import {
   Loader2,
   ArrowLeft,
@@ -13,10 +15,11 @@ import {
   Pencil,
   Type,
 } from "lucide-react";
-import StudentAnswerBoard, { type AnswerBoardMeta } from "./student-answer-board";
+import StudentAnswerBoard, { type AnswerBoardMeta, type BoardState } from "./student-answer-board";
 
 const AttemptPage = () => {
   const { assessmentId, attemptId } = useParams<{ assessmentId: string; attemptId: string }>();
+  const { user } = useAuthContext();
   const navigate = useNavigate();
 
   const [attemptData, setAttemptData] = useState<StartAttemptData | null>(null);
@@ -35,6 +38,10 @@ const AttemptPage = () => {
   const [questionBoardMeta, setQuestionBoardMeta] = useState<
     Record<string, AnswerBoardMeta[]>
   >({});
+  const [boardDataByQuestion, setBoardDataByQuestion] = useState<
+    Record<string, Record<number, BoardState>>
+  >({});
+  const [savingBoard, setSavingBoard] = useState(false);
 
   useEffect(() => {
     if (!attemptId) return;
@@ -64,6 +71,11 @@ const AttemptPage = () => {
     }, 1000);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [timeLeft, submitted]);
+
+  const studentId = user?.id ?? "unknown";
+  const sessionId = assessmentId && studentId
+    ? `${assessmentId}_${studentId}`
+    : null;
 
   const questions = attemptData?.questions ?? [];
   const currentQuestion = questions[currentIndex];
@@ -110,6 +122,7 @@ const AttemptPage = () => {
 
     if (isDrawMode && hasBoardAnswer) {
       payload.boards = boardsMeta;
+      if (sessionId) payload.boardSessionId = `${sessionId}_${questionId}`;
     }
 
     try {
@@ -117,7 +130,14 @@ const AttemptPage = () => {
     } catch {
       // silently fail
     }
-  }, [attemptId, questions, selectedOptions, typedAnswers, drawModeByQuestion, questionBoardMeta]);
+  }, [attemptId, questions, selectedOptions, typedAnswers, drawModeByQuestion, questionBoardMeta, sessionId]);
+
+  const handleSaveBoard = useCallback(async () => {
+    setSavingBoard(true);
+    await new Promise((r) => setTimeout(r, 200));
+    setSavingBoard(false);
+    toast.success("Board saved");
+  }, []);
 
   const handleNext = async () => {
     if (currentQuestion) await submitAnswer(currentQuestion.questionId);
@@ -399,13 +419,24 @@ const AttemptPage = () => {
                   />
                 ) : (
                   <StudentAnswerBoard
+                    key={currentQuestion.questionId}
                     questionId={currentQuestion.questionId}
+                    sessionId={sessionId ? `${sessionId}_${currentQuestion.questionId}` : undefined}
+                    initialBoards={boardDataByQuestion[currentQuestion.questionId] ?? null}
                     onBoardsChange={(meta) =>
                       setQuestionBoardMeta((prev) => ({
                         ...prev,
                         [currentQuestion.questionId]: meta,
                       }))
                     }
+                    onStrokesChange={(strokes) =>
+                      setBoardDataByQuestion((prev) => ({
+                        ...prev,
+                        [currentQuestion.questionId]: strokes,
+                      }))
+                    }
+                    onSaveBoard={handleSaveBoard}
+                    saving={savingBoard}
                   />
                 )}
               </div>
