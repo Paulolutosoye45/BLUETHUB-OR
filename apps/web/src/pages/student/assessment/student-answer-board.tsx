@@ -9,8 +9,10 @@ import {
   Minus,
   Palette,
   X,
+  Save,
 } from "lucide-react";
-import { boardSessionService } from "@/services/board-session";
+import { studentBoardService, type StudentStrokeDto } from "@/services/student-board";
+import toast from "react-hot-toast";
 
 export interface AnswerBoardMeta {
   boardSessionId: string;
@@ -50,15 +52,24 @@ function generateUUID(): string {
 
 interface StudentAnswerBoardProps {
   questionId: string;
+  sessionId?: string;
+  initialBoards?: Record<number, BoardState> | null;
   onBoardsChange?: (boards: AnswerBoardMeta[]) => void;
+  onStrokesChange?: (strokes: Record<number, BoardState>) => void;
+  onSaveBoard?: () => void;
+  saving?: boolean;
 }
 
-const StudentAnswerBoard = ({ questionId, onBoardsChange }: StudentAnswerBoardProps) => {
+const StudentAnswerBoard = ({ questionId, sessionId, initialBoards, onBoardsChange, onStrokesChange, onSaveBoard, saving }: StudentAnswerBoardProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const pendingStrokesRef = useRef<Record<number, StudentStrokeDto[]>>({});
 
-  const [boards, setBoards] = useState<Record<number, BoardState>>({
-    0: { strokes: [], snapshot: null, sessionId: generateUUID(), batchIndex: 0 },
+  const [boards, setBoards] = useState<Record<number, BoardState>>(() => {
+    if (initialBoards && Object.keys(initialBoards).length > 0) {
+      return initialBoards;
+    }
+    return { 0: { strokes: [], snapshot: null, sessionId: sessionId ?? generateUUID(), batchIndex: 0 } };
   });
   const [activeBoardIndex, setActiveBoardIndex] = useState(0);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -67,11 +78,18 @@ const StudentAnswerBoard = ({ questionId, onBoardsChange }: StudentAnswerBoardPr
   const [isEraser, setIsEraser] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
 
+  // Sync board state when navigating back to a question with existing data
+  useEffect(() => {
+    if (initialBoards && Object.keys(initialBoards).length > 0) {
+      setBoards(initialBoards);
+    }
+  }, [questionId]);
+
   // Ensure at least one board exists
   useEffect(() => {
     setBoards((prev) => {
       if (Object.keys(prev).length === 0) {
-        return { 0: { strokes: [], snapshot: null, sessionId: generateUUID(), batchIndex: 0 } };
+        return { 0: { strokes: [], snapshot: null, sessionId: sessionId ?? generateUUID(), batchIndex: 0 } };
       }
       return prev;
     });
@@ -120,7 +138,7 @@ const StudentAnswerBoard = ({ questionId, onBoardsChange }: StudentAnswerBoardPr
     }
   }, [boards, activeBoardIndex]);
 
-  // Notify parent of board session metadata
+  // Notify parent of board session metadata and stroke data
   useEffect(() => {
     if (!onBoardsChange) return;
     const meta: AnswerBoardMeta[] = [];
@@ -137,7 +155,8 @@ const StudentAnswerBoard = ({ questionId, onBoardsChange }: StudentAnswerBoardPr
       });
     }
     onBoardsChange(meta);
-  }, [boards, onBoardsChange]);
+    if (onStrokesChange) onStrokesChange(boards);
+  }, [boards, onBoardsChange, onStrokesChange]);
 
   const getPointerPos = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current;
@@ -216,7 +235,6 @@ const StudentAnswerBoard = ({ questionId, onBoardsChange }: StudentAnswerBoardPr
     if (!isDrawing) return;
     setIsDrawing(false);
 
-    // Capture snapshot
     const canvas = canvasRef.current;
     if (!canvas) return;
     const snapshot = canvas.toDataURL("image/png");
@@ -225,44 +243,24 @@ const StudentAnswerBoard = ({ questionId, onBoardsChange }: StudentAnswerBoardPr
       const board = prev[activeBoardIndex];
       if (!board) return prev;
 
-      // Submit stroke batch to backend
       const lastStroke = board.strokes[board.strokes.length - 1];
-      if (lastStroke && lastStroke.points.length >= 2) {
-        const startMs = Date.now() - 5000; // approximate 5s stroke duration
-        const endMs = Date.now();
-        const compressedStrokes = board.strokes.map((s, i) => ({
-          id: `${board.sessionId}_stroke_${i}`,
+      if (lastStroke && lastStroke.points.length >= 2 && board.sessionId) {
+        const now = Date.now();
+        const prevPending = pendingStrokesRef.current[activeBoardIndex] || [];
+        const strokeDto: StudentStrokeDto = {
+          id: `${board.sessionId}_stroke_${board.strokes.length - 1}_${now}`,
           sessionId: board.sessionId,
-          data: JSON.stringify(s.points.map((p) => [Math.round(p.x), Math.round(p.y)])),
-          color: s.isEraser ? "#ffffff" : s.color,
-          width: s.isEraser ? s.width * 3 : s.width,
-          type: s.isEraser ? "eraser" : "pen",
+          type: lastStroke.isEraser ? "eraser" : "stroke",
+          data: JSON.stringify(lastStroke.points.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) }))),
+          color: lastStroke.color,
+          width: lastStroke.width,
           currentBoard: activeBoardIndex,
-          timestamp: startMs + i * 100,
-          duration: 100,
-          startTime: new Date(startMs + i * 100).toISOString(),
-          endTime: new Date(startMs + i * 100 + 100).toISOString(),
-        }));
-
-        const payload = {
-          sessionId: board.sessionId,
-          lessonId: questionId,
-          batchIndex: board.batchIndex,
-          startMs,
-          endMs,
-          strokes: compressedStrokes,
-          strokeCount: compressedStrokes.length,
-          boardIndex: activeBoardIndex,
+          timestamp: now,
+          duration: 5000,
+          startTime: new Date(now - 5000).toISOString(),
+          endTime: new Date(now).toISOString(),
         };
-
-        boardSessionService
-          .submitBatch(board.sessionId, payload as any)
-          .then(() => {
-            // Batch sent successfully
-          })
-          .catch(() => {
-            // Silently fail — strokes are still in local state
-          });
+        pendingStrokesRef.current[activeBoardIndex] = [...prevPending, strokeDto];
       }
 
       return {
@@ -274,7 +272,30 @@ const StudentAnswerBoard = ({ questionId, onBoardsChange }: StudentAnswerBoardPr
         },
       };
     });
-  }, [isDrawing, activeBoardIndex, questionId]);
+  }, [isDrawing, activeBoardIndex]);
+
+  const flushAllStrokes = useCallback(async () => {
+    const pending = pendingStrokesRef.current;
+    pendingStrokesRef.current = {};
+
+    const promises = Object.entries(pending).map(async ([boardIdx, strokes]) => {
+      if (strokes.length === 0) return;
+      const boardIndex = Number(boardIdx);
+      const sessionId = strokes[0].sessionId;
+      try {
+        await studentBoardService.saveBatch({ sessionId, boardIndex, strokes });
+      } catch {
+        // silently fail
+      }
+    });
+
+    await Promise.all(promises);
+  }, []);
+
+  // Flush all pending strokes on unmount
+  useEffect(() => {
+    return () => { flushAllStrokes(); };
+  }, [flushAllStrokes]);
 
   const undoLastStroke = () => {
     setBoards((prev) => {
@@ -293,10 +314,13 @@ const StudentAnswerBoard = ({ questionId, onBoardsChange }: StudentAnswerBoardPr
 
   const clearBoard = () => {
     if (!window.confirm("Clear this board? This cannot be undone.")) return;
-    setBoards((prev) => ({
-      ...prev,
-      [activeBoardIndex]: { strokes: [], snapshot: null, sessionId: generateUUID(), batchIndex: 0 },
-    }));
+    setBoards((prev) => {
+      const existing = prev[activeBoardIndex];
+      return {
+        ...prev,
+        [activeBoardIndex]: { strokes: [], snapshot: null, sessionId: existing?.sessionId ?? sessionId ?? generateUUID(), batchIndex: 0 },
+      };
+    });
   };
 
   const addNewBoard = () => {
@@ -308,7 +332,7 @@ const StudentAnswerBoard = ({ questionId, onBoardsChange }: StudentAnswerBoardPr
     }
     setBoards((prev) => ({
       ...prev,
-      [nextIndex]: { strokes: [], snapshot: null, sessionId: generateUUID(), batchIndex: 0 },
+      [nextIndex]: { strokes: [], snapshot: null, sessionId: sessionId ?? generateUUID(), batchIndex: 0 },
     }));
     setActiveBoardIndex(nextIndex);
   };
@@ -448,6 +472,19 @@ const StudentAnswerBoard = ({ questionId, onBoardsChange }: StudentAnswerBoardPr
             Clear
           </button>
         </div>
+
+        {/* Save button */}
+        {onSaveBoard && (
+          <button
+            type="button"
+            onClick={async () => { await flushAllStrokes(); toast.success("Board saved"); onSaveBoard(); }}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-xs font-semibold text-white hover:bg-emerald-600 transition-all disabled:opacity-50 ml-auto"
+          >
+            <Save className="w-3.5 h-3.5" />
+            {saving ? "Saving…" : "Save Board"}
+          </button>
+        )}
       </div>
 
       {/* Board selector */}
@@ -514,7 +551,7 @@ const StudentAnswerBoard = ({ questionId, onBoardsChange }: StudentAnswerBoardPr
 
       {/* Helper text */}
       <p className="text-[11px] text-slate-400">
-        Draw your answer above. You can use up to {MAX_BOARDS} boards per question. Your drawings are captured automatically.
+        Draw your answer above. You can use up to {MAX_BOARDS} boards per question. Click "Save Board" to save your work — you can still edit after saving.
       </p>
     </div>
   );

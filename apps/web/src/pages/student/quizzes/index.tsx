@@ -12,7 +12,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { Button } from "@bluethub/ui-kit";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import StudentAppBar from "../component/app-bar";
 import {
   quizService,
@@ -28,6 +28,7 @@ interface SubjectInfo {
 
 const StudentQuizMenu = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuthContext();
 
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
@@ -53,6 +54,14 @@ const StudentQuizMenu = () => {
     (studentRoleData?.subjects ?? []).forEach(add);
     return list;
   }, [studentRoleData]);
+
+  useEffect(() => {
+    const subjectName = searchParams.get("subject");
+    if (subjectName && subjects.length > 0 && !selectedSubject) {
+      const match = subjects.find((s) => s.subjectName.toLowerCase() === subjectName.toLowerCase());
+      if (match) setSelectedSubject(match.subjectId);
+    }
+  }, [searchParams, subjects, selectedSubject]);
 
   useEffect(() => {
     if (!selectedSubject) {

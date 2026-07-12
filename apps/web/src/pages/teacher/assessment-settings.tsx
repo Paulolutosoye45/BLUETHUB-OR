@@ -913,27 +913,43 @@ const AssessmentConfigPage = () => {
                         <Square className="w-5 h-5 text-slate-300" />
                       )}
                     </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-xs text-slate-400 font-medium">#{idx + 1}</p>
-                          <p className="text-sm font-semibold text-slate-700 leading-5 mt-0.5 line-clamp-2">
-                            {question.title || "Untitled question"}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-1 truncate">
-                            {question.topicName || question.topic || "No topic"}
-                          </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs text-slate-400 font-medium">#{idx + 1}</p>
+                              <p className="text-sm font-semibold text-slate-700 leading-5 mt-0.5 line-clamp-2">
+                                {question.title || "Untitled question"}
+                              </p>
+                              {question.imageUrl && (
+                                <img
+                                  src={question.imageUrl}
+                                  alt=""
+                                  className="mt-2 max-h-24 rounded-lg border border-slate-200 object-contain"
+                                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                />
+                              )}
+                              {!question.imageUrl && question.boardSnapshotUrl && (
+                                <img
+                                  src={question.boardSnapshotUrl}
+                                  alt=""
+                                  className="mt-2 max-h-24 rounded-lg border border-slate-200 object-contain"
+                                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                                />
+                              )}
+                              <p className="text-xs text-slate-400 mt-1 truncate">
+                                {question.topicName || question.topic || "No topic"}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap">
+                                {question.questionTypeName || `Type ${question.questionType}`}
+                              </span>
+                              <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 whitespace-nowrap">
+                                {question.difficultyLevelName || `Level ${question.difficultyLevel}`}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex flex-col items-end gap-1 shrink-0">
-                          <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-600 whitespace-nowrap">
-                            {question.questionTypeName || `Type ${question.questionType}`}
-                          </span>
-                          <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 whitespace-nowrap">
-                            {question.difficultyLevelName || `Level ${question.difficultyLevel}`}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
                   </button>
                 );
               })}
@@ -1011,6 +1027,22 @@ const AssessmentConfigPage = () => {
                         <p className="text-sm font-medium text-slate-700 leading-5 line-clamp-2">
                           {q.title || "Untitled question"}
                         </p>
+                        {q.imageUrl && (
+                          <img
+                            src={q.imageUrl}
+                            alt=""
+                            className="mt-2 max-h-20 rounded-lg border border-slate-200 object-contain"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          />
+                        )}
+                        {!q.imageUrl && q.boardSnapshotUrl && (
+                          <img
+                            src={q.boardSnapshotUrl}
+                            alt=""
+                            className="mt-2 max-h-20 rounded-lg border border-slate-200 object-contain"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                          />
+                        )}
                         <p className="text-[11px] text-slate-400 mt-1 truncate">
                           {q.topicName || q.topic || "No topic"}
                           {q.difficultyLevelName && (

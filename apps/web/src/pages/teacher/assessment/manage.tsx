@@ -64,7 +64,8 @@ const ManageAssessmentsPage = () => {
     setLoadingAssignments((prev) => ({ ...prev, [assessmentId]: true }));
     try {
       const res = await assessmentService.getAssignments(assessmentId);
-      const data = res.data?.data ?? [];
+      const raw = res.data?.data;
+      const data = Array.isArray(raw) ? raw : [];
       setAssignmentsMap((prev) => ({ ...prev, [assessmentId]: data }));
     } catch {
       toast.error("Failed to load assignment details.");
@@ -189,7 +190,8 @@ const ManageAssessmentsPage = () => {
             <div className="space-y-3">
               {filtered.map((a) => {
                 const isOpen = expandedId === a.assessmentId;
-                const assignments = assignmentsMap[a.assessmentId] ?? [];
+                const rawAssignments = assignmentsMap[a.assessmentId];
+                const assignments = Array.isArray(rawAssignments) ? rawAssignments : [];
                 const isLoadingAssignments = loadingAssignments[a.assessmentId];
 
                 const studentAssignments = assignments.filter((x) => x.targetType === "Student");

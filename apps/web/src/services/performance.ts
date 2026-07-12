@@ -146,6 +146,42 @@ export interface StudentPerformanceDetailDto {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// STUDENT SUMMARY — Dashboard overview of pending items
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface UnattemptedAssessmentDto {
+  assessmentId: string;
+  code: string;
+  title: string;
+}
+
+export interface UnattemptedQuizDto {
+  lessonId: string;
+  lessonTitle: string;
+  quizCode: string;
+  subjectName: string;
+}
+
+export interface UnwatchedLessonDto {
+  lessonId: string;
+  lessonTitle: string;
+  subjectName: string;
+}
+
+export interface StudentSummaryCountsDto {
+  unattemptedAssessments: number;
+  unattemptedQuizzes: number;
+  unwatchedLessons: number;
+}
+
+export interface StudentSummaryDto {
+  unattemptedAssessments: UnattemptedAssessmentDto[];
+  unattemptedQuizzes: UnattemptedQuizDto[];
+  unwatchedLessons: UnwatchedLessonDto[];
+  counts: StudentSummaryCountsDto;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // SUBJECT PERFORMANCE — Classroom breakdown
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -200,6 +236,12 @@ export const performanceService = {
   getSubjectClassrooms: (subjectId: string) =>
     API.get<TResponse<SubjectClassroomPerformanceDto[]>>(
       `api/Performance/subject/${subjectId}/classrooms`,
+      { headers }
+    ),
+
+  getStudentSummary: () =>
+    API.get<TResponse<StudentSummaryDto>>(
+      "api/performance/student-summary",
       { headers }
     ),
 };

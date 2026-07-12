@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { assessmentService, type AssessmentDetail } from "@/services/assessment";
+import toast from "react-hot-toast";
 import {
   BookOpen,
   Clock,
@@ -10,6 +11,7 @@ import {
   Target,
   AlertCircle,
   ArrowLeft,
+  TimerOff,
 } from "lucide-react";
 
 const AssessmentDetailPage = () => {
@@ -37,6 +39,8 @@ const AssessmentDetailPage = () => {
     return () => { cancelled = true; };
   }, [assessmentId]);
 
+  const isExpired = detail?.expiresAt ? new Date(detail.expiresAt) < new Date() : false;
+
   const handleStart = async () => {
     if (!assessmentId) return;
     setStarting(true);
@@ -48,8 +52,13 @@ const AssessmentDetailPage = () => {
           state: { attemptData: data },
         });
       }
-    } catch {
-      // silently fail
+    } catch (err: any) {
+      const msg = err?.response?.data?.responseMessage ?? err?.message ?? "";
+      if (msg.includes("expired") || msg.includes("Expired")) {
+        toast.error("This assessment has expired and can no longer be attempted.");
+      } else {
+        toast.error(msg || "Failed to start assessment.");
+      }
     } finally {
       setStarting(false);
     }
@@ -166,17 +175,31 @@ const AssessmentDetailPage = () => {
           </ul>
         </div>
 
+        {isExpired && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            <TimerOff className="w-5 h-5 shrink-0" />
+            <span>This assessment has expired and can no longer be attempted.</span>
+          </div>
+        )}
+
+        {detail.expiresAt && !isExpired && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-700">
+            <Clock className="w-5 h-5 shrink-0" />
+            <span>Expires {new Date(detail.expiresAt).toLocaleString()}</span>
+          </div>
+        )}
+
         <button
           onClick={handleStart}
-          disabled={starting}
-          className="mt-6 w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#4255db] px-6 py-3 text-sm font-semibold text-white hover:bg-[#3447cc] transition-colors disabled:opacity-50"
+          disabled={starting || isExpired}
+          className="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#4255db] px-6 py-3 text-sm font-semibold text-white hover:bg-[#3447cc] transition-colors disabled:opacity-50"
         >
           {starting ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <PlayCircle className="w-4 h-4" />
           )}
-          {starting ? "Starting…" : "Start Assessment"}
+          {starting ? "Starting…" : isExpired ? "Expired" : "Start Assessment"}
         </button>
       </div>
     </div>
