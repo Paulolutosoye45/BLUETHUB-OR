@@ -625,7 +625,7 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
 
       {/* ── Fullscreen Board Modal ─────────────────────────────────── */}
       <Dialog open={fullscreen} onOpenChange={(v) => { if (!v) setFullscreen(false); }}>
-        <DialogContent className="sm:max-w-[90vw] max-h-[90vh] w-[90vw] h-[90vh] flex flex-col p-6">
+        <DialogContent className="md:max-w-[90vw] md:h-auto md:max-h-[90vh] w-full h-auto flex flex-col md:p-6">
           <DialogHeader>
             <DialogTitle>Board Editor</DialogTitle>
           </DialogHeader>
