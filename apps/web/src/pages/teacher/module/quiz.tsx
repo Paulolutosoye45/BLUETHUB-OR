@@ -164,14 +164,7 @@ const ModuleQuiz = () => {
     // Load students for "Per Student" view
     moduleService.getTeacherStudents()
       .then((res) => {
-        const payload = (res.data as any)?.data ?? [];
-        const studentList: ModuleStudent[] = (Array.isArray(payload) ? payload : []).map((s: any) => ({
-          id: String(s.id ?? s.studentId ?? ""),
-          firstName: String(s.firstName ?? s.firstname ?? ""),
-          lastName: String(s.lastName ?? s.lastname ?? ""),
-          studentEmail: String(s.studentEmail ?? s.email ?? ""),
-          profilePicture: s.profilePicture ?? "",
-        }));
+        const studentList = res.data.data ?? [];
         setStudents(studentList);
 
         if (studentList.length > 0) {
