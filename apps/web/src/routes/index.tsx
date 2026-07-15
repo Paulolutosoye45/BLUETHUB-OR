@@ -132,6 +132,10 @@ const router = createBrowserRouter([
             {
                 path: 'new-password',
                 element: <NewPassword />,
+            },
+            {
+                path:'login',
+                element: <Login />,
             }
         ]
     },
