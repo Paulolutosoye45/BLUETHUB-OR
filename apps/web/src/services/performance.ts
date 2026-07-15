@@ -210,6 +210,25 @@ export interface StudentSubtopicScoreDto {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SUBJECT TOPIC PERFORMANCE — Topic & subtopic scores
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface SubjectSubtopicPerformanceDto {
+  subTopicId: string;
+  subTopicName: string;
+  averageScore: number;
+  quizCount: number;
+}
+
+export interface SubjectTopicPerformanceDto {
+  topicId: string;
+  topicName: string;
+  averageScore: number | null;
+  quizCount: number;
+  subTopics: SubjectSubtopicPerformanceDto[];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // SUBJECT PERFORMANCE — Classroom breakdown
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -263,7 +282,13 @@ export const performanceService = {
 
   getSubjectClassrooms: (subjectId: string) =>
     API.get<TResponse<SubjectClassroomPerformanceDto[]>>(
-      `api/Performance/subject/${subjectId}/classrooms`,
+      `api/performance/subject/${subjectId}/classrooms`,
+      { headers }
+    ),
+
+  getSubjectTopicPerformance: (subjectId: string) =>
+    API.get<TResponse<SubjectTopicPerformanceDto[]>>(
+      `api/performance/subject/${subjectId}/topics`,
       { headers }
     ),
 
