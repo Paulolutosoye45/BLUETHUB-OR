@@ -19,4 +19,12 @@ export default defineConfig({
   exclude: ["@bluethub/ui-kit"],
   include: ["chrono-node"], // keep real node_modules deps here, just not ui-kit
 },
+  // server: {
+  //   proxy: {
+  //     "/api": {
+  //       target: "http://localhost:5196",
+  //       changeOrigin: true,
+  //     },
+  //   },
+  // },
 });
