@@ -64,6 +64,7 @@ function Login() {
   const [errorMsg, setErrorMsg] = useState("");
   const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | null>(null);
   const [schoolName, setSchoolName] = useState<string | null>(null);
+  const [keepSignedIn, setKeepSignedIn] = useState(false);
   // Restore school branding from a previous session
   useEffect(() => {
     const stored =
@@ -148,7 +149,7 @@ function Login() {
       // Legacy keys — keep for auth context + existing code
       localData.save("schoolInfo", result.schoolInfo);
 
-      loginAuth(result.token, { ...user, roleName: user.role }, result.refreshToken);
+      loginAuth(result.token, { ...user, roleName: user.role }, result.refreshToken, keepSignedIn);
       // Update school branding immediately
       if (result.schoolInfo?.logoUrl) {
         setSchoolLogoUrl(result.schoolInfo.logoUrl);
@@ -201,126 +202,127 @@ function Login() {
 
       </div>
 
-  
-       <div>
-      {/* ── Heading ── */}
-      <div className="mb-8">
-        <span className="text-xs font-bold text-chestnut uppercase tracking-widest">
-          Welcome Back
-        </span>
-        <h1 className="text-2xl font-bold text-[#0F0F0E] mt-1">
-          Sign in to your account
-        </h1>
-        <p className="text-gray-400 text-sm mt-1.5">
-          Enter your credentials to continue
-        </p>
-      </div>
 
-      {/* ── School branding ── */}
-      {schoolLogoUrl && (
-        <div className="mb-6">
-          <img
-            src={schoolLogoUrl}
-            alt={schoolName ?? "School logo"}
-            loading="lazy"
-            className="h-8 w-auto object-contain"
-          />
+      <div>
+        {/* ── Heading ── */}
+        <div className="mb-8">
+          <span className="text-xs font-Poppins font-bold text-chestnut uppercase tracking-widest">
+            Welcome Back
+          </span>
+          <h1 className="text-2xl font-Poppins font-bold text-[#0F0F0E] mt-1">
+            Sign in to your account
+          </h1>
+          <p className="text-gray-400 font-Poppins text-sm mt-1.5">
+            Enter your credentials to continue
+          </p>
         </div>
-      )}
 
-      {/* ── Inline error banner ── */}
-      {errorMsg && (
-        <div
-          role="alert"
-          className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm mb-5"
-        >
-          <svg className="w-4 h-4 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-          </svg>
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
-      {/* ── Form ── */}
-      <form onSubmit={handleSubmit(handleLogin)} className="space-y-5" noValidate>
-
-        {/* Username */}
-        <div className="space-y-1.5">
-          <label htmlFor="userName" className="block text-sm font-semibold text-[#0F0F0E]">
-            Username
-          </label>
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              id="userName"
-              {...register("userName")}
-              type="text"
-              placeholder="Enter your username"
-              autoComplete="username"
-              className="w-full border border-gray-200 rounded-lg pl-9 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-chestnut/30 focus:border-chestnut/40 transition-all"
+        {/* ── School branding ── */}
+        {schoolLogoUrl && (
+          <div className="mb-6">
+            <img
+              src={schoolLogoUrl}
+              alt={schoolName ?? "School logo"}
+              loading="lazy"
+              className="h-8 w-auto object-contain"
             />
           </div>
-          {errors.userName && (
-            <p className="text-red-500 text-xs pl-1">{errors.userName.message}</p>
-          )}
-        </div>
+        )}
 
-        {/* Password */}
-        <div className="space-y-1.5">
-          <div className="flex items-center justify-between">
-            <label htmlFor="password" className="block text-sm font-semibold text-[#0F0F0E]">
-              Password
+        {/* ── Inline error banner ── */}
+        {errorMsg && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-600 rounded-lg px-4 py-3 text-sm mb-5"
+          >
+            <svg className="w-4 h-4 mt-0.5 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {/* ── Form ── */}
+        <form onSubmit={handleSubmit(handleLogin)} className="space-y-5" noValidate>
+
+          {/* Username */}
+          <div className="space-y-1.5">
+            <label htmlFor="userName" className="block font-Poppins text-sm font-semibold text-[#0F0F0E]">
+              Username
             </label>
-            <button type="button" className="text-xs font-semibold text-chestnut hover:opacity-70 transition-opacity">
-              Forgot password?
-            </button>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                id="userName"
+                {...register("userName")}
+                type="text"
+                placeholder="Enter your username"
+                autoComplete="username"
+                className="w-full border font-Poppins border-gray-200 rounded-lg pl-9 pr-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-chestnut/30 focus:border-chestnut/40 transition-all"
+              />
+            </div>
+            {errors.userName && (
+              <p className="text-red-500 font-Poppins text-xs pl-1">{errors.userName.message}</p>
+            )}
           </div>
-          <div className="relative">
-            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              id="password"
-              {...register("password")}
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
-              autoComplete="current-password"
-              className="w-full border border-gray-200 rounded-lg pl-9 pr-11 py-2.5 text-sm outline-none focus:ring-2 focus:ring-chestnut/30 focus:border-chestnut/40 transition-all"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(v => !v)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-            </button>
+
+          {/* Password */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className="block font-Poppins text-sm font-semibold text-[#0F0F0E]">
+                Password
+              </label>
+              <button type="button" className="text-xs font-Poppins font-semibold text-chestnut hover:opacity-70 transition-opacity">
+                Forgot password?
+              </button>
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-3  top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                id="password"
+                {...register("password")}
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                className="w-full border font-Poppins border-gray-200 rounded-lg pl-9 pr-11 py-2.5 text-sm outline-none focus:ring-2 focus:ring-chestnut/30 focus:border-chestnut/40 transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            {errors.password && (
+              <p className="text-red-500 text-xs pl-1 font-space-grotesk">{errors.password.message}</p>
+            )}
           </div>
-          {errors.password && (
-            <p className="text-red-500 text-xs pl-1">{errors.password.message}</p>
-          )}
-        </div>
 
-        {/* Remember me */}
-        <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer select-none">
-          <input type="checkbox" className="rounded accent-chestnut" />
-          Keep me signed in for 30 days
-        </label>
+          {/* Remember me */}
+          <label className="flex font-Poppins items-center gap-2 text-sm text-gray-500 cursor-pointer select-none">
+            <input type="checkbox" checked={keepSignedIn}
+              onChange={(e) => setKeepSignedIn(e.target.checked)} className="rounded accent-chestnut" />
+            Keep me signed in for 30 days
+          </label>
 
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-3 rounded-lg bg-chestnut text-white text-sm font-semibold shadow-sm hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-opacity mt-2"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-              <span>Signing in...</span>
-            </>
-          ) : (
-            <span>Sign In</span>
-          )}
-        </button>
-      </form>
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 font-Poppins rounded-lg bg-chestnut text-white text-sm font-semibold shadow-sm hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-opacity mt-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                <span>Signing in...</span>
+              </>
+            ) : (
+              <span>Sign In</span>
+            )}
+          </button>
+        </form>
 
       </div>
     </div>

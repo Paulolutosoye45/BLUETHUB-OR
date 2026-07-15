@@ -40,12 +40,12 @@ const ChevronIcon = ({ open }: { open: boolean }) => (
 
 const MAIN_LINKS: NavItem[] = [
   { name: "Dashboard", icons: dashboardIcon, path: "/teacher" },
-  { name: "Message", icons: messageIcon, path: "/teacher/message" },
-  { name: "Calendar", icons: calendarIcon, path: "/teacher/calendar" },
+  { name: "Message", icons: messageIcon, path: "/teacher/message", disabled: true },
+  { name: "Calendar", icons: calendarIcon, path: "/teacher/calendar", disabled: true },
 ];
 
 const OTHER_LINKS: NavItem[] = [
-  { name: "Settings", icons: settingsIcon, path: "/teacher/settings" },
+  { name: "Settings", icons: settingsIcon, path: "/teacher/settings", disabled: true },
   { name: "Log Out", icons: logoutIcon, path: "/" },
 ];
 
@@ -134,14 +134,21 @@ function NavItem({
   onToggle?: () => void;
 }) {
   if (link.children) {
+    const isParentDisabled = link.disabled;
+
     return (
       <div>
         <button
           type="button"
-          onClick={onToggle}
+          onClick={isParentDisabled ? undefined : onToggle}
+          disabled={isParentDisabled}
+          aria-disabled={isParentDisabled}
+          title={isParentDisabled ? "Coming soon" : undefined}
           className={[
-            "w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 cursor-pointer group",
-            isOpen ? "bg-[#292382] text-white" : "text-[#292382] hover:bg-[#29238210]",
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 group",
+            isParentDisabled
+              ? "opacity-40 cursor-not-allowed text-[#292382]"
+              : "cursor-pointer " + (isOpen ? "bg-[#292382] text-white" : "text-[#292382] hover:bg-[#29238210]"),
             isCollapsed ? "justify-center" : "justify-between",
           ].join(" ")}
         >
@@ -150,16 +157,16 @@ function NavItem({
               src={link.icons}
               alt={link.name}
               className={`w-[18px] h-[18px] shrink-0 object-contain transition-all ${
-                isOpen ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
+                isOpen && !isParentDisabled ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
               }`}
             />
             {!isCollapsed && (
-              <span className={`text-xs font-medium truncate ${isOpen ? "text-white" : "text-[#292382]"}`}>
+              <span className={`text-xs font-medium truncate ${isOpen && !isParentDisabled ? "text-white" : "text-[#292382]"}`}>
                 {link.name}
               </span>
             )}
           </div>
-          {!isCollapsed && (
+          {!isCollapsed && !isParentDisabled && (
             <span className={isOpen ? "text-white" : "text-[#292382] opacity-60"}>
               <ChevronIcon open={!!isOpen} />
             </span>
@@ -167,27 +174,67 @@ function NavItem({
         </button>
 
         <div
-          style={{ display: !isCollapsed && isOpen ? "block" : "none" }}
+          style={{ display: !isCollapsed && isOpen && !isParentDisabled ? "block" : "none" }}
           className="mt-1 ml-9 border-l-2 border-[#29238225] pl-3 space-y-0.5"
         >
-          {link.children.map((child) => (
-            <NavLink
-              key={child.name}
-              to={child.path}
-              onClick={onNavigate}
-              className={({ isActive }) =>
-                [
-                  "block text-xs py-1.5 px-3 rounded-lg font-medium transition-all duration-150",
-                  isActive
-                    ? "bg-[#292382] text-white"
-                    : "text-[#292382] opacity-80 hover:opacity-100 hover:bg-[#29238212]",
-                ].join(" ")
-              }
-            >
-              {child.name}
-            </NavLink>
-          ))}
+          {link.children.map((child) => {
+            if (child.disabled) {
+              return (
+                <div
+                  key={child.name}
+                  aria-disabled="true"
+                  title="Coming soon"
+                  className="block text-xs py-1.5 px-3 rounded-lg font-medium text-[#292382] opacity-40 cursor-not-allowed select-none"
+                >
+                  {child.name}
+                </div>
+              );
+            }
+
+            return (
+              <NavLink
+                key={child.name}
+                to={child.path}
+                onClick={onNavigate}
+                className={({ isActive }) =>
+                  [
+                    "block text-xs py-1.5 px-3 rounded-lg font-medium transition-all duration-150",
+                    isActive
+                      ? "bg-[#292382] text-white"
+                      : "text-[#292382] opacity-80 hover:opacity-100 hover:bg-[#29238212]",
+                  ].join(" ")
+                }
+              >
+                {child.name}
+              </NavLink>
+            );
+          })}
         </div>
+      </div>
+    );
+  }
+
+  if (link.disabled) {
+    return (
+      <div
+        aria-disabled="true"
+        title="Coming soon"
+        className={[
+          "flex items-center gap-2.5 px-3 py-1.5 rounded-md group",
+          "opacity-40 cursor-not-allowed select-none",
+          isCollapsed ? "justify-center" : "",
+        ].join(" ")}
+      >
+        <img
+          src={link.icons}
+          alt={link.name}
+          className="w-[16px] h-[16px] shrink-0 object-contain opacity-60"
+        />
+        {!isCollapsed && (
+          <span className="text-[11px] font-medium truncate text-[#292382]">
+            {link.name}
+          </span>
+        )}
       </div>
     );
   }
@@ -211,13 +258,12 @@ function NavItem({
             src={link.icons}
             alt={link.name}
             className={`w-[16px] h-[16px] shrink-0 object-contain transition-all ${
-isActive ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
-              }`}
+              isActive ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
+            }`}
           />
           {!isCollapsed && (
             <span
-              className={`text-[11px] font-medium truncate ${isActive ? "text-white" :  "text-[#292382]"
-                }`}
+              className={`text-[11px] font-medium truncate ${isActive ? "text-white" : "text-[#292382]"}`}
             >
               {link.name}
             </span>
@@ -292,6 +338,19 @@ export const NavContent = ({
       <section className="px-3 space-y-0.5">
         {OTHER_LINKS.map((link) => {
           const isLogout = link.name === "Log Out";
+          const isDisabled = link.disabled;
+          if (isDisabled) {
+              return (
+                <div
+                  key={link.name}
+                  aria-disabled="true"
+                  title="Coming soon"
+                  className="block text-xs py-1.5 px-3 rounded-lg font-medium text-[#292382] opacity-40 cursor-not-allowed select-none"
+                >
+                  {link.name}
+                </div>
+              );
+            }
           return (
             <NavLink
               key={link.name}
@@ -323,8 +382,7 @@ export const NavContent = ({
                   />
                   {!isCollapsed && (
                     <span
-                      className={`text-[11px] font-medium ${isLogout ? "text-red-500" :
- isActive ? "text-white" : "text-[#292382]"
+                      className={`text-[11px] font-medium ${isLogout ? "text-red-500" : isActive ? "text-white" : "text-[#292382]"
                         }`}
                     >
                       {link.name}

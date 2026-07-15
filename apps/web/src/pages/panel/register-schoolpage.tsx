@@ -1,4 +1,4 @@
-import { Upload, User } from "lucide-react";
+import { CircleChevronLeft, Upload, User } from "lucide-react";
 import { useRef, useState } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -250,15 +250,15 @@ function Step2({
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h2 className="text-xl font-bold text-gray-800">Create admin credentials</h2>
-        <p className="text-xs text-gray-400 mt-1">
+        <h2 className="text-base font-semibold font-space-grotesk text-gray-800">Create admin credentials</h2>
+        <p className="text-xs font-space-grotesk text-gray-400 mt-1">
           This account will have full administrative control over your school. You can add other users and roles later from the dashboard.
         </p>
       </div>
 
       {/* Personal Identity */}
       <div className="flex flex-col gap-4">
-        <p className="text-sm font-bold text-gray-600">Personal Identity</p>
+        <p className="text-sm font-normal text-[#6B7280] font-space-grotesk">Personal Identity</p>
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="First Name" required>
@@ -295,7 +295,7 @@ function Step2({
 
       {/* School attachment */}
       <div className="flex flex-col gap-3">
-        <p className="text-sm font-bold text-gray-600">School attachment</p>
+        <p className="text-sm font-normal text-[#6B7280] font-space-grotesk">School attachment</p>
         <Field label="Attach admin to school" required>
           <Input placeholder={schoolName || "Greenwood College"} icon={<User size={13} />}
             value={schoolName} onChange={() => {}} />
@@ -306,13 +306,13 @@ function Step2({
 
       {/* Secret phrase */}
       <div className="flex flex-col gap-3">
-        <p className="text-sm font-bold text-gray-600">Secret phrase &amp; answer</p>
+        <p className="text-sm font-normal text-[#6B7280] font-space-grotesk">Secret phrase &amp; answer</p>
         <p className="text-xs text-gray-400">
           Your secret phrase is used instead of a password to verify your identity. Generate one automatically or write your own — then set a personal answer only you know. Keep both safe.
         </p>
 
         <div className="border border-indigo-100 bg-indigo-50/40 rounded-xl p-4 flex flex-col gap-3">
-          <p className="text-xs font-bold text-[#4F61E8] flex items-center gap-1.5">🔐 Secret phrase &amp; answer</p>
+          <p className="text-xs font-normal text-[#4F61E8] flex items-center gap-1.5">🔐 Secret phrase &amp; answer</p>
 
           <Field label="Write your own question" required
             hint="Use a word or phrase that is meaningful to you but hard for others to guess">
@@ -349,14 +349,14 @@ function Step2({
       <div className="flex gap-3">
         <button
           onClick={onBack}
-          className="px-5 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
+          className="px-5 py-3 flex items-center gap-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-500 hover:bg-gray-50 transition-colors"
         >
-          ← Back
+          <CircleChevronLeft /> Back
         </button>
         <button
           onClick={onNext}
           disabled={!canNext}
-          className="flex-1 bg-[#292382] hover:bg-indigo-900 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-colors text-sm"
+          className="flex-1 bg-[#292382] hover:bg-indigo-900 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-md transition-colors text-sm"
         >
           Continue to Approval
         </button>
@@ -432,7 +432,7 @@ function StepProgress({ step }: { step: number }) {
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 export default function RegisterSchoolPage() {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(2);
   const [step1, setStep1] = useState<Step1Form>({
     schoolName: "", schoolLogo: null, schoolAddress: "",
     country: "Nigeria", state: "", city: "", branch: "",

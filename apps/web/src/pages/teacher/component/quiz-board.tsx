@@ -1,12 +1,13 @@
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Stage, Layer, Line } from "react-konva";
 import type Konva from "konva";
-import { Button, Input, Label, Textarea } from "@bluethub/ui-kit";
+import { Button, Input, Label, Textarea, Dialog, DialogContent, DialogHeader, DialogTitle } from "@bluethub/ui-kit";
 import {
   Check,
   ChevronDown,
   Eraser,
   Loader2,
+  Maximize2,
   Pen,
   Plus,
   RotateCcw,
@@ -27,7 +28,7 @@ interface BoardStroke {
   tool: Tool;
   color: string;
   width: number;
-  points: number[]; // flat [x1,y1,x2,y2,…] for Konva Line
+  points: number[];
   timestamp: number;
 }
 
@@ -48,13 +49,13 @@ export interface BoardQuestionResult {
 
 // ── Constants ─────────────────────────────────────────────────────────────
 const COLORS = [
-  "#1a1a1a", // near-black
-  "#E8302C", // chestnut/red
-  "#2563eb", // blue
-  "#16a34a", // green
-  "#f97316", // orange
-  "#7c3aed", // purple
-  "#ffffff", // white
+  "#1a1a1a",
+  "#E8302C",
+  "#2563eb",
+  "#16a34a",
+  "#f97316",
+  "#7c3aed",
+  "#ffffff",
 ];
 
 const WIDTHS = [2, 4, 8, 14];
@@ -141,7 +142,6 @@ const StarPicker = ({
 // ── Helper: Snapshot Konva stage to PNG Blob ────────────────────────────────
 const captureCanvasAsBlob = async (stage: Konva.Stage | null): Promise<Blob> => {
   if (!stage) throw new Error("Stage not ready");
-  // Convert Konva stage to canvas data URL
   const dataUrl = stage.toDataURL({ pixelRatio: 1 });
   const response = await fetch(dataUrl);
   return response.blob();
@@ -167,6 +167,235 @@ const uploadBoardImage = async (blob: Blob): Promise<string> => {
   return json.secure_url as string;
 };
 
+// ── Board rendering helper ─────────────────────────────────────────────────
+interface BoardInnerProps {
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  stageRef: React.RefObject<Konva.Stage | null>;
+  stageWidth: number;
+  boardLocked: boolean;
+  tool: Tool;
+  color: string;
+  width: number;
+  strokes: BoardStroke[];
+  activeStroke: BoardStroke | null;
+  isSaving: boolean;
+  strokesEmpty: boolean;
+  handleMouseDown: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
+  handleMouseMove: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
+  handleMouseUp: (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => void;
+  handleSaveBoard: () => Promise<void>;
+  undo: () => void;
+  clearBoard: () => void;
+  handleResize?: () => void;
+  showResize?: boolean;
+  setTool: (t: Tool) => void;
+  setColor: (c: string) => void;
+  setWidth: (w: number) => void;
+  setBoardSessionId: (id: string | null) => void;
+  setStrokes: (s: BoardStroke[]) => void;
+  setActiveStroke: (s: BoardStroke | null) => void;
+}
+
+const STAGE_HEIGHT = 340;
+
+const BoardInner = ({
+  containerRef, stageRef, stageWidth, boardLocked,
+  tool, color, width, strokes, activeStroke,
+  isSaving, strokesEmpty,
+  handleMouseDown, handleMouseMove, handleMouseUp,
+  handleSaveBoard, undo, clearBoard, handleResize, showResize = true,
+  setTool, setColor, setWidth, setBoardSessionId, setStrokes, setActiveStroke,
+}: BoardInnerProps) => (
+  <>
+    <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-[#D9D9D9] bg-slate-50">
+      <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1">
+        <button
+          type="button"
+          onClick={() => setTool("pen")}
+          disabled={boardLocked}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer disabled:opacity-40 ${
+            tool === "pen"
+              ? "bg-chestnut text-white shadow-sm"
+              : "text-slate-500 hover:bg-slate-100"
+          }`}
+        >
+          <Pen size={13} />
+          Pen
+        </button>
+        <button
+          type="button"
+          onClick={() => setTool("eraser")}
+          disabled={boardLocked}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer disabled:opacity-40 ${
+            tool === "eraser"
+              ? "bg-slate-600 text-white shadow-sm"
+              : "text-slate-500 hover:bg-slate-100"
+          }`}
+        >
+          <Eraser size={13} />
+          Eraser
+        </button>
+      </div>
+
+      {!boardLocked && (
+        <div className="flex items-center gap-1.5">
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => { setColor(c); setTool("pen"); }}
+              className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 cursor-pointer shrink-0"
+              style={{
+                backgroundColor: c,
+                borderColor: color === c ? "#6366f1" : "#e2e8f0",
+                boxShadow: color === c ? `0 0 0 2px #6366f180` : "none",
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {!boardLocked && (
+        <div className="flex items-center gap-1.5">
+          {WIDTHS.map((w) => (
+            <button
+              key={w}
+              type="button"
+              onClick={() => setWidth(w)}
+              className={`flex items-center justify-center w-7 h-7 rounded-md border transition-all cursor-pointer ${
+                width === w
+                  ? "border-indigo-400 bg-indigo-50"
+                  : "border-slate-200 hover:border-slate-300"
+              }`}
+              title={`Width ${w}px`}
+            >
+              <div
+                className="rounded-full bg-slate-600"
+                style={{ width: Math.min(w * 1.5, 16), height: Math.min(w * 1.5, 16) }}
+              />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!boardLocked && (
+        <div className="flex items-center gap-1.5 ml-auto">
+          <button
+            type="button"
+            onClick={undo}
+            disabled={strokes.length === 0}
+            className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700 disabled:opacity-30 cursor-pointer px-2 py-1.5 rounded-md hover:bg-slate-100 transition-all"
+          >
+            <RotateCcw size={13} />
+            Undo
+          </button>
+          <button
+            type="button"
+            onClick={clearBoard}
+            disabled={strokes.length === 0}
+            className="flex items-center gap-1 text-xs font-semibold text-rose-400 hover:text-rose-600 disabled:opacity-30 cursor-pointer px-2 py-1.5 rounded-md hover:bg-rose-50 transition-all"
+          >
+            <Trash2 size={13} />
+            Clear
+          </button>
+          {showResize && handleResize && (
+            <button
+              type="button"
+              onClick={handleResize}
+              className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer px-2 py-1.5 rounded-md hover:bg-slate-100 transition-all"
+            >
+              <Maximize2 size={13} />
+            </button>
+          )}
+        </div>
+      )}
+
+      {boardLocked && (
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+            ✓ Board saved
+          </span>
+          <button
+            type="button"
+            onClick={() => { setBoardSessionId(null); setStrokes([]); setActiveStroke(null); }}
+            className="text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer px-2 py-1 rounded-md hover:bg-slate-100 transition-all"
+          >
+            Re-draw
+          </button>
+        </div>
+      )}
+    </div>
+
+    <div
+      ref={containerRef}
+      className="bg-white"
+      style={{ cursor: boardLocked ? "default" : tool === "eraser" ? "cell" : "crosshair" }}
+    >
+      <Stage
+        ref={stageRef}
+        width={stageWidth}
+        height={STAGE_HEIGHT}
+        onMouseDown={boardLocked ? undefined : handleMouseDown}
+        onMouseMove={boardLocked ? undefined : handleMouseMove}
+        onMouseUp={boardLocked ? undefined : handleMouseUp}
+        onTouchStart={boardLocked ? undefined : handleMouseDown}
+        onTouchMove={boardLocked ? undefined : handleMouseMove}
+        onTouchEnd={boardLocked ? undefined : handleMouseUp}
+      >
+        <Layer>
+          {strokes.map((s) => (
+            <Line
+              key={s.id}
+              points={s.points}
+              stroke={s.color}
+              strokeWidth={s.width}
+              tension={0.4}
+              lineCap="round"
+              lineJoin="round"
+              globalCompositeOperation={
+                s.tool === "eraser" ? "destination-out" : "source-over"
+              }
+            />
+          ))}
+          {activeStroke && (
+            <Line
+              points={activeStroke.points}
+              stroke={activeStroke.color}
+              strokeWidth={activeStroke.width}
+              tension={0.4}
+              lineCap="round"
+              lineJoin="round"
+              globalCompositeOperation={
+                activeStroke.tool === "eraser" ? "destination-out" : "source-over"
+              }
+            />
+          )}
+        </Layer>
+      </Stage>
+    </div>
+
+    {!boardLocked && (
+      <div className="flex items-center justify-between px-4 py-3 border-t border-[#D9D9D9] bg-slate-50">
+        <span className="text-xs text-slate-400 font-medium">
+          Draw your question on the board above
+        </span>
+        <Button
+          onClick={handleSaveBoard}
+          disabled={isSaving || strokesEmpty}
+          className="flex items-center gap-2 px-5 py-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 cursor-pointer transition-all text-white text-sm font-semibold"
+        >
+          {isSaving ? (
+            <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+          ) : (
+            <Save size={14} className="shrink-0" />
+          )}
+          {isSaving ? "Saving…" : "Save Board"}
+        </Button>
+      </div>
+    )}
+  </>
+);
+
 // ── QuizBoard ──────────────────────────────────────────────────────────────
 interface QuizBoardProps {
   onCancel: () => void;
@@ -177,23 +406,23 @@ interface QuizBoardProps {
 const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
+  const modalContainerRef = useRef<HTMLDivElement>(null);
+  const modalStageRef = useRef<Konva.Stage>(null);
 
   const [stageWidth, setStageWidth] = useState(600);
-  const STAGE_HEIGHT = 340;
+  const [modalStageWidth, setModalStageWidth] = useState(600);
 
-  // Drawing state
   const [tool, setTool] = useState<Tool>("pen");
   const [color, setColor] = useState(COLORS[0]);
   const [width, setWidth] = useState(WIDTHS[1]);
   const [strokes, setStrokes] = useState<BoardStroke[]>([]);
   const [activeStroke, setActiveStroke] = useState<BoardStroke | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
   const isDrawing = useRef(false);
 
-  // Board save state
   const [isSaving, setIsSaving] = useState(false);
   const [boardSessionId, setBoardSessionId] = useState<string | null>(null);
 
-  // Optional text + options + difficulty
   const [questionText, setQuestionText] = useState("");
   const [options, setOptions] = useState<OptionRow[]>([
     { key: "A", value: "" },
@@ -208,9 +437,7 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
   // ── Responsive width ────────────────────────────────────────────────────
   useEffect(() => {
     const measure = () => {
-      if (containerRef.current) {
-        setStageWidth(containerRef.current.offsetWidth);
-      }
+      if (containerRef.current) setStageWidth(containerRef.current.offsetWidth);
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -218,14 +445,27 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
     return () => ro.disconnect();
   }, []);
 
-  // ── Drawing handlers ────────────────────────────────────────────────────
+  useEffect(() => {
+    const measure = () => {
+      if (modalContainerRef.current) setModalStageWidth(modalContainerRef.current.offsetWidth);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (modalContainerRef.current) ro.observe(modalContainerRef.current);
+    return () => ro.disconnect();
+  }, [fullscreen]);
+
+  // ── Drawing handlers (derive stage from Konva event) ────────────────────
+  const getStageFromEvent = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) =>
+    e.target.getStage();
+
   const getPos = (stage: Konva.Stage) => {
     const pos = stage.getPointerPosition();
     return pos ? [pos.x, pos.y] : null;
   };
 
-  const handleMouseDown = useCallback(() => {
-    const stage = stageRef.current;
+  const handleMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    const stage = getStageFromEvent(e);
     if (!stage) return;
     const pos = getPos(stage);
     if (!pos) return;
@@ -241,9 +481,9 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
     setActiveStroke(stroke);
   }, [tool, color, width]);
 
-  const handleMouseMove = useCallback(() => {
+  const handleMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (!isDrawing.current || !activeStroke) return;
-    const stage = stageRef.current;
+    const stage = getStageFromEvent(e);
     if (!stage) return;
     const pos = getPos(stage);
     if (!pos) return;
@@ -264,7 +504,7 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
   const undo = () => setStrokes((prev) => prev.slice(0, -1));
   const clearBoard = () => { setStrokes([]); setActiveStroke(null); };
 
-  // ── Save board: capture snapshot and upload as image ──────────────────────
+  // ── Save board ──────────────────────────────────────────────────────────
   const handleSaveBoard = async () => {
     const finalStrokes = activeStroke ? [...strokes, activeStroke] : strokes;
     if (finalStrokes.length === 0) {
@@ -280,19 +520,11 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
 
     setIsSaving(true);
     try {
-      // Capture board snapshot as PNG blob
       const blob = await captureCanvasAsBlob(stageRef.current);
-      
-      // Upload to Cloudinary and get image URL
       const imageUrl = await uploadBoardImage(blob);
-      
-      // Set the session ID (already have the image URL for later use)
       const sessionId = crypto.randomUUID();
       setBoardSessionId(sessionId);
-      
-      // Store the image URL in sessionStorage for access in onSaved callback
       sessionStorage.setItem(`board-snapshot-${sessionId}`, imageUrl);
-      
       toast.success("Board saved. Now add options and publish.");
     } catch (err) {
       const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
@@ -334,7 +566,6 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
       return;
     }
     const filledOptions = options.filter((o) => o.value.trim());
-    // If options are filled but no correct answer is ticked, warn
     if (filledOptions.length > 0 && correctAnswers.length === 0) {
       toast.error("Tick at least one correct answer, or clear all options.");
       return;
@@ -345,10 +576,9 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
       isCorrect: correctAnswers.includes(opt.key),
       orderIndex: idx + 1,
     }));
-    
-    // Retrieve the stored board snapshot image URL
+
     const imageUrl = sessionStorage.getItem(`board-snapshot-${boardSessionId}`) || undefined;
-    
+
     onSaved({
       boardSessionId,
       questionText: questionText.trim(),
@@ -362,197 +592,62 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
 
   const boardLocked = !!boardSessionId;
 
+  const handleResize = () => {
+    setFullscreen(true);
+  }
+
+  const sharedCallbacks = {
+    handleMouseDown, handleMouseMove, handleMouseUp,
+    handleSaveBoard, undo, clearBoard, handleResize,
+    setTool, setColor, setWidth, setBoardSessionId, setStrokes, setActiveStroke,
+  };
+
   return (
     <div className="flex flex-col gap-4">
-      {/* ── Board canvas area ─────────────────────────────────────── */}
+      {/* ── Board canvas area (inline) ─────────────────────────────── */}
       <div className="border border-[#29238280] rounded-2xl overflow-hidden">
-
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-[#D9D9D9] bg-slate-50">
-          {/* Tool */}
-          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-1">
-            <button
-              type="button"
-              onClick={() => setTool("pen")}
-              disabled={boardLocked}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer disabled:opacity-40 ${
-                tool === "pen"
-                  ? "bg-chestnut text-white shadow-sm"
-                  : "text-slate-500 hover:bg-slate-100"
-              }`}
-            >
-              <Pen size={13} />
-              Pen
-            </button>
-            <button
-              type="button"
-              onClick={() => setTool("eraser")}
-              disabled={boardLocked}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer disabled:opacity-40 ${
-                tool === "eraser"
-                  ? "bg-slate-600 text-white shadow-sm"
-                  : "text-slate-500 hover:bg-slate-100"
-              }`}
-            >
-              <Eraser size={13} />
-              Eraser
-            </button>
-          </div>
-
-          {/* Colors */}
-          {!boardLocked && (
-            <div className="flex items-center gap-1.5">
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => { setColor(c); setTool("pen"); }}
-                  className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 cursor-pointer shrink-0"
-                  style={{
-                    backgroundColor: c,
-                    borderColor: color === c ? "#6366f1" : "#e2e8f0",
-                    boxShadow: color === c ? `0 0 0 2px #6366f180` : "none",
-                  }}
-                />
-              ))}
-            </div>
-          )}
-
-          {/* Stroke width */}
-          {!boardLocked && (
-            <div className="flex items-center gap-1.5">
-              {WIDTHS.map((w) => (
-                <button
-                  key={w}
-                  type="button"
-                  onClick={() => setWidth(w)}
-                  className={`flex items-center justify-center w-7 h-7 rounded-md border transition-all cursor-pointer ${
-                    width === w
-                      ? "border-indigo-400 bg-indigo-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                  title={`Width ${w}px`}
-                >
-                  <div
-                    className="rounded-full bg-slate-600"
-                    style={{ width: Math.min(w * 1.5, 16), height: Math.min(w * 1.5, 16) }}
-                  />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Undo / Clear */}
-          {!boardLocked && (
-            <div className="flex items-center gap-1.5 ml-auto">
-              <button
-                type="button"
-                onClick={undo}
-                disabled={strokes.length === 0}
-                className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-700 disabled:opacity-30 cursor-pointer px-2 py-1.5 rounded-md hover:bg-slate-100 transition-all"
-              >
-                <RotateCcw size={13} />
-                Undo
-              </button>
-              <button
-                type="button"
-                onClick={clearBoard}
-                disabled={strokes.length === 0}
-                className="flex items-center gap-1 text-xs font-semibold text-rose-400 hover:text-rose-600 disabled:opacity-30 cursor-pointer px-2 py-1.5 rounded-md hover:bg-rose-50 transition-all"
-              >
-                <Trash2 size={13} />
-                Clear
-              </button>
-            </div>
-          )}
-
-          {boardLocked && (
-            <div className="ml-auto flex items-center gap-2">
-              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
-                ✓ Board saved
-              </span>
-              <button
-                type="button"
-                onClick={() => { setBoardSessionId(null); setStrokes([]); setActiveStroke(null); }}
-                className="text-xs font-semibold text-slate-400 hover:text-slate-600 cursor-pointer px-2 py-1 rounded-md hover:bg-slate-100 transition-all"
-              >
-                Re-draw
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Konva Stage */}
-        <div
-          ref={containerRef}
-          className="bg-white"
-          style={{ cursor: boardLocked ? "default" : tool === "eraser" ? "cell" : "crosshair" }}
-        >
-          <Stage
-            ref={stageRef}
-            width={stageWidth}
-            height={STAGE_HEIGHT}
-            onMouseDown={boardLocked ? undefined : handleMouseDown}
-            onMouseMove={boardLocked ? undefined : handleMouseMove}
-            onMouseUp={boardLocked ? undefined : handleMouseUp}
-            onTouchStart={boardLocked ? undefined : handleMouseDown}
-            onTouchMove={boardLocked ? undefined : handleMouseMove}
-            onTouchEnd={boardLocked ? undefined : handleMouseUp}
-          >
-            <Layer>
-              {/* White background */}
-              {strokes.map((s) => (
-                <Line
-                  key={s.id}
-                  points={s.points}
-                  stroke={s.color}
-                  strokeWidth={s.width}
-                  tension={0.4}
-                  lineCap="round"
-                  lineJoin="round"
-                  globalCompositeOperation={
-                    s.tool === "eraser" ? "destination-out" : "source-over"
-                  }
-                />
-              ))}
-              {activeStroke && (
-                <Line
-                  points={activeStroke.points}
-                  stroke={activeStroke.color}
-                  strokeWidth={activeStroke.width}
-                  tension={0.4}
-                  lineCap="round"
-                  lineJoin="round"
-                  globalCompositeOperation={
-                    activeStroke.tool === "eraser" ? "destination-out" : "source-over"
-                  }
-                />
-              )}
-            </Layer>
-          </Stage>
-        </div>
-
-        {/* Save Board button */}
-        {!boardLocked && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-[#D9D9D9] bg-slate-50">
-            <span className="text-xs text-slate-400 font-medium">
-              Draw your question on the board above
-            </span>
-            <Button
-              onClick={handleSaveBoard}
-              disabled={isSaving || strokes.length === 0}
-              className="flex items-center gap-2 px-5 py-4 rounded-lg bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 cursor-pointer transition-all text-white text-sm font-semibold"
-            >
-              {isSaving ? (
-                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
-              ) : (
-                <Save size={14} className="shrink-0" />
-              )}
-              {isSaving ? "Saving…" : "Save Board"}
-            </Button>
-          </div>
-        )}
+        <BoardInner
+          containerRef={containerRef}
+          stageRef={stageRef}
+          stageWidth={stageWidth}
+          boardLocked={boardLocked}
+          tool={tool}
+          color={color}
+          width={width}
+          strokes={strokes}
+          activeStroke={activeStroke}
+          isSaving={isSaving}
+          strokesEmpty={strokes.length === 0}
+          showResize
+          {...sharedCallbacks}
+        />
       </div>
+
+      {/* ── Fullscreen Board Modal ─────────────────────────────────── */}
+      <Dialog open={fullscreen} onOpenChange={(v) => { if (!v) setFullscreen(false); }}>
+        <DialogContent className="md:max-w-[90vw] md:h-auto md:max-h-[90vh] w-full h-auto flex flex-col md:p-6">
+          <DialogHeader>
+            <DialogTitle>Board Editor</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto">
+            <BoardInner
+              containerRef={modalContainerRef}
+              stageRef={modalStageRef}
+              stageWidth={modalStageWidth}
+              boardLocked={boardLocked}
+              tool={tool}
+              color={color}
+              width={width}
+              strokes={strokes}
+              activeStroke={activeStroke}
+              isSaving={isSaving}
+              strokesEmpty={strokes.length === 0}
+              showResize={false}
+              {...sharedCallbacks}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Optional text + options + difficulty ───────────────────── */}
       <div className="border border-[#29238280] rounded-2xl overflow-hidden">
@@ -566,7 +661,6 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
         </div>
 
         <div className="flex flex-col gap-5 p-4 sm:p-6">
-            {/* Question Type */}
             <div className="flex flex-col gap-2">
               <Label className="text-sm font-medium text-chestnut">Question Type:</Label>
               <div className="relative">
@@ -583,7 +677,6 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
               </div>
             </div>
 
-            {/* Optional question text */}
             <div className="flex flex-col gap-2">
               <Label className="text-sm font-medium text-chestnut">
                 Question Text <span className="text-slate-400 font-normal text-xs">(optional)</span>
@@ -597,13 +690,11 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
               />
             </div>
 
-            {/* Difficulty */}
             <div className="flex flex-col gap-2">
               <Label className="text-sm font-medium text-chestnut">Difficulty Level:</Label>
               <StarPicker value={difficultyLevel} onChange={setDifficultyLevel} />
             </div>
 
-            {/* Options */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium text-chestnut">Options:</Label>
@@ -672,7 +763,6 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
               )}
             </div>
 
-          {/* Footer actions */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 border-t border-[#D9D9D9]">
             <button
               type="button"
@@ -700,3 +790,5 @@ const QuizBoard = ({ onCancel, onSaved, isSubmitting }: QuizBoardProps) => {
 };
 
 export default QuizBoard;
+
+// opencode -s ses_0c2bb1955ffeZpABFD382514KG

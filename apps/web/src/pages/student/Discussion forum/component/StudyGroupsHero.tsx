@@ -38,7 +38,7 @@ function StudyGroupsHero({
       </p>
 
       {/* Title */}
-      <h2 className="text-white text-2xl font-extrabold mb-1">
+      <h2 className="text-white text-base font-extrabold mb-1">
         Study Groups &amp; Forums
       </h2>
       <p className="text-white/70 text-sm mb-5 leading-relaxed">

@@ -146,6 +146,89 @@ export interface StudentPerformanceDetailDto {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// STUDENT SUMMARY — Dashboard overview of pending items
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface UnattemptedAssessmentDto {
+  assessmentId: string;
+  code: string;
+  title: string;
+}
+
+export interface UnattemptedQuizDto {
+  lessonId: string;
+  lessonTitle: string;
+  quizCode: string;
+  subjectName: string;
+}
+
+export interface UnwatchedLessonDto {
+  lessonId: string;
+  lessonTitle: string;
+  subjectName: string;
+}
+
+export interface StudentSummaryCountsDto {
+  unattemptedAssessments: number;
+  unattemptedQuizzes: number;
+  unwatchedLessons: number;
+}
+
+export interface StudentSummaryDto {
+  unattemptedAssessments: UnattemptedAssessmentDto[];
+  unattemptedQuizzes: UnattemptedQuizDto[];
+  unwatchedLessons: UnwatchedLessonDto[];
+  counts: StudentSummaryCountsDto;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STUDENT SUBJECT SCORES — Per-subject average for student
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface StudentSubjectScoreDto {
+  subjectId: string;
+  subjectName: string;
+  averageScore: number;
+  quizCount: number;
+  position: number;
+  totalStudents: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STUDENT SUBTOPIC SCORES — Per-subtopic average for student
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface StudentSubtopicScoreDto {
+  subtopicId: string | null;
+  subjectId: string;
+  subjectName: string;
+  subTopicName: string;
+  averageScore: number;
+  quizCount: number;
+  position: number;
+  totalStudents: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUBJECT TOPIC PERFORMANCE — Topic & subtopic scores
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface SubjectSubtopicPerformanceDto {
+  subTopicId: string;
+  subTopicName: string;
+  averageScore: number;
+  quizCount: number;
+}
+
+export interface SubjectTopicPerformanceDto {
+  topicId: string;
+  topicName: string;
+  averageScore: number | null;
+  quizCount: number;
+  subTopics: SubjectSubtopicPerformanceDto[];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // SUBJECT PERFORMANCE — Classroom breakdown
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -199,7 +282,31 @@ export const performanceService = {
 
   getSubjectClassrooms: (subjectId: string) =>
     API.get<TResponse<SubjectClassroomPerformanceDto[]>>(
-      `api/Performance/subject/${subjectId}/classrooms`,
+      `api/performance/subject/${subjectId}/classrooms`,
+      { headers }
+    ),
+
+  getSubjectTopicPerformance: (subjectId: string) =>
+    API.get<TResponse<SubjectTopicPerformanceDto[]>>(
+      `api/performance/subject/${subjectId}/topics`,
+      { headers }
+    ),
+
+  getStudentSummary: () =>
+    API.get<TResponse<StudentSummaryDto>>(
+      "api/performance/student-summary",
+      { headers }
+    ),
+
+  getStudentSubjectScores: () =>
+    API.get<TResponse<StudentSubjectScoreDto[]>>(
+      "api/performance/student/subject-scores",
+      { headers }
+    ),
+
+  getStudentSubtopicScores: () =>
+    API.get<TResponse<StudentSubtopicScoreDto[]>>(
+      "api/performance/student/subtopic-scores",
       { headers }
     ),
 };

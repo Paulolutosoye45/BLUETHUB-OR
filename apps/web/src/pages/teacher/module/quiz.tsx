@@ -1,7 +1,6 @@
 import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { performanceService, type SubjectClassroomPerformanceDto } from "@/services/performance";
 import { schoolService } from "@/services/school";
-import { studentService, type StudentPublishedLesson } from "@/services/student";
 import { quizService, type StudentQuizHistoryDto } from "@/services/quiz";
 import { moduleService, type ModuleStudent } from "@/services/module";
 import { Loader2, ChevronDown, ChevronRight, Search, CheckCircle2, XCircle } from "lucide-react";
@@ -36,29 +35,26 @@ const ModuleQuiz = () => {
   const { user } = useAuthContext();
   const roleData = user?.roleData;
 
-  const classrooms: ClassroomInfo[] = roleData && isTeacherRoleData(roleData)
-    ? roleData.classrooms.map((c) => ({
-        classroomId: c.classroomId,
-        className: c.className,
-        subjects: c.subjects.map((s) => ({
-          subjectId: s.subjectId,
-          subjectName: s.subjectName,
-          subjectCategory: s.subjectCategory,
-        })),
-      }))
-    : [];
-
-  const allSubjects = useMemo(() => {
-    const map = new Map<string, SubjectInfo>();
-    classrooms.forEach((c) => c.subjects.forEach((s) => map.set(s.subjectId, s)));
-    return Array.from(map.values());
-  }, [classrooms]);
+  const classrooms = useMemo<ClassroomInfo[]>(() => {
+    if (!roleData || !isTeacherRoleData(roleData)) return [];
+    return (roleData.classrooms ?? []).map((c) => ({
+      classroomId: c.classroomId,
+      className: c.className,
+      subjects: (c.subjects ?? []).map((s) => ({
+        subjectId: s.subjectId,
+        subjectName: s.subjectName,
+        subjectCategory: s.subjectCategory,
+      })),
+    }));
+  }, [roleData]);
 
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
+  const [selectedClassroomId, setSelectedClassroomId] = useState<string>("");
   const [viewMode, setViewMode] = useState<ViewMode>("classroom");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  const [fetchedSubjects, setFetchedSubjects] = useState<SubjectInfo[]>([]);
   const [classroomsData, setClassroomsData] = useState<SubjectClassroomPerformanceDto[]>([]);
   const [curriculumTopics, setCurriculumTopics] = useState<CurriculumTopic[]>([]);
   const [topicScores, setTopicScores] = useState<Record<string, TopicScore>>({});
@@ -73,11 +69,60 @@ const ModuleQuiz = () => {
   const [expandedTopic, setExpandedTopic] = useState<string | null>(null);
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
 
+  const classroomIds = useMemo(() => new Set(classrooms.map((c) => c.classroomId)), [classrooms]);
+
+  const allSubjects = useMemo(() => {
+    const map = new Map<string, SubjectInfo>();
+    classrooms.forEach((c) => c.subjects.forEach((s) => map.set(s.subjectId, s)));
+    return Array.from(map.values());
+  }, [classrooms]);
+
+  const classroomSubjects = useMemo(() => {
+    if (!selectedClassroomId) return allSubjects;
+    const fromRoleData = classrooms.find((cls) => cls.classroomId === selectedClassroomId)?.subjects;
+    if (fromRoleData && fromRoleData.length > 0) return fromRoleData;
+    return fetchedSubjects;
+  }, [classrooms, selectedClassroomId, allSubjects, fetchedSubjects]);
+
+  useEffect(() => {
+    if (classroomSubjects.length > 0 && !classroomSubjects.some((s) => s.subjectId === selectedSubjectId)) {
+      setSelectedSubjectId(classroomSubjects[0].subjectId);
+    }
+  }, [classroomSubjects, selectedSubjectId]);
+
   useEffect(() => {
     if (allSubjects.length > 0 && !selectedSubjectId) {
       setSelectedSubjectId(allSubjects[0].subjectId);
     }
   }, [allSubjects]);
+
+  useEffect(() => {
+    if (classrooms.length > 0 && !selectedClassroomId) {
+      setSelectedClassroomId(classrooms[0].classroomId);
+    } else if (classrooms.length > 0 && selectedClassroomId && !classrooms.some((c) => c.classroomId === selectedClassroomId)) {
+      setSelectedClassroomId(classrooms[0].classroomId);
+    }
+  }, [classrooms, selectedClassroomId]);
+
+  useEffect(() => {
+    if (!selectedClassroomId) return;
+    const hasRoleDataSubjects = classrooms.find((c) => c.classroomId === selectedClassroomId)?.subjects?.length;
+    if (hasRoleDataSubjects) return;
+    schoolService.getSubjectsByClassroomId(selectedClassroomId)
+      .then((res) => {
+        const obj = (res.data as any)?.data ?? {};
+        const major: any[] = obj.majorSubjects ?? obj.MajorSubjects ?? [];
+        const minor: any[] = obj.minorSubjects ?? obj.MinorSubjects ?? [];
+        const all = [...major, ...minor];
+        const mapped: SubjectInfo[] = all.map((s: any) => ({
+          subjectId: String(s.id ?? s.subjectId ?? ""),
+          subjectName: String(s.subject ?? s.subjectName ?? s.name ?? ""),
+          subjectCategory: String(s.category ?? s.subjectCategory ?? ""),
+        }));
+        setFetchedSubjects(mapped);
+      })
+      .catch(() => setFetchedSubjects([]));
+  }, [selectedClassroomId, classrooms]);
 
   useEffect(() => {
     if (!selectedSubjectId) return;
@@ -95,136 +140,78 @@ const ModuleQuiz = () => {
       .then((res) => setClassroomsData(res.data.data ?? []))
       .catch((e) => { console.warn("getSubjectClassrooms failed", e); setClassroomsData([]); });
 
-    // Load curriculum (topic/subtopic tree)
-    const firstClassroomId = classrooms.find((c) =>
-      c.subjects.some((s) => s.subjectId === selectedSubjectId)
-    )?.classroomId;
-    schoolService.getSubjectCurriculum(selectedSubjectId, firstClassroomId)
+    // Load pre-computed topic & subtopic scores from performance snapshots
+    performanceService.getSubjectTopicPerformance(selectedSubjectId)
       .then((res) => {
-        const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
-        const topicsRaw: any[] = raw.Topics ?? raw.topics ?? [];
-        const mapped: CurriculumTopic[] = topicsRaw.map((t: any) => ({
-          id: String(t.Id ?? t.id ?? t.topicId ?? ""),
-          name: String(t.Name ?? t.name ?? t.topicName ?? ""),
-          subTopics: (t.SubTopics ?? t.subTopics ?? []).map((s: any) => ({
-            id: String(s.Id ?? s.id ?? s.subTopicId ?? ""),
-            name: String(s.Name ?? s.name ?? s.subTopicName ?? ""),
-          })),
+        const topics = res.data.data ?? [];
+        const mappedTopics: CurriculumTopic[] = topics.map((t) => ({
+          id: t.topicId,
+          name: t.topicName,
+          subTopics: t.subTopics.map((st) => ({ id: st.subTopicId, name: st.subTopicName })),
         }));
-        setCurriculumTopics(mapped);
-      })
-      .catch((e) => { console.warn("getSubjectCurriculum failed", e); setCurriculumTopics([]); });
+        setCurriculumTopics(mappedTopics);
 
-    // Load lessons by subject + student quiz history → compute per-topic scores
-    Promise.all([
-      studentService.getLessonsBySubject(selectedSubjectId).catch((e) => {
-        console.warn("getLessonsBySubject failed", e);
-        return { data: { data: { lessons: [] as StudentPublishedLesson[] } } };
-      }),
-      moduleService.getTeacherStudents().catch((e) => {
-        console.warn("getTeacherStudents failed", e);
-        return { data: { data: [] as ModuleStudent[] } };
-      }),
-    ]).then(([lessonsRes, studentsRes]) => {
-      const lessons: StudentPublishedLesson[] = lessonsRes.data.data?.lessons ?? [];
-      const studentList: ModuleStudent[] = studentsRes.data.data ?? [];
-      setStudents(studentList);
-
-      // Build quizCode → topicId/subTopic mapping from lessons
-      const quizToTopic = new Map<string, { topicId: string; subTopic: string }>();
-      const topicQuizCodes = new Map<string, Set<string>>();
-      const subTopicQuizCodes = new Map<string, Set<string>>();
-
-      for (const lesson of lessons) {
-        const qc = lesson.quizCode;
-        if (qc) {
-          const tid = lesson.topicId || lesson.topicName;
-          const st = lesson.subTopic;
-
-          quizToTopic.set(qc, { topicId: tid, subTopic: st });
-
-          if (!topicQuizCodes.has(tid)) topicQuizCodes.set(tid, new Set());
-          topicQuizCodes.get(tid)!.add(qc);
-
-          if (st) {
-            const key = `${tid}::${st}`;
-            if (!subTopicQuizCodes.has(key)) subTopicQuizCodes.set(key, new Set());
-            subTopicQuizCodes.get(key)!.add(qc);
-          }
+        const scores: Record<string, TopicScore> = {};
+        for (const t of topics) {
+          const stScores: Record<string, number | null> = {};
+          t.subTopics.forEach((st) => { stScores[st.subTopicName] = st.averageScore; });
+          scores[t.topicId] = { avgScore: t.averageScore, subTopicScores: stScores };
         }
-      }
+        setTopicScores(scores);
+      })
+      .catch((e) => { console.warn("getSubjectTopicPerformance failed", e); setCurriculumTopics([]); setTopicScores({}); });
 
-      // Load quiz history for all students
-      if (studentList.length > 0) {
-        setLoadingStudents(true);
-        Promise.all(
-          studentList.map((s) =>
-            quizService.getStudentQuizHistory(s.id)
-              .then((r) => ({ studentId: s.id, data: r.data.data ?? [] }))
-              .catch(() => ({ studentId: s.id, data: [] }))
-          )
-        ).then((results) => {
-          const historyMap = new Map<string, StudentQuizHistoryDto[]>();
-          results.forEach((r) => historyMap.set(r.studentId, r.data));
-          setStudentQuizHistory(historyMap);
+    // Load students for "Per Student" view
+    moduleService.getTeacherStudents()
+      .then((res) => {
+        const studentList = res.data.data ?? [];
+        setStudents(studentList);
 
-          // Compute avg scores per quizCode
-          const quizScores = new Map<string, number[]>();
-          results.forEach((r) => {
-            r.data.forEach((h) => {
-              const qc = h.quizCode;
-              const score = h.finalScorePercent;
-              if (qc && score != null && quizToTopic.has(qc)) {
-                if (!quizScores.has(qc)) quizScores.set(qc, []);
-                quizScores.get(qc)!.push(score);
-              }
-            });
-          });
-          const quizAvg = new Map<string, number>();
-          quizScores.forEach((scores, qc) => {
-            quizAvg.set(qc, scores.reduce((a, b) => a + b, 0) / scores.length);
-          });
-
-          // Aggregate per topic / subtopic
-          const scores: Record<string, TopicScore> = {};
-          for (const [tid, qcodes] of topicQuizCodes) {
-            const vals: number[] = [];
-            qcodes.forEach((qc) => { const v = quizAvg.get(qc); if (v != null) vals.push(v); });
-            scores[tid] = {
-              avgScore: vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null,
-              subTopicScores: {},
-            };
-          }
-          for (const [key, qcodes] of subTopicQuizCodes) {
-            const vals: number[] = [];
-            qcodes.forEach((qc) => { const v = quizAvg.get(qc); if (v != null) vals.push(v); });
-            const [tid, stName] = key.split("::");
-            if (!scores[tid]) scores[tid] = { avgScore: null, subTopicScores: {} };
-            scores[tid].subTopicScores[stName] = vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-          }
-          setTopicScores(scores);
-        }).catch((e) => console.warn("load quiz history failed", e))
-        .finally(() => setLoadingStudents(false));
-      } else {
-        setLoadingStudents(false);
-      }
-    }).catch((e) => console.warn("load lessons/students failed", e))
-    .finally(() => { clearTimeout(timeout); setLoading(false); });
+        if (studentList.length > 0) {
+          setLoadingStudents(true);
+          Promise.all(
+            studentList.map((s) =>
+              quizService.getStudentQuizHistory(s.id)
+                .then((r) => ({ studentId: s.id, data: r.data.data ?? [] }))
+                .catch(() => ({ studentId: s.id, data: [] }))
+            )
+          ).then((results) => {
+            const historyMap = new Map<string, StudentQuizHistoryDto[]>();
+            results.forEach((r) => historyMap.set(r.studentId, r.data));
+            setStudentQuizHistory(historyMap);
+          }).catch((e) => console.warn("load quiz history failed", e))
+          .finally(() => setLoadingStudents(false));
+        } else {
+          setLoadingStudents(false);
+        }
+      })
+      .catch((e) => { console.warn("getTeacherStudents failed", e); setStudents([]); })
+      .finally(() => { clearTimeout(timeout); setLoading(false); });
   }, [selectedSubjectId, retryKey]);
 
+  const selectedClassroom = classrooms.find((c) => c.classroomId === selectedClassroomId);
+  const studentsInClass = useMemo(() => {
+    if (!selectedClassroom) return students;
+    return students.filter((s) => s.className === selectedClassroom.className);
+  }, [students, selectedClassroom]);
+
   const filteredStudents = useMemo(() => {
-    if (!search.trim()) return students;
-    const q = search.toLowerCase();
-    return students.filter(
-      (s) =>
-        s.firstName.toLowerCase().includes(q) ||
-        s.lastName.toLowerCase().includes(q) ||
-        s.userName.toLowerCase().includes(q)
-    );
-  }, [students, search]);
+    let list = studentsInClass;
+    const q = search.trim().toLowerCase();
+    if (q) {
+      list = list.filter(
+        (s) =>
+          s.firstName.toLowerCase().includes(q) ||
+          s.lastName.toLowerCase().includes(q) ||
+          s.userName.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [studentsInClass, search]);
 
   const handleSubjectChange = (id: string) => {
     setSelectedSubjectId(id);
+    setSelectedClassroomId("");
     setExpandedTopic(null);
     setExpandedStudent(null);
   };
@@ -244,25 +231,39 @@ const ModuleQuiz = () => {
             <h1 className="text-2xl font-bold text-[#292382]">Quiz Performance</h1>
             <p className="text-sm text-gray-500 mt-1">Track performance by classroom, topic, and per student</p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-500">Subject:</span>
-            <select
-              value={selectedSubjectId}
-              onChange={(e) => handleSubjectChange(e.target.value)}
-              className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white text-[#292382] font-medium focus:outline-none focus:ring-2 focus:ring-[#292382]/20"
-            >
-              {allSubjects.map((s) => (
-                <option key={s.subjectId} value={s.subjectId}>{s.subjectName}</option>
-              ))}
-            </select>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500">Class:</span>
+              <select
+                value={selectedClassroomId}
+                onChange={(e) => { setSelectedClassroomId(e.target.value); setExpandedStudent(null); setExpandedTopic(null); }}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white text-[#292382] font-medium focus:outline-none focus:ring-2 focus:ring-[#292382]/20"
+              >
+                {classrooms.map((c) => (
+                  <option key={c.classroomId} value={c.classroomId}>{c.className}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-500">Subject:</span>
+              <select
+                value={selectedSubjectId}
+                onChange={(e) => handleSubjectChange(e.target.value)}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white text-[#292382] font-medium focus:outline-none focus:ring-2 focus:ring-[#292382]/20"
+              >
+                {classroomSubjects.map((s) => (
+                  <option key={s.subjectId} value={s.subjectId}>{s.subjectName}</option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
         {/* Data summary */}
         <div className="flex flex-wrap gap-4 text-xs text-gray-500 bg-white border border-gray-200 rounded-lg px-4 py-2">
-          <span>Classrooms: <strong>{classroomsData.length}</strong></span>
+          <span>Classrooms: <strong>{classroomsData.filter((c) => classroomIds.has(c.classroomId)).length}</strong></span>
           <span>Topics: <strong>{curriculumTopics.length}</strong></span>
-          <span>Students: <strong>{students.length}</strong></span>
+          <span>Students: <strong>{studentsInClass.length}</strong></span>
         </div>
 
         {/* View Mode Tabs */}
@@ -308,12 +309,12 @@ const ModuleQuiz = () => {
             {/* By Classroom View */}
             {viewMode === "classroom" && (
               <div className="space-y-3">
-                {classroomsData.length === 0 && (
+                {classroomsData.filter((c) => classroomIds.has(c.classroomId)).length === 0 && (
                   <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
                     <p className="text-gray-500">No classroom performance data for this subject.</p>
                   </div>
                 )}
-                {classroomsData.map((cls) => (
+                {classroomsData.filter((c) => classroomIds.has(c.classroomId)).map((cls) => (
                   <div key={cls.classroomId} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <div className="p-4 flex items-center justify-between">
                       <div>

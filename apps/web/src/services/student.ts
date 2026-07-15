@@ -90,6 +90,13 @@ export interface StudentSubjectsResponse {
   minor: StudentSubjectItem[];
 }
 
+export interface SubjectStatsResponse {
+  subjectId: string;
+  subjectName: string;
+  lessonCount: number;
+  quizCount: number;
+}
+
 export interface StudentPublishedLesson {
   id: string;
   aim: string;
@@ -204,6 +211,13 @@ export const studentService = {
   getLessonsBySubject: (subjectId: string) =>
     API.get<TResponse<StudentSubjectLessonsResponse>>(
       `api/lessons/subject/${subjectId}`,
+      { headers }
+    ),
+
+  // ── SUBJECT STATS ───────────────────────────────────────────────────────────
+  getSubjectStats: (subjectId: string, classroomId: string) =>
+    API.get<TResponse<SubjectStatsResponse>>(
+      `api/School/subject/${subjectId}/classroom/${classroomId}/stats`,
       { headers }
     ),
 

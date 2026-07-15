@@ -1,6 +1,6 @@
 import { quizService, type GradingDetailDto } from "@/services/quiz";
 import { Loader2, Star, ChevronDown, ChevronRight, CheckCircle2, MessageSquare } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const DIFFICULTY_LABELS = ["", "Easy", "Medium", "Hard", "Expert"];
 
@@ -52,7 +52,8 @@ const QuizGrading = () => {
   const [items, setItems] = useState<GradingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedQuiz, setExpandedQuiz] = useState<string | null>(null);
+  const [expandedAnswer, setExpandedAnswer] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
@@ -77,6 +78,26 @@ const QuizGrading = () => {
       })
       .finally(() => setLoading(false));
   }, [retryKey]);
+
+  const quizGroups = useMemo(() => {
+    const map = new Map<string, GradingItem[]>();
+    for (const item of items) {
+      const group = map.get(item.quizCode);
+      if (group) group.push(item);
+      else map.set(item.quizCode, [item]);
+    }
+    return Array.from(map.entries())
+      .map(([quizCode, answers]) => ({
+        quizCode,
+        lessonTitle: answers[0].lessonTitle,
+        studentCount: new Set(answers.map((a) => a.studentId)).size,
+        answerCount: answers.length,
+        pendingCount: answers.filter((a) => !a.submitted).length,
+        gradedCount: answers.filter((a) => a.submitted).length,
+        answers,
+      }))
+      .sort((a, b) => b.pendingCount - a.pendingCount);
+  }, [items]);
 
   const handleStarChange = (answerId: string, starCount: number) => {
     setItems((prev) => prev.map((i) => i.answerId === answerId ? { ...i, starCount } : i));
@@ -158,130 +179,174 @@ const QuizGrading = () => {
           </div>
         )}
 
-        {/* Grading Items */}
+        {/* Grading Items — Grouped by Quiz */}
         {!loading && !error && items.length > 0 && (
-          <div className="space-y-3">
-            {items.map((item) => {
-              const isOpen = expandedId === item.answerId;
-              const starMarks = [0, item.starMarkEasy, item.starMarkMedium, item.starMarkHard, item.starMarkExpert, item.starMarkExpert];
-
-              if (item.submitted) {
-                return (
-                  <div key={item.answerId} className="bg-green-50 border border-green-200 rounded-xl p-4">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-green-800 truncate">{item.lessonTitle}</p>
-                        <p className="text-xs text-green-600">{item.studentName} · {item.quizCode}</p>
-                      </div>
-                      <span className="text-xs text-green-700 font-semibold">{item.starCount} stars · {item.starCount * starMarks[item.difficultyLevel]} marks</span>
-                    </div>
-                  </div>
-                );
-              }
+          <div className="space-y-4">
+            {quizGroups.map((group) => {
+              const isQuizOpen = expandedQuiz === group.quizCode;
 
               return (
-                <div key={item.answerId} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-                  {/* Header */}
+                <div key={group.quizCode} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                  {/* ── Quiz Group Header ──────────────────────────────────── */}
                   <button
                     type="button"
-                    onClick={() => setExpandedId(isOpen ? null : item.answerId)}
+                    onClick={() => setExpandedQuiz(isQuizOpen ? null : group.quizCode)}
                     className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      {isOpen ? <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />}
+                      {isQuizOpen ? <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronRight className="w-4 h-4 text-gray-400 shrink-0" />}
                       <div className="text-left min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-[#292382] truncate">{item.lessonTitle}</p>
+                        <p className="text-sm font-semibold text-[#292382] truncate">{group.lessonTitle}</p>
                         <p className="text-xs text-gray-500">
-                          {item.studentName} · {item.quizCode} · {new Date(item.submittedAt).toLocaleString()}
+                          Code: {group.quizCode} · {group.studentCount} student{group.studentCount !== 1 ? "s" : ""} · {group.answerCount} answer{group.answerCount !== 1 ? "s" : ""}
                         </p>
                       </div>
-                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${
-                        item.difficultyLevel <= 2 ? "bg-green-100 text-green-700" :
-                        item.difficultyLevel === 3 ? "bg-amber-100 text-amber-700" :
-                        "bg-red-100 text-red-700"
-                      }`}>
-                        {DIFFICULTY_LABELS[item.difficultyLevel] ?? "Unknown"}
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        {group.pendingCount > 0 && (
+                          <span className="text-xs font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                            {group.pendingCount} pending
+                          </span>
+                        )}
+                        {group.gradedCount > 0 && (
+                          <span className="text-xs font-semibold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                            {group.gradedCount} graded
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </button>
 
-                  {/* Expanded content */}
-                  {isOpen && (
-                    <div className="border-t border-gray-100">
-                      <div className="p-4 space-y-4">
-                        {/* Question */}
-                        <div>
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Question</p>
-                          <div className="bg-gray-50 rounded-lg p-3">
-                            <p className="text-sm font-medium text-[#292382]">{item.questionTitle}</p>
-                            <p className="text-sm text-gray-700 mt-1">{item.questionTextContent}</p>
-                          </div>
-                        </div>
+                  {/* ── Answers within Quiz ───────────────────────────────── */}
 
-                        {/* Student's answer */}
-                        <div>
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Student's Answer</p>
-                          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                            <p className="text-sm text-gray-800 whitespace-pre-wrap">{item.typedAnswer || "(no typed answer)"}</p>
-                          </div>
-                          {item.audioUrl && (
-                            <div className="mt-2">
-                              <audio controls src={item.audioUrl} className="w-full h-8" />
+                  {isQuizOpen && (
+                    <div className="border-t border-gray-100 divide-y divide-gray-100">
+                      {group.answers.map((item) => {
+                        const isAnswerOpen = expandedAnswer === item.answerId;
+                        const marks = [0, item.starMarkEasy, item.starMarkMedium, item.starMarkHard, item.starMarkExpert, item.starMarkExpert];
+
+                        if (item.submitted) {
+                          return (
+                            <div key={item.answerId} className="bg-green-50/50 px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-medium text-green-800 truncate">{item.studentName}</p>
+                                  <p className="text-xs text-green-600">{item.questionTitle}</p>
+                                </div>
+                                <span className="text-xs text-green-700 font-semibold shrink-0">{item.starCount} stars · {item.starCount * marks[item.difficultyLevel]} marks</span>
+                              </div>
                             </div>
-                          )}
-                        </div>
+                          );
+                        }
 
-                        {/* Grading controls */}
-                        <div>
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-                            Grade · Max {item.maxMarks} marks · {DIFFICULTY_LABELS[item.difficultyLevel]} difficulty
-                          </p>
-                          <StarSelector
-                            value={item.starCount}
-                            onChange={(v) => handleStarChange(item.answerId, v)}
-                            disabled={item.submitting}
-                            starValue={starMarks[item.difficultyLevel]}
-                          />
-                        </div>
+                        return (
+                          <div key={item.answerId}>
+                            {/* Answer header */}
+                            <button
+                              type="button"
+                              onClick={() => setExpandedAnswer(isAnswerOpen ? null : item.answerId)}
+                              className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                {isAnswerOpen ? <ChevronDown className="w-3.5 h-3.5 text-gray-400 shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400 shrink-0" />}
+                                <div className="text-left min-w-0 flex-1">
+                                  <p className="text-sm font-medium text-[#292382] truncate">{item.studentName}</p>
+                                  <p className="text-xs text-gray-500 truncate">{item.questionTitle}</p>
+                                </div>
+                                <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full shrink-0 ${
+                                  item.difficultyLevel <= 2 ? "bg-green-100 text-green-700" :
+                                  item.difficultyLevel === 3 ? "bg-amber-100 text-amber-700" :
+                                  "bg-red-100 text-red-700"
+                                }`}>
+                                  {DIFFICULTY_LABELS[item.difficultyLevel] ?? "Unknown"}
+                                </span>
+                              </div>
+                            </button>
 
-                        {/* Feedback */}
-                        <div>
-                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
-                            <MessageSquare className="w-3 h-3 inline-block mr-1" />
-                            Feedback (optional)
-                          </p>
-                          <textarea
-                            value={item.feedback}
-                            onChange={(e) => handleFeedbackChange(item.answerId, e.target.value)}
-                            placeholder="Add feedback for the student..."
-                            rows={2}
-                            disabled={item.submitting}
-                            className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#292382]/20 resize-none"
-                          />
-                        </div>
+                            {/* Expanded answer detail + grading */}
+                            {isAnswerOpen && (
+                              <div className="border-t border-gray-50 bg-gray-50/50">
+                                <div className="p-4 space-y-4">
+                                  {/* Question */}
+                                  <div>
+                                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Question</p>
+                                    <div className="bg-white rounded-lg border border-gray-200 p-3">
+                                      <p className="text-sm font-medium text-[#292382]">{item.questionTitle}</p>
+                                      <p className="text-sm text-gray-700 mt-1">{item.questionTextContent}</p>
+                                    </div>
+                                  </div>
 
-                        {/* Error */}
-                        {item.error && (
-                          <p className="text-xs text-red-600">{item.error}</p>
-                        )}
+                                  {/* Student's answer */}
+                                  <div>
+                                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Student's Answer</p>
+                                    <textarea
+                                      readOnly
+                                      value={item.typedAnswer || "(no typed answer)"}
+                                      rows={Math.max(3, (item.typedAnswer?.match(/\n/g)?.length ?? 0) + 2)}
+                                      className="w-full text-sm text-gray-800 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2.5 resize-none focus:outline-none"
+                                    />
+                                    {item.audioUrl && (
+                                      <div className="mt-2">
+                                        <audio controls src={item.audioUrl} className="w-full h-8" />
+                                      </div>
+                                    )}
+                                  </div>
 
-                        {/* Submit */}
-                        <button
-                          type="button"
-                          disabled={item.starCount < 1 || item.submitting}
-                          onClick={() => handleGrade(item)}
-                          className="w-full text-sm font-semibold text-white bg-[#292382] rounded-lg py-2.5 hover:bg-[#1f1d6e] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                          {item.submitting ? (
-                            <span className="flex items-center justify-center gap-2">
-                              <Loader2 className="w-4 h-4 animate-spin" /> Submitting...
-                            </span>
-                          ) : (
-                            `Submit Grade${item.starCount > 0 ? ` (${item.starCount} stars · ${item.starCount * starMarks[item.difficultyLevel]} marks)` : ""}`
-                          )}
-                        </button>
-                      </div>
+                                  {/* Grading controls */}
+                                  <div>
+                                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                                      Grade · Max {item.maxMarks} marks · {DIFFICULTY_LABELS[item.difficultyLevel]} difficulty
+                                    </p>
+                                    <StarSelector
+                                      value={item.starCount}
+                                      onChange={(v) => handleStarChange(item.answerId, v)}
+                                      disabled={item.submitting}
+                                      starValue={marks[item.difficultyLevel]}
+                                    />
+                                  </div>
+
+                                  {/* Feedback */}
+                                  <div>
+                                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                                      <MessageSquare className="w-3 h-3 inline-block mr-1" />
+                                      Feedback (optional)
+                                    </p>
+                                    <textarea
+                                      value={item.feedback}
+                                      onChange={(e) => handleFeedbackChange(item.answerId, e.target.value)}
+                                      placeholder="Add feedback for the student..."
+                                      rows={2}
+                                      disabled={item.submitting}
+                                      className="w-full text-sm border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#292382]/20 resize-none"
+                                    />
+                                  </div>
+
+                                  {/* Error */}
+                                  {item.error && (
+                                    <p className="text-xs text-red-600">{item.error}</p>
+                                  )}
+
+                                  {/* Submit */}
+                                  <button
+                                    type="button"
+                                    disabled={item.starCount < 1 || item.submitting}
+                                    onClick={() => handleGrade(item)}
+                                    className="w-full text-sm font-semibold text-white bg-[#292382] rounded-lg py-2.5 hover:bg-[#1f1d6e] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                                  >
+                                    {item.submitting ? (
+                                      <span className="flex items-center justify-center gap-2">
+                                        <Loader2 className="w-4 h-4 animate-spin" /> Submitting...
+                                      </span>
+                                    ) : (
+                                      `Submit Grade${item.starCount > 0 ? ` (${item.starCount} stars · ${item.starCount * marks[item.difficultyLevel]} marks)` : ""}`
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

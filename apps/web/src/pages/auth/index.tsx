@@ -11,12 +11,12 @@ const BluehubLeftPanel = () => (
       style={{ background: "radial-gradient(circle, #a78bfa, transparent)" }} />
     <div className="absolute bottom-[-60px] left-[-60px] w-64 h-64 rounded-full opacity-10"
       style={{ background: "radial-gradient(circle, #60a5fa, transparent)" }} />
-    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full opacity-5"
+    <div className="absolute font-poppins top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full opacity-5"
       style={{ background: "radial-gradient(circle, #818cf8, transparent)" }} />
 
     {/* Logo */}
     <div className="flex items-center gap-2 relative z-10">
-      <div className="w-9 h-9 bg-chestnut rounded-[14px] flex items-center justify-center font-bold text-white text-sm shadow-lg drop-shadow-[#F59E0B73] bg-linear-to-r from-[#F59E0B]  to-[#F97316]">
+      <div className="w-9 h-9 font-poppins bg-chestnut rounded-[14px] flex items-center justify-center font-bold text-white text-sm shadow-lg drop-shadow-[#F59E0B73] bg-linear-to-r from-[#F59E0B]  to-[#F97316]">
         B
       </div>
       {/* <span className="text-white font-bold text-lg tracking-tight">Bluethub</span> */}
@@ -40,16 +40,16 @@ const BluehubLeftPanel = () => (
 
     {/* Hero text */}
     <div className="space-y-5 relative z-10">
-      <h1 className="text-white font-bold text-4xl leading-tight">
-        The <span className="text-[#FBBF24]">smarter</span> way<br />
+      <h1 className="text-white font-bold text-4xl leading-tight font-poppins">
+        The <span className="text-[#FBBF24] font-poppins">smarter</span> way<br />
         to manage learning.
       </h1>
-      <p className="text-white/50 text-sm leading-relaxed max-w-xs">
+      <p className="text-white/50 text-sm leading-relaxed max-w-xs font-poppins">
         A unified platform for schools, teachers, and students — built for modern education at scale.
       </p>
 
       {/* Feature list */}
-      <div className="space-y-3 pt-4">
+      <div className="space-y-3 pt-4 font-poppins">
         {[
           { icon: "🏫", label: "Multi-tenant school management" },
           { icon: "📅", label: "Smart class scheduling & registration" },
@@ -60,7 +60,7 @@ const BluehubLeftPanel = () => (
             <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-sm shrink-0">
               {f.icon}
             </div>
-            <span className="text-white/70 text-sm font-medium">{f.label}</span>
+            <span className="text-white/70 text-sm font-medium font-poppins">{f.label}</span>
           </div>
         ))}
       </div>
