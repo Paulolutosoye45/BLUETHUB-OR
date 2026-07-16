@@ -125,40 +125,48 @@ const AssessmentResultPage = () => {
 
           <div className="border-t border-slate-100 pt-4">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Question Breakdown</p>
-            <div className="space-y-2">
-              {result.answers.map((answer, i) => (
-                <div
-                  key={answer.questionId}
-                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    {answer.isSkipped ? (
-                      <SkipForward className="w-4 h-4 text-slate-400 shrink-0" />
-                    ) : answer.isCorrect === true ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                    ) : answer.isCorrect === false ? (
-                      <XCircle className="w-4 h-4 text-red-500 shrink-0" />
-                    ) : (
-                      <span className="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center text-[8px] text-amber-700 font-bold shrink-0">P</span>
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">
-                        Question {i + 1}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {answer.questionType === 0 ? "Objective" : "Theory"} · {answer.maxMarks} mark{answer.maxMarks !== 1 ? "s" : ""}
-                        {answer.teacherFeedback && ` · Feedback: ${answer.teacherFeedback}`}
-                      </p>
+            {result.answers.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 rounded-xl bg-slate-50 border border-slate-200 px-4 py-8 text-center">
+                <BarChart3 className="size-8 text-slate-300" />
+                <p className="text-sm font-medium text-slate-500">Detailed question results are not available</p>
+                <p className="text-xs text-slate-400">The assessment has not been configured to show correct answers.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {result.answers.map((answer, i) => (
+                  <div
+                    key={answer.questionId}
+                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {answer.isSkipped ? (
+                        <SkipForward className="w-4 h-4 text-slate-400 shrink-0" />
+                      ) : answer.isCorrect === true ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                      ) : answer.isCorrect === false ? (
+                        <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                      ) : (
+                        <span className="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center text-[8px] text-amber-700 font-bold shrink-0">P</span>
+                      )}
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">
+                          Question {i + 1}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {answer.questionType === 0 ? "Objective" : "Theory"} · {answer.maxMarks} mark{answer.maxMarks !== 1 ? "s" : ""}
+                          {answer.teacherFeedback && ` · Feedback: ${answer.teacherFeedback}`}
+                        </p>
+                      </div>
                     </div>
+                    <span className={`text-sm font-bold shrink-0 ml-3 ${
+                      answer.isSkipped ? "text-slate-400" : answer.isCorrect === true ? "text-emerald-600" : answer.isCorrect === false ? "text-red-500" : "text-amber-600"
+                    }`}>
+                      {answer.isSkipped ? "—" : `${answer.marksObtained.toFixed(0)}/${answer.maxMarks.toFixed(0)}`}
+                    </span>
                   </div>
-                  <span className={`text-sm font-bold shrink-0 ml-3 ${
-                    answer.isSkipped ? "text-slate-400" : answer.isCorrect === true ? "text-emerald-600" : answer.isCorrect === false ? "text-red-500" : "text-amber-600"
-                  }`}>
-                    {answer.isSkipped ? "—" : `${answer.marksObtained.toFixed(0)}/${answer.maxMarks.toFixed(0)}`}
-                  </span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="mt-6">

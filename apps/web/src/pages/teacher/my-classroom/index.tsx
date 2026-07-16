@@ -90,8 +90,6 @@ const MyClassroomPage = () => {
   const selectedClassroom = classrooms.find((c) => c.classroomId === selectedClassroomId);
   const subjects = selectedClassroom?.subjects ?? [];
 
-  const isClassTeacher = user?.roleName === "ClassTeacher" || user?.roleName === "HeadTeacher";
-
   useEffect(() => {
     if (classrooms.length > 0 && !selectedClassroomId) {
       setSelectedClassroomId(classrooms[0].classroomId);
@@ -213,7 +211,7 @@ const MyClassroomPage = () => {
             <div className="min-w-0">
               <h1 className="text-white font-semibold text-sm sm:text-base truncate">My Classroom</h1>
               <p className="text-white/60 text-xs truncate hidden sm:block">
-                {isClassTeacher ? "Class teacher overview" : "Subject teacher overview"}
+                {user?.roleName === "HeadTeacher" ? "Head teacher overview" : user?.roleName === "ClassTeacher" ? "Class teacher overview" : "Subject teacher overview"}
               </p>
             </div>
           </div>
@@ -253,7 +251,7 @@ const MyClassroomPage = () => {
                   <div>
                     <p className="text-sm font-bold text-slate-800">{selectedClassroom.className}</p>
                     <p className="text-xs text-slate-500">
-                      {subjects.length} subject{subjects.length !== 1 ? "s" : ""} · {isClassTeacher ? "Full access" : "Subject access"}
+                      {subjects.length} subject{subjects.length !== 1 ? "s" : ""} · {user?.roleName === "SubjectTeacher" ? "Subject access" : "Assigned subjects"}
                     </p>
                   </div>
                 </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   BarChart3,
   Loader2,
@@ -6,6 +6,7 @@ import {
   BookOpen,
   ClipboardCheck,
   Users,
+  RefreshCw,
 } from "lucide-react";
 import { performanceService, type StudentSubjectScoreDto } from "@/services/performance";
 import StudentAppBar from "../component/app-bar";
@@ -13,23 +14,35 @@ import StudentAppBar from "../component/app-bar";
 const SubjectScores = () => {
   const [scores, setScores] = useState<StudentSubjectScoreDto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await performanceService.getStudentSubjectScores();
+      setScores(res.data?.data ?? []);
+    } catch {
+      // silently fail
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await performanceService.refreshPerformance();
+      await load();
+    } catch {
+      // silently fail
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      setLoading(true);
-      try {
-        const res = await performanceService.getStudentSubjectScores();
-        if (!cancelled) setScores(res.data?.data ?? []);
-      } catch {
-        // silently fail
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
     load();
-    return () => { cancelled = true; };
-  }, []);
+  }, [load]);
 
   const ordinalSuffix = (n: number) => {
     if (n === 1) return "st";
@@ -54,9 +67,19 @@ const SubjectScores = () => {
     <div className="mx-auto flex min-h-full w-full max-w-[1400px] flex-col gap-4 overflow-y-auto rounded-md border border-white/70 bg-white/55 p-3 backdrop-blur-xl transition-all duration-300 md:p-5 lg:p-6">
       <StudentAppBar />
 
-      <div className="flex items-center gap-2">
-        <BarChart3 className="size-5 text-student-chestnut" />
-        <h2 className="text-lg font-bold text-slate-800">Subject Scores</h2>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <BarChart3 className="size-5 text-student-chestnut" />
+          <h2 className="text-lg font-bold text-slate-800">Subject Scores</h2>
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing || loading}
+          className="inline-flex items-center gap-1.5 rounded-full bg-student-chestnut/10 px-3 py-1.5 text-xs font-semibold text-student-chestnut hover:bg-student-chestnut/20 transition-colors disabled:opacity-50"
+        >
+          <RefreshCw className={`size-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          {refreshing ? "Refreshing..." : "Refresh"}
+        </button>
       </div>
 
       {loading ? (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { assessmentService, type StudentAssessmentItem } from "@/services/assessment";
+import toast from "react-hot-toast";
 import {
   BookOpen,
   FileQuestion,
@@ -41,6 +42,21 @@ const StudentAssessmentList = () => {
     void load();
     return () => { cancelled = true; };
   }, []);
+
+  const handleViewResult = async (assessment: StudentAssessmentItem) => {
+    try {
+      const res = await assessmentService.getHistory(assessment.assessmentId);
+      const attempts = res.data?.data ?? [];
+      const latest = attempts.sort((a, b) => b.attemptNumber - a.attemptNumber)[0];
+      if (latest?.attemptId) {
+        navigate(`/student/assessment/${assessment.assessmentId}/result/${latest.attemptId}`);
+      } else {
+        toast.error("No attempt found for this assessment.");
+      }
+    } catch {
+      toast.error("Failed to load attempt details.");
+    }
+  };
 
   const totalAssessments = assessments.length;
   const completedCount = assessments.filter((a) => a.status === "Completed").length;
@@ -147,7 +163,7 @@ const StudentAssessmentList = () => {
                     <div className="shrink-0">
                       {a.status === "Completed" ? (
                         <button
-                          onClick={() => navigate(`/student/assessment/${a.assessmentId}/result/${a.assessmentId}`)}
+                          onClick={() => handleViewResult(a)}
                           className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-4 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
                         >
                           View Result
