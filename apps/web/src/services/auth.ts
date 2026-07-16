@@ -94,9 +94,9 @@ API.interceptors.response.use(
 export type TResponse<T> = {
   responseCode: string;
   isSuccess: boolean;
-  message: string;
   data: T;
   status?: string
+  responseMessage: string 
 };
 
 
