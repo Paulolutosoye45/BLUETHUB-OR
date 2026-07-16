@@ -45,6 +45,7 @@ import {
   type SubmitLessonPayload,
 } from "@/services/lesson";
 import { schoolService } from "@/services/school";
+import { performanceService, type PerformanceClassroomDto } from "@/services/performance";
 import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { localData } from "@/utils";
 import toast from "react-hot-toast";
@@ -579,7 +580,8 @@ const SubmitLesson = () => {
   const navigate = useNavigate();
   const { user } = useAuthContext();
   const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
-  const isAdminRole = user?.roleName === "Administrator" || user?.roleName === "SuperAdministrator" || user?.roleName === "HeadTeacher";
+  const isHeadTeacher = user?.roleName === "HeadTeacher";
+  const isAdminRole = user?.roleName === "Administrator" || user?.roleName === "SuperAdministrator" || isHeadTeacher;
   const DEBUG_SUBMIT_LESSON = true;
 
   const debugLog = useCallback((label: string, payload?: unknown) => {
@@ -596,6 +598,7 @@ const SubmitLesson = () => {
   const [classrooms, setClassrooms] = useState<SelectItem[]>([]);
   const [subjects, setSubjects] = useState<SelectItem[]>([]);
   const [roleDataClassrooms, setRoleDataClassrooms] = useState<any[]>([]);
+  const [dashboardData, setDashboardData] = useState<PerformanceClassroomDto[]>([]);
   const [topics, setTopics] = useState<SelectItem[]>([]);
   const [subTopics, setSubTopics] = useState<SelectItem[]>([]);
   const [topicsData, setTopicsData] = useState<any[]>([]);
@@ -732,6 +735,23 @@ const SubmitLesson = () => {
 
     const fetchUserData = async () => {
       try {
+        if (isHeadTeacher) {
+          const dashRes = await performanceService.getDashboard();
+          const dashClassrooms: PerformanceClassroomDto[] = (dashRes.data as any)?.data?.classrooms ?? [];
+          setDashboardData(dashClassrooms);
+          const seen = new Map<string, string>();
+          for (const c of dashClassrooms) {
+            if (!seen.has(c.classroomId)) {
+              seen.set(c.classroomId, c.classroomName);
+            }
+          }
+          setClassrooms(
+            Array.from(seen.entries()).map(([id, label]) => ({ id, label }))
+          );
+          setLoadingClassrooms(false);
+          return;
+        }
+
         if (isAdminRole) {
           const classroomsRes = await schoolService.getAllClassRooms();
           const raw: Record<string, unknown>[] =
@@ -778,6 +798,21 @@ const SubmitLesson = () => {
     setSubTopicId(""); setSubTopicValue("");
     setSubjects([]); setTopics([]); setSubTopics([]);
 
+    if (isHeadTeacher && dashboardData.length > 0) {
+      const classroomSubjects = dashboardData
+        .filter((c) => c.classroomId === classroomId)
+        .map((c) => ({ id: c.subjectId ?? "", label: c.subjectName ?? "" }))
+        .filter((s) => s.id && s.label);
+      const seen = new Set<string>();
+      const unique = classroomSubjects.filter((s) => {
+        if (seen.has(s.id)) return false;
+        seen.add(s.id);
+        return true;
+      });
+      setSubjects(unique);
+      return;
+    }
+
     if (isAdminRole) {
       setLoadingSubjects(true);
       schoolService.getSubjectsByClassroomId(classroomId)
@@ -808,7 +843,7 @@ const SubmitLesson = () => {
     }
 
     setSubjects([]);
-  }, [classroomId, roleDataClassrooms, isAdminRole]);
+  }, [classroomId, roleDataClassrooms, isAdminRole, isHeadTeacher, dashboardData]);
 
   useEffect(() => {
     if (!subjectId) return;
