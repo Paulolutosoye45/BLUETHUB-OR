@@ -322,7 +322,7 @@ const AssessmentConfigPage = () => {
     setSelectedIds(new Set());
     setSubjectsLoading(true);
 
-    if (isAdmin) {
+    if (isAdmin || user?.roleName === "HeadTeacher") {
       schoolService
         .getSubjectsByClassroomId(selectedClassId)
         .then((res) => {
@@ -332,8 +332,8 @@ const AssessmentConfigPage = () => {
             ...(data?.minorSubjects ?? []),
           ];
           const next: ApiItem[] = flat.map((s: any) => ({
-            id: String(s.subjectId ?? s.id),
-            name: String(s.subjectName ?? s.name),
+            id: String(s.id ?? s.subjectId ?? ""),
+            name: String(s.subject ?? s.subjectName ?? s.name ?? ""),
           }));
           setSubjects(next);
           setSelectedSubjectId((prev) => {

@@ -43,7 +43,7 @@ export function FeaturedCard({ feature }: FeaturedCardProps) {
             feature.iconBg,
           )}
         >
-          {typeof feature.icon === "string" ? feature.icon : <feature.icon />}
+          <feature.icon className="size-6" />
         </div>
 
         <h3 className="mb-2.5 text-base font-bold text-navy-900 dark:text-surface-50">

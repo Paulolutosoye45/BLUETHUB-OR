@@ -8,6 +8,7 @@ interface RoleCardProps {
 }
 
 export function RoleCard({ role }: RoleCardProps) {
+  const Icon = role.icon;
   return (
     <motion.div
       variants={staggerItem}
@@ -19,7 +20,9 @@ export function RoleCard({ role }: RoleCardProps) {
         role.borderColor,
       )}
     >
-      <span className="mb-4 block text-[40px]">{role.icon}</span>
+      <span className="mb-4 inline-flex size-[52px] items-center justify-center rounded-[14px] bg-accent-50 text-accent-500 dark:bg-accent-500/10">
+        <Icon className="size-6" />
+      </span>
 
       <h3 className="mb-2.5 text-lg font-bold text-navy-900 dark:text-surface-50">
         {role.title}

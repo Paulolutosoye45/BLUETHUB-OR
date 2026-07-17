@@ -1,8 +1,9 @@
+import { Video, Database, Eye, Building2, GraduationCap, Users, Lock, BarChart3, CalendarDays, FolderOpen } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface Feature {
   id: string;
-  icon: LucideIcon | string;
+  icon: LucideIcon;
   iconBg: string;
   title: string;
   description: string;
@@ -25,7 +26,7 @@ export interface FeatureVisualItem {
 export const FEATURES: Feature[] = [
   {
     id: "offline-recording",
-    icon: "📹",
+    icon: Video,
     iconBg: "bg-blue-100 dark:bg-blue-900/30",
     title: "Offline Class Recording",
     description:
@@ -35,16 +36,16 @@ export const FEATURES: Feature[] = [
     visual: {
       label: "Recording Queue",
       items: [
-        { name: "📁 Math - Chapter 3.mp4", status: "synced" },
-        { name: "📁 English - Poem Analysis.mp4", status: "syncing" },
-        { name: "📁 Biology - Cell Division.mp4", status: "offline" },
+        { name: "Math - Chapter 3.mp4", status: "synced" },
+        { name: "English - Poem Analysis.mp4", status: "syncing" },
+        { name: "Biology - Cell Division.mp4", status: "offline" },
       ],
       caption: "Videos auto-sync on connection · Students access offline",
     },
   },
   {
     id: "question-bank",
-    icon: "🏦",
+    icon: Database,
     iconBg: "bg-accent-50 dark:bg-accent-600/10",
     title: "Smart Question Bank",
     description:
@@ -53,7 +54,7 @@ export const FEATURES: Feature[] = [
   },
   {
     id: "parent-monitoring",
-    icon: "👨‍👩‍👧",
+    icon: Eye,
     iconBg: "bg-emerald-50 dark:bg-emerald-500/10",
     title: "Parent Performance Monitor",
     description:
@@ -62,7 +63,7 @@ export const FEATURES: Feature[] = [
   },
   {
     id: "school-portal",
-    icon: "🏫",
+    icon: Building2,
     iconBg: "bg-violet-100 dark:bg-violet-500/10",
     title: "Full School Administration Portal",
     description:
@@ -72,9 +73,9 @@ export const FEATURES: Feature[] = [
 ];
 
 export const SCHOOL_PORTAL_FEATURES = [
-  { icon: "👩‍🏫", title: "Manage Teachers", subtitle: "Register, assign subjects" },
-  { icon: "👨‍🎓", title: "Enrol Students", subtitle: "By class, arm, year" },
-  { icon: "🔐", title: "Role-based Access", subtitle: "Admin · Teacher · Student" },
-  { icon: "📊", title: "School Analytics", subtitle: "Performance overview" },
-  { icon: "📅", title: "Timetable Mgmt", subtitle: "Sessions & scheduling" },
+  { icon: GraduationCap, title: "Manage Teachers", subtitle: "Register, assign subjects" },
+  { icon: Users, title: "Enrol Students", subtitle: "By class, arm, year" },
+  { icon: Lock, title: "Role-based Access", subtitle: "Admin · Teacher · Student" },
+  { icon: BarChart3, title: "School Analytics", subtitle: "Performance overview" },
+  { icon: CalendarDays, title: "Timetable Mgmt", subtitle: "Sessions & scheduling" },
 ] as const;

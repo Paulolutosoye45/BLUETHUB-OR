@@ -1,6 +1,7 @@
 import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { authService } from "@/services/auth";
 import { schoolService } from "@/services/school";
+
 import { cn } from "@/lib/utils";
 import { ArrowLeft, BookOpen, ChevronDown, ChevronRight, Layers, Loader2, Menu, PlusIcon } from "lucide-react";
 import { useNavigate, useOutletContext } from "react-router-dom";
@@ -90,9 +91,53 @@ const MySyllabus = () => {
     const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
     const { user, isLoading: authLoading } = useAuthContext();
     const [fallbackClassrooms, setFallbackClassrooms] = useState<any[]>([]);
+    const [fetchedSubjects, setFetchedSubjects] = useState<SubjectItem[]>([]);
+
+    const isHeadTeacher = user?.roleName === "HeadTeacher";
+
+    // For Head Teacher: fetch subjects from API since roleData.classrooms has no subjects
+    useEffect(() => {
+        if (!isHeadTeacher || !user?.id) return;
+        const roleData = user?.roleData;
+        const htClassrooms = roleData && isTeacherRoleData(roleData) ? roleData.classrooms : [];
+        const classroomIds = htClassrooms.map((c) => c.classroomId).filter(Boolean);
+        if (classroomIds.length === 0) return;
+        Promise.all(
+            classroomIds.map((id) =>
+                schoolService.getSubjectsByClassroomId(id)
+                    .then((res) => {
+                        const data = (res.data as any)?.data;
+                        return [
+                            ...(data?.majorSubjects ?? []),
+                            ...(data?.minorSubjects ?? []),
+                        ].map((s: any) => ({
+                            subjectId: String(s.id ?? s.subjectId ?? ""),
+                            subjectName: String(s.subject ?? s.subjectName ?? s.name ?? ""),
+                            classroomId: id,
+                        }));
+                    })
+                    .catch(() => [] as SubjectItem[])
+            )
+        ).then((results) => {
+            const seen = new Set<string>();
+            const all: SubjectItem[] = [];
+            for (const batch of results) {
+                for (const item of batch) {
+                    if (item.subjectId && item.subjectName && !seen.has(item.subjectId)) {
+                        seen.add(item.subjectId);
+                        all.push(item);
+                    }
+                }
+            }
+            setFetchedSubjects(all);
+        });
+    }, [isHeadTeacher, user?.id, user?.roleData]);
 
     // Collect unique subjects from the teacher's roleData (already in memory)
     const subjects = useMemo<SubjectItem[]>(() => {
+        // Head Teacher: use API-fetched subjects
+        if (isHeadTeacher && fetchedSubjects.length > 0) return fetchedSubjects;
+
         const roleData = user?.roleData;
         const classrooms = roleData && isTeacherRoleData(roleData) && roleData.classrooms.length
             ? roleData.classrooms
@@ -111,7 +156,7 @@ const MySyllabus = () => {
         }
 
         return result;
-    }, [user]);
+    }, [user, isHeadTeacher, fetchedSubjects, fallbackClassrooms]);
 
     const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
     const [curriculum, setCurriculum] = useState<CurriculumData | null>(null);
@@ -123,7 +168,7 @@ const MySyllabus = () => {
         const roleData = user?.roleData;
         const hasClassrooms = roleData && isTeacherRoleData(roleData) && roleData.classrooms.length > 0;
 
-        if (authLoading || !user?.id || hasClassrooms || hydratingUser) return;
+        if (authLoading || !user?.id || hasClassrooms || hydratingUser || isHeadTeacher) return;
 
         setHydratingUser(true);
         authService.getUserById(user.id)
@@ -136,7 +181,7 @@ const MySyllabus = () => {
             })
             .catch(() => setError("Failed to load your assigned subjects. Please try again."))
             .finally(() => setHydratingUser(false));
-    }, [authLoading, hydratingUser, user?.id, user?.roleData]);
+    }, [authLoading, hydratingUser, user?.id, user?.roleData, isHeadTeacher]);
 
     // Auto-select first subject on mount
     useEffect(() => {

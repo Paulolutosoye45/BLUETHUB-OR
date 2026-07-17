@@ -35,6 +35,8 @@ export const TACADEMICLINKS = [
     name: "My Classroom",
     children: [
       { name: "Quiz", path: "/teacher/module/quiz" },
+      { name: "Topic", path: "/teacher/module/quiz?view=topic", roles: ["ClassTeacher", "HeadTeacher"] },
+      { name: "Per Student", path: "/teacher/module/quiz?view=student", roles: ["ClassTeacher", "HeadTeacher"] },
       { name: "Quiz Grading", path: "/teacher/module/quiz-grading" },
       { name: "Assessment", path: "/teacher/module/assessment" },
       { name: "Subject", path: "/teacher/module/subject" },
