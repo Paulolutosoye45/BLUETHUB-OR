@@ -40,6 +40,7 @@ export interface NavChild {
     name: string;
     path: string;
     disabled?: boolean;
+    roles?: string[];
 }
 
 export interface NavItem {

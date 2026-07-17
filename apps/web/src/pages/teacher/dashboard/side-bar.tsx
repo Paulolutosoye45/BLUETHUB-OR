@@ -126,12 +126,14 @@ function NavItem({
   onNavigate,
   isOpen,
   onToggle,
+  roleName,
 }: {
   link: NavItem;
   isCollapsed: boolean;
   onNavigate?: () => void;
   isOpen?: boolean;
   onToggle?: () => void;
+  roleName?: string;
 }) {
   if (link.children) {
     const isParentDisabled = link.disabled;
@@ -177,7 +179,10 @@ function NavItem({
           style={{ display: !isCollapsed && isOpen && !isParentDisabled ? "block" : "none" }}
           className="mt-1 ml-9 border-l-2 border-[#29238225] pl-3 space-y-0.5"
         >
-          {link.children.map((child) => {
+          {link.children.filter((child) => {
+            if (!child.roles || child.roles.length === 0) return true;
+            return roleName && child.roles.includes(roleName);
+          }).map((child) => {
             if (child.disabled) {
               return (
                 <div
@@ -288,6 +293,8 @@ export const NavContent = ({
   onNavigate,
   onLogout,
 }: NavContentProps) => {
+  const { user } = useAuthContext();
+  const roleName = user?.roleName;
   const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
 
   const handleDropdownClick = (idx: number) => {
@@ -326,6 +333,7 @@ export const NavContent = ({
               onNavigate={onNavigate}
               isOpen={openDropdownIndex === idx}
               onToggle={() => handleDropdownClick(idx)}
+              roleName={roleName}
             />
           ))}
         </div>

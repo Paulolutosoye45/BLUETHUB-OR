@@ -25,6 +25,7 @@ export const endpoints = {
   getSubjectsBySubjectCategory: "/api/School/GetSubjectsBySubjectCategory",
   updateClassroomTeachers: "/api/School/UpdateClassroomTeachers",
   createTopic: "/api/School/topics",
+  Provison: "/api/School/provision",
 };
 
 interface Ischool {
@@ -41,11 +42,29 @@ interface IRegisterSubject {
 interface IregClass {
   name: string;
   noOfStudents?: number;
-  subjectIds: any[]
+  subjectIds: any[];
 }
 
 export interface ICreateSchool {
   classrooms: IregClass[];
+}
+
+export interface Iprovison  {
+  schoolName: string,
+  location: string,
+  countryId: number,
+  stateId: number,
+  address: string,
+  hasBranch: true,
+  tenantIdentifier: string,
+  schoolCode: string,
+  logoUrl: string,
+  adminFirstName: string,
+  adminMiddleName: string,
+  adminLastName: string,
+  adminEmail: string,
+  adminUsername: string,
+  adminPassword: string
 }
 
 export interface ISubject {
@@ -58,7 +77,7 @@ export const schoolService = {
     return API.post<TResponse<unknown>>(endpoints.registerSubject, data, {
       headers: {
         Authorization: `Bearer ${token.getToken()}`,
-        "X-Tenant-ID":  X_Tenant_ID ,
+        "X-Tenant-ID": X_Tenant_ID,
       },
     });
   },
@@ -70,7 +89,7 @@ export const schoolService = {
       {
         params: { schoolId },
         headers: {
-          "X-Tenant-ID":  X_Tenant_ID,
+          "X-Tenant-ID": X_Tenant_ID,
         },
       },
     );
@@ -78,31 +97,32 @@ export const schoolService = {
 
   getAllSubject: () => {
     return API.get(endpoints.getAllSubjects, {
-        headers: {
-            "X-Tenant-ID":  X_Tenant_ID,
-        },
-    });
-},
-
-
-  createClassRoom: (data: ICreateSchool) => {
-    return API.post(endpoints.createSchoolClass, data, {
       headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
-        "Authorization": `Bearer ${token.getToken()}`
+        "X-Tenant-ID": X_Tenant_ID,
       },
     });
   },
 
-  getAllClassRooms: (params: { pageNumber?: number; pageSize?: number } = {}) => {
+  createClassRoom: (data: ICreateSchool) => {
+    return API.post(endpoints.createSchoolClass, data, {
+      headers: {
+        "X-Tenant-ID": X_Tenant_ID,
+        Authorization: `Bearer ${token.getToken()}`,
+      },
+    });
+  },
+
+  getAllClassRooms: (
+    params: { pageNumber?: number; pageSize?: number } = {},
+  ) => {
     return API.get(endpoints.getAllClassrooms, {
       params: {
         pageNumber: params.pageNumber ?? 1,
         pageSize: params.pageSize ?? 50,
       },
       headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
-        "Authorization": `Bearer ${token.getToken()}`
+        "X-Tenant-ID": X_Tenant_ID,
+        Authorization: `Bearer ${token.getToken()}`,
       },
     });
   },
@@ -110,7 +130,7 @@ export const schoolService = {
   getSubjectsByClassroomId: (classroomId: string) => {
     return API.get(endpoints.getSubjectsByClassroom, {
       params: { classroomId },
-      headers: { "X-Tenant-ID":  X_Tenant_ID },
+      headers: { "X-Tenant-ID": X_Tenant_ID },
     });
   },
 
@@ -128,12 +148,15 @@ export const schoolService = {
   },
 
   getTopicsWithSubTopics: (subjectId: string, classroomId: string) => {
-    return API.get(`/api/School/subject/${subjectId}/classroom/${classroomId}`, {
-      headers: {
-        "X-Tenant-ID": X_Tenant_ID,
-        Authorization: `Bearer ${token.getToken()}`,
+    return API.get(
+      `/api/School/subject/${subjectId}/classroom/${classroomId}`,
+      {
+        headers: {
+          "X-Tenant-ID": X_Tenant_ID,
+          Authorization: `Bearer ${token.getToken()}`,
+        },
       },
-    });
+    );
   },
 
   getSubjectCurriculum: (subjectId: string, classroomId?: string) => {
@@ -149,14 +172,28 @@ export const schoolService = {
   },
 
   addSubTopicsToTopic: (topicId: string, subTopics: string[]) => {
-    return API.post(`/api/topic/subtopics/add`, 
+    return API.post(
+      `/api/topic/subtopics/add`,
       { TopicId: topicId, SubTopics: subTopics },
       {
         headers: {
           "X-Tenant-ID": X_Tenant_ID,
           Authorization: `Bearer ${token.getToken()}`,
         },
-      }
+      },
+    );
+  },
+
+  Provision: () => {
+    return API.post(
+      endpoints.Provison,
+      {},
+      {
+        headers: {
+          "X-Tenant-ID": X_Tenant_ID,
+          Authorization: `Bearer ${token.getToken()}`,
+        },
+      },
     );
   },
 };

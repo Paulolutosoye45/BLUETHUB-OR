@@ -114,6 +114,7 @@ export interface TeacherPerformanceDashboardDto {
   totalStudents: number;
   overallAverageScore: number;
   overallPassRate: number;
+  pendingApprovalsCount: number;
   classrooms: PerformanceClassroomDto[];
 }
 
@@ -286,10 +287,10 @@ export const performanceService = {
       { headers }
     ),
 
-  getSubjectTopicPerformance: (subjectId: string) =>
+  getSubjectTopicPerformance: (subjectId: string, classroomId?: string) =>
     API.get<TResponse<SubjectTopicPerformanceDto[]>>(
       `api/performance/subject/${subjectId}/topics`,
-      { headers }
+      { headers, params: classroomId ? { classroomId } : {} }
     ),
 
   getStudentSummary: () =>
@@ -307,6 +308,12 @@ export const performanceService = {
   getStudentSubtopicScores: () =>
     API.get<TResponse<StudentSubtopicScoreDto[]>>(
       "api/performance/student/subtopic-scores",
+      { headers }
+    ),
+
+  getStudentQuizPerformance: (studentId: string) =>
+    API.get<TResponse<StudentPerformanceDetailDto>>(
+      `api/performance/student/${studentId}/quiz-performance`,
       { headers }
     ),
 };

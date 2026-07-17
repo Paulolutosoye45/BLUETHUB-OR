@@ -6,7 +6,7 @@ import { AxiosError } from "axios";
 import { Eye, EyeOff, Loader2, User, Lock, } from "lucide-react";
 
 import { authService } from "@/services/auth";
-import { Hashing, localData, token, } from "@/utils";
+import { Hashing, localData } from "@/utils";
 import { getParsedToken } from "@/utils/decode";
 import { useAuthContext } from "@/contexts/auth-context";
 import { loginSchema } from "@/utils/validate";
@@ -64,7 +64,6 @@ function Login() {
   const [errorMsg, setErrorMsg] = useState("");
   const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | null>(null);
   const [schoolName, setSchoolName] = useState<string | null>(null);
-  const [keepSignedIn, setKeepSignedIn] = useState(false);
   // Restore school branding from a previous session
   useEffect(() => {
     const stored =
@@ -134,9 +133,6 @@ function Login() {
       // New th_* keys (TechHub spec)
 
 
-      token.login(result.token, result.refreshToken);
-      // localData.save("token", result.token);
-      // localData.save("token", );
       localData.save("user", {
         id: result.id,
         firstName: result.firstName,
@@ -149,7 +145,7 @@ function Login() {
       // Legacy keys — keep for auth context + existing code
       localData.save("schoolInfo", result.schoolInfo);
 
-      loginAuth(result.token, { ...user, roleName: user.role }, result.refreshToken, keepSignedIn);
+      loginAuth(result.token, { ...user, roleName: user.role }, result.refreshToken);
       // Update school branding immediately
       if (result.schoolInfo?.logoUrl) {
         setSchoolLogoUrl(result.schoolInfo.logoUrl);
@@ -299,13 +295,6 @@ function Login() {
               <p className="text-red-500 text-xs pl-1 font-space-grotesk">{errors.password.message}</p>
             )}
           </div>
-
-          {/* Remember me */}
-          <label className="flex font-Poppins items-center gap-2 text-sm text-gray-500 cursor-pointer select-none">
-            <input type="checkbox" checked={keepSignedIn}
-              onChange={(e) => setKeepSignedIn(e.target.checked)} className="rounded accent-chestnut" />
-            Keep me signed in for 30 days
-          </label>
 
           {/* Submit */}
           <button

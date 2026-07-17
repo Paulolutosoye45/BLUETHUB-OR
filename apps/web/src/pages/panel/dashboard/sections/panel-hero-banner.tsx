@@ -20,11 +20,18 @@ interface PanelHeroBannerProps {
 }
 
 export function PanelHeroBanner({
-  adminName = "Super Admin",
-  date = "Monday, 23 June 2026",
-  subtitle = "Platform is healthy · 248 active schools · 14 new registrations this week",
   onRegisterSchool,
+
 }: PanelHeroBannerProps) {
+
+   const today = new Date();
+
+  const greeting = () => {
+    const hour = today.getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
   return (
     <div className="relative font-space-grotesk bg-gradient-to-br from-[#1a1d2e] via-[#292382] to-[#4F61E8] rounded-2xl px-6 py-[28px] overflow-hidden">
       {/* Decorative circles */}
@@ -35,12 +42,12 @@ export function PanelHeroBanner({
         <div>
           {/* Eyebrow */}
           <p className="text-white/40 text-[10px] font-space-grotesk font-semibold tracking-widest uppercase mb-1">
-            Bluetthub Admin Console · {date}
+            Bluetthub Admin Console · {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
           </p>
           <h2 className="text-white text-xl font-extrabold mb-0.5 font-space-grotesk">
-            Good morning, {adminName} 👋
+            {greeting()}, Super Admin 👋
           </h2>
-          <p className="text-white/50 text-xs mb-5 font-space-grotesk">{subtitle}</p>
+          <p className="text-white/50 text-xs mb-5 font-space-grotesk">Platform is healthy · 248 active schools · 14 new registrations this week</p>
 
           {/* Stats row */}
           <div className="grid grid-cols-4 bg-[#00000033] border border-[#FFFFFF14]">
@@ -57,7 +64,7 @@ export function PanelHeroBanner({
         <div className="flex items-center gap-[20px] flex-shrink-0">
           <button
             onClick={onRegisterSchool}
-            className="flex items-center border border-[#FFFFFF26] font-space-grotesk gap-1.5 bg-[#FFFFFF26] text-white font-semibold text-xs px-4 py-2.5 rounded-md hover:bg-indigo-50 transition-colors whitespace-nowrap"
+            className="flex items-center border border-[#FFFFFF26] font-space-grotesk gap-1.5 bg-[#FFFFFF26] text-white font-semibold text-xs px-4 py-2.5 rounded-md cursor-pointer transition-colors whitespace-nowrap"
           >
             <Plus size={13} className="font-space-grotesk" /> Register New School
           </button>

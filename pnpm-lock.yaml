@@ -30,15 +30,36 @@ importers:
       '@tailwindcss/vite':
         specifier: ^4.1.18
         version: 4.1.18(vite@7.3.1(@types/node@24.10.8)(jiti@2.6.1)(lightningcss@1.30.2))
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
+      framer-motion:
+        specifier: ^12.38.0
+        version: 12.38.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      lucide-react:
+        specifier: ^0.562.0
+        version: 0.562.0(react@19.2.0)
       react:
         specifier: ^19.2.0
         version: 19.2.0
       react-dom:
         specifier: ^19.2.0
         version: 19.2.0(react@19.2.0)
+      react-router:
+        specifier: ^7.12.0
+        version: 7.12.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      react-router-dom:
+        specifier: ^7.12.0
+        version: 7.12.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       react-svg:
         specifier: ^16.3.0
         version: 16.3.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      tailwind-merge:
+        specifier: ^3.4.0
+        version: 3.4.0
       tailwindcss:
         specifier: ^4.1.18
         version: 4.1.18
