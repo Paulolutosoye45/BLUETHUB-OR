@@ -114,6 +114,7 @@ export interface TeacherPerformanceDashboardDto {
   totalStudents: number;
   overallAverageScore: number;
   overallPassRate: number;
+  pendingApprovalsCount: number;
   classrooms: PerformanceClassroomDto[];
 }
 

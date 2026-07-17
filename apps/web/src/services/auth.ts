@@ -281,6 +281,10 @@ export const authService = {
       teacherId: data.teacherId,
       classroomId: data.classroomId,
       isPrimary: data.isPrimary ?? false,
+    }, {
+      headers: {
+        "X-Tenant-ID": X_Tenant_ID,
+      },
     });
   },
 

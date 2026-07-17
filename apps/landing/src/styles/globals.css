@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+/* ──────────────────────────────────────────────
+   Bluetthub Landing — Design Tokens
+   Tailwind v4: CSS-first configuration
+   ────────────────────────────────────────────── */
+
+@theme {
+  /* ── Typography ── */
+  --font-sans: "Sora", system-ui, -apple-system, sans-serif;
+  --font-serif: "Lora", Georgia, "Times New Roman", serif;
+
+  /* ── Brand Palette ── */
+  --color-blue-50: #eff6ff;
+  --color-blue-100: #dbeafe;
+  --color-blue-200: #bfdbfe;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #2563eb;
+  --color-blue-600: #1a4fd6;
+  --color-blue-700: #1e56d6;
+  --color-blue-800: #1e3a6e;
+  --color-blue-900: #0a1628;
+
+  --color-accent-50: #fef3c7;
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+
+  --color-emerald-50: #d1fae5;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #10b981;
+
+  --color-navy-900: #0a1628;
+  --color-navy-800: #0d1117;
+  --color-navy-700: #161b22;
+  --color-navy-600: #1c2333;
+  --color-navy-500: #21293a;
+  --color-navy-400: #64748b;
+  --color-navy-300: #94a3b8;
+
+  --color-surface-50: #f0f4ff;
+  --color-surface-100: #e8edf8;
+  --color-surface-200: #f8faff;
+  --color-surface-white: #ffffff;
+
+  /* ── Semantic Tokens ── */
+  --color-background: #f0f4ff;
+  --color-foreground: #1e293b;
+  --color-muted: #64748b;
+  --color-border: #e2e8f0;
+
+  --color-card: #ffffff;
+  --color-card-foreground: #1e293b;
+
+  --color-primary: #1a4fd6;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #f0f4ff;
+  --color-secondary-foreground: #1e293b;
+
+  /* ── Spacing scale ── */
+  --spacing-section: 100px;
+
+  /* ── Radius ── */
+  --radius-card: 14px;
+  --radius-pill: 20px;
+  --radius-button: 10px;
+}
+
+/* ── Dark Theme Override ── */
+[data-theme="dark"] {
+  --color-background: #0d1117;
+  --color-foreground: #e2e8f0;
+  --color-muted: #8b9ab5;
+  --color-border: #2d3748;
+
+  --color-card: #1c2333;
+  --color-card-foreground: #e2e8f0;
+
+  --color-primary: #5b9aff;
+  --color-primary-foreground: #0d1117;
+
+  --color-secondary: #161b22;
+  --color-secondary-foreground: #e2e8f0;
+}
+
+/* ── Base styles (inside @layer so they don't override utilities) ── */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    line-height: 1.6;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: var(--color-primary);
+    color: var(--color-primary-foreground);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--color-background);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-muted);
+  }
+}

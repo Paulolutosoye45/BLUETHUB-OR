@@ -10,11 +10,18 @@ import PendingUploadsCard from "./pending-uploads-card"
 import { useOutletContext } from "react-router-dom";
 import NavbarStats from "@/component/performance-navbar-stats";
 import PerformanceOverview from "./performance-overview";
+import { useAuthContext } from "@/contexts/auth-context";
+import HeadTeacherDashboard from "./head-teacher-dashboard";
 
 
 const TeacherDashboard = () => {
-
+  const { user } = useAuthContext();
   const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
+
+  if (user?.roleName === "HeadTeacher") {
+    return <HeadTeacherDashboard />;
+  }
+
   return (
     <div className="">
       <div className="lg:rounded-2xl overflow-hidden">

@@ -12,7 +12,6 @@ export { getTenantId, X_Tenant_ID } from "./tenant";
 const KEYS = {
   token: "token",
   refresh: "refreshToken",
-  expiry: "token_expiry",
   schoolInfo: "schoolInfo",
   user: "user",
   school: "school",
@@ -21,68 +20,33 @@ const KEYS = {
 export const token = {
   // ── Access token ───────────────────────────────────────────────
   getToken(): string | null {
-    return (
-      localStorage.getItem(KEYS.token) ?? sessionStorage.getItem(KEYS.token)
-    );
+    return localStorage.getItem(KEYS.token);
   },
 
   isAuthenticated(): boolean {
-    if (this.isExpired()) {
-      this.clearAll();
-      return false;
-    }
     return !!this.getToken();
   },
 
   // ── Login ──────────────────────────────────────────────────────
-  login(accessToken: string, refreshToken: string, keepSignedIn = false) {
-    if (keepSignedIn) {
-      localStorage.setItem(KEYS.token, accessToken);
-      localStorage.setItem(KEYS.refresh, refreshToken);
-
-      // 30 days expiry
-      const expiry = Date.now() + 30 * 24 * 60 * 60 * 1000;
-      localStorage.setItem(KEYS.expiry, String(expiry));
-    } else {
-      // cleared when tab closes
-      sessionStorage.setItem(KEYS.token, accessToken);
-      sessionStorage.setItem(KEYS.refresh, refreshToken);
-    }
-  },
-
-  // ── Expiry ─────────────────────────────────────────────────────
-  isExpired(): boolean {
-    const expiry = localStorage.getItem(KEYS.expiry);
-    if (!expiry) return false;
-    return Date.now() > Number(expiry);
+  login(accessToken: string, refreshToken: string) {
+    localStorage.setItem(KEYS.token, accessToken);
+    localStorage.setItem(KEYS.refresh, refreshToken);
   },
 
   // ── Refresh token ──────────────────────────────────────────────
   getRefreshToken(): string | null {
-    return (
-      localStorage.getItem(KEYS.refresh) ?? sessionStorage.getItem(KEYS.refresh)
-    );
+    return localStorage.getItem(KEYS.refresh);
   },
 
   setTokens(accessToken: string, refreshToken: string) {
-    // preserves whichever storage was originally used
-    if (localStorage.getItem(KEYS.token)) {
-      localStorage.setItem(KEYS.token, accessToken);
-      localStorage.setItem(KEYS.refresh, refreshToken);
-    } else {
-      sessionStorage.setItem(KEYS.token, accessToken);
-      sessionStorage.setItem(KEYS.refresh, refreshToken);
-    }
+    localStorage.setItem(KEYS.token, accessToken);
+    localStorage.setItem(KEYS.refresh, refreshToken);
   },
 
   // ── Logout / clear ─────────────────────────────────────────────
   logout() {
-    // clear both storages
-    [localStorage, sessionStorage].forEach((s) => {
-      s.removeItem(KEYS.token);
-      s.removeItem(KEYS.refresh);
-    });
-    localStorage.removeItem(KEYS.expiry);
+    localStorage.removeItem(KEYS.token);
+    localStorage.removeItem(KEYS.refresh);
     localStorage.removeItem(KEYS.schoolInfo);
     localStorage.removeItem(KEYS.user);
     localStorage.removeItem(KEYS.school);
