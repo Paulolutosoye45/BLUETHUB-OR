@@ -1,6 +1,9 @@
+import { GraduationCap, BookOpen, Heart } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
 export interface Role {
   id: string;
-  icon: string;
+  icon: LucideIcon;
   title: string;
   description: string;
   perks: string[];
@@ -10,7 +13,7 @@ export interface Role {
 export const ROLES: Role[] = [
   {
     id: "teachers",
-    icon: "👩‍🏫",
+    icon: GraduationCap,
     title: "Teachers",
     description:
       "Create content, set questions, track student performance, and upload offline recordings — all in one place.",
@@ -25,7 +28,7 @@ export const ROLES: Role[] = [
   },
   {
     id: "students",
-    icon: "👨‍🎓",
+    icon: BookOpen,
     title: "Students",
     description:
       "Access lessons, take quizzes, track your own progress, and study at your own pace — even offline.",
@@ -40,7 +43,7 @@ export const ROLES: Role[] = [
   },
   {
     id: "parents",
-    icon: "👨‍👩‍👧‍👦",
+    icon: Heart,
     title: "Parents",
     description:
       "Stay connected to your child's education — monitor performance, receive alerts, and communicate with teachers.",
