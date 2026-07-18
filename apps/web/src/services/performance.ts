@@ -32,6 +32,7 @@ export interface ClassTeacherNavbarDto {
   overallAverageScore: number;
   overallPassRate: number;
   pendingGradingItems: number;
+  pendingApprovalsCount?: number;
 }
 
 export interface StudentNavbarDto {

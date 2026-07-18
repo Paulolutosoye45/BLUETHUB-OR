@@ -88,6 +88,7 @@ const NewPassword = () => {
             localData.save("schoolInfo", result.schoolInfo);
 
             // Hydrate auth context (sets "token" key in localStorage + user state)
+            localStorage.setItem("accessTokenExpiresAt", String(Date.now() + result.tokenExpiresIn * 1000));
             loginAuth(result.token, { ...user, roleName: user.role }, result.refreshToken);
 
             // ── Role-based redirect via roleId ───────────────────────────────────
