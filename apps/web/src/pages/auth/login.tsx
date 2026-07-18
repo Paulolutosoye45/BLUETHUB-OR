@@ -114,6 +114,7 @@ function Login() {
         localStorage.setItem("username", data.userName);
         localStorage.setItem("token", result.token);
         localStorage.setItem("refreshToken", result.refreshToken);
+        localStorage.setItem("accessTokenExpiresAt", String(Date.now() + result.tokenExpiresIn * 1000));
         localData.save("schoolInfo", result.schoolInfo);
 
         // Set auth header for subsequent requests
@@ -145,6 +146,7 @@ function Login() {
       // Legacy keys — keep for auth context + existing code
       localData.save("schoolInfo", result.schoolInfo);
 
+      localStorage.setItem("accessTokenExpiresAt", String(Date.now() + result.tokenExpiresIn * 1000));
       loginAuth(result.token, { ...user, roleName: user.role }, result.refreshToken);
       // Update school branding immediately
       if (result.schoolInfo?.logoUrl) {

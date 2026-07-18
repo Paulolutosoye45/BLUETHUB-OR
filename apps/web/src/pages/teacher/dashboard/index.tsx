@@ -1,6 +1,6 @@
 import Activity from "@/pages/teacher/dashboard/activity"
 import Recordedclass from "@/pages/teacher/dashboard/recorded-class"
-import { Menu } from "lucide-react"
+import { Menu, School } from "lucide-react"
 import TeacherAppBar from "@/pages/teacher/dashboard/teacher-app-bar"
 import TodayClasses from "./today-classes"
 import AssessmentSubmissions from "./assessment-submissions"
@@ -10,13 +10,21 @@ import PendingUploadsCard from "./pending-uploads-card"
 import { useOutletContext } from "react-router-dom";
 import NavbarStats from "@/component/performance-navbar-stats";
 import PerformanceOverview from "./performance-overview";
-import { useAuthContext } from "@/contexts/auth-context";
+import { useAuthContext, isTeacherRoleData } from "@/contexts/auth-context";
 import HeadTeacherDashboard from "./head-teacher-dashboard";
-
+import { useMemo } from "react";
 
 const TeacherDashboard = () => {
   const { user } = useAuthContext();
   const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
+
+  const assignedClassrooms = useMemo(() => {
+    const rd = user?.roleData;
+    if (rd && isTeacherRoleData(rd)) {
+      return rd.classrooms.map((c) => c.classroomId);
+    }
+    return [];
+  }, [user]);
 
   if (user?.roleName === "HeadTeacher") {
     return <HeadTeacherDashboard />;
@@ -33,11 +41,19 @@ const TeacherDashboard = () => {
         </div>
 
         <div className="bg-white p-3 md:p-4 space-y-2 pb-2">
+          {/* Assigned classrooms indicator */}
+          {assignedClassrooms.length > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-500">
+              <School className="w-3.5 h-3.5 text-chestnut" />
+              <span>Showing data for your assigned classrooms only</span>
+            </div>
+          )}
+
           <TeacherAppBar />
           <NavbarStats />
           <PendingUploadsCard />
           <Activity />
-          <PerformanceOverview />
+          <PerformanceOverview assignedClassroomIds={assignedClassrooms} />
 
           <div className="flex flex-col lg:flex-row gap-2">
             {/* Left column */}

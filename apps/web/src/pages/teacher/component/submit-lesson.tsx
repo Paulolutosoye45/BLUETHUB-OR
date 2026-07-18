@@ -732,7 +732,7 @@ const SubmitLesson = () => {
 
     const fetchUserData = async () => {
       try {
-        if (isAdminRole) {
+        if (user?.roleName === "Administrator" || user?.roleName === "SuperAdministrator") {
           const classroomsRes = await schoolService.getAllClassRooms();
           const raw: Record<string, unknown>[] =
             (classroomsRes.data as any)?.data?.classrooms ?? (classroomsRes.data as any)?.data ?? [];
@@ -778,7 +778,7 @@ const SubmitLesson = () => {
     setSubTopicId(""); setSubTopicValue("");
     setSubjects([]); setTopics([]); setSubTopics([]);
 
-    if (isAdminRole) {
+    if (user?.roleName === "Administrator" || user?.roleName === "SuperAdministrator" || user?.roleName === "HeadTeacher") {
       setLoadingSubjects(true);
       schoolService.getSubjectsByClassroomId(classroomId)
         .then((res) => {
