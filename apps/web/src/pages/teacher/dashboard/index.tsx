@@ -26,7 +26,7 @@ const TeacherDashboard = () => {
     return [];
   }, [user]);
 
-  if (user?.roleName === "HeadTeacher") {
+  if (user?.roleName === "HeadTeacher" || user?.roleName === "ClassTeacher") {
     return <HeadTeacherDashboard />;
   }
 
