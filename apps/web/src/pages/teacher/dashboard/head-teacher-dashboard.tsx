@@ -351,7 +351,7 @@ const HeadTeacherDashboard = () => {
             {dashboard && classroomAnalytics.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 {[
-                  { label: "Assigned Classes", value: classroomAnalytics.length, icon: School, color: "from-blue-500 to-blue-600" },
+                  { label: "Assigned Classes", value: assignedClassrooms.length, icon: School, color: "from-blue-500 to-blue-600" },
                   { label: "Total Students", value: classroomAnalytics.reduce((a, c) => a + c.totalStudents, 0), icon: Users, color: "from-purple-500 to-purple-600" },
                   { label: "Overall Avg", value: fmtScore(classroomAnalytics.reduce((a, c) => a + c.avgScore, 0) / classroomAnalytics.length), icon: BarChart3, color: "from-green-500 to-green-600" },
                   { label: "Pending Lessons", value: pendingCount, icon: ClipboardCheck, color: "from-rose-500 to-rose-600" },

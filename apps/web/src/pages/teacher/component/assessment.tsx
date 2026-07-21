@@ -56,6 +56,7 @@ const Assessment = () => {
                   { label: "My Uploads", link: '/teacher/assessments/My-Uploads' },
                   { label: "Assessment Settings", link: '/teacher/assessment/config' },
                   { label: "Manage Assessments", link: '/teacher/assessment/manage' },
+                  { label: "Pending Grading", link: '/teacher/assessment/pending-grading' },
                   { label: "Assign to Students", link: '/teacher/assessment/assign-student' },
                 ].map((item) => (
                   <button
@@ -151,6 +152,16 @@ const Assessment = () => {
               <p className="text-sm font-semibold text-[#1A1C5E] mb-1">Assessment Settings</p>
               <p className="text-[13px] text-[#6C70A6] leading-5">
                 Configure pass marks, time limits, retakes, and default quiz behaviour.
+              </p>
+            </button>
+
+            <button
+              onClick={() => navigate('/teacher/assessment/pending-grading')}
+              className="text-left border border-[#C7CAF0] rounded-xl p-5 bg-[#2118920D] hover:border-chestnut/40 hover:shadow-sm transition-all"
+            >
+              <p className="text-sm font-semibold text-[#1A1C5E] mb-1">Pending Grading</p>
+              <p className="text-[13px] text-[#6C70A6] leading-5">
+                Grade theory and board-based answers submitted by students.
               </p>
             </button>
           </div>

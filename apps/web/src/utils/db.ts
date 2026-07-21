@@ -3,6 +3,7 @@ import {
   DB_NAME, DB_VERSION,
   STORE_CLASS, STORE_AUDIO, STORE_SESSIONS,
   STORE_AUDIO_CHUNKS, STORE_STROKE_BATCHES, STORE_REPLAY_CACHE,
+  STORE_STUDENT_BOARDS,
   type CompressedStroke, type AudioBatch, type LocalSession,
   type LocalAudioChunk, type LocalStrokeBatch, type ReplayDownloadCache,
   type SyncStatus, type SessionStatus,
@@ -43,6 +44,9 @@ async function getDb(): Promise<IDBPDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_REPLAY_CACHE)) {
         db.createObjectStore(STORE_REPLAY_CACHE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(STORE_STUDENT_BOARDS)) {
+        db.createObjectStore(STORE_STUDENT_BOARDS, { keyPath: 'id' });
       }
     },
   });
@@ -263,6 +267,38 @@ export async function saveReplayDownloadCache(cache: ReplayDownloadCache): Promi
 
 export async function deleteReplayDownloadCache(sessionId: string): Promise<void> {
   await (await getDb()).delete(STORE_REPLAY_CACHE, sessionId);
+}
+
+// ── STORE_STUDENT_BOARDS — Student assessment board cache ─────────────────────
+
+export interface StudentBoardCache {
+  id: string;  // `${assessmentId}_${studentId}_${attemptId}`
+  assessmentId: string;
+  studentId: string;
+  attemptId: string;
+  drawModeByQuestion: Record<string, boolean>;
+  questionBoardMeta: Record<string, { boardSessionId: string; boardIndex: number; boardLabel: string }[]>;
+  boardDataByQuestion: Record<string, Record<number, {
+    strokes: { points: { x: number; y: number }[]; color: string; width: number; isEraser: boolean }[];
+    sessionId: string;
+    batchIndex: number;
+  }>>;
+}
+
+function boardCacheId(assessmentId: string, studentId: string, attemptId: string): string {
+  return `${assessmentId}_${studentId}_${attemptId}`;
+}
+
+export async function saveStudentBoardCache(cache: StudentBoardCache): Promise<void> {
+  await (await getDb()).put(STORE_STUDENT_BOARDS, cache);
+}
+
+export async function loadStudentBoardCache(assessmentId: string, studentId: string, attemptId: string): Promise<StudentBoardCache | null> {
+  return (await (await getDb()).get(STORE_STUDENT_BOARDS, boardCacheId(assessmentId, studentId, attemptId))) ?? null;
+}
+
+export async function clearStudentBoardCache(assessmentId: string, studentId: string, attemptId: string): Promise<void> {
+  await (await getDb()).delete(STORE_STUDENT_BOARDS, boardCacheId(assessmentId, studentId, attemptId));
 }
 
 // ── Storage utilities ─────────────────────────────────────────────────────────

@@ -75,7 +75,7 @@ export const TACADEMICLINKS = [
       { name: "Assessment", path: "/teacher/assessment/config" },
       { name: "Manage Assessments", path: "/teacher/assessment/manage" },
       { name: "Assign to Students", path: "/teacher/assessment/assign-student" },
-      { name: "Assessment Grading", path: "/teacher/module/assessment" },
+      { name: "Assessment Grading", path: "/teacher/assessment/pending-grading" },
     ],
   },
   {
@@ -103,6 +103,7 @@ export const TACADEMICLINKS = [
 
 export const navLink = [
   { name: "Dashboard", path: "/admin", icons: element },
+  { name: "Analytics", path: "/admin/analytics", icons: element },
   { name: "Approvals", path: "/admin/approvals", icons: AssignmentIcon },
   { name: "Calendar", path: "/admin/calendar", icons: Calendar },
   { name: "Message", path: "/admin/message", icons: message },
