@@ -18,24 +18,24 @@ import type { schoolInfo } from "@/services";
 
 // ── Chevron Icon ──────────────────────────────────────────────────────────────
 const ChevronIcon = ({ open }: { open: boolean }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="16"
-        height="16"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        style={{
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            transition: "transform 0.25s ease",
-            flexShrink: 0,
-        }}
-    >
-        <polyline points="6 9 12 15 18 9" />
-    </svg>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="16"
+    height="16"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{
+      transform: open ? "rotate(180deg)" : "rotate(0deg)",
+      transition: "transform 0.25s ease",
+      flexShrink: 0,
+    }}
+  >
+    <polyline points="6 9 12 15 18 9" />
+  </svg>
 );
 
 const MAIN_LINKS: NavItem[] = [
@@ -59,7 +59,7 @@ function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
     : undefined;
   const className = classroom?.className;
   const subjects = classroom?.subjects;
-  const subjectNames = subjects?.slice(0,2).map((s) => s.subjectName).join(" · ");
+  const subjectNames = subjects?.slice(0, 2).map((s) => s.subjectName).join(" · ");
   const subject = subjectNames ? `${subjectNames}` : className ?? "";
   const classLabel = className ? ` ${className}` : "No class assigned";
 
@@ -109,8 +109,9 @@ function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
 }
 
 // ── Section Label ─────────────────────────────────────────────────────────────
-function SectionLabel({ label, isCollapsed }: { label: string; isCollapsed: boolean
- }) {
+function SectionLabel({ label, isCollapsed }: {
+  label: string; isCollapsed: boolean
+}) {
   if (isCollapsed) return <div className="my-1 border-t border-[#29238215]" />;
   return (
     <p className="px-3 mb-1 text-[9px] font-bold tracking-widest text-[#29238260] uppercase">
@@ -158,9 +159,8 @@ function NavItem({
             <img
               src={link.icons}
               alt={link.name}
-              className={`w-[18px] h-[18px] shrink-0 object-contain transition-all ${
-                isOpen && !isParentDisabled ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
-              }`}
+              className={`w-[18px] h-[18px] shrink-0 object-contain transition-all ${isOpen && !isParentDisabled ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
+                }`}
             />
             {!isCollapsed && (
               <span className={`text-xs font-medium truncate ${isOpen && !isParentDisabled ? "text-white" : "text-[#292382]"}`}>
@@ -262,9 +262,8 @@ function NavItem({
           <img
             src={link.icons}
             alt={link.name}
-            className={`w-[16px] h-[16px] shrink-0 object-contain transition-all ${
-              isActive ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
-            }`}
+            className={`w-[16px] h-[16px] shrink-0 object-contain transition-all ${isActive ? "brightness-0 invert" : "opacity-60 group-hover:opacity-100"
+              }`}
           />
           {!isCollapsed && (
             <span
@@ -348,17 +347,24 @@ export const NavContent = ({
           const isLogout = link.name === "Log Out";
           const isDisabled = link.disabled;
           if (isDisabled) {
-              return (
-                <div
-                  key={link.name}
-                  aria-disabled="true"
-                  title="Coming soon"
-                  className="block text-xs py-1.5 px-3 rounded-lg font-medium text-[#292382] opacity-40 cursor-not-allowed select-none"
-                >
-                  {link.name}
-                </div>
-              );
-            }
+            return (
+              <div
+                key={link.name}
+                aria-disabled="true"
+                title="Coming soon"
+                className="flex gap-3 text-xs py-1.5 px-3 rounded-lg font-medium text-[#292382] opacity-40 cursor-not-allowed select-none"
+              >
+                <img
+                  src={link.icons}
+                  alt={link.name}
+                  className={`w-[18px] h-[18px] shrink-0 object-contain transition-all
+                opacity-60 group-hover:opacity-100"
+              }`}
+                />
+                {link.name}
+              </div>
+            );
+          }
           return (
             <NavLink
               key={link.name}
@@ -454,7 +460,7 @@ const TeacherSidebar = () => {
           <img src={bluethub} alt="Bluethub" className="h-5 shrink-0" />
         )}
 
-         {!isCollapsed && (<h2 className="text-chestnut font-medium text-[10px]">{school.schoolName}</h2>)}
+        {!isCollapsed && (<h2 className="text-chestnut font-medium text-[10px]">{school.schoolName}</h2>)}
         <button
           type="button"
           onClick={toggleSidebar}
@@ -544,7 +550,7 @@ export const MobileTeacherNav = ({ isOpen, setIsOpen }: IMobileTeacherNav) => {
       >
         {/* Header: logo + close */}
         <div className="flex items-center justify-between px-3 py-2 border-b border-[#29238210] shrink-0">
-          
+
           <img src={bluethub} alt="Bluethub" className="h-5" />
           <h2 className="text-chestnut font-medium text-[10px]">{school.schoolName}</h2>
           <button

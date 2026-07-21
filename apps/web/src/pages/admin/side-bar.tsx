@@ -22,6 +22,7 @@ import dashboardIcon from "@/assets/svg/element-4.svg";
 import messageIcon from "@/assets/svg/message.svg";
 import UserPlus from "@/assets/svg/user_plus.svg";
 import ShieldCheck from "@/assets/svg/shield_check.svg";
+import analyticsIcon from "@/assets/svg/bar_chart.svg";
 // import studentIcon from "@/assets/svg/student.svg";
 // import teacherIcon from "@/assets/svg/teacher.svg";
 // import coursesIcon from "@/assets/svg/courses.svg";
@@ -53,6 +54,7 @@ export interface NavItem {
 
 const navLink: NavItem[] = [
     { name: "Dashboard", icons: dashboardIcon, path: "/admin" },
+    { name: "Analytics", icons: analyticsIcon, path: "/admin/analytics" },
     { name: "Message", icons: messageIcon, path: "/admin/message" },
 ];
 

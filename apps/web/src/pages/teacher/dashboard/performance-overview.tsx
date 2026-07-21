@@ -1,11 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { performanceService, type TeacherPerformanceDashboardDto, type PerformanceClassroomDto } from "@/services/performance";
 import { ChevronDown, ChevronUp, Users, BarChart3 } from "lucide-react";
 
-const PerformanceOverview = () => {
+interface PerformanceOverviewProps {
+  assignedClassroomIds?: string[];
+}
+
+const PerformanceOverview = ({ assignedClassroomIds }: PerformanceOverviewProps) => {
   const [data, setData] = useState<TeacherPerformanceDashboardDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const assignedSet = useMemo(() => new Set(assignedClassroomIds ?? []), [assignedClassroomIds]);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,16 +48,19 @@ const PerformanceOverview = () => {
 
   if (!data) return null;
 
-  const classrooms = data.classrooms ?? [];
+  const allClassrooms = data.classrooms ?? [];
+  const classrooms = assignedSet.size > 0
+    ? allClassrooms.filter((c) => assignedSet.has(c.classroomId))
+    : allClassrooms;
 
   return (
     <div className="space-y-3">
-      {/* Summary */}
+      {/* Summary — computed from filtered classrooms */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <TeacherSummaryCard label="Total Students" value={data.totalStudents ?? 0} color="text-blue-600" bg="bg-blue-50" />
-        <TeacherSummaryCard label="Avg Score" value={`${(data.overallAverageScore ?? 0).toFixed(1)}%`} color="text-amber-600" bg="bg-amber-50" />
-        <TeacherSummaryCard label="Pass Rate" value={`${(data.overallPassRate ?? 0).toFixed(1)}%`} color="text-emerald-600" bg="bg-emerald-50" />
-        <TeacherSummaryCard label="Classes" value={classrooms.length} color="text-violet-600" bg="bg-violet-50" />
+        <TeacherSummaryCard label="Total Students" value={classrooms.reduce((a, c) => a + c.studentCount, 0) || (data.totalStudents ?? 0)} color="text-blue-600" bg="bg-blue-50" />
+        <TeacherSummaryCard label="Avg Score" value={classrooms.length > 0 ? `${(classrooms.reduce((a, c) => a + (c.averageScorePercent ?? 0), 0) / classrooms.length).toFixed(1)}%` : `${(data.overallAverageScore ?? 0).toFixed(1)}%`} color="text-amber-600" bg="bg-amber-50" />
+        <TeacherSummaryCard label="Pass Rate" value={classrooms.length > 0 ? `${(classrooms.reduce((a, c) => a + (c.passRate ?? 0), 0) / classrooms.length).toFixed(1)}%` : `${(data.overallPassRate ?? 0).toFixed(1)}%`} color="text-emerald-600" bg="bg-emerald-50" />
+        <TeacherSummaryCard label="Classes" value={classrooms.length > 0 ? classrooms.length : (data.classrooms?.length ?? 0)} color="text-violet-600" bg="bg-violet-50" />
       </div>
 
       {/* Per-classroom breakdown */}

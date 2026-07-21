@@ -32,6 +32,7 @@ export interface ClassTeacherNavbarDto {
   overallAverageScore: number;
   overallPassRate: number;
   pendingGradingItems: number;
+  pendingApprovalsCount?: number;
 }
 
 export interface StudentNavbarDto {
@@ -230,6 +231,65 @@ export interface SubjectTopicPerformanceDto {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ADMIN DASHBOARD — Comprehensive admin/super-admin performance data
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface AdminDashboardOverviewDto {
+  totalStudents: number;
+  totalTeachers: number;
+  totalClassrooms: number;
+  totalSubjects: number;
+  totalLessonsCreated: number;
+  totalLessonsPublished: number;
+  overallAverageScore: number;
+  overallPassRate: number;
+  totalLessonWatches: number;
+  studentsWhoWatchedLessons: number;
+}
+
+export interface TeacherActivityDto {
+  teacherId: string;
+  teacherName: string;
+  totalLessonsCreated: number;
+  publishedLessons: number;
+  draftLessons: number;
+  pendingApprovalLessons: number;
+  rejectedLessons: number;
+  trustScore: number;
+  trustLevel: string;
+  lastLessonCreated: string;
+}
+
+export interface ClassroomPerformanceDto {
+  classroomId: string;
+  classroomName: string;
+  studentCount: number;
+  averageScorePercent: number;
+  passRate: number;
+  totalAttempts: number;
+  completedAttempts: number;
+  lessonWatchCount: number;
+}
+
+export interface SubjectPerformanceDto {
+  subjectId: string;
+  subjectName: string;
+  averageScorePercent: number;
+  passRate: number;
+  totalAttempts: number;
+  completedAttempts: number;
+  studentCount: number;
+}
+
+export interface AdminDashboardData {
+  computedAt: string;
+  overview: AdminDashboardOverviewDto;
+  teacherActivities: TeacherActivityDto[];
+  classroomPerformances: ClassroomPerformanceDto[];
+  subjectPerformances: SubjectPerformanceDto[];
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // SUBJECT PERFORMANCE — Classroom breakdown
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -315,5 +375,31 @@ export const performanceService = {
     API.get<TResponse<StudentPerformanceDetailDto>>(
       `api/performance/student/${studentId}/quiz-performance`,
       { headers }
+    ),
+
+  // ═══ Admin Dashboard ═══
+
+  getAdminDashboard: () =>
+    API.get<TResponse<AdminDashboardData>>(
+      "api/performance/admin/dashboard",
+      { headers }
+    ),
+
+  getAdminTeachers: (teacherId?: string) =>
+    API.get<TResponse<TeacherActivityDto[]>>(
+      "api/performance/admin/teachers",
+      { headers, params: teacherId ? { teacherId } : {} }
+    ),
+
+  getAdminClassrooms: (classroomId?: string) =>
+    API.get<TResponse<ClassroomPerformanceDto[]>>(
+      "api/performance/admin/classrooms",
+      { headers, params: classroomId ? { classroomId } : {} }
+    ),
+
+  getAdminSubjects: (subjectId?: string) =>
+    API.get<TResponse<SubjectPerformanceDto[]>>(
+      "api/performance/admin/subjects",
+      { headers, params: subjectId ? { subjectId } : {} }
     ),
 };

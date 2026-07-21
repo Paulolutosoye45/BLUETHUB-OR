@@ -126,8 +126,8 @@ const TeacherEditProfile = () => {
       } catch (err: any) {
         setErrorMsg(
           err?.response?.data?.responseMessage ??
-            err?.message ??
-            "Failed to load user profile.",
+          err?.message ??
+          "Failed to load user profile.",
         );
       } finally {
         setLoading(false);
@@ -212,11 +212,11 @@ const TeacherEditProfile = () => {
       prev.map((c) =>
         c.classroomId === classroomId
           ? {
-              ...c,
-              subjects: (c.subjects ?? []).filter(
-                (s) => s.subjectId !== subjectId,
-              ),
-            }
+            ...c,
+            subjects: (c.subjects ?? []).filter(
+              (s) => s.subjectId !== subjectId,
+            ),
+          }
           : c,
       ),
     );
@@ -239,11 +239,15 @@ const TeacherEditProfile = () => {
       }
 
       try {
-        await authService.assignTeacherToClassroom({
+        const res = await authService.assignTeacherToClassroom({
           teacherId: userData.id,
           classroomId: selectedClassroomId,
           isPrimary: false,
         });
+
+        if (res.data.status === "failed") return setAssignMsg({ type: "error", text: res.data.responseMessage });
+        
+
         setAssignMsg({
           type: "success",
           text: "Classroom assignment updated successfully.",
@@ -448,11 +452,10 @@ const TeacherEditProfile = () => {
 
                 {profileMsg.text && (
                   <p
-                    className={`rounded-lg border px-3 py-2 text-sm ${
-                      profileMsg.type === "success"
+                    className={`rounded-lg border px-3 py-2 text-sm ${profileMsg.type === "success"
                         ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                         : "border-red-200 bg-red-50 text-red-700"
-                    }`}
+                      }`}
                   >
                     {profileMsg.text}
                   </p>
@@ -575,11 +578,10 @@ const TeacherEditProfile = () => {
 
                   {assignMsg.text && (
                     <p
-                      className={`rounded-lg border px-3 py-2 text-sm ${
-                        assignMsg.type === "success"
+                      className={`rounded-lg border px-3 py-2 text-sm ${assignMsg.type === "success"
                           ? "border-emerald-200 bg-emerald-50 text-emerald-700"
                           : "border-red-200 bg-red-50 text-red-700"
-                      }`}
+                        }`}
                     >
                       {assignMsg.text}
                     </p>
@@ -600,7 +602,7 @@ const TeacherEditProfile = () => {
                       ) : (
                         <span className="inline-flex items-center gap-2">
                           <Save className="h-4 w-4" />
-                          Save Assignments
+                          Assign Classroom
                         </span>
                       )}
                     </Button>

@@ -39,4 +39,9 @@ export const adminService = {
 
     return Promise.race([request, timeout]);
   },
+
+  unlockUser: (userId: string) =>
+    API.post<TResponse<null>>(`/api/User/${userId}/unlock`, null, {
+      headers: { "X-Tenant-ID": X_Tenant_ID },
+    }),
 };
