@@ -109,12 +109,10 @@ import GradesProgress from '@/pages/student/component/grades-progress';
 import CourseIndex from '@/pages/student/courses';
 import Course from '@/pages/student/courses/component/course';
 import SubjectList from '@/pages/student/courses/component/subject-list';
-import Onboarding from '@/pages/panel/onboarding';
 import DiscussionIndex from '@/pages/student/Discussion forum';
 import DiscussionLayout from '@/pages/student/Discussion forum/layout';
 import GroupDetailPanel from '@/pages/student/Discussion forum/group/group-detail-panel';
 import GroupChatRoom from '@/pages/student/Discussion forum/group/chat/group-chat';
-import SuperAdminDashboard from '@/pages/panel/dashboard/SuperAdminDashboard';
 
 const router = createBrowserRouter([
     {
@@ -420,26 +418,6 @@ const router = createBrowserRouter([
 
         ],
     },
-
-    {
-        path: "/panel",
-        element: <SuperAdminDashboard />,
-        children: [
-            {
-                index: true,
-                element: <Navigate to="/dashboard" replace />,
-            },
-            //   {
-            //     path: "dashboard",
-            //     element: <DashboardPage />,
-            //   },
-        ],
-    },
-
-    {
-        path: "/panel/onboarding",
-        element: <Onboarding />,
-    },
 ])
 
 
@@ -447,7 +425,3 @@ export default router
 
 
 
-// https://www.figma.com/design/FLJ2J0QZCDF6VzsbNWMQPa/arrange-bluett-e-learning-platform?node-id=0-1&p=f&t=Nacbs0o1As3FNd60-0
-
-
-// https://www.figma.com/design/bOHOepOXOscsGLWVnMzHam/student-dashboard?node-id=0-1&p=f&t=xnhs9qKFes6uaBrU-0

@@ -54,8 +54,9 @@ export interface Iprovison  {
   location: string,
   countryId: number,
   stateId: number,
+  state: string,
   address: string,
-  hasBranch: true,
+  hasBranch: boolean,
   tenantIdentifier: string,
   schoolCode: string,
   logoUrl: string,
@@ -184,16 +185,12 @@ export const schoolService = {
     );
   },
 
-  Provision: () => {
-    return API.post(
-      endpoints.Provison,
-      {},
-      {
-        headers: {
-          "X-Tenant-ID": X_Tenant_ID,
-          Authorization: `Bearer ${token.getToken()}`,
-        },
+  Provision: (data: Iprovison) => {
+    return API.post(endpoints.Provison, data, {
+      headers: {
+        "X-Tenant-ID": X_Tenant_ID,
+        Authorization: `Bearer ${token.getToken()}`,
       },
-    );
+    });
   },
 };

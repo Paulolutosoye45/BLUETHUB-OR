@@ -1,13 +1,12 @@
-import { token } from "@/utils";
+import { token, X_Tenant_ID } from "@/utils";
 import axios, { type AxiosInstance } from "axios";
-
-const X_Tenant_ID = (import.meta.env.VITE_TENANT_ID as string) || "green";
 
 export const API: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
 });
 
 API.interceptors.request.use((config) => {
+  config.headers["X-Tenant-ID"] = X_Tenant_ID;
   if (token.getToken()) {
     config.headers.Authorization = `Bearer ${token.getToken()}`;
   }
@@ -323,9 +322,9 @@ export const authService = {
   getUserById: (userId: string) => {
     return API.get(endpoints.getUserById, {
       params: { userId },
-      headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
-      },
+      // headers: {
+      //   "X-Tenant-ID":  X_Tenant_ID,
+      // },
     });
   },
   assignPermissions: (data: IAssignPermissionsRequest) => {
@@ -334,9 +333,9 @@ export const authService = {
   getAdapterPermissions: (adminUserId: string) => {
     return API.get<TResponse<unknown>>(endpoints.getAdminPermissions, {
       params: { adminUserId },
-       headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
-      },
+      //  headers: {
+      //   "X-Tenant-ID":  X_Tenant_ID,
+      // },
     });
   },
 
