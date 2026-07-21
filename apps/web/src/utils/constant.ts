@@ -216,13 +216,14 @@ export interface IActions {
 export const MEDIA_STORAGE_KEY = "MEDIA_INSTANCES";
 
 export const DB_NAME = "BluethubClassroom";
-export const DB_VERSION = 8;
+export const DB_VERSION = 9;
 export const STORE_CLASS = "CLASS";
 export const STORE_AUDIO = "Audio";
 export const STORE_SESSIONS = "Sessions";
 export const STORE_AUDIO_CHUNKS = "AudioChunks";
 export const STORE_STROKE_BATCHES = "StrokeBatches";
 export const STORE_REPLAY_CACHE = "ReplayCache";
+export const STORE_STUDENT_BOARDS = "StudentAssessmentBoards";
 
 // ── Sync Status Types ─────────────────────────────────────────────────────────
 

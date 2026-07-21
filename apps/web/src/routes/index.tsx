@@ -103,6 +103,7 @@ import QuestionBankScan from '@/pages/teacher/question-bank';
 import AssessmentSettings from '@/pages/teacher/assessment-settings';
 import AssignAssessmentToStudent from '@/pages/teacher/assessment/assign-student';
 import ManageAssessments from '@/pages/teacher/assessment/manage';
+import PendingGrading from '@/pages/teacher/assessment/pending-grading';
 import AdminAnalytics from '@/pages/admin/dashboard/analytics-page';
 import TeacherAnalytics from '@/pages/teacher/dashboard/analytics-page';
 import GradesProgress from '@/pages/student/component/grades-progress';
@@ -332,6 +333,7 @@ const router = createBrowserRouter([
             { path: "assessment/config", element: <AssessmentSettings /> },
             { path: "assessment/assign-student", element: <AssignAssessmentToStudent /> },
             { path: "assessment/manage", element: <ManageAssessments /> },
+            { path: "assessment/pending-grading", element: <PendingGrading /> },
             { path: "approvals", element: <ApprovalsPage /> },
             { path: "create-syllabus", element: <CreateSyllabus /> },
             { path: "analytics", element: <TeacherAnalytics /> },

@@ -184,6 +184,54 @@ export interface AssessmentAssignmentItem {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// GRADING DTOs
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface PendingGradeStroke {
+  id: string;
+  type: string;
+  data: string;
+  color: string;
+  width: number;
+  currentBoard: number;
+  timestamp: number;
+  duration: number;
+  startTime: string;
+  endTime: string;
+}
+
+export interface PendingGradeBoard {
+  boardIndex: number;
+  strokeCount: number;
+  strokes: PendingGradeStroke[];
+}
+
+export interface PendingGradeItem {
+  answerId: string;
+  attemptId: string;
+  assessmentId: string;
+  assessmentCode: string;
+  assessmentTitle: string;
+  studentName: string;
+  questionId: string;
+  questionTitle: string;
+  questionText: string;
+  questionType: number;
+  maxMarks: number;
+  typedAnswer: string;
+  boardSessionId: string | null;
+  audioUrl: string | null;
+  isSkipped: boolean;
+  attemptStatus: string;
+  boards?: PendingGradeBoard[];
+}
+
+export interface GradeAnswerPayload {
+  manualMarksObtained: number;
+  teacherFeedback: string;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // SERVICE
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -212,6 +260,9 @@ export const assessmentService = {
   submitAttempt: (attemptId: string) =>
     API.post<TResponse<SubmitAttemptResult>>(`api/Assessment/${attemptId}/submit`, {}, { headers }),
 
+  submitAll: (payload: { answers: SubmitAnswerPayload[] }) =>
+    API.post<TResponse<SubmitAttemptResult>>("api/Assessment/submit-all", payload, { headers }),
+
   getResult: (attemptId: string) =>
     API.get<TResponse<AttemptResult>>(`api/Assessment/result/${attemptId}`, { headers }),
 
@@ -223,4 +274,10 @@ export const assessmentService = {
 
   getAssignments: (assessmentId: string) =>
     API.get<TResponse<AssessmentAssignmentItem[]>>(`api/Assessment/${assessmentId}/assignments`, { headers }),
+
+  getPendingGradings: () =>
+    API.get<TResponse<PendingGradeItem[]>>("api/Assessment/grading/pending", { headers }),
+
+  gradeAnswer: (answerId: string, payload: GradeAnswerPayload) =>
+    API.post<TResponse<unknown>>(`api/Assessment/grading/${answerId}/grade`, payload, { headers }),
 };

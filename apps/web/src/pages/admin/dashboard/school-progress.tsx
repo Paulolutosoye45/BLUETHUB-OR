@@ -1,82 +1,72 @@
-import { Users, GraduationCap, BookOpen, School, Video } from "lucide-react";
+import { useEffect, useState } from "react";
+import { performanceService, type AdminDashboardOverviewDto } from "@/services/performance";
+import { Users, GraduationCap, BookOpen, School, Video, Loader2 } from "lucide-react";
 
-const stats = [
-  {
-    label: "Total Students",
-    value: "1,240",
-    change: "+12%",
-    positive: true,
-    icon: GraduationCap,
-    bg: "bg-blue-50",
-    iconColor: "text-blue-600",
-    accent: "text-blue-600",
-  },
-  {
-    label: "Total Teachers",
-    value: "86",
-    change: "+3%",
-    positive: true,
-    icon: Users,
-    bg: "bg-chestnut/10",
-    iconColor: "text-chestnut",
-    accent: "text-chestnut",
-  },
-  {
-    label: "Active Classes",
-    value: "24",
-    change: "This term",
-    positive: null,
-    icon: School,
-    bg: "bg-emerald-50",
-    iconColor: "text-emerald-600",
-    accent: "text-emerald-600",
-  },
-  {
-    label: "Subjects",
-    value: "38",
-    change: "+2 new",
-    positive: true,
-    icon: BookOpen,
-    bg: "bg-violet-50",
-    iconColor: "text-violet-600",
-    accent: "text-violet-600",
-  },
-  {
-    label: "Live Lessons",
-    value: "5",
-    change: "Today",
-    positive: null,
-    icon: Video,
-    bg: "bg-amber-50",
-    iconColor: "text-amber-600",
-    accent: "text-amber-600",
-  },
+const statConfig = [
+  { key: "totalStudents", label: "Total Students", icon: GraduationCap, bg: "bg-blue-50", iconColor: "text-blue-600" },
+  { key: "totalTeachers", label: "Total Teachers", icon: Users, bg: "bg-chestnut/10", iconColor: "text-chestnut" },
+  { key: "totalClassrooms", label: "Active Classes", icon: School, bg: "bg-emerald-50", iconColor: "text-emerald-600" },
+  { key: "totalSubjects", label: "Subjects", icon: BookOpen, bg: "bg-violet-50", iconColor: "text-violet-600" },
+  { key: "totalLessonsPublished", label: "Published Lessons", icon: Video, bg: "bg-amber-50", iconColor: "text-amber-600" },
 ];
 
 const SchoolProgress = () => {
+  const [overview, setOverview] = useState<AdminDashboardOverviewDto | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetch = async () => {
+      try {
+        const res = await performanceService.getAdminDashboard();
+        const d = res.data?.data;
+        if (!cancelled && d) setOverview(d.overview);
+      } catch {
+        // silent
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void fetch();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="flex items-center justify-center py-6">
+        <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+      </section>
+    );
+  }
+
+  if (!overview) {
+    return (
+      <section className="flex items-center justify-center py-6 text-xs text-slate-400">
+        Could not load dashboard data.
+      </section>
+    );
+  }
+
   return (
     <section className="font-poppins">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        {stats.map((stat) => {
+        {statConfig.map((stat) => {
           const Icon = stat.icon;
+          const value = overview[stat.key as keyof AdminDashboardOverviewDto] ?? 0;
           return (
             <div
-              key={stat.label}
+              key={stat.key}
               className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex flex-col gap-2"
             >
               <div className={`w-8 h-8 rounded-lg ${stat.bg} flex items-center justify-center`}>
                 <Icon className={stat.iconColor} size={16} />
               </div>
               <div>
-                <p className="text-xl font-bold text-gray-900 leading-none">{stat.value}</p>
+                <p className="text-xl font-bold text-gray-900 leading-none">
+                  {typeof value === "number" ? value.toLocaleString() : value}
+                </p>
                 <p className="text-[11px] text-gray-500 mt-0.5">{stat.label}</p>
               </div>
-              <p className={`text-[10px] font-medium ${stat.positive === true ? "text-emerald-600"
-                  : stat.positive === false ? "text-red-500"
-                    : "text-gray-400"
-                }`}>
-                {stat.change}
-              </p>
             </div>
           );
         })}

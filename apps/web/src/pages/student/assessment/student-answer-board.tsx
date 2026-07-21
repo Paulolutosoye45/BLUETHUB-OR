@@ -11,7 +11,6 @@ import {
   X,
   Save,
 } from "lucide-react";
-import { studentBoardService, type StudentStrokeDto } from "@/services/student-board";
 import toast from "react-hot-toast";
 
 export interface AnswerBoardMeta {
@@ -63,7 +62,6 @@ interface StudentAnswerBoardProps {
 const StudentAnswerBoard = ({ questionId, sessionId, initialBoards, onBoardsChange, onStrokesChange, onSaveBoard, saving }: StudentAnswerBoardProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const pendingStrokesRef = useRef<Record<number, StudentStrokeDto[]>>({});
 
   const [boards, setBoards] = useState<Record<number, BoardState>>(() => {
     if (initialBoards && Object.keys(initialBoards).length > 0) {
@@ -243,26 +241,6 @@ const StudentAnswerBoard = ({ questionId, sessionId, initialBoards, onBoardsChan
       const board = prev[activeBoardIndex];
       if (!board) return prev;
 
-      const lastStroke = board.strokes[board.strokes.length - 1];
-      if (lastStroke && lastStroke.points.length >= 2 && board.sessionId) {
-        const now = Date.now();
-        const prevPending = pendingStrokesRef.current[activeBoardIndex] || [];
-        const strokeDto: StudentStrokeDto = {
-          id: `${board.sessionId}_stroke_${board.strokes.length - 1}_${now}`,
-          sessionId: board.sessionId,
-          type: lastStroke.isEraser ? "eraser" : "stroke",
-          data: JSON.stringify(lastStroke.points.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y) }))),
-          color: lastStroke.color,
-          width: lastStroke.width,
-          currentBoard: activeBoardIndex,
-          timestamp: now,
-          duration: 5000,
-          startTime: new Date(now - 5000).toISOString(),
-          endTime: new Date(now).toISOString(),
-        };
-        pendingStrokesRef.current[activeBoardIndex] = [...prevPending, strokeDto];
-      }
-
       return {
         ...prev,
         [activeBoardIndex]: {
@@ -274,28 +252,7 @@ const StudentAnswerBoard = ({ questionId, sessionId, initialBoards, onBoardsChan
     });
   }, [isDrawing, activeBoardIndex]);
 
-  const flushAllStrokes = useCallback(async () => {
-    const pending = pendingStrokesRef.current;
-    pendingStrokesRef.current = {};
 
-    const promises = Object.entries(pending).map(async ([boardIdx, strokes]) => {
-      if (strokes.length === 0) return;
-      const boardIndex = Number(boardIdx);
-      const sessionId = strokes[0].sessionId;
-      try {
-        await studentBoardService.saveBatch({ sessionId, boardIndex, strokes });
-      } catch {
-        // silently fail
-      }
-    });
-
-    await Promise.all(promises);
-  }, []);
-
-  // Flush all pending strokes on unmount
-  useEffect(() => {
-    return () => { flushAllStrokes(); };
-  }, [flushAllStrokes]);
 
   const undoLastStroke = () => {
     setBoards((prev) => {
@@ -477,7 +434,7 @@ const StudentAnswerBoard = ({ questionId, sessionId, initialBoards, onBoardsChan
         {onSaveBoard && (
           <button
             type="button"
-            onClick={async () => { await flushAllStrokes(); toast.success("Board saved"); onSaveBoard(); }}
+            onClick={() => { toast.success("Board saved locally"); onSaveBoard(); }}
             disabled={saving}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-xs font-semibold text-white hover:bg-emerald-600 transition-all disabled:opacity-50 ml-auto"
           >
@@ -551,7 +508,7 @@ const StudentAnswerBoard = ({ questionId, sessionId, initialBoards, onBoardsChan
 
       {/* Helper text */}
       <p className="text-[11px] text-slate-400">
-        Draw your answer above. You can use up to {MAX_BOARDS} boards per question. Click "Save Board" to save your work — you can still edit after saving.
+        Draw your answer above. You can use up to {MAX_BOARDS} boards per question. Your work is saved automatically on device — you can edit anytime before submitting.
       </p>
     </div>
   );

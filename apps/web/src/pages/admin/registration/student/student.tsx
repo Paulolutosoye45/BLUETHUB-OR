@@ -1,9 +1,11 @@
 import { useAuthContext } from "@/contexts/auth-context";
 import { authService } from "@/services/auth";
+import { adminService } from "@/services/admin";
 import { localData } from "@/utils";
 import { UserRole } from "@/utils/validate";
-import { EllipsisVertical, LayoutGrid, Menu, PlusIcon, Search, SquarePen } from "lucide-react";
+import { EllipsisVertical, LayoutGrid, Loader2, Menu, PlusIcon, Search, SquarePen, Unlock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import toast from "react-hot-toast";
 import { Button, Pagination, PaginationContent, PaginationEllipsis, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@bluethub/ui-kit";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -91,6 +93,7 @@ const Student = () => {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const PAGE_SIZE = 15;
   const [currentPage, setCurrentPage] = useState(1);
+  const [unlockingId, setUnlockingId] = useState<string | null>(null);
 
 
 
@@ -106,6 +109,27 @@ const Student = () => {
       setStudents(fallbackStudents);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUnlock = async (studentId: string) => {
+    setUnlockingId(studentId);
+    try {
+      await adminService.unlockUser(studentId);
+      toast.success("User account unlocked successfully");
+      setStudents(prev =>
+        prev.map(s =>
+          s.id === studentId ? { ...s, isActive: true, status: "Active" } : s
+        )
+      );
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.responseMessage ??
+        error?.message ??
+        "Failed to unlock user";
+      toast.error(msg);
+    } finally {
+      setUnlockingId(null);
     }
   };
 
@@ -245,6 +269,21 @@ const Student = () => {
                     <SquarePen className="h-3.5 w-3.5" />
                     Edit
                   </button>
+                  {!student.isActive && (
+                    <button
+                      type="button"
+                      onClick={() => handleUnlock(student.id)}
+                      disabled={unlockingId === student.id}
+                      className="inline-flex items-center gap-1 rounded-lg border border-emerald-600/20 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 w-fit"
+                    >
+                      {unlockingId === student.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Unlock className="h-3.5 w-3.5" />
+                      )}
+                      Unlock
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

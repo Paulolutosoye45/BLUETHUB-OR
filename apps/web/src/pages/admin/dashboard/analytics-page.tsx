@@ -1,5 +1,7 @@
-import NavbarStats from "@/component/performance-navbar-stats";
-import PerformanceOverview from "./performance-overview";
+import SchoolProgress from "./school-progress";
+import { TeacherActivity } from "./component/teacher-activity";
+import { ClassroomPerformance } from "./component/classroom-performance";
+import Charts from "./charts";
 
 const AdminAnalytics = () => {
   return (
@@ -9,8 +11,10 @@ const AdminAnalytics = () => {
           <span className="text-white font-semibold text-base">School Analytics</span>
         </div>
         <div className="flex flex-col gap-4 p-4 md:p-6 bg-white/70 backdrop-blur-sm">
-          <NavbarStats />
-          <PerformanceOverview />
+          <SchoolProgress />
+          <TeacherActivity />
+          <Charts />
+          <ClassroomPerformance />
         </div>
       </div>
     </div>

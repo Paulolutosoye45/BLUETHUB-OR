@@ -1,6 +1,6 @@
 # CLAUDE.md — Bluethub E-Learning Platform
 
-> Last updated: June 2026. Full project state — use this to onboard any AI model.
+> Last updated: July 2026. Full project state — use this to onboard any AI model.
 
 ---
 
@@ -134,6 +134,8 @@ All services import `API` from `services/index.ts` and use `X_Tenant_ID`.
 | `board-session.ts` | Teacher live session, stroke batches, audio chunks, student manifest |
 | `class-media.ts` | Media upload/management for live classes |
 | `media-upload.ts` | Generic media upload helper |
+| `assessment.ts` | Create/assign/list assessments, start attempt, submit-all answers, grade pending board answers |
+| `student-board.ts` | Save/load student board strokes (`api/board/student/session/{sessionId}/batch`) |
 | `admin.ts` | Admin user management |
 | `approval.ts` | Lesson approval workflow |
 | `user.ts` | Profile updates |
@@ -169,6 +171,28 @@ GET  api/lessons/subject/{subjectId}     ← student: lessons with media[]
 POST api/lessons/submit
 POST api/lessons/draft
 GET  api/lessons/my-lessons
+```
+
+### Assessment (student)
+```
+POST api/Assessment/submit-all        ← body: { answers: [{ attemptId, questionId, selectedOptionId, typedAnswer, boardSessionId, audioUrl, isSkipped }] }
+GET  api/Assessment/student/list
+GET  api/Assessment/{id}/detail
+POST api/Assessment/{id}/start
+POST api/Assessment/{attemptId}/submit
+GET  api/Assessment/result/{attemptId}
+```
+
+### Assessment (teacher / grading)
+```
+GET  api/Assessment/grading/pending   ← returns PendingGradeItem[] with boards[] containing stroke data
+POST api/Assessment/grading/{answerId}/grade   ← body: { manualMarksObtained, teacherFeedback }
+```
+
+### Board (student assessment)
+```
+POST api/board/student/session/{sessionId}/batch   ← save stroke batch
+GET  api/board/student/session/{sessionId}/board/{boardIndex}   ← load board strokes
 ```
 
 ### Auth
@@ -352,6 +376,7 @@ Located at `apps/web/src/pages/teacher/my-classroom/index.tsx`. Route: `/teacher
 | Submit quiz modal loop | "Add quiz" button both attached code AND submitted immediately; failure reopened modal | Separated: "Add" only sets `attachedQuizId`; Submit button checks it first |
 | Replay board rushes to end | Audio chunk with `sizeBytes=0` created phantom batch | Skip chunks where `sizeBytes === 0` |
 | pnpm commands fail | Running via PowerShell | Must run via `cmd /c pnpm ...` on Windows |
+| Student board answers not saving | Individual `POST api/Assessment/answer` per question + `POST api/Assessment/{attemptId}/submit` | Changed to single `POST api/Assessment/submit-all` with all answers in `{ answers: [...] }` |
 
 ---
 
@@ -406,3 +431,86 @@ For local web-app-only components, use `src/component/` (shared across roles) or
 ### Live Classroom (Whiteboard)
 
 `/teacher/board` hosts the interactive whiteboard built with `konva` / `react-konva`. Recording batches are compressed and queued via Redux (`sendQueueRefList`) then uploaded in intervals (`SEND_INTERVAL = 10000 ms`). Replay is served at `/replay`.
+
+---
+
+## Actual Repository Implementation Notes
+
+### App startup
+- `apps/web/src/main.tsx` mounts React with `AuthProvider` and then renders `App`.
+- `apps/web/src/App.tsx` calls `useTokenRefresh()` and initializes IndexedDB on startup with `ensureAllStoresExist()`.
+- Global toasts are rendered by `@bluethub/ui-kit` `Toaster`.
+
+### Authentication
+- `apps/web/src/contexts/auth-context.tsx` is the single auth source of truth.
+- It loads the user from JWT on mount, parsing `localStorage.token`, then calling `authService.getUserById(parsed.id)`.
+- `login()` writes the access token and refresh token to localStorage, then hydrates the user.
+- `logout()` clears token storage and resets auth state.
+- `isAuthenticated` is based on both `user` and a stored token.
+
+### Token refresh and idle logout
+- `apps/web/src/hooks/useTokenRefresh.ts` periodically checks token expiry and user activity.
+- It stores `accessTokenExpiresAt` and refreshes expired access tokens using `/api/User/refresh-token`.
+- If the user has been idle for 30 minutes, it clears storage and redirects to `/auth`.
+- User activity is tracked via `mousedown`, `keydown`, `touchstart`, and `scroll` events.
+
+### Axios and API behavior
+- `apps/web/src/services/index.ts` exports the main shared Axios instance used by most service modules.
+- `apps/web/src/services/auth.ts` defines its own Axios instance with a refresh queue to retry concurrent 401 requests.
+- `apps/web/src/utils/index.ts` also contains helper APIs and token utilities, including another `API` instance and tenant helper exports.
+- `auth.ts` is the refresh-aware service entry point for auth-related calls.
+
+### Multi-tenancy
+- `X_Tenant_ID` is sourced from `apps/web/src/utils/tenant.ts`.
+- It uses `VITE_TENANT_ID` if provided, otherwise defaults to `green`.
+- Multiple services explicitly pass `X-Tenant-ID` in headers.
+
+### Route guards
+- `apps/web/src/component/protected-routes/admin-routes.tsx` allows `SuperAdministrator`, `Administrator`, and `Admin`.
+- `apps/web/src/component/protected-routes/teacher-routes.tsx` allows `HeadTeacher`, `SubjectTeacher`, and `ClassTeacher`.
+- `apps/web/src/component/protected-routes/student-routes.tsx` allows only `Student`.
+- Unauthorized or unauthenticated users are redirected to `/auth`.
+
+### Redux state
+- `apps/web/src/store/class-action-slice.ts` is the one Redux slice in the repo.
+- It tracks live class session state, including:
+  - selected tool/action, fill color, and media selection
+  - current board and available board list
+  - recording state and session ID ref
+  - send queue for compressed strokes
+  - timer display, running state, elapsed seconds
+- `apps/web/src/store/index.ts` configures the store with serializable middleware exceptions for persisted actions.
+
+### IndexedDB and local persistence
+- `apps/web/src/utils/db.ts` creates a DB named `BluethubClassroom` version `8`.
+- Stores include:
+  - `CLASS` for compressed stroke batches
+  - `Audio` for audio blob batches
+  - `Sessions` for local session metadata
+  - `AudioChunks` for chunk sync state
+  - `StrokeBatches` for stroke batch sync state
+  - `ReplayCache` for replay download checkpoint data
+- Session and sync stores include useful indexes: `lessonId`, `status`, `sessionId`, `syncStatus`, and compound keys for chunk/batch ordering.
+- The file also exports cleanup and disk-space helpers.
+
+### Utility functions
+- `apps/web/src/utils/index.ts` provides central helpers:
+  - `token` wrapper for auth tokens and localStorage management
+  - `localData` JSON storage helpers
+  - `Hashing()` and `hashPassword()` using Web Crypto SHA-256
+  - `getDeviceType()` from `react-device-detect`
+  - `saveActions()` for local recording batch metadata
+  - time formatting/parsing utilities
+  - batch timing constants and helper functions
+
+### Build configuration
+- Vite aliases are configured in `apps/web/vite.config.ts`:
+  - `@` → `apps/web/src`
+  - `@bluethub/ui-kit` → `packages/ui/src`
+- The config excludes `@bluethub/ui-kit` from dependency optimization.
+
+### Current repo notes
+- `VITE_TENANT_ID` is the actual tenant header source; the fallback is `green`.
+- The app does not implement a separate unauthorized page; it redirects straight to `/auth`.
+- `AuthContext` re-fetches the user on startup if a valid token exists instead of restoring a full cached user object.
+- The core live-class workflow is built around `IndexedDB` for stroke/audio persistence and Redux for runtime state.

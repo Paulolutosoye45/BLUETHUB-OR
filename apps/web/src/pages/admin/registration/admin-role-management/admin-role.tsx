@@ -10,9 +10,11 @@ import {
   TableHeader,
   TableRow
 } from '@bluethub/ui-kit'
+import { adminService } from "@/services/admin";
 import { authService } from "@/services/auth";
 import { UserRole } from "@/utils/validate";
 import { AxiosError } from "axios";
+import toast from "react-hot-toast";
 
 const BRAND = "#292382";
 
@@ -54,10 +56,11 @@ const AvatarPhoto = ({ admin }: { admin: Admin }) => {
   );
 };
 
-const Toggle = ({ checked, onChange }: { checked: boolean; onChange: () => void }) => (
+const Toggle = ({ checked, onChange, disabled }: { checked: boolean; onChange: () => void; disabled?: boolean }) => (
   <button
     onClick={onChange}
-    className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0"
+    disabled={disabled}
+    className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
     style={{ backgroundColor: checked ? "#22c55e" : "#f59e0b" }}
   >
     <span
@@ -91,6 +94,7 @@ const AdminRole = () => {
   const [rows, setRows] = useState<Admin[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(true);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const navigate = useNavigate()
 
@@ -105,12 +109,36 @@ const AdminRole = () => {
   const activeRole = rows.filter(r => r.isActive).length;
   const blockedUser = rows.filter(r => !r.isActive && !r.hasAccess).length;
 
-  const toggleRow = (id: string) => {
-    setRows(prev =>
-      prev.map(r =>
-        r.id === id ? { ...r, isActive: !r.isActive } : r
-      )
-    );
+  const toggleRow = async (id: string) => {
+    const admin = rows.find(r => r.id === id);
+    if (!admin) return;
+
+    if (!admin.isActive) {
+      setTogglingId(id);
+      try {
+        const { data } = await adminService.unlockUser(id);
+        toast.success(data?.responseMessage ?? "User account unlocked successfully");
+        setRows(prev =>
+          prev.map(r =>
+            r.id === id ? { ...r, isActive: true } : r
+          )
+        );
+      } catch (error: any) {
+        const msg =
+          error?.response?.data?.responseMessage ??
+          error?.message ??
+          "Failed to unlock user";
+        toast.error(msg);
+      } finally {
+        setTogglingId(null);
+      }
+    } else {
+      setRows(prev =>
+        prev.map(r =>
+          r.id === id ? { ...r, isActive: !r.isActive } : r
+        )
+      );
+    }
   }
   const adminRoles = async () => {
     try {
@@ -300,7 +328,7 @@ const AdminRole = () => {
 
                         {/* Toggle */}
                         <TableCell>
-                          <Toggle checked={admin.isActive} onChange={() => toggleRow(admin.id)} />
+                          <Toggle checked={admin.isActive} onChange={() => toggleRow(admin.id)} disabled={togglingId === admin.id} />
                         </TableCell>
 
                         {/* Status */}
@@ -339,7 +367,7 @@ const AdminRole = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <Toggle checked={admin.isActive} onChange={() => toggleRow(admin.id)} />
+                      <Toggle checked={admin.isActive} onChange={() => toggleRow(admin.id)} disabled={togglingId === admin.id} />
                       <AssignRoleDialog admin={admin} />
                     </div>
                   </div>

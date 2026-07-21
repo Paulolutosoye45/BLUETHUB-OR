@@ -1,4 +1,3 @@
-// AdminDashboard.tsx
 import { Bell, EllipsisVertical, Menu } from "lucide-react";
 import AdminAppbar from "./app-bar";
 import Charts from "./charts";
@@ -6,11 +5,11 @@ import SchoolProgress from "./school-progress";
 import { SchoolAtAGlance } from "./component/school-at-a-glance";
 import { RecentActivity } from "./component/recent-activity";
 import { PendingLessonApprovals } from "./component/pending-lesson-approvals";
+import { TeacherActivity } from "./component/teacher-activity";
+import { ClassroomPerformance } from "./component/classroom-performance";
 import { MobileNav } from "../side-bar";
 import { useState } from "react";
 import { useAuthContext } from "@/contexts/auth-context";
-import NavbarStats from "@/component/performance-navbar-stats";
-import PerformanceOverview from "./performance-overview";
 
 const AdminDashboard = () => {
   const [isOpen, setIsOpen]= useState(false)
@@ -27,13 +26,12 @@ const AdminDashboard = () => {
       .join("");
   };
 
-  // Usage
   const initials = getInitials(user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : "WA"); 
 
   return (
     <div className="font-poppins w-full lg:py-2 lg:px-4">
       <MobileNav isOpen={isOpen} setIsOpen={setIsOpen}/>
-      <div className="backdrop-blur-sm lg:rounded-2xl   border border-white/20 overflow-hidden">
+      <div className="backdrop-blur-sm lg:rounded-2xl border border-white/20 overflow-hidden">
 
         {/* ── Top Nav ── */}
         <div className="flex items-center justify-between px-4 h-12 bg-chestnut">
@@ -50,16 +48,15 @@ const AdminDashboard = () => {
               <Bell className="text-chestnut" />
              </div>
           </div>
-
         </div>
 
         {/* ── Page Body ── */}
         <div className="flex flex-col gap-3 p-3 md:p-4 bg-white/70 backdrop-blur-sm">
           <AdminAppbar />
-          <NavbarStats />
           <SchoolProgress />
+          <TeacherActivity />
           <Charts />
-          <PerformanceOverview />
+          <ClassroomPerformance />
 
           {/* ── Bottom section: stacked on mobile, side-by-side on md+ ── */}
           <div className="flex flex-col gap-3 lg:flex-row">
@@ -72,7 +69,6 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
