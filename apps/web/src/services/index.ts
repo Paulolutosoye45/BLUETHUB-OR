@@ -1,5 +1,5 @@
 import axios from "axios";
-import { token } from "@/utils";
+import { token, X_Tenant_ID } from "@/utils";
 
 // ── Single shared Axios instance ─────────────────────────────────────────────
 // All service files import `API` from here — never create a second instance.
@@ -12,6 +12,7 @@ API.interceptors.request.use((config) => {
   const isExternal = /^https?:\/\//i.test(url);
 
   if (!isExternal) {
+    config.headers["X-Tenant-ID"] = X_Tenant_ID;
     const jwt = token.getToken();
     if (jwt) {
       config.headers.Authorization = `Bearer ${jwt}`;

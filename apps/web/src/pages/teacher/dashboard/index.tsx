@@ -1,6 +1,6 @@
 import Activity from "@/pages/teacher/dashboard/activity"
 import Recordedclass from "@/pages/teacher/dashboard/recorded-class"
-import { Menu, School } from "lucide-react"
+import { Menu, } from "lucide-react"
 import TeacherAppBar from "@/pages/teacher/dashboard/teacher-app-bar"
 import TodayClasses from "./today-classes"
 import AssessmentSubmissions from "./assessment-submissions"
@@ -42,12 +42,12 @@ const TeacherDashboard = () => {
 
         <div className="bg-white p-3 md:p-4 space-y-2 pb-2">
           {/* Assigned classrooms indicator */}
-          {assignedClassrooms.length > 0 && (
+          {/* {assignedClassrooms.length > 0 && (
             <div className="flex items-center gap-1.5 text-xs text-gray-500">
               <School className="w-3.5 h-3.5 text-chestnut" />
               <span>Showing data for your assigned classrooms only</span>
             </div>
-          )}
+          )} */}
 
           <TeacherAppBar />
           <NavbarStats />
