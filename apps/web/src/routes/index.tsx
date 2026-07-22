@@ -56,6 +56,7 @@ import StudentAssessmentAttempt from '@/pages/student/assessment/attempt';
 import StudentAssessmentResult from '@/pages/student/assessment/result';
 import StudentSubjectScores from '@/pages/student/assessment/subject-scores';
 import StudentSubtopicScores from '@/pages/student/assessment/subtopic-scores';
+import StudentAssessmentScore from '@/pages/student/assessment/assessment-score';
 import Assessment from '@/pages/teacher/component/assessment';
 import CreateQuizQuestion from '@/pages/teacher/component/create-quiz';
 import TopicQuestionList from '@/pages/teacher/component/topic-question-list';
@@ -384,6 +385,7 @@ const router = createBrowserRouter([
                     { path: ":assessmentId/result/:attemptId", element: <StudentAssessmentResult /> },
                     { path: "subject-scores", element: <StudentSubjectScores /> },
                     { path: "subtopic-scores", element: <StudentSubtopicScores /> },
+                    { path: "assessment-score", element: <StudentAssessmentScore /> },
                 ],
             },
 

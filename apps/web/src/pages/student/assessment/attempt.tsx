@@ -176,7 +176,8 @@ const AttemptPage = () => {
   if (loading) return <div className="flex items-center justify-center min-h-screen"><Loader2 className="h-6 w-6 animate-spin text-[#4255db]" /></div>;
 
   if (submitted && submitResult) {
-    const autoPct = hasManualQuestions && totalAutoMarks > 0 ? (submitResult.marksObtained / totalAutoMarks) * 100 : submitResult.finalScorePercent;
+    const obtained = submitResult.autoMarksObtained ?? submitResult.marksObtained ?? 0;
+    const autoPct = hasManualQuestions && totalAutoMarks > 0 ? (obtained / totalAutoMarks) * 100 : submitResult.finalScorePercent;
     return (
       <div className="mx-auto max-w-[800px] p-6">
         <div className="rounded-[24px] border border-slate-200 bg-white p-8 shadow-sm">
@@ -192,7 +193,7 @@ const AttemptPage = () => {
             </div>
             <div className="rounded-xl bg-slate-50 p-3">
               <p className="text-[10px] font-semibold text-slate-400 uppercase">Obtained</p>
-              <p className="text-xl font-bold text-slate-800">{submitResult.marksObtained?.toFixed(0)}</p>
+              <p className="text-xl font-bold text-slate-800">{obtained.toFixed(0)}</p>
             </div>
             <div className="rounded-xl bg-slate-50 p-3">
               <p className="text-[10px] font-semibold text-slate-400 uppercase">Total</p>
