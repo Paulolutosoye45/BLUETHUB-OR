@@ -19,6 +19,7 @@ const statusConfig: Record<string, { label: string; bg: string; text: string; ic
   NotStarted: { label: "Not Started", bg: "bg-slate-100", text: "text-slate-600", icon: "○" },
   InProgress: { label: "In Progress", bg: "bg-amber-50", text: "text-amber-700", icon: "◐" },
   Completed: { label: "Completed", bg: "bg-emerald-50", text: "text-emerald-700", icon: "●" },
+  Expired: { label: "Expired", bg: "bg-red-50", text: "text-red-600", icon: "✕" },
 };
 
 const StudentAssessmentList = () => {
@@ -113,7 +114,11 @@ const StudentAssessmentList = () => {
         ) : (
           <div className="space-y-3">
             {assessments.map((a) => {
-              const status = statusConfig[a.status] ?? statusConfig.NotStarted;
+              const isExpired = a.status === "NotStarted" && a.expiresAt
+                ? new Date(a.expiresAt) < new Date()
+                : false;
+              const effectiveStatus = isExpired ? "Expired" : a.status;
+              const status = statusConfig[effectiveStatus] ?? statusConfig.NotStarted;
               const hasCompleted = a.status === "Completed";
 
               return (
@@ -176,6 +181,13 @@ const StudentAssessmentList = () => {
                         >
                           <PlayCircle className="w-3.5 h-3.5" />
                           Resume
+                        </button>
+                      ) : isExpired ? (
+                        <button
+                          disabled
+                          className="inline-flex items-center gap-1 rounded-full bg-red-50 px-4 py-2 text-xs font-semibold text-red-400 cursor-not-allowed"
+                        >
+                          Expired
                         </button>
                       ) : (
                         <button

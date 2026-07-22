@@ -9,16 +9,10 @@ import { X_Tenant_ID } from "@/utils/tenant";
 
 export interface StudentDashboardStats {
   classesThisWeek: number;
-  assessmentsThisWeek: number;
   quizzesThisWeek: number;
+  assessmentsThisWeek: number;
   pendingAssignments: number;
-  activeCourses: number;
-  ongoingClass: {
-    isLive: boolean;
-    lessonId?: string;
-    subjectName?: string;
-    teacherName?: string;
-  } | null;
+  hasLiveClass: boolean;
 }
 
 export interface StudentClassItem {

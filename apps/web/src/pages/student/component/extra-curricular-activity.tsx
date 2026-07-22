@@ -22,11 +22,10 @@ const ExtracurricularActivity = () => {
         // Set fallback data for development/when API is not ready
         setStats({
           classesThisWeek: 0,
-          assessmentsThisWeek: 0,
           quizzesThisWeek: 0,
+          assessmentsThisWeek: 0,
           pendingAssignments: 0,
-          activeCourses: 0,
-          ongoingClass: null,
+          hasLiveClass: false,
         });
       } finally {
         setLoading(false);
@@ -153,9 +152,9 @@ const ExtracurricularActivity = () => {
         })}
       </div>
 
-      {stats?.ongoingClass?.isLive && (
+      {stats?.hasLiveClass && (
         <button
-          onClick={() => navigate(`/student/live-class/${stats.ongoingClass?.lessonId}`)}
+          onClick={() => navigate("/student/live-class")}
           className={cn(
             "flex w-full items-center justify-between rounded-[20px] bg-gradient-to-r from-[#f2485b] via-[#f65a63] to-[#ff7b59] p-3 text-white",
             "shadow-[0_22px_45px_-24px_rgba(242,72,91,0.7)] transition-transform active:scale-[0.99]"
@@ -167,9 +166,7 @@ const ExtracurricularActivity = () => {
             </div>
             <div className="text-left">
               <p className="text-sm font-bold">Live Class Now</p>
-              <p className="text-xs text-red-100">
-                {stats.ongoingClass.subjectName} • {stats.ongoingClass.teacherName}
-              </p>
+              <p className="text-xs text-red-100">Tap to join</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5">

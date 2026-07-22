@@ -73,6 +73,7 @@ const navLinks: NavLinkItem[] = [
         icons: moduleIcon,
         children: [
             { name: "My Assessments", path: "/student/assessment" },
+            { name: "Assessment Score", path: "/student/assessment/assessment-score" },
             { name: "Subject Scores", path: "/student/assessment/subject-scores" },
             { name: "Subtopic Scores", path: "/student/assessment/subtopic-scores" },
         ],

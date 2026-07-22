@@ -61,6 +61,7 @@ export interface StudentAssessmentItem {
   finalScorePercent: number | null;
   isPassed: boolean | null;
   status: "NotStarted" | "InProgress" | "Completed";
+  expiresAt?: string | null;
 }
 
 export interface AssessmentQuestionOption {
@@ -111,7 +112,9 @@ export interface SubmitAttemptResult {
   finalScorePercent: number;
   isPassed: boolean;
   totalMarks: number;
-  marksObtained: number;
+  marksObtained?: number;
+  autoMarksObtained?: number;
+  manualMarksObtained?: number;
   status: string;
   submittedAt: string;
 }
@@ -152,6 +155,27 @@ export interface AttemptHistoryItem {
   isPassed: boolean;
   timeTakenSeconds: number;
   submittedAt: string;
+}
+
+export interface StudentAssessmentScoreDto {
+  assessmentId: string;
+  code: string;
+  title: string;
+  description: string | null;
+  timeLimitMinutes: number;
+  questionCount: number;
+  totalMarks: number;
+  attemptId: string | null;
+  attemptNumber: number | null;
+  isOfficial: boolean | null;
+  finalScorePercent: number | null;
+  autoMarksObtained: number | null;
+  manualMarksObtained: number | null;
+  isPassed: boolean | null;
+  status: "NotStarted" | "InProgress" | "Submitted" | "PartiallyGraded" | "FullyGraded";
+  timeTakenSeconds: number | null;
+  startedAt: string | null;
+  submittedAt: string | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -244,6 +268,9 @@ export const assessmentService = {
 
   getStudentList: () =>
     API.get<TResponse<StudentAssessmentItem[]>>("api/Assessment/student/list", { headers }),
+
+  getStudentScores: () =>
+    API.get<TResponse<StudentAssessmentScoreDto[]>>("api/Assessment/student/scores", { headers }),
 
   getDetail: (assessmentId: string) =>
     API.get<TResponse<AssessmentDetail>>(`api/Assessment/${assessmentId}/detail`, { headers }),
