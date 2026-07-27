@@ -47,42 +47,6 @@ const normalizeStudents = (payload: any): StudentRow[] => {
     .filter((student: StudentRow) => !!student.id);
 };
 
-const fallbackStudents: StudentRow[] = [
-  {
-    id: "1",
-    firstName: "Tee",
-    lastName: "Wealth",
-    userName: "tee.wealth",
-    emailAddress: "tee.wealth@example.com",
-    guardianName: "",
-    isActive: true,
-    className: "JSS 1",
-    status: "Active",
-  },
-  {
-    id: "2",
-    firstName: "Mofe",
-    lastName: "Ade",
-    userName: "mofe.ade",
-    emailAddress: "mofe.ade@example.com",
-    guardianName: "",
-    isActive: true,
-    className: "Primary 3",
-    status: "Active",
-  },
-  {
-    id: "3",
-    firstName: "Alex",
-    lastName: "Baby",
-    userName: "alex.baby",
-    emailAddress: "alex.baby@example.com",
-    guardianName: "",
-    isActive: false,
-    className: "SSS 2",
-    status: "Non-Active",
-  },
-];
-
 const Student = () => {
   const navigate = useNavigate();
   const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
@@ -103,10 +67,9 @@ const Student = () => {
       const { data } = await authService.getUserByRole(UserRole.Student);
       const payload = (data as any)?.data ?? (data as any)?.Data ?? {};
       const normalized = normalizeStudents(payload);
-      setStudents(normalized.length > 0 ? normalized : fallbackStudents);
+      setStudents(normalized);
     } catch (error) {
-      console.warn("Falling back to local student data because remote fetch failed", error);
-      setStudents(fallbackStudents);
+      console.warn("Failed to fetch students", error);
     } finally {
       setLoading(false);
     }

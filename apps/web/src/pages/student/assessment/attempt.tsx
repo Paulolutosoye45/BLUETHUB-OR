@@ -10,6 +10,7 @@ import {
   Clock, AlertTriangle, Send, FileQuestion, Pencil, Type,
 } from "lucide-react";
 import StudentAnswerBoard, { type AnswerBoardMeta, type BoardState } from "./student-answer-board";
+import RichTextEditor from "./rich-text-editor";
 
 const AttemptPage = () => {
   const { assessmentId, attemptId } = useParams<{ assessmentId: string; attemptId: string }>();
@@ -272,7 +273,10 @@ const AttemptPage = () => {
                   <button type="button" onClick={() => setDrawModeByQuestion(prev => ({ ...prev, [currentQuestion.questionId]: true }))} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${drawModeByQuestion[currentQuestion.questionId] ? "bg-[#4255db] text-white" : "text-slate-500 hover:bg-slate-50"}`}><Pencil className="w-3.5 h-3.5" />Draw Answer</button>
                 </div>
                 {!drawModeByQuestion[currentQuestion.questionId] ? (
-                  <textarea value={typedAnswers[currentQuestion.questionId] ?? ""} onChange={e => setTypedAnswers(prev => ({ ...prev, [currentQuestion.questionId]: e.target.value }))} placeholder="Type your answer here..." rows={5} className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-700 outline-none focus:border-[#4255db] focus:ring-1 focus:ring-[#4255db]/30 resize-none" />
+                  <RichTextEditor
+                    value={typedAnswers[currentQuestion.questionId] ?? ""}
+                    onChange={(html) => setTypedAnswers(prev => ({ ...prev, [currentQuestion.questionId]: html }))}
+                  />
                 ) : (
                   <StudentAnswerBoard key={currentQuestion.questionId} questionId={currentQuestion.questionId} sessionId={sessionId ? `${sessionId}_${currentQuestion.questionId}` : undefined} initialBoards={boardDataByQuestion[currentQuestion.questionId] ?? null} onBoardsChange={meta => setQuestionBoardMeta(prev => ({ ...prev, [currentQuestion.questionId]: meta }))} onStrokesChange={strokes => setBoardDataByQuestion(prev => ({ ...prev, [currentQuestion.questionId]: strokes }))} onSaveBoard={handleSaveBoard} saving={savingBoard} />
                 )}

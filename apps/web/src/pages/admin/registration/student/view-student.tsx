@@ -23,28 +23,11 @@ const levelBadge: Record<SchoolLevel, { bg: string; text: string }> = {
     "Senior Secondary": { bg: "#F3F4F6", text: "#6B7280" },
 };
 
-const allStudents: Student[] = [
-    { id: 1, name: "Tee Wealth", level: "All Levels", status: "Active" },
-    { id: 2, name: "Notela ZZZZ", level: "All Levels", status: "Active" },
-    { id: 3, name: "Mofe Ade", level: "Primary", status: "Active" },
-    { id: 4, name: "Roy Williams", level: "Primary", status: "Active" },
-    { id: 5, name: "Babalola James", level: "Primary", status: "Active" },
-    { id: 6, name: "Cruise Adams", level: "Primary", status: "Active" },
-    { id: 7, name: "Mofe Damini", level: "Junior Secondary", status: "Active" },
-    { id: 8, name: "Nifemi Ad", level: "Junior Secondary", status: "Active" },
-    { id: 9, name: "Samuel Banks", level: "Junior Secondary", status: "Active" },
-    { id: 10, name: "Nifemi Ad", level: "Junior Secondary", status: "Active" },
-    { id: 11, name: "Eve Adams", level: "Junior Secondary", status: "Active" },
-    { id: 12, name: "Evelyn Paul", level: "Senior Secondary", status: "Active" },
-    { id: 13, name: "Paulina Bamijoko", level: "Senior Secondary", status: "Active" },
-    { id: 14, name: "Alex Baby", level: "Senior Secondary", status: "Non-Active" },
-];
-
 const ViewStudent = () => {
     const navigate = useNavigate();
     const [search, setSearch] = useState("");
     const [filter, setFilter] = useState<FilterTab>("All");
-    const [students] = useState<Student[]>(allStudents);
+    const [students] = useState<Student[]>([]);
     const [editOpen, setEditOpen] = useState(false);
     const [editingStudent, setEditingStudent] = useState<StudentProfile | null>(null);
 
@@ -68,10 +51,10 @@ const ViewStudent = () => {
             id: s.id,
             name: s.name,
             className: s.level,
-            subjectCount: 15,
-            guardianName: "yourname@gmail.com",
+            subjectCount: 0,
+            guardianName: "",
             username: s.name.toLowerCase().replace(" ", "."),
-            dob: "May 23 2026",
+            dob: "",
         });
         setEditOpen(true);
     };
