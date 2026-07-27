@@ -103,7 +103,6 @@ const EditStudent = () => {
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
-    emailAddress: "",
     guardianName: "",
     isActive: true,
   });
@@ -181,7 +180,6 @@ const EditStudent = () => {
         setForm({
           firstName: payload.firstName ?? "",
           lastName: payload.lastName ?? "",
-          emailAddress: payload.emailAddress ?? "",
           guardianName: payload.guardianName ?? "",
           isActive: payload.isActive,
         });
@@ -258,7 +256,7 @@ const EditStudent = () => {
         id: student.id,
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
-        emailAddress: form.emailAddress,
+        emailAddress: "",
         hashPassword,
         isActive: form.isActive,
         hasAccess: student.hasAccess,
@@ -399,36 +397,30 @@ const EditStudent = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-chestnut text-sm font-semibold">Email Address</Label>
-              <Input value={form.emailAddress} onChange={(e) => setForm((prev) => ({ ...prev, emailAddress: e.target.value }))} className="border-slate-200" />
-            </div>
-            <div className="space-y-2">
               <Label className="text-chestnut text-sm font-semibold">Guardian Name</Label>
               <Input value={form.guardianName} onChange={(e) => setForm((prev) => ({ ...prev, guardianName: e.target.value }))} className="border-slate-200" />
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-chestnut text-sm font-semibold">Username</Label>
               <Input value={student.userName} readOnly className="bg-slate-50 text-slate-500 border-slate-200" />
             </div>
-            <div className="space-y-2">
-              <Label className="text-chestnut text-sm font-semibold">Assigned Class</Label>
-              <select
-                value={selectedClassroomId}
-                onChange={(e) => setSelectedClassroomId(e.target.value)}
-                className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm text-slate-700 bg-white"
-              >
-                <option value="">Select classroom</option>
-                {allClassrooms.map((classroom) => (
-                  <option key={classroom.id} value={classroom.id}>
-                    {classroom.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-slate-500">Current class: {selectedClassName}</p>
-            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-chestnut text-sm font-semibold">Assigned Class</Label>
+            <select
+              value={selectedClassroomId}
+              onChange={(e) => setSelectedClassroomId(e.target.value)}
+              className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm text-slate-700 bg-white"
+            >
+              <option value="">Select classroom</option>
+              {allClassrooms.map((classroom) => (
+                <option key={classroom.id} value={classroom.id}>
+                  {classroom.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500">Current class: {selectedClassName}</p>
           </div>
 
           <div className="space-y-2">

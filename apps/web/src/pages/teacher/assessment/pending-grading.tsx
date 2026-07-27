@@ -286,9 +286,9 @@ const PendingGradingPage = () => {
 
                             <div className="mt-3 rounded-xl bg-slate-50 border border-slate-100 p-3">
                               <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">Student Answer</p>
-                              <p className="text-sm text-slate-700 whitespace-pre-wrap line-clamp-3">
-                                {item.typedAnswer || (item.isSkipped ? "(Skipped)" : "(No answer provided)")}
-                              </p>
+                              <div className="text-sm text-slate-700 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-1 line-clamp-3"
+                                dangerouslySetInnerHTML={{ __html: item.typedAnswer || (item.isSkipped ? "(Skipped)" : "(No answer provided)") }}
+                              />
                             </div>
 
                             {item.attemptStatus && (
@@ -347,9 +347,9 @@ const PendingGradingPage = () => {
                     </button>
                   </div>
                 ) : (
-                  <p className="text-sm text-amber-900 whitespace-pre-wrap">
-                    {gradeModal.typedAnswer || (gradeModal.isSkipped ? "(Skipped)" : "(No answer provided)")}
-                  </p>
+                  <div className="text-sm text-amber-900 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-1"
+                    dangerouslySetInnerHTML={{ __html: gradeModal.typedAnswer || (gradeModal.isSkipped ? "(Skipped)" : "(No answer provided)") }}
+                  />
                 )}
               </div>
 

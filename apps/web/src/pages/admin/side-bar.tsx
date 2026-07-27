@@ -31,6 +31,7 @@ import classIcon from "@/assets/svg/class.svg";
 import lessonIcon from "@/assets/svg/lesson.svg";
 import settingsIcon from "@/assets/svg/settings.svg";
 import logoutIcon from "@/assets/svg/logout.svg";
+import assignmentIcon from "@/assets/svg/assignment.svg";
 import { useAuthContext } from "@/contexts/auth-context";
 import { localData } from "@/utils";
 import type { schoolInfo } from "@/services";
@@ -84,6 +85,15 @@ const ACADEMICLINKS: NavItem[] = [
     { name: "Library", icons: libraryIcon, path: "/admin/library" },
     { name: "Module", icons: classIcon, path: "/admin/module" },
     { name: "Lesson Approval", icons: lessonIcon, path: "/admin/lesson-approval" },
+    {
+        name: "Assessment",
+        icons: assignmentIcon,
+        children: [
+            { name: "By Class", path: "/admin/assessment/class" },
+            { name: "By Subject", path: "/admin/assessment/subject" },
+            { name: "By Student", path: "/admin/assessment/student" },
+        ],
+    },
 ];
 
 const other_menu_Link: NavItem[] = [

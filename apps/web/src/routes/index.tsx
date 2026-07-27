@@ -115,6 +115,9 @@ import DiscussionIndex from '@/pages/student/Discussion forum';
 import DiscussionLayout from '@/pages/student/Discussion forum/layout';
 import GroupDetailPanel from '@/pages/student/Discussion forum/group/group-detail-panel';
 import GroupChatRoom from '@/pages/student/Discussion forum/group/chat/group-chat';
+import AssessmentByClass from '@/pages/admin/assessment/by-class';
+import AssessmentBySubject from '@/pages/admin/assessment/by-subject';
+import AssessmentByStudent from '@/pages/admin/assessment/by-student';
 
 const router = createBrowserRouter([
     {
@@ -213,11 +216,10 @@ const router = createBrowserRouter([
                             },
                         ],
                     },
-                    {
-                        path: 'admin',
-                        element: <AdminRole />
-                    },
-
+            {
+                path: 'analytics',
+                element: <AdminAnalytics />
+            },
                     {
                         path: "courses",
                         element: <CoursesMain />,
@@ -276,7 +278,24 @@ const router = createBrowserRouter([
             {
                 path: 'analytics',
                 element: <AdminAnalytics />
-            }
+            },
+            {
+                path: 'assessment',
+                children: [
+                    {
+                        path: 'class',
+                        element: <AssessmentByClass />,
+                    },
+                    {
+                        path: 'subject',
+                        element: <AssessmentBySubject />,
+                    },
+                    {
+                        path: 'student',
+                        element: <AssessmentByStudent />,
+                    },
+                ],
+            },
         ]
     },
 

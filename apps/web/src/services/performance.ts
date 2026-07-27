@@ -290,6 +290,25 @@ export interface AdminDashboardData {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CLASSROOM ASSESSMENT PERFORMANCE — Assessments assigned to a classroom
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface ClassroomAssessmentPerformanceDto {
+  assessmentId: string;
+  code: string;
+  title: string;
+  classroomName: string;
+  totalStudents: number;
+  totalAttempts: number;
+  completedAttempts: number;
+  inProgressAttempts: number;
+  averageScorePercent: number;
+  passedCount: number;
+  failedCount: number;
+  passRate: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // SUBJECT PERFORMANCE — Classroom breakdown
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -368,6 +387,12 @@ export const performanceService = {
   getStudentSubtopicScores: () =>
     API.get<TResponse<StudentSubtopicScoreDto[]>>(
       "api/performance/student/subtopic-scores",
+      { headers }
+    ),
+
+  getClassroomAssessmentPerformance: (classroomId: string) =>
+    API.get<TResponse<ClassroomAssessmentPerformanceDto[]>>(
+      `api/Assessment/classroom/${classroomId}/performance`,
       { headers }
     ),
 
