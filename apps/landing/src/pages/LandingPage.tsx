@@ -8,7 +8,6 @@ import { Roles } from "@/components/landing/roles/Roles";
 import { HowItWorks } from "@/components/landing/how-it-works/HowItWorks";
 import { StatsBand } from "@/components/landing/stats/StatsBand";
 import { Testimonials } from "@/components/landing/testimonials/Testimonials";
-import { Pricing } from "@/components/landing/pricing/Pricing";
 import { FAQ } from "@/components/landing/faq/FAQ";
 import { CTABanner } from "@/components/landing/cta/CTABanner";
 import { Footer } from "@/components/landing/footer/Footer";

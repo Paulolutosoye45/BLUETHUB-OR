@@ -1,4 +1,4 @@
-import { Video, Database, Eye, Building2, GraduationCap, Users, Lock, BarChart3, CalendarDays, FolderOpen } from "lucide-react";
+import { Video, Database, Eye, Building2, GraduationCap, Users, Lock, BarChart3, CalendarDays } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface Feature {
