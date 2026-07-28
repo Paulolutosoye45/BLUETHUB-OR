@@ -1,7 +1,7 @@
 import { moduleService, type ModuleStudent } from "@/services/module";
 import { schoolService } from "@/services/school";
 import { performanceService, type StudentPerformanceDetailDto, type PerformanceAttemptDto } from "@/services/performance";
-import { Loader2, ChevronDown, ChevronRight, Search, Trophy, CheckCircle2, XCircle, GraduationCap, Users } from "lucide-react";
+import { Loader2, ChevronDown, ChevronRight, Search, Trophy, CheckCircle2, XCircle, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 interface ClassroomInfo {
