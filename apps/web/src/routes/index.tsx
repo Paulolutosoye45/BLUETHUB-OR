@@ -77,6 +77,7 @@ import AdminRole from '@/pages/admin/registration/admin-role-management/admin-ro
 import ViewAllSubject from '@/pages/admin/registration/course/class/view-all-subject';
 import RegisterTeacherRole from '@/pages/admin/registration/teacher/assign-role';
 import ViewStudent from '@/pages/admin/registration/student/view-student';
+import UnlockUser from '@/pages/admin/registration/student/unlock-user';
 import RegisterNewSubject from '@/pages/admin/registration/course/class/register-new-subject';
 import RegisterNewClass from '@/pages/admin/registration/course/class/register-new-class';
 import ClassviewAll from '@/pages/admin/registration/course/class/class-view-all';
@@ -201,6 +202,10 @@ const router = createBrowserRouter([
                             {
                                 path: "enrollment",
                                 element: <Enrollment />,
+                            },
+                            {
+                                path: "unlock-user",
+                                element: <UnlockUser />,
                             },
                             {
                                 path: "all",
