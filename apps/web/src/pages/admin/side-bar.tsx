@@ -65,6 +65,7 @@ const ACADEMICLINKS: NavItem[] = [
         icons: registrationIcon,
         children: [
             { name: "Student", path: "/admin/registration/student" },
+            { name: "Unlock User", path: "/admin/registration/student/unlock-user" },
             { name: "User", path: "/admin/registration/Teacher" },
             { name: "Subject", path: "/admin/registration/courses" },
             { name: "Class", path: "/admin/registration/class" },

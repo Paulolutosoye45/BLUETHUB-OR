@@ -1,6 +1,7 @@
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
+import Placeholder from "@tiptap/extension-placeholder";
 import {
   Bold, Italic, Underline as UnderlineIcon,
   List, ListOrdered,
@@ -21,6 +22,7 @@ const RichTextEditor = ({ value, onChange, placeholder = "Type your answer here.
         orderedList: { keepMarks: true, keepAttributes: false },
       }),
       Underline,
+      Placeholder.configure({ placeholder }),
     ],
     content: value || "",
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
