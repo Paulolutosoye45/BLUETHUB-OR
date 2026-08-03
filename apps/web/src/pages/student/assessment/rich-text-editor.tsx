@@ -14,7 +14,11 @@ interface Props {
   minHeight?: number;
 }
 
-const RichTextEditor = ({ value, onChange, placeholder = "Type your answer here...", minHeight = 120 }: Props) => {
+const RichTextEditor = ({ 
+  value,
+   onChange,
+    // placeholder = "Type your answer here...",
+     minHeight = 120 }: Props) => {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -25,7 +29,7 @@ const RichTextEditor = ({ value, onChange, placeholder = "Type your answer here.
       Placeholder.configure({ placeholder }),
     ],
     content: value || "",
-    onUpdate: ({ editor }) => onChange(editor.getHTML()),
+    onUpdate: ({ editor }: any) => onChange(editor.getHTML()),
     editorProps: {
       attributes: {
         class:
