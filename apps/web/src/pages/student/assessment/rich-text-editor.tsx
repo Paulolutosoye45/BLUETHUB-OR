@@ -17,8 +17,8 @@ interface Props {
 const RichTextEditor = ({ 
   value,
    onChange,
-    // placeholder = "Type your answer here...",
-     minHeight = 120 }: Props) => {
+   placeholder = "Type your answer here...",
+   minHeight = 120 }: Props) => {
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
