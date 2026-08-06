@@ -48,10 +48,20 @@ interface ApprovalPayload {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getPayload(raw: Approval["payload"]): ApprovalPayload {
+  let parsed: ApprovalPayload = {};
   if (typeof raw === "string") {
-    try { return JSON.parse(raw); } catch { return {}; }
+    try { parsed = JSON.parse(raw) as ApprovalPayload; } catch { return {}; }
+  } else {
+    parsed = raw as ApprovalPayload ?? {};
   }
-  return (raw as ApprovalPayload) ?? {};
+  const normalized: Record<string, unknown> = { ...(parsed as Record<string, unknown>) };
+  for (const key of Object.keys(normalized)) {
+    const camel = key.charAt(0).toLowerCase() + key.slice(1);
+    if (camel !== key && !(camel in normalized)) {
+      (normalized as Record<string, unknown>)[camel] = normalized[key];
+    }
+  }
+  return normalized as ApprovalPayload;
 }
 
 function formatDate(d?: string) {
@@ -142,8 +152,8 @@ function StepReview({
     { label: "Subject", value: payload.subjectName ?? "—" },
     { label: "Class", value: payload.className ?? "—" },
     { label: "Submitted", value: formatDate(approval.createdAt) },
-    { label: "Topic", value: payload.topicName ?? "—" },
-    { label: "Sub-Topic", value: payload.subTopic ?? "—" },
+    { label: "Topic", value: payload.topicName ?? payload.Title ?? "—" },
+    { label: "Sub-Topic", value: payload.subTopic ?? payload.description ?? "—" },
   ];
 
   return (

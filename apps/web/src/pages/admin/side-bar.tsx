@@ -61,7 +61,7 @@ const navLink: NavItem[] = [
 
 const ACADEMICLINKS: NavItem[] = [
     {
-        name: "Registration",
+        name: "User Management",
         icons: registrationIcon,
         children: [
             { name: "Student", path: "/admin/registration/student" },
@@ -93,6 +93,15 @@ const ACADEMICLINKS: NavItem[] = [
             { name: "By Class", path: "/admin/assessment/class" },
             { name: "By Subject", path: "/admin/assessment/subject" },
             { name: "By Student", path: "/admin/assessment/student" },
+        ],
+    },
+    {
+        name: "Quiz",
+        icons: assignmentIcon,
+        children: [
+            { name: "By Class", path: "/admin/quiz/class" },
+            { name: "By Subject", path: "/admin/quiz/subject" },
+            { name: "By Student", path: "/admin/quiz/student" },
         ],
     },
 ];

@@ -490,6 +490,74 @@ export interface CreateQuizAssessmentResponse {
 // SERVICE
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PERFORMANCE — Per-lesson quiz stats for a classroom / subject
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface ClassroomQuizPerformanceDto {
+  lessonId: string;
+  quizCode: string;
+  lessonTitle: string;
+  subjectName: string;
+  classroomName: string;
+  totalStudents: number;
+  totalAttempts: number;
+  completedAttempts: number;
+  inProgressAttempts: number;
+  averageScorePercent: number;
+  passedCount: number;
+  failedCount: number;
+  passRate: number;
+}
+
+export interface SubjectQuizPerformanceDto {
+  lessonId: string;
+  quizCode: string;
+  lessonTitle: string;
+  subjectName: string;
+  classroomName: string;
+  totalStudents: number;
+  totalAttempts: number;
+  completedAttempts: number;
+  inProgressAttempts: number;
+  averageScorePercent: number;
+  passCount: number;
+  failedCount: number;
+  passRate: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PERFORMANCE — Student aggregate + per-quiz breakdown
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface StudentQuizPerformanceItemDto {
+  attemptId: string;
+  lessonId: string;
+  quizCode: string;
+  lessonTitle: string;
+  classroomName: string;
+  subjectName: string;
+  attemptCount: number;
+  bestScorePercent: number;
+  bestAttemptId: string;
+  isPassed: boolean;
+  latestStatus: string;
+  latestSubmittedAt: string;
+}
+
+export interface StudentQuizPerformanceDto {
+  studentId: string;
+  studentName: string;
+  totalQuizzes: number;
+  totalAttempts: number;
+  completedAttempts: number;
+  inProgressAttempts: number;
+  averageScorePercent: number;
+  passRate: number;
+  bestScorePercent: number;
+  quizzes: StudentQuizPerformanceItemDto[];
+}
+
 const headers = { 'X-Tenant-ID': X_Tenant_ID };
 
 export const quizService = {
@@ -651,6 +719,25 @@ export const quizService = {
   getLessonAssessmentConfig: (lessonId: string) =>
     API.get<TResponse<LessonAssessmentConfigDto>>(
       `api/quiz/lesson/${lessonId}/assessment-config`,
+      { headers },
+    ),
+
+  // ── Performance: Classroom / Subject / Student quizzes ──────────────────────
+  getClassroomQuizPerformance: (classroomId: string) =>
+    API.get<TResponse<ClassroomQuizPerformanceDto[]>>(
+      `api/quiz/classroom/${classroomId}/performance`,
+      { headers },
+    ),
+
+  getSubjectQuizPerformance: (subjectId: string) =>
+    API.get<TResponse<SubjectQuizPerformanceDto[]>>(
+      `api/quiz/subject/${subjectId}/performance`,
+      { headers },
+    ),
+
+  getStudentQuizPerformance: (studentId: string) =>
+    API.get<TResponse<StudentQuizPerformanceDto>>(
+      `api/quiz/student/${studentId}/performance`,
       { headers },
     ),
 };
