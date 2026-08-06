@@ -119,6 +119,9 @@ import GroupChatRoom from '@/pages/student/Discussion forum/group/chat/group-cha
 import AssessmentByClass from '@/pages/admin/assessment/by-class';
 import AssessmentBySubject from '@/pages/admin/assessment/by-subject';
 import AssessmentByStudent from '@/pages/admin/assessment/by-student';
+import QuizByClass from '@/pages/admin/quiz/by-class';
+import QuizBySubject from '@/pages/admin/quiz/by-subject';
+import QuizByStudent from '@/pages/admin/quiz/by-student';
 
 const router = createBrowserRouter([
     {
@@ -298,6 +301,23 @@ const router = createBrowserRouter([
                     {
                         path: 'student',
                         element: <AssessmentByStudent />,
+                    },
+                ],
+            },
+            {
+                path: 'quiz',
+                children: [
+                    {
+                        path: 'class',
+                        element: <QuizByClass />,
+                    },
+                    {
+                        path: 'subject',
+                        element: <QuizBySubject />,
+                    },
+                    {
+                        path: 'student',
+                        element: <QuizByStudent />,
                     },
                 ],
             },

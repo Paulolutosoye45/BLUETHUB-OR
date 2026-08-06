@@ -13,11 +13,21 @@ import ApprovalReviewModal from "./approval-review-modal";
 type Tab = "all" | "pending" | "approved" | "rejected";
 
 export const getPayload = (raw: ApprovalPayload | string | null): Record<string, any> => {
-  if (!raw) return {};
+  let parsed: Record<string, any> = {};
+  if (!raw) return parsed;
   if (typeof raw === "string") {
-    try { return JSON.parse(raw); } catch { return {}; }
+    try { parsed = JSON.parse(raw); } catch { return {}; }
+  } else {
+    parsed = raw as Record<string, any>;
   }
-  return raw as Record<string, any>;
+  const normalized: Record<string, any> = { ...parsed };
+  for (const key of Object.keys(parsed)) {
+    const camel = key.charAt(0).toLowerCase() + key.slice(1);
+    if (camel !== key && !(camel in normalized)) {
+      normalized[camel] = parsed[key];
+    }
+  }
+  return normalized;
 };
 
 export const formatDate = (iso: string) => {
@@ -227,7 +237,7 @@ const ApprovalsPage = () => {
                         >
                           <td className="px-4 py-3">
                             <p className="text-sm font-semibold text-gray-900">
-                              {payload.subjectName || approval.entityType}
+                              {payload.Title || payload.title || approval.entityType}
                             </p>
                             {payload.Term && (
                               <p className="text-[11px] text-gray-400">{payload.Term}</p>
