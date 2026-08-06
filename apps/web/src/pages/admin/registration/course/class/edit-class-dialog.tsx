@@ -54,8 +54,8 @@ const tabVariants = {
 const EditClassModal = ({
     open,
     onOpenChange,
-    initialClassName = "Jss1",
-    initialTeacher = "Dr Roy Akinwale",
+    initialClassName = "",
+    initialTeacher = "",
 }: EditClassDialogProps) => {
     const [tab, setTab]           = useState<Tab>("General Info");
     const [className, setClassName] = useState(initialClassName);

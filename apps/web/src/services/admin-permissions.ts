@@ -74,11 +74,11 @@ export const adminPermissionsService = {
 export const getPermissionName = (flag: number): string => {
   const names: Record<number, string> = {
     1: "Approve Classes",
-    2: "Create Classes",
+    2: "Create Lesson",
     4: "Manage Teachers",
     8: "Manage Students",
     16: "View Reports",
-    32: "Manage Classrooms",
+    32: "Manage Lesson",
     64: "Manage Subjects",
     128: "Create Users",
   };
@@ -89,11 +89,11 @@ export const getPermissionName = (flag: number): string => {
 export const getAllPermissionFlags = (): Array<{ flag: number; name: string }> => {
   return [
     { flag: 1, name: "Approve Classes" },
-    { flag: 2, name: "Create Classes" },
+    { flag: 2, name: "Create Lesson" },
     { flag: 4, name: "Manage Teachers" },
     { flag: 8, name: "Manage Students" },
     { flag: 16, name: "View Reports" },
-    { flag: 32, name: "Manage Classrooms" },
+    { flag: 32, name: "Manage Lesson" },
     { flag: 64, name: "Manage Subjects" },
     { flag: 128, name: "Create Users" },
   ];

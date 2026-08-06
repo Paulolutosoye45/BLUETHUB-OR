@@ -56,6 +56,7 @@ import StudentAssessmentAttempt from '@/pages/student/assessment/attempt';
 import StudentAssessmentResult from '@/pages/student/assessment/result';
 import StudentSubjectScores from '@/pages/student/assessment/subject-scores';
 import StudentSubtopicScores from '@/pages/student/assessment/subtopic-scores';
+import StudentAssessmentScore from '@/pages/student/assessment/assessment-score';
 import Assessment from '@/pages/teacher/component/assessment';
 import CreateQuizQuestion from '@/pages/teacher/component/create-quiz';
 import TopicQuestionList from '@/pages/teacher/component/topic-question-list';
@@ -76,6 +77,7 @@ import AdminRole from '@/pages/admin/registration/admin-role-management/admin-ro
 import ViewAllSubject from '@/pages/admin/registration/course/class/view-all-subject';
 import RegisterTeacherRole from '@/pages/admin/registration/teacher/assign-role';
 import ViewStudent from '@/pages/admin/registration/student/view-student';
+import UnlockUser from '@/pages/admin/registration/student/unlock-user';
 import RegisterNewSubject from '@/pages/admin/registration/course/class/register-new-subject';
 import RegisterNewClass from '@/pages/admin/registration/course/class/register-new-class';
 import ClassviewAll from '@/pages/admin/registration/course/class/class-view-all';
@@ -114,6 +116,12 @@ import DiscussionIndex from '@/pages/student/Discussion forum';
 import DiscussionLayout from '@/pages/student/Discussion forum/layout';
 import GroupDetailPanel from '@/pages/student/Discussion forum/group/group-detail-panel';
 import GroupChatRoom from '@/pages/student/Discussion forum/group/chat/group-chat';
+import AssessmentByClass from '@/pages/admin/assessment/by-class';
+import AssessmentBySubject from '@/pages/admin/assessment/by-subject';
+import AssessmentByStudent from '@/pages/admin/assessment/by-student';
+import QuizByClass from '@/pages/admin/quiz/by-class';
+import QuizBySubject from '@/pages/admin/quiz/by-subject';
+import QuizByStudent from '@/pages/admin/quiz/by-student';
 
 const router = createBrowserRouter([
     {
@@ -199,6 +207,10 @@ const router = createBrowserRouter([
                                 element: <Enrollment />,
                             },
                             {
+                                path: "unlock-user",
+                                element: <UnlockUser />,
+                            },
+                            {
                                 path: "all",
                                 element: <ViewStudent />,
                             },
@@ -212,11 +224,10 @@ const router = createBrowserRouter([
                             },
                         ],
                     },
-                    {
-                        path: 'admin',
-                        element: <AdminRole />
-                    },
-
+            {
+                path: 'analytics',
+                element: <AdminAnalytics />
+            },
                     {
                         path: "courses",
                         element: <CoursesMain />,
@@ -275,7 +286,41 @@ const router = createBrowserRouter([
             {
                 path: 'analytics',
                 element: <AdminAnalytics />
-            }
+            },
+            {
+                path: 'assessment',
+                children: [
+                    {
+                        path: 'class',
+                        element: <AssessmentByClass />,
+                    },
+                    {
+                        path: 'subject',
+                        element: <AssessmentBySubject />,
+                    },
+                    {
+                        path: 'student',
+                        element: <AssessmentByStudent />,
+                    },
+                ],
+            },
+            {
+                path: 'quiz',
+                children: [
+                    {
+                        path: 'class',
+                        element: <QuizByClass />,
+                    },
+                    {
+                        path: 'subject',
+                        element: <QuizBySubject />,
+                    },
+                    {
+                        path: 'student',
+                        element: <QuizByStudent />,
+                    },
+                ],
+            },
         ]
     },
 
@@ -384,6 +429,7 @@ const router = createBrowserRouter([
                     { path: ":assessmentId/result/:attemptId", element: <StudentAssessmentResult /> },
                     { path: "subject-scores", element: <StudentSubjectScores /> },
                     { path: "subtopic-scores", element: <StudentSubtopicScores /> },
+                    { path: "assessment-score", element: <StudentAssessmentScore /> },
                 ],
             },
 
