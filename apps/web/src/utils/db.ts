@@ -3,10 +3,11 @@ import {
   DB_NAME, DB_VERSION,
   STORE_CLASS, STORE_AUDIO, STORE_SESSIONS,
   STORE_AUDIO_CHUNKS, STORE_STROKE_BATCHES, STORE_REPLAY_CACHE,
-  STORE_STUDENT_BOARDS,
+  STORE_STUDENT_BOARDS, STORE_ATTENDANCE, STORE_ATTENDANCE_SESSIONS,
   type CompressedStroke, type AudioBatch, type LocalSession,
   type LocalAudioChunk, type LocalStrokeBatch, type ReplayDownloadCache,
   type SyncStatus, type SessionStatus,
+  type LocalAttendanceSession, type AttendanceScanRecord,
 } from './constant';
 
 // ── DB singleton ──────────────────────────────────────────────────────────────
@@ -47,6 +48,19 @@ async function getDb(): Promise<IDBPDatabase> {
       }
       if (!db.objectStoreNames.contains(STORE_STUDENT_BOARDS)) {
         db.createObjectStore(STORE_STUDENT_BOARDS, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(STORE_ATTENDANCE_SESSIONS)) {
+        const s = db.createObjectStore(STORE_ATTENDANCE_SESSIONS, { keyPath: 'id' });
+        s.createIndex('dateKey', 'dateKey', { unique: false });
+        s.createIndex('scopeKey', 'scopeKey', { unique: false });
+        s.createIndex('status', 'status', { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORE_ATTENDANCE)) {
+        const s = db.createObjectStore(STORE_ATTENDANCE, { keyPath: 'id' });
+        s.createIndex('sessionId', 'sessionId', { unique: false });
+        s.createIndex('syncStatus', 'syncStatus', { unique: false });
+        s.createIndex('dedupeKey', 'dedupeKey', { unique: true });
+        s.createIndex('dateKey', 'dateKey', { unique: false });
       }
     },
   });
@@ -299,6 +313,109 @@ export async function loadStudentBoardCache(assessmentId: string, studentId: str
 
 export async function clearStudentBoardCache(assessmentId: string, studentId: string, attemptId: string): Promise<void> {
   await (await getDb()).delete(STORE_STUDENT_BOARDS, boardCacheId(assessmentId, studentId, attemptId));
+}
+
+// ── STORE_ATTENDANCE_SESSIONS — LocalAttendanceSession ────────────────────────
+
+export async function getAllAttendanceSessions(): Promise<LocalAttendanceSession[]> {
+  return (await getDb()).getAll(STORE_ATTENDANCE_SESSIONS);
+}
+
+export async function getAttendanceSession(id: string): Promise<LocalAttendanceSession | undefined> {
+  return (await getDb()).get(STORE_ATTENDANCE_SESSIONS, id);
+}
+
+export async function putAttendanceSession(session: LocalAttendanceSession): Promise<void> {
+  await (await getDb()).put(STORE_ATTENDANCE_SESSIONS, session);
+}
+
+export async function updateAttendanceSession(
+  id: string,
+  patch: Partial<LocalAttendanceSession>,
+): Promise<void> {
+  const db = await getDb();
+  const session = await db.get(STORE_ATTENDANCE_SESSIONS, id);
+  if (!session) return;
+  await db.put(STORE_ATTENDANCE_SESSIONS, { ...session, ...patch });
+}
+
+export async function deleteAttendanceSession(id: string): Promise<void> {
+  const db = await getDb();
+  const scans = await db.getAllFromIndex(STORE_ATTENDANCE, 'sessionId', id);
+  const tx = db.transaction([STORE_ATTENDANCE, STORE_ATTENDANCE_SESSIONS], 'readwrite');
+  await Promise.all(scans.map((s) => tx.objectStore(STORE_ATTENDANCE).delete(s.id)));
+  await tx.objectStore(STORE_ATTENDANCE_SESSIONS).delete(id);
+  await tx.done;
+}
+
+/** Reuse an open session for the same attendance scope on the same day so a
+ *  student is only recorded once per class/date or subtopic/day. */
+export async function findOpenAttendanceSession(
+  dateKey: string,
+  scopeKey: string,
+): Promise<LocalAttendanceSession | undefined> {
+  const all = await getAllAttendanceSessions();
+  return all.find(
+    (s) => s.dateKey === dateKey && s.scopeKey === scopeKey && s.status === 'open',
+  );
+}
+
+// ── STORE_ATTENDANCE — AttendanceScanRecord ───────────────────────────────────
+
+export async function getAllAttendanceScans(): Promise<AttendanceScanRecord[]> {
+  return (await getDb()).getAll(STORE_ATTENDANCE);
+}
+
+export async function getAttendanceScansBySession(sessionId: string): Promise<AttendanceScanRecord[]> {
+  const db = await getDb();
+  try {
+    return (await db.getAllFromIndex(STORE_ATTENDANCE, 'sessionId', sessionId)) as AttendanceScanRecord[];
+  } catch {
+    return (await db.getAll(STORE_ATTENDANCE)).filter((s: AttendanceScanRecord) => s.sessionId === sessionId);
+  }
+}
+
+/** Records that still need to reach the backend (excluding permanent failures). */
+export async function getPendingAttendanceScans(): Promise<AttendanceScanRecord[]> {
+  const all = await getAllAttendanceScans();
+  return all.filter(
+    (s) => s.syncStatus !== 'sent' && !(s.syncStatus === 'failed' && s.permanentlyFailed),
+  );
+}
+
+export async function putAttendanceScan(record: AttendanceScanRecord): Promise<void> {
+  await (await getDb()).put(STORE_ATTENDANCE, record);
+}
+
+export async function updateAttendanceScan(
+  id: string,
+  patch: Partial<AttendanceScanRecord>,
+): Promise<void> {
+  const db = await getDb();
+  const record = await db.get(STORE_ATTENDANCE, id);
+  if (!record) return;
+  await db.put(STORE_ATTENDANCE, { ...record, ...patch });
+}
+
+export async function deleteAttendanceScan(id: string): Promise<void> {
+  await (await getDb()).delete(STORE_ATTENDANCE, id);
+}
+
+export async function getAttendanceScanByDedupe(dedupeKey: string): Promise<AttendanceScanRecord | undefined> {
+  const db = await getDb();
+  try {
+    return (await db.getFromIndex(STORE_ATTENDANCE, 'dedupeKey', dedupeKey)) as AttendanceScanRecord | undefined;
+  } catch {
+    return (await db.getAll(STORE_ATTENDANCE)).find((s: AttendanceScanRecord) => s.dedupeKey === dedupeKey);
+  }
+}
+
+export async function clearSentAttendanceScans(): Promise<void> {
+  const db = await getDb();
+  const all = await db.getAll(STORE_ATTENDANCE);
+  const tx = db.transaction(STORE_ATTENDANCE, 'readwrite');
+  await Promise.all(all.filter((s) => s.syncStatus === 'sent').map((s) => tx.store.delete(s.id)));
+  await tx.done;
 }
 
 // ── Storage utilities ─────────────────────────────────────────────────────────
