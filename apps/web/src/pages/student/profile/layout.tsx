@@ -13,10 +13,14 @@ import {
 } from "@bluethub/ui-kit";
 import { Outlet, useLocation } from "react-router-dom";
 import StudentAppBar from "../component/app-bar";
+import { useAuthContext } from "@/contexts/auth-context";
 
 const ProfileLayout = () => {
       const location = useLocation();
       const currentPath = location.pathname;
+      const { user } = useAuthContext();
+      const fullName =
+        [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Student";
     return (
         <section className="h-screen bg-gray-50 overflow-y-scroll
       [&::-webkit-scrollbar]:w-1
@@ -48,10 +52,7 @@ const ProfileLayout = () => {
                         </div>
                         <div>
                             <p className="capitalize text-base font-medium text-gray-800">
-                                Sarah Johnson
-                            </p>
-                            <p className="text-sm text-gray-500 mt-1">
-                                ID: 32424662778
+                                {fullName}
                             </p>
                         </div>
                     </div>

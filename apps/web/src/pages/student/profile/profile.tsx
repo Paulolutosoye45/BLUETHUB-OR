@@ -1,6 +1,25 @@
 import { Button } from "@bluethub/ui-kit";
 import test_profile from "@/assets/png/test_profile.png";
+import { useAuthContext, isStudentRoleData } from "@/contexts/auth-context";
+import StudentQrCard from "./student-qr-card";
+
 const Profile = () => {
+  const { user } = useAuthContext();
+
+  const fullName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "Student";
+  const emailAddress = user?.emailAddress ?? "";
+  const className = (() => {
+    const rd = user?.roleData;
+    if (rd && isStudentRoleData(rd)) return rd.classroom?.className ?? "";
+    return "";
+  })();
+  const totalSubjects = (() => {
+    const rd = user?.roleData;
+    if (rd && isStudentRoleData(rd)) return rd.totalSubjects ?? 0;
+    return 0;
+  })();
+
   return (
     <div>
       <div className="border-b border-gray-200 px-6 py-4">
@@ -20,11 +39,14 @@ const Profile = () => {
             </div>
             <div>
               <p className="capitalize text-base font-medium text-gray-800">
-                Sarah Johnson
+                {fullName}
               </p>
-              <p className="text-sm text-gray-500 mt-1">ID: 32424662778</p>
             </div>
           </div>
+        </div>
+
+        <div className="my-6 w-full">
+          <StudentQrCard />
         </div>
 
         <div className="my-6 space-y-6 w-full">
@@ -33,7 +55,7 @@ const Profile = () => {
               Name
             </p>
             <p className="text-gray-600 font-medium text-base leading-[23.09px]">
-              your name
+              {fullName}
             </p>
           </div>
           <div className="flex items-center justify-between">
@@ -41,7 +63,7 @@ const Profile = () => {
               Class
             </p>
             <p className="text-gray-600 font-medium text-base leading-[23.09px]">
-              Basic 7 love
+              {className || "—"}
             </p>
           </div>
           <div className="flex items-center justify-between">
@@ -49,7 +71,7 @@ const Profile = () => {
               Subject
             </p>
             <p className="text-gray-600 font-medium text-base leading-[23.09px]">
-              15 courses
+              {totalSubjects > 0 ? `${totalSubjects} courses` : "—"}
             </p>
           </div>
           <div className="flex items-center justify-between">
@@ -57,7 +79,7 @@ const Profile = () => {
               Email account
             </p>
             <p className="text-gray-600 font-medium text-base leading-[23.09px]">
-              yourname@gmail.com
+              {emailAddress || "No email address"}
             </p>
           </div>
           <div className="flex items-center justify-between">
