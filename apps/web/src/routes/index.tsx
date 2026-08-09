@@ -123,6 +123,7 @@ import AssessmentByStudent from '@/pages/admin/assessment/by-student';
 import QuizByClass from '@/pages/admin/quiz/by-class';
 import QuizBySubject from '@/pages/admin/quiz/by-subject';
 import QuizByStudent from '@/pages/admin/quiz/by-student';
+import AttendanceAnalytics from '@/pages/admin/attendance-analytics';
 
 const router = createBrowserRouter([
     {
@@ -287,6 +288,10 @@ const router = createBrowserRouter([
             {
                 path: 'analytics',
                 element: <AdminAnalytics />
+            },
+            {
+                path: 'attendance-analytics',
+                element: <AttendanceAnalytics />
             },
             {
                 path: 'assessment',

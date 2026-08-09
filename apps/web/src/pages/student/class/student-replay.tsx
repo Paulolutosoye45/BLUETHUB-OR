@@ -639,25 +639,27 @@ const StudentReplay = () => {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="flex max-w-md flex-col items-center gap-4 rounded-xl border border-red-200 bg-white p-8 text-center shadow">
-          <AlertCircle className="h-10 w-10 text-red-500" />
-          <p className="text-lg font-semibold text-slate-800">Could not load replay</p>
-          <p className="text-sm text-slate-500">{error}</p>
-          <div className="flex flex-col gap-2 w-full pt-2">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4">
+        <div className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-8 text-center shadow-xl shadow-red-100/40">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+            <AlertCircle className="h-7 w-7 text-red-500" />
+          </div>
+          <p className="mt-4 text-lg font-semibold text-slate-800">We couldn't load this class</p>
+          <p className="mt-2 text-sm leading-relaxed text-slate-500">{error}</p>
+          <div className="mt-6 flex flex-col gap-2 w-full">
             <button
               onClick={clearAllAndRetry}
               disabled={isClearing}
-              className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full rounded-full bg-student-chestnut px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#4052D6] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {isClearing ? "Clearing cached data…" : "Clear cached data & retry"}
             </button>
             <button
               onClick={() => { setError(null); setIsReady(false); setProgress(0); setRetryKey(k => k + 1); }}
               disabled={isClearing}
-              className="w-full rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+              className="w-full rounded-full border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
             >
-              Retry without clearing
+              Try again
             </button>
           </div>
         </div>
@@ -667,17 +669,25 @@ const StudentReplay = () => {
 
   if (!isReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="flex w-80 flex-col items-center gap-4 rounded-xl border border-slate-200 bg-white p-8 shadow">
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-          <p className="text-sm font-medium text-slate-700">{statusText}</p>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 px-4">
+        <div className="flex w-full max-w-sm flex-col items-center gap-5 rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-xl shadow-slate-200/50">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-student-chestnut/10">
+            <Loader2 className="h-7 w-7 animate-spin text-student-chestnut" />
+          </div>
+          <div>
+            <p className="text-base font-semibold text-slate-800">Preparing your class</p>
+            <p className="mt-1 text-sm text-slate-500">
+              Getting everything ready — this usually takes just a moment.
+            </p>
+          </div>
+          <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
             <div
-              className="h-full rounded-full bg-indigo-600 transition-all duration-300"
+              className="h-full rounded-full bg-student-chestnut transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-xs text-slate-400">{progress}%</p>
+          <p className="text-xs font-medium text-slate-400">{progress}%</p>
+          <p className="sr-only" role="status">{statusText}</p>
         </div>
       </div>
     );

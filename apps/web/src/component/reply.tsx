@@ -6,7 +6,6 @@ import {
   StopCircle,
   Trash,
   Edit3,
-  Volume2,
   VolumeX,
   Clock,
   Circle,
@@ -1517,18 +1516,32 @@ export default function Replay({ sessionId }: ReplayProps = {}) {
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
-  if (loading) return <div className="p-6 text-center">Loading replay data...</div>;
-  if (error) return <div className="p-6 text-red-600">Error: {error.message}</div>;
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-screen bg-slate-50">
+      <div className="flex flex-col items-center gap-3 text-slate-500">
+        <Loader className="w-7 h-7 animate-spin text-student-chestnut" />
+        <p className="text-sm font-medium">Loading class...</p>
+      </div>
+    </div>
+  );
+  if (error) return (
+    <div className="flex items-center justify-center min-h-screen bg-slate-50 px-4">
+      <div className="max-w-sm rounded-2xl border border-red-200 bg-white p-6 text-center shadow">
+        <p className="text-sm font-medium text-slate-800">We couldn't load this class</p>
+        <p className="mt-1 text-sm text-red-600">{error.message}</p>
+      </div>
+    </div>
+  );
   if (isClearing) return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex items-center justify-center min-h-screen bg-slate-50">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto" />
-        <p className="mt-4 text-sm text-gray-600">Clearing db...</p>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-student-chestnut mx-auto" />
+        <p className="mt-4 text-sm text-gray-600">Removing from device...</p>
       </div>
     </div>
   );
   if (strokes.length === 0 && audioList.length === 0) return (
-    <div className="p-6 text-center text-gray-500 font-bold font-poppins text-3xl flex items-center justify-center min-h-screen">
+    <div className="p-6 text-center text-slate-400 font-bold font-poppins text-xl flex items-center justify-center min-h-screen bg-slate-50">
       No replay data available
     </div>
   );
@@ -1539,15 +1552,15 @@ export default function Replay({ sessionId }: ReplayProps = {}) {
       {/* ── Header ── */}
       <div className="bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
         <div className="flex flex-wrap items-center justify-between gap-2 p-2 sm:p-4">
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
 
             <button
               onClick={play}
               disabled={isPlaying || isPreloading}
-              className={`flex items-center gap-1 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium transition-all duration-200 ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-sm font-semibold transition-all duration-200 ${
                 isPlaying || isPreloading
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                  : 'bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg active:scale-95'
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-student-chestnut hover:bg-[#4052D6] text-white shadow-sm active:scale-95'
               }`}
             >
               {isPreloading
@@ -1559,10 +1572,10 @@ export default function Replay({ sessionId }: ReplayProps = {}) {
             <button
               onClick={stop}
               disabled={!isPlaying}
-              className={`flex items-center gap-1 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium transition-all duration-200 ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-sm font-semibold transition-all duration-200 ${
                 !isPlaying
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                  : 'bg-red-500 hover:bg-red-600 text-white shadow-md hover:shadow-lg active:scale-95'
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-rose-500 hover:bg-rose-600 text-white shadow-sm active:scale-95'
               }`}
             >
               <StopCircle className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -1572,45 +1585,26 @@ export default function Replay({ sessionId }: ReplayProps = {}) {
             <button
               disabled={isPlaying || isClearing || isPreloading}
               onClick={Cleardata}
-              className={`flex items-center gap-1 sm:gap-2 px-2.5 sm:px-5 py-2 sm:py-2.5 rounded-lg font-medium transition-all duration-200 ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-2.5 rounded-full text-sm font-semibold transition-all duration-200 ${
                 isPlaying || isClearing || isPreloading
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50'
-                  : 'bg-orange-500 hover:bg-orange-600 text-white shadow-md hover:shadow-lg active:scale-95'
+                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-orange-500 hover:bg-orange-600 text-white shadow-sm active:scale-95'
               }`}
             >
               <Trash className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="text-xs sm:text-sm hidden sm:inline">{isClearing ? 'Clearing...' : 'Clear DB'}</span>
+              <span className="text-xs sm:text-sm hidden sm:inline">{isClearing ? 'Removing...' : 'Remove from device'}</span>
             </button>
-
-            <div className="h-6 w-px bg-gray-300 mx-0.5 sm:mx-2" />
-
-            <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm">
-              <div className="flex items-center gap-1 sm:gap-1.5 text-gray-600">
-                <Edit3 className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="font-semibold">{strokes.length}</span>
-                <span className="text-gray-500 hidden sm:inline">strokes</span>
-                {isPreloading && (
-                  <span className="text-xs text-blue-500 animate-pulse ml-1">...</span>
-                )}
-              </div>
-              <div className="flex items-center gap-1 sm:gap-1.5 text-gray-600">
-                <Volume2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="font-semibold">{sessionAudioList.length}</span>
-                <span className="text-gray-500 hidden sm:inline">audio</span>
-              </div>
-            </div>
           </div>
 
-
-          <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-indigo-50 border border-indigo-200 rounded-lg">
-            <Edit3 className="w-3 h-3 sm:w-4 sm:h-4 text-indigo-600" />
-            <div className="text-xs sm:text-sm font-medium text-indigo-700">
+          <div className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-student-chestnut/10 border border-student-chestnut/20 rounded-full">
+            <Edit3 className="w-3 h-3 sm:w-4 sm:h-4 text-student-chestnut" />
+            <div className="text-xs sm:text-sm font-semibold text-student-chestnut">
               Board {Math.min(currentBoardInReplay, totalBoards)}/{totalBoards}
             </div>
           </div>
 
           {isPlaying && (
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors duration-300 ${
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-colors duration-300 ${
               isSilentGap
                 ? 'bg-amber-50 border-amber-300'
                 : 'bg-blue-50 border-blue-200'
@@ -1625,7 +1619,7 @@ export default function Replay({ sessionId }: ReplayProps = {}) {
                   ? decodeFailureCountRef.current > 0
                     ? 'Audio unavailable (load error)'
                     : 'No audio in this segment'
-                  : `Strokes: ${drawn.length}\u202f/\u202f${strokes.length}`}
+                  : 'Playing'}
               </div>
               {isSilentGap && decodeFailureCountRef.current === 0 && (
                 <button
@@ -1638,9 +1632,9 @@ export default function Replay({ sessionId }: ReplayProps = {}) {
             </div>
           )}
 
-          <div className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-1.5 sm:py-2 bg-gray-100 rounded-lg border border-gray-300">
-            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
-            <div className="font-mono text-lg sm:text-2xl font-bold text-gray-800">
+          <div className="flex items-center gap-2 px-4 py-1.5 sm:px-5 sm:py-2 bg-slate-100 border border-slate-200 rounded-full">
+            <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" />
+            <div className="font-mono text-lg sm:text-2xl font-bold text-slate-800 tabular-nums">
               {formatReplayMs(replayMs)}
             </div>
           </div>
@@ -1668,7 +1662,7 @@ export default function Replay({ sessionId }: ReplayProps = {}) {
               setIsSeeking(false);
               commitSeek(value);
             }}
-            className="w-full accent-blue-600"
+            className="w-full accent-student-chestnut cursor-pointer"
           />
           <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
             <span>{formatReplayMs(isSeeking ? scrubMs : replayMs)}</span>

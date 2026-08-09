@@ -1,22 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
 import { useLocation, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { Button } from "@bluethub/ui-kit";
-import { ArrowLeft, CheckCircle2, Download, Loader2, Menu, PlayCircle, RefreshCw } from "lucide-react";
+import { ArrowLeft, Loader2, Menu, PlayCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import { markLessonWatched } from "@/utils/watched-lessons";
 import boardSessionService from "@/services/board-session";
-import {
-  addAudio,
-  addStrokes,
-  deleteAudioBySession,
-  deleteClassBySession,
-  getAudioBySession,
-  getClassBySession,
-} from "@/utils/db";
+import { addAudio, addStrokes, getAudioBySession, getClassBySession } from "@/utils/db";
 import type { AudioBatch, IActions, IBatch } from "@/utils/constant";
 import type { MediaType } from "@/utils/constant";
 import { LESSON_MEDIA_CACHE, buildLessonScopedCacheKey } from "@/utils/lesson-media-cache";
-import { AxiosError } from "axios";
 
 interface ReplayCheckpoint {
   sessionId: string;
@@ -225,7 +217,7 @@ const WatchClass = () => {
   const sessionId = locationState?.sessionId ?? classId ?? "";
 
   const [progress, setProgress] = useState(0);
-  const [statusText, setStatusText] = useState("Ready to prepare replay data.");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isRunning, setIsRunning] = useState(false);
 
   const checkpoint = useMemo<ReplayCheckpoint | null>(() => {
@@ -249,14 +241,13 @@ const WatchClass = () => {
 
     setIsRunning(true);
     setProgress(0);
-    setStatusText("Checking local replay cache...");
+    setErrorMessage(null);
 
-    await Promise.all([deleteAudioBySession(sessionId), deleteClassBySession(sessionId)]);
-
+    // Keep previously downloaded data so repeat watch runs reuse the local
+    // cache instead of re-downloading everything.
     const cachedAudio = await getAudioBySession(sessionId);
     const cachedStrokes = await getClassBySession(sessionId);
 
-    setStatusText("Downloading replay manifest...");
     setProgress(5);
 
     const manifest = await boardSessionService.getStudentManifest(sessionId);
@@ -312,13 +303,12 @@ const WatchClass = () => {
       cp.downloadedAudioChunkIndexes.length +
       cp.downloadedMediaIds.length;
 
-    const updateProgress = (label: string) => {
+    const updateProgress = () => {
       const pct = Math.min(100, Math.round((completedItems / Math.max(1, totalItems)) * 100));
-      setStatusText(label);
       setProgress(pct);
     };
 
-    updateProgress("Manifest saved. Preparing stroke batches...");
+    updateProgress();
 
     // Checkpoint can become stale (for example after DB clear), so do not use
     // it as the source of truth for skipping stroke batch fetches.
@@ -404,7 +394,7 @@ const WatchClass = () => {
       writeCheckpoint(cp);
 
       completedItems += 1;
-      updateProgress(`Downloaded board batch ${strokeBatchRef.batchIndex + 1}/${manifest.strokeBatches.length}`);
+      updateProgress();
     }
 
 
@@ -428,7 +418,7 @@ const WatchClass = () => {
       if (chunk.audio.sizeBytes === 0) {
         cachedAudioIndexes.add(chunk.index);
         completedItems += 1;
-        updateProgress(`Skipped empty audio chunk ${chunk.index + 1}/${manifest.chunks.length}`);
+        updateProgress();
         continue;
       }
 
@@ -463,7 +453,7 @@ const WatchClass = () => {
       writeCheckpoint(cp);
 
       completedItems += 1;
-      updateProgress(`Downloaded audio chunk ${chunk.index + 1}/${manifest.chunks.length}`);
+      updateProgress();
     }
 
 
@@ -493,7 +483,7 @@ const WatchClass = () => {
         writeCheckpoint(cp);
 
         completedItems += 1;
-        updateProgress(`Downloaded media ${cp.downloadedMediaIds.length}/${manifest.mediaAssets.length}`);
+        updateProgress();
       }
     }
 
@@ -502,7 +492,6 @@ const WatchClass = () => {
     writeCheckpoint(cp);
 
     setProgress(100);
-    setStatusText("Replay data is ready. Launching player...");
     localStorage.setItem("replaySessionId", sessionId);
   }, [checkpoint, lessonId, sessionId, writeCheckpoint]);
 
@@ -510,24 +499,22 @@ const WatchClass = () => {
     try {
       await ensureReplayData();
       if (lessonId) markLessonWatched(lessonId);
-      toast.success("Replay ready");
+      toast.success("Your class is ready.");
       navigate(`/student/recorded-class/${lessonId}/replay`, {
         state: { sessionId, lessonId },
       });
     } catch (error) {
-      const errorMessage = error instanceof AxiosError
-        ? error.response?.data?.responseMessage ??
-        error.response?.data?.message ??
-        error.message
-        : (error as Error).message;
-      setStatusText(errorMessage);
-      toast.error(errorMessage);
+      // Keep the real reason in the console for support; show only a friendly
+      // message in the UI.
+      console.error(error);
+      setErrorMessage(
+        "We couldn't prepare this class just now. Please check your internet connection and try again."
+      );
+      toast.error("Couldn't prepare this class. Please try again.");
     } finally {
       setIsRunning(false);
     }
   }, [ensureReplayData, lessonId, navigate, sessionId]);
-
-  const completedLabel = checkpoint?.completed ? "Cached locally" : "Not fully cached";
 
   return (
     <div className="min-h-screen overflow-y-auto bg-slate-50">
@@ -535,68 +522,57 @@ const WatchClass = () => {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Menu
             className="lg:hidden w-5 h-5 text-black cursor-pointer"
-            onClick={openMobileNav}  // ✅ not onClick={() => openMobileNav()}
+            onClick={openMobileNav}
           />
           <ArrowLeft className="lg:hidden text-black" onClick={() => navigate(-1)} />
           <div>
-            <h1 className="text-base font-semibold text-slate-900">Recorded Class Replay</h1>
-            <p className="mt-1 text-sm text-slate-500">Session: {sessionId || "N/A"}</p>
-          </div>
-          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
-            <CheckCircle2 className="h-4 w-4" />
-            <span>{completedLabel}</span>
+            <h1 className="text-base font-semibold text-slate-900">Recorded Class</h1>
+            <p className="mt-1 text-sm text-slate-500">Watch and replay your class anytime.</p>
           </div>
         </div>
 
-        <div className="mt-6 space-y-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-slate-700">Download Progress</span>
-            <span className="font-semibold text-slate-900">{progress}%</span>
+        <div className="mt-14 flex flex-col items-center px-2 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-chestnut/10">
+            <PlayCircle className="h-9 w-9 text-chestnut" />
           </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
-            <div
-              className="h-full rounded-full bg-[#4F61E8] transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <p className="text-sm text-red-500">{statusText}</p>
-        </div>
+          <h2 className="mt-5 text-lg font-semibold text-slate-900">Your class playback awaits</h2>
+          <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-500">
+            We'll get your board and audio ready. It only takes a moment the first time you watch —
+            after that it opens instantly.
+          </p>
 
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <Button
-            onClick={handlePrepareAndWatch}
-            disabled={isRunning || !sessionId || !lessonId}
-            className="rounded-full bg-student-chestnut px-5 py-2 text-sm font-semibold text-white hover:bg-[#4052D6] disabled:opacity-60"
-          >
-            {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
-            <span>{isRunning ? "Preparing..." : "Prepare & Watch"}</span>
-          </Button>
+          {isRunning ? (
+            <div className="mt-8 w-full max-w-sm space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-2 text-slate-600">
+                  <Loader2 className="h-4 w-4 animate-spin text-chestnut" />
+                  Preparing your class...
+                </span>
+                <span className="font-semibold text-slate-900">{progress}%</span>
+              </div>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className="h-full rounded-full bg-[#4F61E8] transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+          ) : (
+            <Button
+              onClick={handlePrepareAndWatch}
+              disabled={!sessionId || !lessonId}
+              className="mt-8 rounded-full bg-student-chestnut px-8 py-2.5 text-sm font-semibold text-white hover:bg-[#4052D6] disabled:opacity-60"
+            >
+              <PlayCircle className="h-4 w-4" />
+              <span>Download &amp; Watch</span>
+            </Button>
+          )}
 
-          <Button
-            variant="outline"
-            onClick={handlePrepareAndWatch}
-            disabled={isRunning || !sessionId || !lessonId}
-            className="rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            <span>Resume Download</span>
-          </Button>
-        </div>
-
-        <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-          <p className="font-semibold text-slate-800">How this works</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>Manifest is fetched first and saved as local replay metadata.</li>
-            <li>Board stroke batches are downloaded individually and saved in IndexedDB.</li>
-            <li>Audio chunks are downloaded individually and saved in IndexedDB.</li>
-            <li>Media assets are stored in Cache API for offline replay rendering.</li>
-            <li>If network breaks, resume continues from the last successful item.</li>
-          </ul>
-        </div>
-
-        <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
-          <Download className="h-3.5 w-3.5" />
-          <span>Replay cache persists between sessions for faster next watch.</span>
+          {errorMessage && (
+            <div className="mt-6 max-w-sm rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {errorMessage}
+            </div>
+          )}
         </div>
       </div>
     </div>
