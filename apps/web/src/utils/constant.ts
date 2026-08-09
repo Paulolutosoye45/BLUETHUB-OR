@@ -216,7 +216,7 @@ export interface IActions {
 export const MEDIA_STORAGE_KEY = "MEDIA_INSTANCES";
 
 export const DB_NAME = "BluethubClassroom";
-export const DB_VERSION = 9;
+export const DB_VERSION = 10;
 export const STORE_CLASS = "CLASS";
 export const STORE_AUDIO = "Audio";
 export const STORE_SESSIONS = "Sessions";
@@ -224,12 +224,82 @@ export const STORE_AUDIO_CHUNKS = "AudioChunks";
 export const STORE_STROKE_BATCHES = "StrokeBatches";
 export const STORE_REPLAY_CACHE = "ReplayCache";
 export const STORE_STUDENT_BOARDS = "StudentAssessmentBoards";
+export const STORE_ATTENDANCE = "AttendanceScans";
+export const STORE_ATTENDANCE_SESSIONS = "AttendanceSessions";
 
 // ── Sync Status Types ─────────────────────────────────────────────────────────
 
 export type SyncStatus = "pending" | "uploading" | "sent" | "failed";
 
 export type SessionStatus = "recording" | "paused" | "completed" | "draft" | "publishing" | "published" | "failed";
+
+// ── Attendance (offline-first QR attendance) ───────────────────────────────────
+// attendanceType is an int per the backend contract: 0 = Class, 1 = Subject, 2 = SubTopic.
+
+export const AttendanceType = {
+  CLASS: 0,
+  SUBJECT: 1,
+  SUBTOPIC: 2,
+} as const;
+
+export type AttendanceType = (typeof AttendanceType)[keyof typeof AttendanceType];
+
+export type AttendanceSessionStatus = "open" | "ended";
+
+/** A locally-tracked attendance session. Maps 1:1 to a backend session opened
+ *  via POST /api/Attendance/session/start once the network is available. */
+export interface LocalAttendanceSession {
+  id: string;
+  attendanceType: AttendanceType;
+  /** Teacher who captured this session (audit). */
+  teacherId?: string;
+  teacherName?: string;
+  classroomId?: string;
+  classroomName?: string;
+  subjectId?: string;
+  subjectName?: string;
+  subTopicId?: string;
+  subTopicName?: string;
+  /** Local YYYY-MM-DD the session belongs to (dedupe scope). */
+  dateKey: string;
+  /** Unique context key: `${attendanceType}|${classroomId}|${subjectId}|${subTopicId}` */
+  scopeKey: string;
+  /** Backend session id returned by session/start. null until first successful sync. */
+  backendSessionId: string | null;
+  status: AttendanceSessionStatus;
+  startedAt: string;
+  endedAt?: string;
+  /** Whether POST /session/end was successfully pushed for this session. */
+  endSyncRequested: boolean;
+  createdAt: string;
+}
+
+/** A single scanned student (one record per QR scan). Persisted immediately so
+ *  nothing is lost offline; pushed to the backend when the network allows. */
+export interface AttendanceScanRecord {
+  id: string;
+  /** FK to the local attendance session id. */
+  sessionId: string;
+  backendSessionId: string | null;
+  /** The value encoded in the student's QR (what the scan endpoint expects). */
+  qrToken: string;
+  studentName?: string;
+  /** Teacher who captured this scan (audit). */
+  teacherId?: string;
+  teacherName?: string;
+  scannedAt: string;
+  dateKey: string;
+  scopeKey: string;
+  /** `${dateKey}|${scopeKey}|${qrToken}` — used to guarantee a student is only
+   *  marked once per class/date or subtopic/day (the "same record" rule). */
+  dedupeKey: string;
+  syncStatus: SyncStatus;
+  /** Permanent failures (4xx validation) are never auto-retried. */
+  permanentlyFailed: boolean;
+  attempts: number;
+  lastError?: string;
+  lastAttemptAt?: string;
+}
 
 export type CompressedStroke = {
   id: string;
