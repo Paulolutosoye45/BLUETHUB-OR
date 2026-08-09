@@ -56,6 +56,7 @@ export interface NavItem {
 const navLink: NavItem[] = [
     { name: "Dashboard", icons: dashboardIcon, path: "/admin" },
     { name: "Analytics", icons: analyticsIcon, path: "/admin/analytics" },
+    { name: "Attendance", icons: analyticsIcon, path: "/admin/attendance-analytics" },
     { name: "Message", icons: messageIcon, path: "/admin/message" },
 ];
 
