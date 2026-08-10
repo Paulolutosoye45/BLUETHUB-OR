@@ -1,0 +1,6 @@
+# Caddyfile — reverse proxy with automatic HTTPS
+# Edit the domains to match YOUR domains. Save as Caddyfile.
+
+bluetsch.com, www.bluetsch.com {
+    reverse_proxy web:80
+}

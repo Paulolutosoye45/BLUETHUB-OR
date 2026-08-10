@@ -1,0 +1,46 @@
+# Production deployment for Hostinger VPS
+# Usage:  docker compose -f docker-compose.prod.yml up -d --build
+services:
+  web:
+    build:
+      context: .
+      target: web-nginx
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://techhubschmanagement.onrender.com}
+        VITE_APP_URL: ${VITE_APP_URL:-https://www.bluetsch.com}
+        VITE_DEFAULT_TENANT: ${VITE_DEFAULT_TENANT:-green}
+        VITE_TENANT_ID: ${VITE_TENANT_ID:-green}
+        VITE_RC: ${VITE_RC:-rc_live_732628123a4b4c21931bf0c8196408ec}
+    container_name: bluethub-web
+    restart: unless-stopped
+    expose:
+      - "80"
+
+  # # Landing page - comment back in when deploying the landing site
+  # landing:
+  #   build:
+  #     context: .
+  #     target: landing-nginx
+  #   container_name: bluethub-landing
+  #   restart: unless-stopped
+  #   expose:
+  #     - "80"
+
+  # Reverse proxy + automatic Let's Encrypt HTTPS
+  caddy:
+    image: caddy:2-alpine
+    container_name: bluethub-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+
+volumes:
+  caddy_data:
+  caddy_config:

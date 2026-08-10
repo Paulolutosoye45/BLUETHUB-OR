@@ -1,6 +1,0 @@
-
-> @bluethub/web@0.0.0 build C:\Users\hp\Desktop\TechHubFE-V2\BLUETHUB-OR\apps\web
-> tsc -b && vite build
-
-src/pages/admin/registration/teacher/edit-profile.tsx(51,9): error TS6133: 'navigate' is declared but its value is never read.
- ELIFECYCLE  Command failed with exit code 2.
