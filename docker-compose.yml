@@ -13,7 +13,7 @@ services:
     container_name: bluethub-web
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "3010:80"
     # For local dev (HMR), uncomment to override the prod image with a dev dev build
     # command: pnpm web:dev
 
