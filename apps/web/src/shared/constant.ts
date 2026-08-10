@@ -59,6 +59,11 @@ export const TACADEMICLINKS = [
     path: "/teacher/my-lessons",
   },
   {
+    icons: studentIcon,
+    name: "Attendance",
+    path: "/teacher/attendance",
+  },
+  {
     icons: PlayIcon,
     name: "Start Class",
     path: "/teacher/start-class",

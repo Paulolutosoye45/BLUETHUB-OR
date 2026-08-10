@@ -108,6 +108,7 @@ import ManageAssessments from '@/pages/teacher/assessment/manage';
 import PendingGrading from '@/pages/teacher/assessment/pending-grading';
 import AdminAnalytics from '@/pages/admin/dashboard/analytics-page';
 import TeacherAnalytics from '@/pages/teacher/dashboard/analytics-page';
+import Attendance from '@/pages/teacher/attendance';
 import GradesProgress from '@/pages/student/component/grades-progress';
 import CourseIndex from '@/pages/student/courses';
 import Course from '@/pages/student/courses/component/course';
@@ -122,6 +123,7 @@ import AssessmentByStudent from '@/pages/admin/assessment/by-student';
 import QuizByClass from '@/pages/admin/quiz/by-class';
 import QuizBySubject from '@/pages/admin/quiz/by-subject';
 import QuizByStudent from '@/pages/admin/quiz/by-student';
+import AttendanceAnalytics from '@/pages/admin/attendance-analytics';
 
 const router = createBrowserRouter([
     {
@@ -288,6 +290,10 @@ const router = createBrowserRouter([
                 element: <AdminAnalytics />
             },
             {
+                path: 'attendance-analytics',
+                element: <AttendanceAnalytics />
+            },
+            {
                 path: 'assessment',
                 children: [
                     {
@@ -382,6 +388,7 @@ const router = createBrowserRouter([
             { path: "approvals", element: <ApprovalsPage /> },
             { path: "create-syllabus", element: <CreateSyllabus /> },
             { path: "analytics", element: <TeacherAnalytics /> },
+            { path: "attendance", element: <Attendance /> },
         ]
     },
 
