@@ -24,6 +24,7 @@ import {
   Clock,
   Timer,
   Menu,
+  Sparkles,
 } from "lucide-react";
 import {
   Button,
@@ -48,6 +49,12 @@ import { schoolService } from "@/services/school";
 import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { localData } from "@/utils";
 import toast from "react-hot-toast";
+import {
+  imageGenerationService,
+  AI_IMAGE_FEATURE_KEY,
+  type GeneratedLessonImage,
+  type GenerationStatusResponse,
+} from "@/services/image-generation";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -625,6 +632,22 @@ const SubmitLesson = () => {
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── AI Material Request State ──
+  const [aiFeatureEnabled, setAiFeatureEnabled] = useState<boolean | null>(null);
+  const [aiChecking, setAiChecking] = useState(false);
+  const [shouldGenerateImage, setShouldGenerateImage] = useState(true);
+  const [imageMaterialWords, setImageMaterialWords] = useState("");
+  const [imageCount, setImageCount] = useState(1);
+
+  // ── Post-submit generation tracking ──
+  const [submittedLesson, setSubmittedLesson] = useState<{
+    lessonId: string;
+    status: string;
+  } | null>(null);
+  const [genStatus, setGenStatus] = useState<string | null>(null);
+  const [genImages, setGenImages] = useState<GeneratedLessonImage[]>([]);
+  const [genImagesLoading, setGenImagesLoading] = useState(false);
+
 
 
   const dragItemIdx = useRef<number | null>(null);
@@ -846,6 +869,18 @@ const SubmitLesson = () => {
     setSubTopics(subs);
   }, [topicId, topicsData]);
 
+  // ── AI Image Feature Gate ──
+  useEffect(() => {
+    if (!user?.id) return;
+    if (aiFeatureEnabled !== null) return;
+    setAiChecking(true);
+    imageGenerationService
+      .checkFeature(AI_IMAGE_FEATURE_KEY)
+      .then((res) => setAiFeatureEnabled(res.data?.data?.isEnabled ?? false))
+      .catch(() => setAiFeatureEnabled(false))
+      .finally(() => setAiChecking(false));
+  }, [user?.id, aiFeatureEnabled]);
+
   // ── Upload Logic ──
   const runUpload = useCallback(async (uid: string, file: File, sig: CloudinarySignature | SupabaseUploadToken | null) => {
     setUploadFiles((p) => p.map((f) => f.uid === uid ? { ...f, status: "uploading" } : f));
@@ -1052,6 +1087,76 @@ const SubmitLesson = () => {
       .filter((f) => f.status === "done" && f.result)
       .map((f, idx) => ({ ...f.result!, displayOrder: idx + 1 }));
 
+  // ── AI Material Request ──
+  // The request ships with POST api/lessons/submit (shouldGenerateImage /
+  // imageMaterialWords / imageCount). Generation runs async on the backend
+  // (immediately for auto-published lessons, after approval otherwise) and the
+  // teacher tracks progress via the status/images endpoints.
+  const aiRequestValid =
+    imageMaterialWords.trim().length <= 2000 &&
+    imageCount >= 1 && imageCount <= 5;
+
+  const setImageCountSafe = (value: number) => {
+    setImageCount(Math.min(5, Math.max(1, value)));
+  };
+
+  const handleLoadStatus = async (lessonId: string) => {
+    setGenStatus(null);
+    try {
+      const res = await imageGenerationService.getStatus(lessonId);
+      const data = res.data?.data as GenerationStatusResponse | undefined;
+      setGenStatus(data?.status ?? null);
+      return data?.status ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleLoadImages = async (lessonId: string) => {
+    setGenImagesLoading(true);
+    try {
+      const res = await imageGenerationService.getImages(lessonId);
+      setGenImages(res.data?.data?.images ?? []);
+    } catch {
+      // Ignore — user can refresh the status screen
+    } finally {
+      setGenImagesLoading(false);
+    }
+  };
+
+  // Poll generation status while the success screen is open and generation
+  // is still in flight (pending/queued/processing). Polling stops once the
+  // status resolves or after a short budget for approval-pending lessons,
+  // since generation won't start until an approver acts.
+  useEffect(() => {
+    if (!submittedLesson?.lessonId) return;
+    const lessonId = submittedLesson.lessonId;
+    const awaitingApproval = submittedLesson.status === "PendingApproval";
+    const maxPolls = awaitingApproval ? 8 : 120;
+    let polls = 0;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const tick = async () => {
+      if (stopped) return;
+      const status = await handleLoadStatus(lessonId);
+      if (stopped) return;
+      if (status === "Completed" || status === "Failed") {
+        if (status === "Completed") await handleLoadImages(lessonId);
+        return;
+      }
+      polls += 1;
+      if (polls >= maxPolls) return;
+      timer = setTimeout(tick, 5000);
+    };
+
+    void tick();
+    return () => {
+      stopped = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [submittedLesson?.lessonId]);
+
   // ── Submission ──
   const handleSaveDraft = async () => {
     if (!canSaveDraft) return;
@@ -1147,13 +1252,38 @@ const SubmitLesson = () => {
         accessTime: buildAccessTime(),
         durationMinutes: durationMinutes ? Number(durationMinutes) : null,
         quizId,
+        // AI material generation request — only sent when the feature is
+        // enabled for the school so existing behavior is unchanged otherwise.
+        ...(aiFeatureEnabled === true
+          ? {
+              shouldGenerateImage,
+              imageMaterialWords: imageMaterialWords.trim() ? imageMaterialWords.trim() : null,
+              imageCount,
+            }
+          : {}),
       };
 
       console.log("[SubmitLesson] submitting payload", JSON.stringify(payload, null, 2));
-      await lessonService.submitLesson(payload);
+      const res = await lessonService.submitLesson(payload);
+      const resData = (res.data as any)?.data as {
+        lessonId?: string;
+        status?: string;
+      } | undefined;
       if (user?.id) localData.remove(draftKey(user.id));
       debugLog("Lesson submitted successfully");
-      toast.success("Lesson submitted for approval");
+      const lessonId = resData?.lessonId;
+      const lessonStatus = resData?.status ?? "PendingApproval";
+      if (lessonId && aiFeatureEnabled === true && shouldGenerateImage) {
+        // Show status tracking screen for the requested AI materials.
+        setSubmittedLesson({
+          lessonId,
+          status: lessonStatus,
+        });
+        void handleLoadStatus(lessonId);
+        if (lessonStatus !== "PendingApproval") void handleLoadImages(lessonId);
+        return;
+      }
+      toast.success(lessonStatus === "Approved" ? "Lesson published" : "Lesson submitted for approval");
       navigate("/teacher/my-lessons", { replace: true });
     } catch (err: unknown) {
       const e = err as { response?: { data?: { responseMessage?: string } }; message?: string };
@@ -1165,6 +1295,13 @@ const SubmitLesson = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleCloseStatus = () => {
+    setSubmittedLesson(null);
+    setGenStatus(null);
+    setGenImages([]);
+    navigate("/teacher/my-lessons", { replace: true });
   };
 
   // ── Render ──
@@ -1592,6 +1729,148 @@ const SubmitLesson = () => {
                     </span>
                   </div>
                 )}
+
+                {/* AI Material Request */}
+                <div className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50/40 p-4 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center",
+                      aiChecking ? "bg-gray-100 text-gray-400" : "bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white"
+                    )}>
+                      {aiChecking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">AI Learning Materials</h3>
+                      <p className="text-xs text-gray-500">Pick what the system should create to help your students learn the topic with confidence</p>
+                    </div>
+                  </div>
+
+                  {aiFeatureEnabled === false && (
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      AI material generation is not enabled for your school. Ask your administrator to enable it.
+                    </p>
+                  )}
+
+                  {aiFeatureEnabled === null && aiChecking && (
+                    <p className="text-xs text-gray-400 flex items-center gap-1.5">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Checking availability…
+                    </p>
+                  )}
+
+                  {/* Material type selection — always visible */}
+                  <div className={cn(
+                    "grid grid-cols-2 gap-2",
+                    aiFeatureEnabled === false && "opacity-50 pointer-events-none select-none"
+                  )}>
+                    <button
+                      type="button"
+                      onClick={() => setShouldGenerateImage((prev) => !prev)}
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl border-2 p-3 text-left transition-all",
+                        shouldGenerateImage
+                          ? "border-violet-400 bg-violet-50/60 ring-1 ring-violet-500/20"
+                          : "border-gray-200 bg-white hover:border-violet-300"
+                      )}
+                    >
+                      <span className={cn(
+                        "w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors",
+                        shouldGenerateImage ? "bg-violet-600 border-violet-600" : "border-gray-300 bg-white"
+                      )}>
+                        {shouldGenerateImage && <Check className="w-3.5 h-3.5 text-white" />}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-gray-900">Images</span>
+                        <span className="block text-[11px] text-gray-500 truncate">Diagrams & illustrations</span>
+                      </span>
+                    </button>
+
+                    <div
+                      className={cn(
+                        "flex items-center gap-3 rounded-xl border-2 p-3 text-left select-none",
+                        "border-gray-200 bg-gray-50 opacity-60 cursor-not-allowed"
+                      )}
+                      role="button"
+                      aria-disabled="true"
+                      title="Video materials are not available yet"
+                    >
+                      <span className="w-5 h-5 rounded-md border-2 border-gray-300 bg-gray-100 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-gray-500">Videos</span>
+                        <span className="block text-[11px] text-gray-400 truncate">
+                          Coming soon <span className="text-gray-500">•</span> <span className="text-amber-500 font-medium">Not available</span>
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {shouldGenerateImage && (
+                    <div className={cn(
+                      "space-y-4",
+                      aiFeatureEnabled === false && "opacity-50 pointer-events-none select-none"
+                    )}>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-gray-600">
+                          Describe the specific materials you want <span className="text-gray-400">(optional)</span>
+                        </Label>
+                        <textarea
+                          rows={3}
+                          value={imageMaterialWords}
+                          onChange={(e) => setImageMaterialWords(e.target.value.slice(0, 2000))}
+                          placeholder="e.g. A labelled diagram of the water cycle, a cross-section of a plant leaf, and a 3D illustration of the solar system…"
+                          className="w-full rounded-xl border-2 border-violet-200 bg-white px-3 py-2 text-xs text-gray-800 placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-400 transition-all"
+                        />
+                        <p className={cn(
+                          "text-[11px] text-right",
+                          imageMaterialWords.length > 2000 ? "text-red-500" : "text-gray-400"
+                        )}>
+                          {imageMaterialWords.length}/2000
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-gray-600">Number of images</Label>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setImageCountSafe(imageCount - 1)}
+                              disabled={imageCount <= 1}
+                              className="w-8 h-8 rounded-lg border-2 border-violet-200 bg-white text-violet-600 font-bold hover:bg-violet-50 disabled:opacity-30 transition-colors"
+                            >
+                              −
+                            </button>
+                            <span className="w-8 text-center text-sm font-semibold text-gray-900">{imageCount}</span>
+                            <button
+                              type="button"
+                              onClick={() => setImageCountSafe(imageCount + 1)}
+                              disabled={imageCount >= 5}
+                              className="w-8 h-8 rounded-lg border-2 border-violet-200 bg-white text-violet-600 font-bold hover:bg-violet-50 disabled:opacity-30 transition-colors"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-gray-400 flex-1 min-w-[160px] flex items-center gap-1.5">
+                          <Info className="w-3.5 h-3.5 shrink-0" />
+                          {submittedLesson
+                            ? "Request sent — track its status below."
+                            : "Ships with your submission. Generated after approval, then added to this lesson's media."}
+                        </p>
+                      </div>
+
+                      {!aiRequestValid && (
+                        <p className="text-xs text-red-600 flex items-center gap-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                          {imageCount < 1 || imageCount > 5
+                            ? "Number of images must be between 1 and 5."
+                            : "Keep the description under 2000 characters."}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </section>
 
@@ -1778,8 +2057,100 @@ const SubmitLesson = () => {
         onDismiss={() => setShowQuizModal(false)}
         isSubmitting={isSubmitting}
       />
+
+      {/* AI Materials Status Screen */}
+      {submittedLesson && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.5)", backdropFilter: "blur(4px)" }}
+        >
+          <div className="bg-white w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col">
+            <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-lg">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <span className="text-base font-semibold text-white">AI Materials</span>
+                  <p className="text-xs text-white/70">
+                    {submittedLesson.status === "Approved" ? "Lesson published — generating your images" : "Lesson submitted — tracking your request"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-4">
+              <div className="flex items-center gap-3 rounded-xl bg-violet-50 border border-violet-200 p-3">
+                {isGeneratingStatus(genStatus) ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-violet-600 shrink-0" />
+                ) : genStatus === "Failed" ? (
+                  <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+                ) : genStatus === "Completed" ? (
+                  <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+                ) : (
+                  <Loader2 className="w-5 h-5 animate-spin text-violet-600 shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {genStatus === "Failed" ? "Generation failed" : genStatus === "Completed" ? "Images ready" : "Generating your images…"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {submittedLesson.status === "PendingApproval"
+                      ? "Your lesson is awaiting approval. Images will be generated once the lesson is approved."
+                      : genStatus === "Completed"
+                        ? "The generated images have been added to your lesson's media."
+                        : "This usually takes a few minutes. You can leave and check back on the lesson."}
+                  </p>
+                </div>
+              </div>
+
+              {genStatus === "Failed" && (
+                <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  Something went wrong while generating the images. You can retry from the lesson page.
+                </p>
+              )}
+
+              {genImages.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Generated images</p>
+                  {genImagesLoading ? (
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading images…
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {genImages.map((img) => (
+                        <div key={img.id} className="rounded-xl overflow-hidden border-2 border-violet-200 bg-white">
+                          <img src={img.imageUrl} alt={img.promptText} className="w-full h-24 object-cover" />
+                          <p className="text-[10px] text-gray-500 px-2 py-1.5 line-clamp-2">{img.promptText}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCloseStatus}
+                  className="flex-1 px-4 py-3 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 transition-all"
+                >
+                  Go to my lessons
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
+
+function isGeneratingStatus(status: string | null): boolean {
+  if (!status) return true;
+  const s = status.toLowerCase();
+  return s !== "completed" && s !== "failed" && s !== "error";
+}
 
 export default SubmitLesson;

@@ -63,6 +63,10 @@ export interface SubmitLessonPayload {
   accessDate?: string | null;
   accessTime?: string | null;
   durationMinutes?: number | null;
+  // ── AI material generation (optional; default shouldGenerateImage=true, imageCount=1) ──
+  shouldGenerateImage?: boolean;
+  imageMaterialWords?: string | null;
+  imageCount?: number | null;
 }
 
 // Draft: all metadata fields required, media optional (backend has [Required] commented out)
