@@ -10,9 +10,13 @@ import {
   ChevronRight as ChevronR,
   Play,
   Menu,
+  Sparkles,
+  X,
+  CheckCircle2,
 } from "lucide-react";
 import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@bluethub/ui-kit";
 import { lessonService, type LessonItem, type LessonSummary, type LessonForClassDto, type LessonMediaDto } from "@/services/lesson";
+import { imageGenerationService, type GeneratedLessonImage } from "@/services/image-generation";
 import { useAuthContext } from "@/contexts/auth-context";
 import { ReviewModal, type RLesson } from "./review-modal";
 import PreClassModal from "./pre-class-modal";
@@ -137,6 +141,27 @@ const MyLesson = () => {
 
   // ── Review Modal ──
   const [reviewLesson, setReviewLesson] = useState<RLesson | null>(null);
+
+  // ── AI Generated Images Modal ──
+  const [aiImagesLesson, setAiImagesLesson] = useState<LessonItem | null>(null);
+  const [aiImages, setAiImages] = useState<GeneratedLessonImage[]>([]);
+  const [aiImagesLoading, setAiImagesLoading] = useState(false);
+  const [aiImagesError, setAiImagesError] = useState<string | null>(null);
+
+  const openAiImages = async (lesson: LessonItem) => {
+    setAiImagesLesson(lesson);
+    setAiImages([]);
+    setAiImagesError(null);
+    setAiImagesLoading(true);
+    try {
+      const res = await imageGenerationService.getImages(lesson.id);
+      setAiImages(res.data?.data?.images ?? []);
+    } catch (err: any) {
+      setAiImagesError(err?.response?.data?.responseMessage ?? "Could not load AI images");
+    } finally {
+      setAiImagesLoading(false);
+    }
+  };
 
   // ── Pre-Class Modal (for starting approved lessons) ──
   const [preClassModalOpen, setPreClassModalOpen] = useState(false);
@@ -447,6 +472,15 @@ const MyLesson = () => {
                                       );
                                     })()}
                                     <button
+                                      onClick={() => openAiImages(lesson)}
+                                      className="flex items-center gap-1.5 text-xs font-medium text-white bg-gradient-to-r from-violet-600 to-fuchsia-600
+                                        hover:from-violet-700 hover:to-fuchsia-700 px-3 py-1.5 rounded-lg transition-all shadow-sm"
+                                      title="View AI generated materials"
+                                    >
+                                      <Sparkles size={12} />
+                                      AI Images
+                                    </button>
+                                    <button
                                       onClick={() => setReviewLesson(toRLesson(lesson, teacherName))}
                                       className="border border-[#E8E8E3] hover:border-chestnut/30 hover:text-chestnut
                                         text-[#0F0F0E] text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
@@ -516,6 +550,15 @@ const MyLesson = () => {
                                   </button>
                                 );
                               })()}
+                              <button
+                                onClick={() => openAiImages(lesson)}
+                                className="flex items-center gap-1 text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg
+                                  bg-gradient-to-r from-violet-600 to-fuchsia-600"
+                                title="View AI generated materials"
+                              >
+                                <Sparkles size={10} />
+                                AI
+                              </button>
                               <button
                                 onClick={() => setReviewLesson(toRLesson(lesson, teacherName))}
                                 className="border border-[#E8E8E3] text-[#0F0F0E] text-xs font-medium px-3 py-1.5
@@ -590,6 +633,87 @@ const MyLesson = () => {
         isLoading={loadingLessonDetails}
         errorMessage={lessonLoadError}
       />
+
+      {/* AI Generated Images Modal */}
+      {aiImagesLesson && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.5)", backdropFilter: "blur(4px)" }}
+        >
+          <div className="bg-white w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200 max-h-[85vh] flex flex-col">
+            <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 px-6 py-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 bg-white/20 rounded-lg shrink-0">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-base font-semibold text-white">AI Materials</span>
+                  <p className="text-xs text-white/70 truncate">
+                    {buildLessonTitle(aiImagesLesson)}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAiImagesLesson(null)}
+                className="p-1.5 rounded-full hover:bg-white/20 transition-colors text-white shrink-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto space-y-4">
+              {aiImagesLoading ? (
+                <div className="flex items-center justify-center py-10 gap-3 text-violet-600">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span className="text-sm">Loading materials…</span>
+                </div>
+              ) : aiImagesError ? (
+                <div className="text-center py-10 space-y-2">
+                  <AlertCircle className="w-8 h-8 text-red-400 mx-auto" />
+                  <p className="text-sm text-gray-500">{aiImagesError}</p>
+                </div>
+              ) : aiImages.length === 0 ? (
+                <div className="text-center py-10 space-y-2">
+                  <Sparkles className="w-8 h-8 text-violet-300 mx-auto" />
+                  <p className="text-sm font-medium text-gray-700">No AI materials yet</p>
+                  <p className="text-xs text-gray-400">
+                    If you requested images with this lesson, they'll appear here once generated.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 text-xs text-green-600 font-medium">
+                    <CheckCircle2 className="w-4 h-4" />
+                    {aiImages.length} image{aiImages.length > 1 ? "s" : ""} generated
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {aiImages.map((img) => (
+                      <a
+                        key={img.id}
+                        href={img.imageUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-xl overflow-hidden border-2 border-violet-200 bg-white transition-all hover:border-violet-400 hover:shadow-md"
+                      >
+                        <img src={img.imageUrl} alt={img.promptText} className="w-full h-28 object-cover" />
+                        <p className="text-[10px] text-gray-500 px-2 py-1.5 line-clamp-2">{img.promptText}</p>
+                      </a>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openAiImages(aiImagesLesson)}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-800 mt-1 transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Refresh
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
