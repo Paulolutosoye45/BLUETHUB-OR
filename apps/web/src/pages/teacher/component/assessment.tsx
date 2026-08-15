@@ -141,7 +141,7 @@ const Assessment = () => {
             >
               <p className="text-sm font-semibold text-[#1A1C5E] mb-1">My Uploads</p>
               <p className="text-[13px] text-[#6C70A6] leading-5">
-                Track AI-processed extractions and manage uploaded question files.
+                Track processed extractions and manage uploaded question files.
               </p>
             </button>
 

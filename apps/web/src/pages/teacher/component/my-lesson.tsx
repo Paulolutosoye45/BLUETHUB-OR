@@ -475,10 +475,10 @@ const MyLesson = () => {
                                       onClick={() => openAiImages(lesson)}
                                       className="flex items-center gap-1.5 text-xs font-medium text-white bg-gradient-to-r from-violet-600 to-fuchsia-600
                                         hover:from-violet-700 hover:to-fuchsia-700 px-3 py-1.5 rounded-lg transition-all shadow-sm"
-                                      title="View AI generated materials"
+                                      title="View generated materials"
                                     >
                                       <Sparkles size={12} />
-                                      AI Images
+                                      Images
                                     </button>
                                     <button
                                       onClick={() => setReviewLesson(toRLesson(lesson, teacherName))}
@@ -554,10 +554,10 @@ const MyLesson = () => {
                                 onClick={() => openAiImages(lesson)}
                                 className="flex items-center gap-1 text-white text-[11px] font-semibold px-2.5 py-1.5 rounded-lg
                                   bg-gradient-to-r from-violet-600 to-fuchsia-600"
-                                title="View AI generated materials"
+                                title="View generated materials"
                               >
                                 <Sparkles size={10} />
-                                AI
+                                Images
                               </button>
                               <button
                                 onClick={() => setReviewLesson(toRLesson(lesson, teacherName))}
@@ -647,7 +647,7 @@ const MyLesson = () => {
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <div className="min-w-0">
-                  <span className="text-base font-semibold text-white">AI Materials</span>
+                  <span className="text-base font-semibold text-white">Lesson Materials</span>
                   <p className="text-xs text-white/70 truncate">
                     {buildLessonTitle(aiImagesLesson)}
                   </p>
@@ -676,7 +676,7 @@ const MyLesson = () => {
               ) : aiImages.length === 0 ? (
                 <div className="text-center py-10 space-y-2">
                   <Sparkles className="w-8 h-8 text-violet-300 mx-auto" />
-                  <p className="text-sm font-medium text-gray-700">No AI materials yet</p>
+                  <p className="text-sm font-medium text-gray-700">No materials yet</p>
                   <p className="text-xs text-gray-400">
                     If you requested images with this lesson, they'll appear here once generated.
                   </p>

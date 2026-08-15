@@ -1740,14 +1740,14 @@ const SubmitLesson = () => {
                       {aiChecking ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold text-gray-900">AI Learning Materials</h3>
+                      <h3 className="text-sm font-semibold text-gray-900">Learning Materials</h3>
                       <p className="text-xs text-gray-500">Pick what the system should create to help your students learn the topic with confidence</p>
                     </div>
                   </div>
 
                   {aiFeatureEnabled === false && (
                     <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                      AI material generation is not enabled for your school. Ask your administrator to enable it.
+                      Automatic material generation is not enabled for your school. Ask your administrator to enable it.
                     </p>
                   )}
 
@@ -2071,7 +2071,7 @@ const SubmitLesson = () => {
                   <Sparkles className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <span className="text-base font-semibold text-white">AI Materials</span>
+                  <span className="text-base font-semibold text-white">Materials</span>
                   <p className="text-xs text-white/70">
                     {submittedLesson.status === "Approved" ? "Lesson published — generating your images" : "Lesson submitted — tracking your request"}
                   </p>

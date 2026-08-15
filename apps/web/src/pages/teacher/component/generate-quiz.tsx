@@ -736,13 +736,13 @@ const GenerateQuiz = () => {
                         description="Allow drawing-board submissions"
                       />
                       <Toggle
-                        label="AI Assistance"
+                        label="Assistance"
                         checked={config.allowAIAssistance}
                         onChange={(v) => updateConfig("allowAIAssistance", v)}
-                        description="Enable AI help during quiz"
+                        description="Enable help during quiz"
                       />
                       <NumberField
-                        label="Max AI / Question"
+                        label="Max Assistance / Question"
                         value={config.maxAIAssistancePerQuestion}
                         onChange={(v) =>
                           updateConfig("maxAIAssistancePerQuestion", v ?? 1000)

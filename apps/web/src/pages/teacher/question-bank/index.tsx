@@ -239,7 +239,7 @@ function EmptyState({ onUpload }: { onUpload: () => void }) {
         No scans yet
       </h2>
       <p className="text-gray-500 text-sm max-w-[280px] mb-6">
-        Upload an image or PDF of your questions and let AI extract them automatically
+        Upload an image or PDF of your questions and extract them automatically
       </p>
       <Button
         onClick={onUpload}
@@ -400,11 +400,11 @@ const QuestionBankScan = () => {
           <div className="relative">
             <div className="flex items-center gap-2 mb-2">
               <ScanLine className="w-5 h-5" />
-              <span className="text-sm font-medium text-purple-200">AI-Powered</span>
+              <span className="text-sm font-medium text-purple-200">Automatic Extraction</span>
             </div>
             <h2 className="text-xl font-bold mb-1">Scan Questions</h2>
             <p className="text-purple-200 text-sm mb-4">
-              Upload photos of questions and let AI extract them instantly
+              Upload photos of questions and extract them instantly
             </p>
 
             <Button
