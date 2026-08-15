@@ -93,7 +93,7 @@ const StudentAppBar = () => {
 
         <div className="flex items-center gap-[5px]">
           <div className="flex items-center justify-center h-[32px] w-[32px] rounded-full bg-white/15 uppercase text-white font-semibold text-[10px]">
-            {initials}
+            {initials} 
           </div>
           <div>
             <h2 className="text-white font-semibold text-xs leading-[14px]">
