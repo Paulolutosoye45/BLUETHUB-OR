@@ -24,10 +24,10 @@ function readTokenFromResponse(res: unknown): string {
   if (typeof payload === "string") return payload;
   return String(
     payload?.qrToken ??
-      payload?.token ??
-      payload?.QrToken ??
-      payload?.value ??
-      "",
+    payload?.token ??
+    payload?.QrToken ??
+    payload?.value ??
+    "",
   );
 }
 
@@ -108,14 +108,14 @@ const StudentQrCard = () => {
     }
     win.document.write(
       `<!doctype html><html><head><title>Attendance QR - ${escapeHtml(fullName)}</title>` +
-        `<style>body{font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:24px;color:#0f172a}` +
-        `h1{margin:14px 0 4px;font-size:20px}p{margin:4px 0;color:#475569;font-size:12px}` +
-        `.qr{margin:0 auto}</style></head><body>` +
-        `<div class="qr"><img src="${url}" width="240" height="240" alt="Attendance QR" /></div>` +
-        `<h1>${escapeHtml(fullName)}</h1>` +
-        `<p>${escapeHtml(className || "Bluethub")}</p>` +
-        `<p style="margin-top:16px;font-size:11px;color:#94a3b8">Bluethub attendance QR — scan at your class to be marked present</p>` +
-        `</body></html>`,
+      `<style>body{font-family:system-ui,-apple-system,sans-serif;text-align:center;padding:24px;color:#0f172a}` +
+      `h1{margin:14px 0 4px;font-size:20px}p{margin:4px 0;color:#475569;font-size:12px}` +
+      `.qr{margin:0 auto}</style></head><body>` +
+      `<div class="qr"><img src="${url}" width="240" height="240" alt="Attendance QR" /></div>` +
+      `<h1>${escapeHtml(fullName)}</h1>` +
+      `<p>${escapeHtml(className || "Bluethub")}</p>` +
+      `<p style="margin-top:16px;font-size:11px;color:#94a3b8">Bluethub attendance QR — scan at your class to be marked present</p>` +
+      `</body></html>`,
     );
     win.document.close();
     setTimeout(() => {
@@ -142,8 +142,8 @@ const StudentQrCard = () => {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-      <div className="flex items-center justify-between mb-4">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center gap-2 justify-between mb-3">
         <div>
           <h3 className="text-sm font-semibold text-slate-800">Attendance QR</h3>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -163,17 +163,17 @@ const StudentQrCard = () => {
         </button>
       </div>
 
-      <div className="flex flex-col items-center gap-4">
-        <div className="p-4 rounded-xl border border-slate-100 bg-white">
+      <div className="flex flex-col  items-center gap-3">
+        <div className="flex w-full items-center justify-center p-3 rounded-xl border border-slate-100 bg-white">
           {loading && !qrToken ? (
-            <div className="flex items-center justify-center w-[208px] h-[208px]">
-              <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+            <div className="flex items-center justify-center w-full h-24">
+              <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
             </div>
           ) : (
             <QRCodeCanvas
               ref={canvasRef}
               value={qrValue}
-              size={208}
+              size={180}
               level="M"
               includeMargin
               marginSize={2}
@@ -182,29 +182,29 @@ const StudentQrCard = () => {
           )}
         </div>
 
-        <div className="text-center -mt-2">
+        <div className="text-center">
           <p className="text-sm font-semibold text-slate-800 capitalize">{fullName}</p>
           {className && <p className="text-xs text-slate-500">{className}</p>}
         </div>
 
-        <div className="flex w-full items-center gap-2">
+        <div className="flex w-full gap-2">
           <button
             type="button"
             onClick={openPrintWindow}
             disabled={loading}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
           >
-            <Printer className="h-4 w-4" />
-            Print
+            <Printer className="h-3.5 w-3.5" />
+            <span>Print</span>
           </button>
           <button
             type="button"
             onClick={handleDownload}
             disabled={loading}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#546cdb] px-3 py-2 text-xs font-semibold text-white hover:bg-[#4255c9] disabled:opacity-50"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#546cdb] px-2 py-3 text-xs font-semibold text-white hover:bg-[#4255c9] disabled:opacity-50"
           >
-            <Download className="h-4 w-4" />
-            Save image
+            <Download className="h-3.5 w-3.5" />
+            <span>Save image</span>
           </button>
         </div>
       </div>
