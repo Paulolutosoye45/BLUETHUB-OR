@@ -345,7 +345,7 @@ const jobResult = await questionJobService.submitJob(formData);
             </div>
             <div>
               <h2 className="font-bold text-gray-900">Scan Questions</h2>
-              <p className="text-xs text-gray-500">AI-powered extraction</p>
+              <p className="text-xs text-gray-500">Automatic extraction</p>
             </div>
           </div>
           <button
@@ -606,7 +606,7 @@ const jobResult = await questionJobService.submitJob(formData);
                 <Loader2 className="w-10 h-10 text-purple-600 animate-spin" />
               </div>
               <p className="font-semibold text-gray-900 text-lg">Processing...</p>
-              <p className="text-gray-500 text-sm mt-1">Starting AI extraction</p>
+              <p className="text-gray-500 text-sm mt-1">Starting automatic extraction</p>
             </div>
           )}
 

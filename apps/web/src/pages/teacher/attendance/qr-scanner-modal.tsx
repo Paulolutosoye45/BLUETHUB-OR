@@ -1,10 +1,16 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import toast from "react-hot-toast";
-import { CameraOff, Loader2, ScanLine, X } from "lucide-react";
+import { CameraOff, CheckCircle2, CircleAlert, Loader2, ScanLine, X, XCircle } from "lucide-react";
 
 interface ScanEvent {
   decodedText: string;
+}
+
+export interface ScanFeedback {
+  id: string;
+  tone: "success" | "info" | "error";
+  message: string;
 }
 
 interface Props {
@@ -14,13 +20,24 @@ interface Props {
    *  component keeps the stream alive (debounce handled internally). */
   onDetected: (event: ScanEvent) => void;
   scanningLabel?: string;
+  /** Latest scan result to flash over the live camera feed while scanning. */
+  scanFeedback?: ScanFeedback | null;
 }
+
+const FEEDBACK_STYLE: Record<
+  ScanFeedback["tone"],
+  { box: string; icon: React.ReactNode }
+> = {
+  success: { box: "bg-emerald-500 text-white", icon: <CheckCircle2 className="h-4 w-4 shrink-0" /> },
+  info: { box: "bg-amber-500 text-white", icon: <CircleAlert className="h-4 w-4 shrink-0" /> },
+  error: { box: "bg-red-500 text-white", icon: <XCircle className="h-4 w-4 shrink-0" /> },
+};
 
 /**
  * Camera-based QR scanner built on html5-qrcode. Handles the full camera
  * lifecycle (permission, start/stop, cleanup) safely under React re-renders.
  */
-const QrScannerModal = ({ open, onClose, onDetected, scanningLabel }: Props) => {
+const QrScannerModal = ({ open, onClose, onDetected, scanningLabel, scanFeedback }: Props) => {
   const rawId = useId();
   const elementId = `qr-scanner-${rawId.replace(/[^a-zA-Z0-9]/g, "")}`;
   const scannerRef = useRef<Html5Qrcode | null>(null);
@@ -29,10 +46,20 @@ const QrScannerModal = ({ open, onClose, onDetected, scanningLabel }: Props) => 
   const onDetectedRef = useRef(onDetected);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [feedback, setFeedback] = useState<ScanFeedback | null>(null);
 
   useEffect(() => {
     onDetectedRef.current = onDetected;
   });
+
+  // Flash the latest scan result over the feed, auto-fade after ~1.6s so the
+  // teacher keeps scanning without stopping the camera.
+  useEffect(() => {
+    if (!scanFeedback) return;
+    setFeedback(scanFeedback);
+    const t = window.setTimeout(() => setFeedback(null), 1600);
+    return () => window.clearTimeout(t);
+  }, [scanFeedback]);
 
   const stopScanner = async () => {
     const scanner = scannerRef.current;
@@ -54,6 +81,7 @@ const QrScannerModal = ({ open, onClose, onDetected, scanningLabel }: Props) => 
     if (!open) {
       setError(null);
       setStarting(false);
+      setFeedback(null);
       void stopScanner();
       return;
     }
@@ -166,6 +194,16 @@ const QrScannerModal = ({ open, onClose, onDetected, scanningLabel }: Props) => 
                 Never conditionally unmount this div — html5-qrcode reads
                 document.getElementById(elementId).clientWidth during start(). */}
             <div id={elementId} className="qr-host min-h-[19rem] w-full" />
+
+            {feedback && (
+              <div
+                key={feedback.id}
+                className={`pointer-events-none absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-lg animate-in fade-in zoom-in ${FEEDBACK_STYLE[feedback.tone].box}`}
+              >
+                {FEEDBACK_STYLE[feedback.tone].icon}
+                <span className="max-w-[16rem] truncate">{feedback.message}</span>
+              </div>
+            )}
 
             {starting && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">

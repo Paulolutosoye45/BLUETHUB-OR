@@ -371,10 +371,10 @@ const UploadScan = () => {
         <div className="p-3 sm:p-4 bg-white/70 backdrop-blur-sm">
           <div className="mb-6">
             <h1 className="text-sm font-bold text-slate-800">
-              AI Question Scanner
+              Question Scanner
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              Upload a question file (image, PDF, DOC or DOCX) — AI will extract and format it for you
+              Upload a question file (image, PDF, DOC or DOCX) — questions will be extracted and formatted for you
             </p>
           </div>
 
@@ -534,7 +534,7 @@ const UploadScan = () => {
                 {submitting ? (
                   <><Loader2 size={16} className="animate-spin" /> Submitting…</>
                 ) : (
-                  <><Upload size={16} /> Submit for AI Processing</>
+                  <><Upload size={16} /> Submit for Processing</>
                 )}
               </button>
 
