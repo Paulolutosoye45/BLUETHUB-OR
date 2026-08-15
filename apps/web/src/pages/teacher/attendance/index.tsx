@@ -53,7 +53,7 @@ import {
   toDateKey,
 } from "@/utils/attendance";
 import { flushAttendanceSync, getUnsentAttendanceCount } from "@/utils/attendance-sync";
-import QrScannerModal from "./qr-scanner-modal";
+import QrScannerModal, { type ScanFeedback } from "./qr-scanner-modal";
 
 // ── Types & constants ────────────────────────────────────────────────────────
 
@@ -155,6 +155,7 @@ const TeacherAttendance = () => {
   const rosterMapRef = useRef<Record<string, string>>({});
 
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [scanFeedback, setScanFeedback] = useState<ScanFeedback | null>(null);
 
   // ── Access scope ─────────────────────────────────────────────────────────
   // Teachers may only take attendance for classes assigned to them (from their
@@ -409,6 +410,7 @@ const TeacherAttendance = () => {
     async ({ decodedText }: { decodedText: string }) => {
       const parsed = parseQrValue(decodedText);
       if (!parsed.ok) {
+        setScanFeedback({ id: uuidv4(), tone: "error", message: parsed.reason });
         toast.error(parsed.reason);
         return;
       }
@@ -422,6 +424,11 @@ const TeacherAttendance = () => {
       const dedupeKey = buildDedupeKey(dateKey, session.scopeKey, parsed.qrToken);
       const existing = await getAttendanceScanByDedupe(dedupeKey);
       if (existing) {
+        setScanFeedback({
+          id: uuidv4(),
+          tone: "info",
+          message: `${existing.studentName ? `${existing.studentName} · ` : ""}already marked present`,
+        });
         toast(
           `${existing.studentName ? `${existing.studentName} — ` : ""}already marked present.`,
           { icon: "✋", id: dedupeKey },
@@ -447,6 +454,11 @@ const TeacherAttendance = () => {
       };
 
       await putAttendanceScan(record);
+      setScanFeedback({
+        id: uuidv4(),
+        tone: "success",
+        message: record.studentName ? `${record.studentName} marked present` : "Marked present",
+      });
       toast.success(
         record.studentName ? `${record.studentName} marked present` : "Marked present ✔",
         { id: dedupeKey },
@@ -843,6 +855,7 @@ const TeacherAttendance = () => {
         open={scannerOpen}
         onClose={handleCloseScanner}
         onDetected={scanStudent}
+        scanFeedback={scanFeedback}
       />
     </div>
   );
