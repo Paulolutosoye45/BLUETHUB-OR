@@ -33,17 +33,17 @@ const ProfileLayout = () => {
       dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
             <StudentAppBar />
 
-            <div className="flex gap-6 my-10 w-full px-10">
-                {/* Sidebar/card Profile Section */}
-                <div className="w-87.5 min-w-75 bg-white rounded-xl shadow-md font-poppins border border-gray-100 flex flex-col">
+            <div className="flex flex-col lg:flex-row gap-6 w-full px-2 lg:px-4">
+                {/* Sidebar/card Profile Section - stack on mobile */}
+                <div className="lg:w-87.5 lg:min-w-75 bg-white rounded-xl shadow-md font-poppins border border-gray-100 flex flex-col">
                     {/* Header */}
-                    <div className="border-b border-gray-200 px-6 py-4">
+                    <div className="border-b border-gray-200 px-4 py-3">
                         <h2 className="text-lg font-semibold text-gray-800">My Profile</h2>
                     </div>
 
                     {/* Profile Section */}
-                    <div className="flex items-center gap-4 p-6 border-b border-gray-200">
-                        <div className="w-20 h-20 rounded-full border-2 border-blue-400 overflow-hidden">
+                    <div className="flex items-center gap-3 p-4 border-b border-gray-200">
+                        <div className="w-12 h-12 rounded-full border-2 border-blue-400 overflow-hidden">
                             <img
                                 src={test_profile}
                                 alt="Profile"
@@ -60,27 +60,27 @@ const ProfileLayout = () => {
                     {/* Settings List */}
                     <div className="divide-y divide-gray-100">
                         {/* My Profile */}
-                        <button className={`w-full flex justify-between items-center p-4 hover:bg-gray-50 transition ${currentPath === '/student/profile' ? 'bg-gray-200 hover:bg-gray-200 ' : ''}`}>
-                            <div className="flex items-center gap-3">
-                                <User className="size-5" />
+                        <button className={`w-full flex justify-between items-center p-3 hover:bg-gray-50 transition ${currentPath === '/student/profile' ? 'bg-gray-200 hover:bg-gray-200 ' : ''}`}>
+                            <div className="flex items-center gap-2">
+                                <User className="size-4.5" />
                                 <span className="text-sm font-medium text-gray-700">My Profile</span>
                             </div>
-                            <ChevronRight className="size-5 text-gray-400" />
+                            <ChevronRight className="size-4.5 text-gray-400" />
                         </button>
 
                         {/* Settings */}
-                        <button className="w-full flex justify-between items-center p-4 hover:bg-gray-50 transition">
-                            <div className="flex items-center gap-3">
-                                <Settings className="size-5" />
+                        <button className="w-full flex justify-between items-center p-3 hover:bg-gray-50 transition">
+                            <div className="flex items-center gap-2">
+                                <Settings className="size-4.5" />
                                 <span className="text-sm font-medium text-gray-700">Settings</span>
                             </div>
                             <ChevronRight className="size-5 text-gray-400" />
                         </button>
 
                         {/* Performance */}
-                        <button className="w-full flex justify-between items-center p-4 hover:bg-gray-50 transition">
-                            <div className="flex items-center gap-3">
-                                <Spinner className="size-5" />
+                        <button className="w-full flex justify-between items-center p-3 hover:bg-gray-50 transition">
+                            <div className="flex items-center gap-2">
+                                <Spinner className="size-4.5" />
                                 <span className="text-sm font-medium text-gray-700">My Performance</span>
                             </div>
                             <ChevronRight className="size-5 text-gray-400" />
@@ -89,15 +89,15 @@ const ProfileLayout = () => {
                         {/* Notification Dropdown */}
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <button className="w-full flex justify-between items-center p-4 hover:bg-gray-50 transition">
-                                    <div className="flex items-center gap-3">
-                                        <Notification className="size-5 text-blue-500" />
+                                <button className="w-full flex justify-between items-center p-3 hover:bg-gray-50 transition">
+                                    <div className="flex items-center gap-2">
+                                        <Notification className="size-4.5 text-blue-500" />
                                         <span className="text-sm font-medium text-gray-700">Notifications</span>
                                     </div>
                                     <span className="text-xs text-gray-500 font-medium">Allow</span>
                                 </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-40 bg-white shadow-md border border-gray-100 rounded-md">
+                            <DropdownMenuContent className="w-full bg-white shadow-md border border-gray-100 rounded-md px-3">
                                 <DropdownMenuLabel className="text-gray-700 text-sm">
                                     Notifications
                                 </DropdownMenuLabel>
@@ -108,9 +108,9 @@ const ProfileLayout = () => {
                         </DropdownMenu>
 
                         {/* Log Out */}
-                        <button className="w-full flex justify-between items-center p-4 hover:bg-red-50 transition">
-                            <div className="flex items-center gap-3">
-                                <LogOutIcon className="size-5 text-red-500" />
+                        <button className="w-full flex justify-between items-center p-3 hover:bg-red-50 transition">
+                            <div className="flex items-center gap-2">
+                                <LogOutIcon className="size-4.5 text-red-500" />
                                 <span className="text-sm font-medium text-red-600">Log Out</span>
                             </div>
                         </button>
@@ -118,7 +118,7 @@ const ProfileLayout = () => {
                 </div>
 
                 {/* Personal Data Section */}
-                <div className="flex-1 bg-white rounded-xl shadow-md font-poppins border border-gray-100">
+                <div className="w-full  flex-1 bg-white rounded-xl shadow-md font-poppins border border-gray-100">
                     <Outlet />
                 </div>
             </div>
