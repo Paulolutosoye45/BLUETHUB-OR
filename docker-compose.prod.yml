@@ -6,7 +6,7 @@ services:
       context: .
       target: web-nginx
       args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://techhubschmanagement.onrender.com}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-https://api.bluetsch.com}
         VITE_APP_URL: ${VITE_APP_URL:-https://www.bluetsch.com}
         VITE_DEFAULT_TENANT: ${VITE_DEFAULT_TENANT:-green}
         VITE_TENANT_ID: ${VITE_TENANT_ID:-green}
