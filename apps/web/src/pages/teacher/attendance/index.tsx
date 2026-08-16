@@ -11,15 +11,20 @@ import { v4 as uuidv4 } from "uuid";
 import toast from "react-hot-toast";
 import {
   AlertTriangle,
+  CalendarDays,
   Camera,
   CheckCircle2,
+  ClipboardList,
   Clock,
   CloudOff,
+  History,
+  Loader2,
   Menu,
   RefreshCw,
   ScanLine,
   Square,
   UserCheck,
+  UserSearch,
   Users,
   Wifi,
   WifiOff,
@@ -27,10 +32,15 @@ import {
 } from "lucide-react";
 import { useAuthContext, isTeacherRoleData } from "@/contexts/auth-context";
 import { UserRole } from "@/utils/validate";
-import { attendanceService } from "@/services/attendance";
+import {
+  attendanceService,
+  type AttendanceSessionDto,
+  type AttendanceSummaryDto,
+} from "@/services/attendance";
 import { moduleService } from "@/services/module";
 import { schoolService } from "@/services/school";
 import {
+  deleteAttendanceScan,
   findOpenAttendanceSession,
   getAllAttendanceScans,
   getAttendanceScanByDedupe,
@@ -48,12 +58,14 @@ import { AttendanceType as AT } from "@/utils/constant";
 import {
   buildDedupeKey,
   buildScopeKey,
+  extractErrorMessage,
   isoNow,
   parseQrValue,
   toDateKey,
 } from "@/utils/attendance";
 import { flushAttendanceSync, getUnsentAttendanceCount } from "@/utils/attendance-sync";
 import QrScannerModal, { type ScanFeedback } from "./qr-scanner-modal";
+import StudentRecords from "./student-records";
 
 // ── Types & constants ────────────────────────────────────────────────────────
 
@@ -105,6 +117,16 @@ function mapOptions(items: any[]): Option[] {
     .filter((o) => o.id);
 }
 
+/** Pulls the attendance token out of a /qr-token response (any casing). */
+function readQrTokenFromResponse(res: unknown): string {
+  const root = res as any;
+  const payload = root?.data ?? root?.Data ?? root ?? {};
+  if (typeof payload === "string") return payload;
+  return String(
+    payload?.qrToken ?? payload?.token ?? payload?.QrToken ?? payload?.value ?? "",
+  );
+}
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 const TeacherAttendance = () => {
@@ -153,9 +175,35 @@ const TeacherAttendance = () => {
   const [syncing, setSyncing] = useState(false);
   const syncLockRef = useRef(false);
   const rosterMapRef = useRef<Record<string, string>>({});
+  // Maps a student's backend attendance QR token → "First Last" name. The QR
+  // value is usually the backend-issued token (not the student id), so we build
+  // this reverse map to always show a real name instead of a raw id.
+  const rosterTokenMapRef = useRef<Record<string, string>>({});
 
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<ScanFeedback | null>(null);
+
+  // ── Backend history (recent attendance records) ─────────────────────────
+  const [history, setHistory] = useState<AttendanceSessionDto[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyReloadKey, setHistoryReloadKey] = useState(0);
+  const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
+  const [summaries, setSummaries] = useState<Record<string, AttendanceSummaryDto>>({});
+  const [summaryLoadingId, setSummaryLoadingId] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // ── Submenu view: scan flow vs student records ──────────────────────────
+  const [viewTab, setViewTab] = useState<"scan" | "records">("scan");
+
+  // Resolves the best display name for a scanned QR token: the stored name,
+  // then the token→name map, then the id→name roster map.
+  const resolveName = useCallback(
+    (qrToken: string, storedName?: string) =>
+      storedName ?? rosterTokenMapRef.current[qrToken] ?? rosterMapRef.current[qrToken] ?? "",
+    [],
+  );
 
   // ── Access scope ─────────────────────────────────────────────────────────
   // Teachers may only take attendance for classes assigned to them (from their
@@ -314,11 +362,12 @@ const TeacherAttendance = () => {
   useEffect(() => {
     if (!classroomId) {
       rosterMapRef.current = {};
+      rosterTokenMapRef.current = {};
       return;
     }
     moduleService
       .getStudentsByClassroom(classroomId)
-      .then((res) => {
+      .then(async (res) => {
         const payload = (res.data as any)?.data ?? [];
         const rows = Array.isArray(payload) ? payload : [];
         const map: Record<string, string> = {};
@@ -328,9 +377,29 @@ const TeacherAttendance = () => {
           map[key] = [s.firstName, s.lastName].filter(Boolean).join(" ") || String(s.userName ?? key);
         }
         rosterMapRef.current = map;
+
+        // Best-effort: resolve each student's attendance QR token to a name so
+        // every scan confirms with the student's name instead of a raw id.
+        const tokenMap: Record<string, string> = {};
+        await Promise.allSettled(
+          rows.map(async (s: any) => {
+            const key = String(s.id ?? s.userId ?? "");
+            const name = map[key];
+            if (!key || !name) return;
+            try {
+              const { data } = await attendanceService.getQrToken(key);
+              const token = readQrTokenFromResponse(data);
+              if (token) tokenMap[String(token)] = name;
+            } catch {
+              // Offline or no permission — fall back to id-based lookup.
+            }
+          }),
+        );
+        rosterTokenMapRef.current = tokenMap;
       })
       .catch(() => {
         rosterMapRef.current = {};
+        rosterTokenMapRef.current = {};
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [classroomId]);
@@ -388,7 +457,7 @@ const TeacherAttendance = () => {
           subTopicId: session.subTopicId,
         });
         const d = (data as any)?.data ?? data ?? {};
-        const backendId = String(d.id ?? "");
+        const backendId = String(d.id ?? d.sessionId ?? d.attendanceSessionId ?? "");
         if (backendId) {
           const updated = { ...session, backendSessionId: backendId };
           await updateAttendanceSession(session.id, { backendSessionId: backendId });
@@ -424,24 +493,26 @@ const TeacherAttendance = () => {
       const dedupeKey = buildDedupeKey(dateKey, session.scopeKey, parsed.qrToken);
       const existing = await getAttendanceScanByDedupe(dedupeKey);
       if (existing) {
+        const existingName = resolveName(existing.qrToken, existing.studentName);
         setScanFeedback({
           id: uuidv4(),
           tone: "info",
-          message: `${existing.studentName ? `${existing.studentName} · ` : ""}already marked present`,
+          message: existingName ? `${existingName} — already marked present` : "Already marked present",
         });
         toast(
-          `${existing.studentName ? `${existing.studentName} — ` : ""}already marked present.`,
+          existingName ? `${existingName} — already marked present.` : "Already marked present.",
           { icon: "✋", id: dedupeKey },
         );
         return;
       }
 
+      const studentName = resolveName(parsed.qrToken);
       const record: AttendanceScanRecord = {
         id: uuidv4(),
         sessionId: session.id,
         backendSessionId: session.backendSessionId,
         qrToken: parsed.qrToken,
-        studentName: rosterMapRef.current[parsed.qrToken],
+        studentName,
         teacherId: teacherId || undefined,
         teacherName: teacherName || undefined,
         scannedAt: isoNow(),
@@ -457,16 +528,15 @@ const TeacherAttendance = () => {
       setScanFeedback({
         id: uuidv4(),
         tone: "success",
-        message: record.studentName ? `${record.studentName} marked present` : "Marked present",
+        message: studentName ? `${studentName} marked present` : "Marked present",
       });
       toast.success(
-        record.studentName ? `${record.studentName} marked present` : "Marked present ✔",
+        studentName ? `${studentName} marked present` : "Marked present ✔",
         { id: dedupeKey },
       );
       await reloadData();
-      void runSync({ silent: true });
     },
-    [ensureSession, reloadData, teacherId, teacherName],
+    [ensureSession, reloadData, resolveName, teacherId, teacherName],
   );
 
   // ── Sync engine wrapper ──────────────────────────────────────────────────
@@ -477,6 +547,9 @@ const TeacherAttendance = () => {
     try {
       const result = await flushAttendanceSync();
       await reloadData();
+      if (result.synced > 0 || result.alreadyRecorded > 0) {
+        setHistoryReloadKey((k) => k + 1);
+      }
       if (!opts?.silent) {
         if (result.offline) {
           toast.error("You are offline — records saved and will sync automatically.");
@@ -487,6 +560,13 @@ const TeacherAttendance = () => {
           toast.success(
             `Sync complete — ${registered} student${registered === 1 ? "" : "s"} registered.`,
             { duration: 4000 },
+          );
+        } else if (result.pending > 0) {
+          toast.error(
+            result.lastStartError
+              ? `${result.pending} record${result.pending === 1 ? "" : "s"} waiting to sync — ${result.lastStartError}`
+              : `${result.pending} record${result.pending === 1 ? "" : "s"} still waiting to sync — retrying automatically.`,
+            { duration: 5000 },
           );
         } else {
           toast("Nothing to sync.");
@@ -500,7 +580,10 @@ const TeacherAttendance = () => {
     }
   }, [reloadData]);
 
-  // ── Online / offline + auto sync ─────────────────────────────────────────
+  // ── Online / offline ──────────────────────────────────────────────────────
+  // Records are pushed only when the teacher presses “Push to backend”. The one
+  // exception: scans captured offline are pushed automatically the moment the
+  // network returns, so offline data is never stranded.
   useEffect(() => {
     const online = () => {
       setIsOnline(true);
@@ -518,12 +601,48 @@ const TeacherAttendance = () => {
 
   useEffect(() => {
     void reloadData();
-    const interval = window.setInterval(() => {
-      void runSync({ silent: true });
-    }, 45_000);
-    return () => window.clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── Backend history: fetch recent attendance sessions ────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    setHistoryLoading(true);
+    setHistoryError(null);
+    attendanceService
+      .getSessions({ pageSize: 500 })
+      .then((res) => {
+        const d = (res.data as any)?.data ?? res.data ?? [];
+        const rows = Array.isArray(d) ? d : [];
+        if (!cancelled) setHistory(rows);
+      })
+      .catch((err) => {
+        if (!cancelled) setHistoryError(extractErrorMessage(err, "Failed to load attendance records."));
+      })
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyReloadKey]);
+
+  // Date-range filtering is applied client-side (the sessions endpoint has no
+  // date params), so the teacher can narrow the records to a period.
+  const filteredHistory = useMemo(() => {
+    const from = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null;
+    const to = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : null;
+    return history
+      .filter((s) => {
+        const t = new Date(s.startedAt).getTime();
+        if (Number.isNaN(t)) return false;
+        if (from != null && t < from) return false;
+        if (to != null && t > to) return false;
+        return true;
+      })
+      .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
+  }, [history, dateFrom, dateTo]);
 
   // ── Actions ──────────────────────────────────────────────────────────────
   const handleStartScan = useCallback(async () => {
@@ -555,6 +674,41 @@ const TeacherAttendance = () => {
 
   const handleCloseScanner = useCallback(() => setScannerOpen(false), []);
 
+  // Remove a scanned student from the review list before it has been pushed.
+  // Already-synced records are kept (removing them server-side needs a backend
+  // delete, which the API doesn't expose).
+  const removeScan = useCallback(
+    async (record: AttendanceScanRecord) => {
+      if (record.syncStatus === "sent") return;
+      await deleteAttendanceScan(record.id);
+      await reloadData();
+      toast("Removed from the list.", { icon: "🗑" });
+    },
+    [reloadData],
+  );
+
+  // Toggle a session row and lazily fetch its present / absent students.
+  const toggleSession = useCallback(
+    async (sessionId: string) => {
+      if (expandedSessionId === sessionId) {
+        setExpandedSessionId(null);
+        return;
+      }
+      setExpandedSessionId(sessionId);
+      if (summaries[sessionId]) return;
+      setSummaryLoadingId(sessionId);
+      try {
+        const { data } = await attendanceService.getSummary(sessionId);
+        setSummaries((prev) => ({ ...prev, [sessionId]: (data as any)?.data ?? null }));
+      } catch {
+        toast.error("Failed to load session details.");
+      } finally {
+        setSummaryLoadingId(null);
+      }
+    },
+    [expandedSessionId, summaries],
+  );
+
   // ── Stats ────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
     const unique = new Set(todayScans.map((r) => r.dedupeKey)).size;
@@ -565,6 +719,13 @@ const TeacherAttendance = () => {
     ).length;
     return { unique, synced, failed, queued: Math.max(pendingCount, queued) };
   }, [todayScans, pendingCount]);
+
+  // Scans that are still waiting to sync and have a recorded reason — shown so a
+  // stuck sync is never silent.
+  const stuckPending = useMemo(
+    () => todayScans.filter((r) => r.syncStatus !== "sent" && r.lastError),
+    [todayScans],
+  );
 
   const modeEligible =
     (mode === AT.CLASS && !!classroomId) ||
@@ -602,7 +763,35 @@ const TeacherAttendance = () => {
           </div>
         )}
 
-        <div className="p-5 sm:p-6 space-y-5">
+        <div className="flex gap-1.5 border-b border-slate-100 px-5 pt-3">
+          <button
+            type="button"
+            onClick={() => setViewTab("scan")}
+            className={`flex items-center gap-2 rounded-t-xl px-4 py-2 text-sm font-semibold transition-colors ${
+              viewTab === "scan"
+                ? "border-b-2 border-chestnut bg-chestnut/[0.06] text-chestnut"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <ScanLine className="h-4 w-4" />
+            Take attendance
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewTab("records")}
+            className={`flex items-center gap-2 rounded-t-xl px-4 py-2 text-sm font-semibold transition-colors ${
+              viewTab === "records"
+                ? "border-b-2 border-chestnut bg-chestnut/[0.06] text-chestnut"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            <UserSearch className="h-4 w-4" />
+            Student records
+          </button>
+        </div>
+
+        {viewTab === "scan" ? (
+          <div className="p-5 sm:p-6 space-y-5">
           {/* ── Mode selection ── */}
           <section>
             <h2 className="text-sm font-semibold text-[#12122A] mb-3">1 · Choose attendance type</h2>
@@ -739,9 +928,19 @@ const TeacherAttendance = () => {
                 className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-                {syncing ? "Syncing…" : stats.queued > 0 ? `Sync now (${stats.queued})` : "Sync now"}
+                {syncing
+                  ? "Pushing…"
+                  : stats.queued > 0
+                    ? `Push to backend (${stats.queued})`
+                    : "Push to backend"}
               </button>
             </div>
+
+            <p className="mt-3 text-xs text-slate-500">
+              Scanned students are saved on this device. Review the names below, then press{" "}
+              <span className="font-semibold text-emerald-700">“Push to backend”</span> to send them
+              to the server.
+            </p>
 
             {!modeEligible && (
               <p className="mt-3 text-xs text-slate-400">
@@ -793,16 +992,28 @@ const TeacherAttendance = () => {
                           <UserCheck className="h-4 w-4 shrink-0 text-emerald-600" />
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-slate-800 truncate">
-                              {r.studentName || `Student ${r.qrToken.slice(0, 8)}`}
+                              {resolveName(r.qrToken, r.studentName) || "Unknown student"}
                             </p>
                             <p className="text-[11px] text-slate-400">{formatTime(r.scannedAt)}</p>
                           </div>
                         </div>
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${SYNC_BADGE[r.syncStatus].className}`}
-                        >
-                          {SYNC_BADGE[r.syncStatus].label}
-                        </span>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          {r.syncStatus !== "sent" && (
+                            <button
+                              type="button"
+                              onClick={() => void removeScan(r)}
+                              title="Remove from list before pushing"
+                              className="rounded-full p-1 text-slate-300 hover:bg-red-50 hover:text-red-500"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </button>
+                          )}
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${SYNC_BADGE[r.syncStatus].className}`}
+                          >
+                            {SYNC_BADGE[r.syncStatus].label}
+                          </span>
+                        </div>
                       </div>
                     ))}
                 </div>
@@ -836,6 +1047,203 @@ const TeacherAttendance = () => {
             />
           </section>
 
+          {/* ── Recent attendance records (from backend) ── */}
+          <section className="rounded-xl border border-slate-200 bg-white p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-[#4255db]" />
+                <h3 className="text-sm font-semibold text-[#12122A]">Recent attendance records</h3>
+                <span className="text-[11px] text-slate-400">
+                  {history.length} session{history.length === 1 ? "" : "s"}
+                  {dateFrom || dateTo
+                    ? ` · ${filteredHistory.length} in range`
+                    : ""}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHistoryReloadKey((k) => k + 1)}
+                disabled={historyLoading}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3 w-3 ${historyLoading ? "animate-spin" : ""}`} />
+                Refresh
+              </button>
+            </div>
+
+            <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <label className="block min-w-0">
+                <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">From</span>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white text-[#12122A] font-medium focus:outline-none focus:ring-2 focus:ring-chestnut/30 focus:border-transparent"
+                />
+              </label>
+              <label className="block min-w-0">
+                <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">To</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="mt-1 w-full text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white text-[#12122A] font-medium focus:outline-none focus:ring-2 focus:ring-chestnut/30 focus:border-transparent"
+                />
+              </label>
+              {(dateFrom || dateTo) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateFrom("");
+                    setDateTo("");
+                  }}
+                  className="self-end justify-self-start rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 sm:self-auto"
+                >
+                  Clear range
+                </button>
+              )}
+            </div>
+
+            {historyLoading && history.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-10">
+                <Loader2 className="h-6 w-6 animate-spin text-[#4255db]" />
+                <p className="text-xs text-slate-500">Loading attendance records…</p>
+              </div>
+            ) : historyError && history.length === 0 ? (
+              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p className="text-xs text-red-600/80">{historyError}</p>
+              </div>
+            ) : history.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
+                <ClipboardList className="h-8 w-8 text-slate-300" />
+                <p className="mt-2 text-sm font-medium text-slate-600">No attendance records yet</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Records appear here after a session has been synced to the server.
+                </p>
+              </div>
+            ) : filteredHistory.length === 0 ? (
+              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
+                <CalendarDays className="h-8 w-8 text-slate-300" />
+                <p className="mt-2 text-sm font-medium text-slate-600">No records in this date range</p>
+                <p className="mt-1 text-xs text-slate-400">
+                  Try widening the “From” / “To” dates above.
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-[28rem] divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-100">
+                {filteredHistory.map((s) => {
+                    const expanded = expandedSessionId === s.id;
+                    const summary = summaries[s.id];
+                    const isClosed = s.status === "ended" || s.status === "closed";
+                    const label = sessionLabel(s);
+                    return (
+                      <div key={s.id}>
+                        <button
+                          type="button"
+                          onClick={() => void toggleSession(s.id)}
+                          className="flex w-full items-center gap-3 px-3 py-3 text-left hover:bg-slate-50"
+                        >
+                          <CalendarDays className="h-4 w-4 shrink-0 text-slate-400" />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-slate-800">
+                              {label || "Attendance session"}
+                            </p>
+                            <p className="text-[11px] text-slate-400">{formatDateTime(s.startedAt)}</p>
+                          </div>
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              isClosed ? "bg-slate-100 text-slate-600" : "bg-emerald-50 text-emerald-700"
+                            }`}
+                          >
+                            {isClosed ? "Closed" : s.status === "open" ? "Open" : s.status}
+                          </span>
+                          <span className="shrink-0 text-xs font-semibold text-slate-600">
+                            {s.presentCount ?? 0} present
+                          </span>
+                        </button>
+                        {expanded && (
+                          <div className="border-t border-slate-50 bg-slate-50/60 px-3 py-3">
+                            {summaryLoadingId === s.id ? (
+                              <div className="flex items-center justify-center gap-2 py-4 text-xs text-slate-500">
+                                <Loader2 className="h-4 w-4 animate-spin" /> Loading students…
+                              </div>
+                            ) : summary ? (
+                              <div className="space-y-3">
+                                <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 font-semibold text-emerald-700">
+                                    {summary.presentCount ?? 0} present
+                                  </span>
+                                  <span className="rounded-full bg-rose-50 px-2 py-0.5 font-semibold text-rose-600">
+                                    {summary.absentCount ?? 0} absent
+                                  </span>
+                                  <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-600">
+                                    {summary.rosterCount ?? 0} on roster
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                  <div>
+                                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-600">
+                                      Present
+                                    </p>
+                                    {summary.present && summary.present.length > 0 ? (
+                                      <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                                        {summary.present.map((p) => (
+                                          <p key={p.studentId} className="truncate text-xs font-medium text-slate-700">
+                                            {p.studentName}
+                                          </p>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs text-slate-400">None recorded</p>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-rose-500">
+                                      Absent
+                                    </p>
+                                    {summary.absent && summary.absent.length > 0 ? (
+                                      <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                                        {summary.absent.map((p) => (
+                                          <p key={p.studentId} className="truncate text-xs font-medium text-slate-500">
+                                            {p.studentName}
+                                          </p>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs text-slate-400">None</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <p className="py-3 text-center text-xs text-slate-400">
+                                No details available for this session.
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </section>
+
+          {stuckPending.length > 0 && (
+            <section className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+                <CloudOff className="h-4 w-4" />
+                Some records are waiting to sync
+              </div>
+              <p className="mt-1 text-xs text-amber-700/90">
+                {stuckPending.length} record{stuckPending.length === 1 ? "" : "s"} could not reach
+                the server yet. {stuckPending[0].lastError} Press “Sync now” to retry — they are
+                kept safely on this device.
+              </p>
+            </section>
+          )}
+
           {stats.failed > 0 && (
             <section className="rounded-xl border border-red-200 bg-red-50 p-4">
               <div className="flex items-center gap-2 text-sm font-semibold text-red-700">
@@ -848,7 +1256,18 @@ const TeacherAttendance = () => {
               </p>
             </section>
           )}
-        </div>
+          </div>
+        ) : (
+          <div className="p-5 sm:p-6 space-y-5">
+            <StudentRecords
+              classrooms={classrooms}
+              classroomsLoading={classroomsLoading}
+              roleId={user?.roleId}
+              initialClassroomId={classroomId}
+              initialSubjectId={mode !== AT.CLASS ? subjectId : undefined}
+            />
+          </div>
+        )}
       </div>
 
       <QrScannerModal
@@ -927,6 +1346,31 @@ function formatTime(iso: string): string {
   } catch {
     return "";
   }
+}
+
+function formatDateTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return (
+      d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) +
+      " · " +
+      d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    );
+  } catch {
+    return "";
+  }
+}
+
+/** Builds a human label for a backend session (type · class · subject · subtopic). */
+function sessionLabel(s: any): string {
+  const parts: string[] = [];
+  if (s.attendanceType != null && MODE_LABEL[s.attendanceType as AttendanceType]) {
+    parts.push(MODE_LABEL[s.attendanceType as AttendanceType]);
+  }
+  for (const key of ["classroomName", "subjectName", "subTopicName"]) {
+    if (s[key]) parts.push(String(s[key]));
+  }
+  return parts.join(" · ");
 }
 
 export default TeacherAttendance;

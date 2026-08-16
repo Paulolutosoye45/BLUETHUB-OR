@@ -28,6 +28,13 @@ import { clampCircle, clampRect, clampToBoard, clampTriangle, makeDragBoundFunc 
 import type { Box } from "konva/lib/shapes/Transformer";
 import MediaFrame from "./media-frame";
 import { useSession } from "@/contexts/session-context";
+import { ZoomIn, ZoomOut, Maximize } from "lucide-react";
+
+// Zoom bounds for finger-writing mode. Strokes are always stored in the
+// unzoomed (logical) board space, so replay is unaffected by the zoom level.
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 3;
+const ZOOM_STEP = 0.5;
 
 
 const Class = () => {
@@ -51,6 +58,12 @@ const Class = () => {
     const [triangles, setTriangles] = useState<triangle[]>([]);
 
     const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+    // Finger-writing zoom: the stage is scaled/panned on screen only.
+    // Saved strokes stay in logical board coordinates (dimensions), so
+    // live students and replay always see the board at normal size.
+    const [zoom, setZoom] = useState(1);
+    const [pan, setPan] = useState<Position>({ x: 0, y: 0 });
+    const pinchRef = useRef<{ dist: number; center: Position } | null>(null);
     const trRef = useRef<Konva.Transformer | null>(null);
     const parentRef = useRef<HTMLDivElement>(null);
     // startElapsedMs / endElapsedMs are captured from the active lesson timer.
@@ -74,6 +87,62 @@ const Class = () => {
     const boardH = dimensions.height;
 
     const { sendStroke, sendShape } = useSession();
+
+    /* ── Finger-writing zoom helpers ────────────────────────────────────────
+       Screen space = logical space * zoom + pan. Keeping pan within these
+       bounds means the board always fills the viewport (no blank gutters). */
+    const clampPan = useCallback((p: Position, z: number): Position => ({
+        x: Math.min(0, Math.max(boardW - boardW * z, p.x)),
+        y: Math.min(0, Math.max(boardH - boardH * z, p.y)),
+    }), [boardW, boardH]);
+
+    /* Zoom while keeping the board point under `center` (viewport coords) fixed. */
+    const applyZoom = useCallback((center: Position, nextZoomRaw: number) => {
+        setZoom(prevZoom => {
+            const nextZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextZoomRaw));
+            setPan(prevPan => {
+                if (nextZoom === MIN_ZOOM) return { x: 0, y: 0 };
+                const worldX = (center.x - prevPan.x) / prevZoom;
+                const worldY = (center.y - prevPan.y) / prevZoom;
+                return clampPan(
+                    { x: center.x - worldX * nextZoom, y: center.y - worldY * nextZoom },
+                    nextZoom
+                );
+            });
+            return nextZoom;
+        });
+    }, [clampPan]);
+
+    const zoomBy = useCallback((delta: number) => {
+        applyZoom({ x: boardW / 2, y: boardH / 2 }, zoom + delta);
+    }, [applyZoom, boardW, boardH, zoom]);
+
+    const resetZoom = useCallback(() => {
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
+    }, []);
+
+    /* Screen (stage-container) coords -> logical board coords used for storage. */
+    const toLogical = useCallback((pos: Position): Position => ({
+        x: (pos.x - pan.x) / zoom,
+        y: (pos.y - pan.y) / zoom,
+    }), [pan, zoom]);
+
+    const touchDistance = (touches: TouchList): number => {
+        const a = touches[0];
+        const b = touches[1];
+        return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    };
+
+    const touchCenter = (touches: TouchList, stage: Konva.Stage): Position => {
+        const rect = stage.container().getBoundingClientRect();
+        const a = touches[0];
+        const b = touches[1];
+        return {
+            x: (a.clientX + b.clientX) / 2 - rect.left,
+            y: (a.clientY + b.clientY) / 2 - rect.top,
+        };
+    };
 
     useEffect(() => {
         setAction(actionSelect);
@@ -167,6 +236,10 @@ const Class = () => {
                 width: Math.max(rect.width - 14, 400),
                 height: Math.max(rect.height - 14, 500),
             });
+            // Board size changed (e.g. orientation flip) — stale zoom/pan would
+            // no longer line up with the new logical space, so reset it.
+            setZoom(1);
+            setPan({ x: 0, y: 0 });
         };
 
         updateDimensions();
@@ -660,31 +733,59 @@ const Class = () => {
     /* ── Event handlers ─────────────────────────────────────────────────────── */
     const handleMouseDown = useCallback((e: KonvaEventObject<MouseEvent>) => {
         const pos = e.target.getStage()?.getPointerPosition();
-        if (pos) startDrawing(pos);
-    }, [startDrawing]);
+        if (pos) startDrawing(toLogical(pos));
+    }, [startDrawing, toLogical]);
 
     const handleMouseMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
         const pos = e.target.getStage()?.getPointerPosition();
-        if (pos) updateDrawing(pos);
-    }, [updateDrawing]);
+        if (pos) updateDrawing(toLogical(pos));
+    }, [updateDrawing, toLogical]);
 
     const handleMouseUp = useCallback(() => finishDrawing(), [finishDrawing]);
 
+    /* Two-finger touch pinches to zoom (for finger-writing when a stylus is
+       unavailable); a single finger draws, same as the pen. Pinching never
+       touches stroke storage — only screen-space zoom/pan. */
     const handleTouchStart = useCallback((e: KonvaEventObject<TouchEvent>) => {
         e.evt.preventDefault();
-        const pos = e.target.getStage()?.getPointerPosition();
-        if (pos) startDrawing(pos);
-    }, [startDrawing]);
+        const stage = e.target.getStage();
+        const touches = e.evt.touches;
+
+        if (touches.length >= 2 && stage) {
+            isDrawing.current = false;
+            setCurrentStroke([]);
+            pinchRef.current = { dist: touchDistance(touches), center: touchCenter(touches, stage) };
+            return;
+        }
+
+        const pos = stage?.getPointerPosition();
+        if (pos) startDrawing(toLogical(pos));
+    }, [startDrawing, toLogical]);
 
     const handleTouchMove = useCallback((e: KonvaEventObject<TouchEvent>) => {
         e.evt.preventDefault();
-        const pos = e.target.getStage()?.getPointerPosition();
-        if (pos) updateDrawing(pos);
-    }, [updateDrawing]);
+        const stage = e.target.getStage();
+        const touches = e.evt.touches;
+
+        if (touches.length >= 2 && stage) {
+            const prevPinch = pinchRef.current;
+            const dist = touchDistance(touches);
+            const center = touchCenter(touches, stage);
+            if (prevPinch && prevPinch.dist > 0) {
+                applyZoom(center, zoom * (dist / prevPinch.dist));
+            }
+            pinchRef.current = { dist, center };
+            return;
+        }
+
+        const pos = stage?.getPointerPosition();
+        if (pos) updateDrawing(toLogical(pos));
+    }, [updateDrawing, toLogical, applyZoom, zoom]);
 
     const handleTouchEnd = useCallback((e: KonvaEventObject<TouchEvent>) => {
         e.evt.preventDefault();
-        finishDrawing();
+        if (e.evt.touches.length < 2) pinchRef.current = null;
+        if (e.evt.touches.length === 0) finishDrawing();
     }, [finishDrawing]);
 
     const onClick = useCallback((e: KonvaEventObject<MouseEvent>) => {
@@ -774,6 +875,10 @@ const Class = () => {
                         <Stage
                             width={boardW}
                             height={boardH}
+                            x={pan.x}
+                            y={pan.y}
+                            scaleX={zoom}
+                            scaleY={zoom}
                             style={{ cursor: getCursor(actions ?? "") }}
                             onMouseDown={handleMouseDown}
                             onMouseMove={handleMouseMove}
@@ -988,6 +1093,41 @@ const Class = () => {
                         </Stage>
 
                         <MediaFrame />
+
+                        {/* Finger-writing zoom controls — enlarges the drawing surface on
+                            screen only (pinch-to-zoom works too). Strokes are always saved
+                            in the original board coordinates, so replay/live view for
+                            students is unaffected. */}
+                        <div className="absolute bottom-3 right-3 z-30 flex flex-col gap-1 rounded-lg border border-gray-200 bg-white/95 p-1 shadow-md">
+                            <button
+                                type="button"
+                                title="Zoom in (write with your finger)"
+                                onClick={() => zoomBy(ZOOM_STEP)}
+                                disabled={zoom >= MAX_ZOOM}
+                                className="rounded-md p-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent"
+                            >
+                                <ZoomIn className="h-4 w-4" />
+                            </button>
+                            <button
+                                type="button"
+                                title="Zoom out"
+                                onClick={() => zoomBy(-ZOOM_STEP)}
+                                disabled={zoom <= MIN_ZOOM}
+                                className="rounded-md p-1.5 text-gray-600 hover:bg-gray-100 disabled:opacity-40 disabled:hover:bg-transparent"
+                            >
+                                <ZoomOut className="h-4 w-4" />
+                            </button>
+                            {zoom > MIN_ZOOM && (
+                                <button
+                                    type="button"
+                                    title="Reset zoom"
+                                    onClick={resetZoom}
+                                    className="rounded-md p-1.5 text-gray-600 hover:bg-gray-100"
+                                >
+                                    <Maximize className="h-4 w-4" />
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
