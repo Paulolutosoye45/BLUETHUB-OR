@@ -34,6 +34,10 @@ export interface AttendanceSyncResult {
   failed: number;
   pending: number;
   offline: boolean;
+  /** Sessions whose backend counterpart could not be opened (e.g. API error). */
+  startFailures: number;
+  /** Human-readable reason for the first start failure, if any. */
+  lastStartError?: string;
 }
 
 function isRetryable(record: AttendanceScanRecord): boolean {
@@ -59,21 +63,16 @@ function buildStartPayload(session: LocalAttendanceSession): StartAttendanceSess
   };
 }
 
-/** Lazily open the backend session for a local session. Returns backend id or null. */
-async function ensureBackendSession(session: LocalAttendanceSession): Promise<string | null> {
+/** Lazily open the backend session for a local session. Returns backend id or
+ *  throws with a human-readable reason so the caller can surface it. */
+async function ensureBackendSession(session: LocalAttendanceSession): Promise<string> {
   if (session.backendSessionId) return session.backendSessionId;
-  try {
-    const { data } = await attendanceService.startSession(buildStartPayload(session));
-    const d = (data as any)?.data ?? data ?? {};
-    const backendId = String(d.id ?? d.sessionId ?? "");
-    if (backendId) {
-      await updateAttendanceSession(session.id, { backendSessionId: backendId });
-      return backendId;
-    }
-  } catch {
-    // Offline or backend rejected the start — leave backendSessionId null, retry later.
-  }
-  return null;
+  const { data } = await attendanceService.startSession(buildStartPayload(session));
+  const d = (data as any)?.data ?? data ?? {};
+  const backendId = String(d.id ?? d.sessionId ?? d.attendanceSessionId ?? "");
+  if (!backendId) throw new Error("Server started a session but returned no session id.");
+  await updateAttendanceSession(session.id, { backendSessionId: backendId });
+  return backendId;
 }
 
 type PushOutcome = "synced" | "already-recorded";
@@ -119,6 +118,7 @@ export async function flushAttendanceSync(): Promise<AttendanceSyncResult> {
     failed: 0,
     pending: 0,
     offline: false,
+    startFailures: 0,
   };
 
   if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -137,11 +137,26 @@ export async function flushAttendanceSync(): Promise<AttendanceSyncResult> {
       const pendingScans = await pendingScansFor(session);
       if (pendingScans.length === 0) continue;
 
-      const backendId = await ensureBackendSession(session);
-      if (!backendId) {
+      let backendId: string;
+      try {
+        backendId = await ensureBackendSession(session);
+      } catch (err) {
+        // Can't open the backend session (offline, auth, or API error). Keep the
+        // scans retryable but record the reason so the UI can show why sync is
+        // blocked instead of silently retrying forever.
+        base.startFailures += 1;
+        const reason = extractErrorMessage(err, "Could not open the attendance session on the server.");
+        if (!base.lastStartError) base.lastStartError = reason;
+        for (const scan of pendingScans) {
+          await updateAttendanceScan(scan.id, {
+            lastError: reason,
+            lastAttemptAt: isoNow(),
+          });
+        }
         base.pending += pendingScans.length;
         continue;
       }
+
       base.startedSessions += 1;
 
       for (const scan of pendingScans) {
