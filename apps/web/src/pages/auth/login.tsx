@@ -167,15 +167,19 @@ function Login() {
         navigate("/student");
       }
     } catch (error) {
-      console.log("[real error]", error)
       const msg =
         error instanceof AxiosError
           ? error.response?.data?.responseMessage ??
           error.response?.data?.message ??
           error.message
           : (error as Error).message;
-      setErrorMsg(msg);
-      console.log("[error message]", msg)
+
+      const friendlyMsg = /tenant .* not found or inactive/i.test(msg)
+        ? "School not found. Use your school code, e.g. schoolcode.bluetsch.com."
+        : msg;
+
+      setErrorMsg(friendlyMsg);
+      console.log("[error message]", friendlyMsg)
     } finally {
       setLoading(false);
     }
