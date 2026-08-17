@@ -1,0 +1,55 @@
+name: Deploy Frontend to Hostinger
+
+on:
+  push:
+    branches: [Main]
+
+env:
+  VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL || 'https://api.bluetsch.com' }}
+  VITE_APP_URL: ${{ secrets.VITE_APP_URL || 'https://www.bluetsch.com' }}
+  VITE_DEFAULT_TENANT: ${{ secrets.VITE_DEFAULT_TENANT || 'green' }}
+  VITE_TENANT_ID: ${{ secrets.VITE_TENANT_ID || 'green' }}
+  VITE_RC: ${{ secrets.VITE_RC || 'rc_live_732628123a4b4c21931bf0c8196408ec' }}
+
+jobs:
+  deploy-web:
+    name: Build & Deploy Web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image (web)
+        run: |
+          docker build \
+            --target web-nginx \
+            --build-arg VITE_API_BASE_URL="$VITE_API_BASE_URL" \
+            --build-arg VITE_APP_URL="$VITE_APP_URL" \
+            --build-arg VITE_DEFAULT_TENANT="$VITE_DEFAULT_TENANT" \
+            --build-arg VITE_TENANT_ID="$VITE_TENANT_ID" \
+            --build-arg VITE_RC="$VITE_RC" \
+            -t bluethub-or-web:latest .
+
+      - name: Save image
+        run: docker save bluethub-or-web:latest | gzip > bluethub-or-web.tar.gz
+
+      - name: Copy image to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "bluethub-or-web.tar.gz"
+          target: "/docker/bluethub-or"
+
+      - name: Deploy on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            cd /docker/bluethub-or
+            docker load -i bluethub-or-web.tar.gz
+            docker compose up -d --no-build web
+            docker image prune -f
