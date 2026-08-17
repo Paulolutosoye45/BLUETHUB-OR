@@ -1,8 +1,11 @@
 import { API, type TResponse } from ".";
 
 import type { IActions, CompressedStroke, SessionManifest } from "@/utils/constant";
+import { getTenantFromUrl } from "@/utils/subdomain";
 
-import { X_Tenant_ID } from "@/utils/tenant";
+// import { X_Tenant_ID } from "@/utils/tenant";
+
+const X_Tenant_ID = getTenantFromUrl()
 
 export interface CloudinarySignature {
   resourceType: string;

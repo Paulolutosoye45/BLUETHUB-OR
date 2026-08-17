@@ -1,5 +1,5 @@
+import { getTenantFromUrl } from "@/utils/subdomain";
 import { API, type TResponse } from ".";
-import { X_Tenant_ID } from "@/utils/tenant";
 
 export interface ModuleStudent {
   id: string;
@@ -22,7 +22,7 @@ export interface ModuleSubject {
   subjectName: string;
 }
 
-const headers = { "X-Tenant-ID": X_Tenant_ID };
+const headers = { "X-Tenant-ID": getTenantFromUrl() };
 
 export const moduleService = {
   getAllStudents: () =>

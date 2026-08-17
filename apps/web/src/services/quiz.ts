@@ -1,6 +1,6 @@
 import { API } from './index';
-import { X_Tenant_ID } from './school';
 import type { TResponse } from './index';
+import { getTenantFromUrl } from '@/utils/subdomain';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEACHER DTOs
@@ -558,7 +558,7 @@ export interface StudentQuizPerformanceDto {
   quizzes: StudentQuizPerformanceItemDto[];
 }
 
-const headers = { 'X-Tenant-ID': X_Tenant_ID };
+const headers = { 'X-Tenant-ID': getTenantFromUrl() };
 
 export const quizService = {
   // ── Teacher: Create Quiz ────────────────────────────────────────────────────

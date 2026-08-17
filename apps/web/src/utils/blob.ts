@@ -1,6 +1,9 @@
 import { saveImage } from "@/services/class-media";
 import type { MediaType } from "./constant";
-import { token, X_Tenant_ID } from "./index";
+import { token,  } from "./index";
+import { getTenantFromUrl } from "./subdomain";
+
+const X_Tenant_ID = getTenantFromUrl()
 
 const buildMediaAuthHeaders = (): HeadersInit => {
   const headers: Record<string, string> = {};

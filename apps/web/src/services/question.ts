@@ -1,5 +1,8 @@
+import { getTenantFromUrl } from "@/utils/subdomain";
 import { API, type TResponse } from ".";
-import { X_Tenant_ID } from "./school";
+// import { X_Tenant_ID } from "./school";
+
+const X_Tenant_ID = getTenantFromUrl()
 
 export const QuestionTypeEnum = {
   MultipleChoice: 1,

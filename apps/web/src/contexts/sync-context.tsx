@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useCallback, useState, useRef, useEffect } from 'react';
 import type { LocalSession } from '@/utils/constant';
-import { token, X_Tenant_ID } from '@/utils';
+import { token, } from '@/utils';
 import {
   getSession,
   getAllSessions,
@@ -9,6 +9,7 @@ import {
   cleanupPublishedSession,
   cleanupEntireSession,
 } from '@/utils/db';
+import { getTenantFromUrl } from '@/utils/subdomain';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -226,7 +227,7 @@ export function SyncProvider({ children, onSyncComplete, onSyncError }: SyncProv
         lessonId: session.lessonId,
         cloudinaryConfig,
         authToken,
-        tenantId: X_Tenant_ID,
+        tenantId: getTenantFromUrl(),
         apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
       });
     })().catch((err: unknown) => {
