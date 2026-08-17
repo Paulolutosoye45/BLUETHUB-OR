@@ -1,7 +1,8 @@
+import { getTenantFromUrl } from "@/utils/subdomain";
 import { API, type TResponse } from ".";
 
 
-import { X_Tenant_ID } from "@/utils/tenant";
+// import { X_Tenant_ID } from "@/utils/tenant";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // RESPONSE DTOs
@@ -146,7 +147,7 @@ export interface StudentSubjectLessonsResponse {
 // SERVICE
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const headers = { "X-Tenant-ID": X_Tenant_ID };
+const headers = { "X-Tenant-ID": getTenantFromUrl() };
 
 export const studentService = {
   // ── DASHBOARD STATS ────────────────────────────────────────────────────────

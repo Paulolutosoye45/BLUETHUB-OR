@@ -10,11 +10,12 @@
  * - GET /api/board/session/{sessionId} - Get session (for debugging)
  */
 
+import { getTenantFromUrl } from '@/utils/subdomain';
 import { API } from './index';
 // import { X_Tenant_ID } from "@/utils/tenant";
 import type { CompressedStroke } from '@/utils/constant';
 
-const X_Tenant_ID = "green"
+const X_Tenant_ID = getTenantFromUrl()
 
 // ── Types matching backend ViewModels ────────────────────────────────────────
 

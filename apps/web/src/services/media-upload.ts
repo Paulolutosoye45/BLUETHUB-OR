@@ -15,10 +15,12 @@
  * - Lesson media attachments
  */
 
+import { getTenantFromUrl } from '@/utils/subdomain';
 import { API } from './index';
 // import { X_Tenant_ID } from '@/utils/tenant';
 
-import { X_Tenant_ID } from "@/utils/tenant";
+// import { X_Tenant_ID } from "@/utils/tenant";
+const X_Tenant_ID = getTenantFromUrl()
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
