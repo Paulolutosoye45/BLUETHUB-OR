@@ -167,6 +167,7 @@ function Login() {
         navigate("/student");
       }
     } catch (error) {
+      console.log("[real error]", error)
       const msg =
         error instanceof AxiosError
           ? error.response?.data?.responseMessage ??
@@ -174,6 +175,7 @@ function Login() {
           error.message
           : (error as Error).message;
       setErrorMsg(msg);
+      console.log("[error message]", msg)
     } finally {
       setLoading(false);
     }
