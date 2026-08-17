@@ -175,7 +175,7 @@ function Login() {
           : (error as Error).message;
 
       const friendlyMsg = /tenant .* not found or inactive/i.test(msg)
-        ? "School not found. Use your school code, e.g. schoolcode.bluetsch.com."
+        ? "Invalid url. Use your school code, e.g. schoolcode.bluetsch.com."
         : msg;
 
       setErrorMsg(friendlyMsg);
