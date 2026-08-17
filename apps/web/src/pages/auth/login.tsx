@@ -11,6 +11,7 @@ import { getParsedToken } from "@/utils/decode";
 import { useAuthContext } from "@/contexts/auth-context";
 import { loginSchema } from "@/utils/validate";
 import { API } from "@/services";
+import { getTenantFromUrl } from "@/utils/subdomain";
 
 
 export interface UserLoginInput {
@@ -87,11 +88,11 @@ function Login() {
 
     const hashedPassword = await Hashing(data.password);
 
-    const X_Tenant_ID = (import.meta.env.VITE_TENANT_ID as string) || "green";
+    // const X_Tenant_ID = (import.meta.env.VITE_TENANT_ID as string) || "green";
     const payload = {
       username: data.userName,
       hashPassword: hashedPassword,
-      inst: X_Tenant_ID,
+      inst: getTenantFromUrl(),
       deviceType,
       deviceIp: "",
     };
