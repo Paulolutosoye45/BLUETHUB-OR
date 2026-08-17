@@ -16,21 +16,28 @@ export const getSubdomain = (): string | null => {
 
 export function getTenantFromUrl(): string {
   const hostname = window.location.hostname;
-  // localhost or netlify preview → use env fallback
-  const isLocal    = hostname === 'localhost' || hostname === '127.0.0.1';
-  const isNetlify  = hostname.endsWith('.netlify.app');
+
+  console.log('[getTenantFromUrl] hostname:', hostname);
+
+  const isLocal   = hostname === 'localhost' || hostname === '127.0.0.1';
+  const isNetlify = hostname.endsWith('.netlify.app');
 
   if (isLocal || isNetlify) {
-    return (import.meta.env.VITE_TENANT_ID as string) || 'green';
+    const tenant = (import.meta.env.VITE_TENANT_ID as string) || 'green';
+    console.log('[getTenantFromUrl] dev/staging → using env fallback:', tenant);
+    return tenant;
   }
 
-  // production: extract subdomain
-  // e.g. greenwood.bluethub.com → "greenwood"
   const parts = hostname.split('.');
+  console.log('[getTenantFromUrl] hostname parts:', parts);
+
   if (parts.length >= 3) {
-    return parts[0]; // subdomain is the tenant
+    const subdomain = parts[0];
+    console.log('[getTenantFromUrl] production → subdomain extracted:', subdomain);
+    return subdomain;
   }
 
-  // fallback
-  return (import.meta.env.VITE_TENANT_ID as string) || 'green';
+  const fallback = (import.meta.env.VITE_TENANT_ID as string) || 'green';
+  console.log('[getTenantFromUrl] fallback → no subdomain found, using:', fallback);
+  return fallback;
 }
