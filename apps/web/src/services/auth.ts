@@ -1,4 +1,5 @@
-import { token, X_Tenant_ID } from "@/utils";
+import { token } from "@/utils";
+import { getTenantFromUrl } from "@/utils/subdomain";
 import axios, { type AxiosInstance } from "axios";
 
 export const API: AxiosInstance = axios.create({
@@ -6,7 +7,7 @@ export const API: AxiosInstance = axios.create({
 });
 
 API.interceptors.request.use((config) => {
-  config.headers["X-Tenant-ID"] = X_Tenant_ID;
+  config.headers["X-Tenant-ID"] = getTenantFromUrl();
   if (token.getToken()) {
     config.headers.Authorization = `Bearer ${token.getToken()}`;
   }
@@ -255,7 +256,7 @@ export const authService = {
   login: (data: ILoginRequest) => {
     return API.post<ILoginResponse>(endpoints.login, data, {
       headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
+        "X-Tenant-ID":  getTenantFromUrl(),
       },
     });
   },
@@ -266,7 +267,7 @@ export const authService = {
   createUser: (data: IcreateUserRequest) => {
     return API.post<TResponse<unknown>>(endpoints.createUser, data, {
       headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
+        "X-Tenant-ID":  getTenantFromUrl(),
       },
     });
   },
@@ -282,7 +283,7 @@ export const authService = {
       isPrimary: data.isPrimary ?? false,
     }, {
       headers: {
-        "X-Tenant-ID": X_Tenant_ID,
+        "X-Tenant-ID": getTenantFromUrl(),
       },
     });
   },
@@ -292,7 +293,7 @@ export const authService = {
   ) => {
     return API.get<TResponse<unknown>>(endpoints.getStudents, {
       headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
+        "X-Tenant-ID":  getTenantFromUrl(),
       },
       params: {
         pageNumber: params.pageNumber ?? 1,
@@ -304,7 +305,7 @@ export const authService = {
   updatePassword: (data: IupdatePasswordRequest) => {
     return API.post<TResponse<unknown>>(endpoints.updatePassword, data, {
       headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
+        "X-Tenant-ID":  getTenantFromUrl(),
       },
     });
   },
@@ -313,7 +314,7 @@ export const authService = {
     return API.post<ILoginResponse>(endpoints.updatePasswordNewUser, data, {
       headers: {
         Authorization: `Bearer ${token.getToken()}`,
-        "X-Tenant-ID":  X_Tenant_ID,
+        "X-Tenant-ID":  getTenantFromUrl(),
       },
     });
   },
@@ -354,7 +355,7 @@ export const authService = {
   getTeacher: () => {
     return API.get(endpoints.getTeacher, {
       headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
+        "X-Tenant-ID":  getTenantFromUrl(),
       },
     });
   },
@@ -363,7 +364,7 @@ export const authService = {
     return API.get(endpoints.getUserByRole, {
       params: { roleId, pageNumber: 1, pageSize: 50 },
       headers: {
-        "X-Tenant-ID":  X_Tenant_ID,
+        "X-Tenant-ID":  getTenantFromUrl(),
       },
     });
   },
@@ -371,13 +372,13 @@ export const authService = {
   getStudentMinorSubjects: (userId: string, classroomId: string) => {
     return API.get<TResponse<unknown>>(`api/User/${userId}/minor-subjects`, {
       params: { classroomId },
-      headers: { "X-Tenant-ID": X_Tenant_ID },
+      headers: { "X-Tenant-ID": getTenantFromUrl() },
     });
   },
 
   updateStudentAssignment: (userId: string, data: IUpdateStudentAssignmentRequest) => {
     return API.post<TResponse<unknown>>(`api/User/student/${userId}/assignment`, data, {
-      headers: { "X-Tenant-ID": X_Tenant_ID },
+      headers: { "X-Tenant-ID": getTenantFromUrl() },
     });
   },
 };

@@ -7,7 +7,7 @@ import {
 import { isMobile, isTablet, isDesktop } from "react-device-detect";
 import { v4 as uuidv4 } from "uuid";
 
-export { getTenantId, X_Tenant_ID } from "./tenant";
+export { getTenantId,  } from "./tenant";
 
 const KEYS = {
   token: "token",

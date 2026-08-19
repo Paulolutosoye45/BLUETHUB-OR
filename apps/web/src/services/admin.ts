@@ -1,5 +1,6 @@
+import { getTenantFromUrl } from "@/utils/subdomain";
 import { API, type TResponse } from ".";
-import { X_Tenant_ID } from "@/utils/tenant";
+// import { X_Tenant_ID } from "@/utils/tenant";
 
 // ── Endpoints ────────────────────────────────────────────────────────────────
 const endpoints = {
@@ -25,12 +26,12 @@ type AddCoursePayload = {
 export const adminService = {
   addCourses: (payload: AddCoursePayload) =>
     API.post<TResponse<unknown>>(endpoints.addCourse, payload, {
-      headers: { "X-Tenant-ID": X_Tenant_ID },
+      headers: { "X-Tenant-ID": getTenantFromUrl() },
     }),
 
   getAllSubjects: (schoolId: string): Promise<any> => {
     const request = API.post(endpoints.getAllSubjects(schoolId), {}, {
-      headers: { "X-Tenant-ID": X_Tenant_ID },
+      headers: { "X-Tenant-ID": getTenantFromUrl() },
     });
 
     const timeout = new Promise((_, reject) =>
@@ -42,6 +43,6 @@ export const adminService = {
 
   unlockUser: (userId: string) =>
     API.post<TResponse<null>>(`/api/User/${userId}/unlock`, null, {
-      headers: { "X-Tenant-ID": X_Tenant_ID },
+      headers: { "X-Tenant-ID": getTenantFromUrl() },
     }),
 };

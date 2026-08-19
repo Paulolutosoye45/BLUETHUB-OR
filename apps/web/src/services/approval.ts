@@ -2,7 +2,8 @@ import { token } from "@/utils";
 
 import { API, type TResponse } from ".";
 
-import { X_Tenant_ID } from "@/utils/tenant";
+// import { X_Tenant_ID } from "@/utils/tenant";
+import { getTenantFromUrl } from "@/utils/subdomain";
 
 export interface ApprovalPayload {
   Title?: string;
@@ -38,7 +39,7 @@ export interface ApprovalsData {
 }
 
 const headers = () => ({
-  "X-Tenant-ID": X_Tenant_ID,
+  "X-Tenant-ID": getTenantFromUrl(),
   Authorization: `Bearer ${token.getToken()}`,
 });
 

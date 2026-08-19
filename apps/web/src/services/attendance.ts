@@ -1,8 +1,9 @@
 import { API, type TResponse } from ".";
-import { X_Tenant_ID } from "@/utils/tenant";
+// import { X_Tenant_ID } from "@/utils/tenant";
 import type { AttendanceType } from "@/utils/constant";
+import { getTenantFromUrl } from "@/utils/subdomain";
 
-const headers = { "X-Tenant-ID": X_Tenant_ID };
+const headers = { "X-Tenant-ID": getTenantFromUrl() };
 
 // ── Backend contract (POST/PUT/GET, Bearer + X-Tenant-ID) ─────────────────────
 //   POST /api/Attendance/session/start          body: StartSessionPayload

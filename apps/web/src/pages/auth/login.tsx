@@ -173,7 +173,13 @@ function Login() {
           error.response?.data?.message ??
           error.message
           : (error as Error).message;
-      setErrorMsg(msg);
+
+      const friendlyMsg = /tenant .* not found or inactive/i.test(msg)
+        ? "Invalid url. Use your school code, e.g. schoolcode.bluetsch.com"
+        : msg;
+
+      setErrorMsg(friendlyMsg);
+      console.log("[error message]", friendlyMsg)
     } finally {
       setLoading(false);
     }

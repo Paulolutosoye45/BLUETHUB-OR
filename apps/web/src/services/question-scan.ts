@@ -1,7 +1,10 @@
 // import { X_Tenant_ID } from "@/utils";
+import { getTenantFromUrl } from "@/utils/subdomain";
 import { API, type TResponse } from ".";
 
-import { X_Tenant_ID } from "@/utils/tenant";
+// import { X_Tenant_ID } from "@/utils/tenant";
+
+const X_Tenant_ID = getTenantFromUrl()
 
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -1,6 +1,7 @@
+import { getTenantFromUrl } from "@/utils/subdomain";
 import { API, type TResponse } from ".";
 
-import { X_Tenant_ID } from "@/utils/tenant";
+// import { X_Tenant_ID } from "@/utils/tenant";
 
 export const AI_IMAGE_FEATURE_KEY = "ai_image_generation";
 
@@ -91,41 +92,41 @@ export const imageGenerationService = {
     API.post<TResponse<GenerateLessonImageResponse>>(
       `api/image-generation/lesson/${lessonId}/generate`,
       payload,
-      { headers: { "X-Tenant-ID": X_Tenant_ID, "Content-Type": "application/json" } }
+      { headers: { "X-Tenant-ID": getTenantFromUrl(), "Content-Type": "application/json" } }
     ),
 
   // GET api/image-generation/lesson/{lessonId}/prompt
   getLastPrompt: (lessonId: string) =>
     API.get<TResponse<LessonImageGenerationRow | null>>(
       `api/image-generation/lesson/${lessonId}/prompt`,
-      { headers: { "X-Tenant-ID": X_Tenant_ID } }
+      { headers: { "X-Tenant-ID": getTenantFromUrl() } }
     ),
 
   // GET api/image-generation/lesson/{lessonId}/history
   getHistory: (lessonId: string) =>
     API.get<TResponse<GenerationHistoryResponse>>(
       `api/image-generation/lesson/${lessonId}/history`,
-      { headers: { "X-Tenant-ID": X_Tenant_ID } }
+      { headers: { "X-Tenant-ID": getTenantFromUrl() } }
     ),
 
   // GET api/image-generation/lesson/{lessonId}/status
   getStatus: (lessonId: string) =>
     API.get<TResponse<GenerationStatusResponse>>(
       `api/image-generation/lesson/${lessonId}/status`,
-      { headers: { "X-Tenant-ID": X_Tenant_ID } }
+      { headers: { "X-Tenant-ID": getTenantFromUrl() } }
     ),
 
   // GET api/image-generation/lesson/{lessonId}/images
   getImages: (lessonId: string) =>
     API.get<TResponse<GenerationImagesResponse>>(
       `api/image-generation/lesson/${lessonId}/images`,
-      { headers: { "X-Tenant-ID": X_Tenant_ID } }
+      { headers: { "X-Tenant-ID": getTenantFromUrl() } }
     ),
 
   // GET api/school-features/check?featureKey=...  (omit schoolId for own school)
   checkFeature: (featureKey: string) =>
     API.get<TResponse<SchoolFeatureCheckResponse>>("api/school-features/check", {
-      headers: { "X-Tenant-ID": X_Tenant_ID },
+      headers: { "X-Tenant-ID": getTenantFromUrl() },
       params: { featureKey },
     }),
 };
