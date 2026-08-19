@@ -33,11 +33,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import {
   type JobPreviewResponseData,
   type ExtractedQuestionPreview,
 } from "@/services/question-job";
-import { questionScanService } from "@/services/question-scan";
+import { questionJobService } from "@/services/question-job";
 import {
   QuestionTypeEnum,
   DifficultyLevelEnum,
@@ -59,10 +61,90 @@ interface QuestionState {
   rejectReason?: string;
 }
 
+interface ContentPart {
+  type: "text" | "latex" | "image";
+  value?: string;
+  display?: "block" | "inline";
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function getQuestionTypeName(type: number): string {
-  switch (type) {
+const stripHtml = (html: string) => html.replace(/<[^>]*>/g, "").trim();
+
+const parseContentParts = (raw: unknown): ContentPart[] => {
+  let parts: unknown = raw;
+  if (typeof raw === "string" && raw.trim().startsWith("[")) {
+    try {
+      parts = JSON.parse(raw);
+    } catch {
+      parts = raw;
+    }
+  }
+  if (!Array.isArray(parts)) return [];
+  return (parts as Record<string, unknown>[]).map((part) => ({
+    type: (part?.type as ContentPart["type"]) ?? "text",
+    value: String(part?.value ?? part?.text ?? ""),
+    display: part?.display as ContentPart["display"],
+  }));
+};
+
+const renderLatex = (expr: string, displayMode: boolean) => {
+  try {
+    return katex.renderToString(expr, { displayMode, throwOnError: false });
+  } catch {
+    return expr;
+  }
+};
+
+const renderKatex = (html: string): string => {
+  let out = html
+    .replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => {
+      try { return katex.renderToString(expr, { displayMode: true, throwOnError: false }); }
+      catch { return _; }
+    })
+    .replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => {
+      try { return katex.renderToString(expr, { displayMode: true, throwOnError: false }); }
+      catch { return _; }
+    });
+  out = out
+    .replace(/\$([^$\n]+?)\$/g, (_, expr) => {
+      try { return katex.renderToString(expr, { displayMode: false, throwOnError: false }); }
+      catch { return _; }
+    })
+    .replace(/\\\((.+?)\\\)/g, (_, expr) => {
+      try { return katex.renderToString(expr, { displayMode: false, throwOnError: false }); }
+      catch { return _; }
+    });
+  return out;
+};
+
+// API returns questionType as a string ("Objective") or a number
+const toQuestionTypeNumber = (raw: number | string): number => {
+  if (typeof raw === "number") return raw;
+  switch (String(raw).toLowerCase()) {
+    case "objective": case "multiplechoice": return QuestionTypeEnum.MultipleChoice;
+    case "shortanswer": return QuestionTypeEnum.ShortAnswer;
+    case "essay": case "theory": return QuestionTypeEnum.Essay;
+    case "trueorfalse": case "truefalse": return QuestionTypeEnum.TrueOrFalse;
+    case "fillintheblank": return QuestionTypeEnum.FillInTheBlank;
+    default: return QuestionTypeEnum.MultipleChoice;
+  }
+};
+
+// API returns difficultyLevel as a string ("Medium") or a number
+const toDifficultyNumber = (raw: number | string): number => {
+  if (typeof raw === "number") return raw;
+  switch (String(raw).toLowerCase()) {
+    case "easy": return DifficultyLevelEnum.Easy;
+    case "medium": return DifficultyLevelEnum.Medium;
+    case "hard": return DifficultyLevelEnum.Hard;
+    case "expert": return DifficultyLevelEnum.Expert;
+    default: return DifficultyLevelEnum.Medium;
+  }
+};
+
+const getQuestionTypeName = (raw: number | string): string => {
+  switch (toQuestionTypeNumber(raw)) {
     case QuestionTypeEnum.MultipleChoice:
       return "MCQ";
     case QuestionTypeEnum.ShortAnswer:
@@ -76,19 +158,94 @@ function getQuestionTypeName(type: number): string {
     default:
       return "Other";
   }
-}
+};
 
-function getDifficultyConfig(level: number) {
-  switch (level) {
+function getDifficultyConfig(raw: number | string) {
+  switch (toDifficultyNumber(raw)) {
     case DifficultyLevelEnum.Easy:
       return { label: "Easy", color: "text-green-600", bg: "bg-green-100" };
     case DifficultyLevelEnum.Medium:
       return { label: "Medium", color: "text-amber-600", bg: "bg-amber-100" };
     case DifficultyLevelEnum.Hard:
       return { label: "Hard", color: "text-red-600", bg: "bg-red-100" };
+    case DifficultyLevelEnum.Expert:
+      return { label: "Expert", color: "text-purple-600", bg: "bg-purple-100" };
     default:
       return { label: "?", color: "text-gray-600", bg: "bg-gray-100" };
   }
+}
+
+// Plain-text fallback for editing (HTML stripped from questionHtml/contentParts)
+function getQuestionPlainText(question: ExtractedQuestionPreview): string {
+  const parts = parseContentParts(question.contentParts);
+  if (parts.length > 0) {
+    return parts.map((p) => p.value ?? "").join(" ");
+  }
+  return (
+    stripHtml(question.questionHtml ?? "") ||
+    question.textContent ||
+    question.title ||
+    ""
+  );
+}
+
+// Question body with LaTeX rendering
+function QuestionContent({ question }: { question: ExtractedQuestionPreview }) {
+  const parts = parseContentParts(question.contentParts);
+
+  if (question.questionHtml) {
+    return (
+      <div
+        className="prose prose-sm max-w-none text-base font-medium text-gray-900 leading-relaxed"
+        dangerouslySetInnerHTML={{ __html: renderKatex(question.questionHtml) }}
+      />
+    );
+  }
+
+  if (parts.length > 0) {
+    return (
+      <div className="text-base font-medium text-gray-900 leading-relaxed">
+        {parts.map((part, idx) => {
+          if (part.type === "latex") {
+            const isBlock = part.display === "block";
+            return (
+              <span
+                key={idx}
+                className={isBlock ? "block my-2" : "inline"}
+                dangerouslySetInnerHTML={{ __html: renderLatex(part.value ?? "", isBlock) }}
+              />
+            );
+          }
+          if (part.type === "image") {
+            const src = part.value ?? "";
+            if (/^https?:\/\//i.test(src)) {
+              return (
+                <img
+                  key={idx}
+                  src={src}
+                  alt="Question visual"
+                  className="my-2 rounded-lg border border-gray-200 max-h-64 w-auto"
+                  loading="lazy"
+                />
+              );
+            }
+            return (
+              <p key={idx} className="text-xs italic text-gray-500">
+                [Image placeholder]
+              </p>
+            );
+          }
+          return <p key={idx}>{part.value ?? ""}</p>;
+        })}
+      </div>
+    );
+  }
+
+  return (
+    <p className="text-base font-medium text-gray-900 leading-relaxed">
+      {getQuestionPlainText(question)}
+    </p>
+  );
 }
 
 // ── Question Card Component ──────────────────────────────────────────────────
@@ -128,11 +285,12 @@ function QuestionCard({
 
   // Initialize edit data when entering edit mode
   const startEditing = () => {
+    const plainText = getQuestionPlainText(question);
     setEditData({
-      title: question.title,
+      title: plainText,
       textContent: question.textContent,
-      questionType: question.questionType,
-      difficultyLevel: question.difficultyLevel,
+      questionType: toQuestionTypeNumber(question.questionType),
+      difficultyLevel: toDifficultyNumber(question.difficultyLevel),
       marksAllocation: question.marksAllocation,
       options: [...question.options],
     });
@@ -184,14 +342,18 @@ function QuestionCard({
             Question {questionNumber} of {totalQuestions}
           </span>
           <div className="flex items-center gap-2">
-            <Sparkles className={cn(
-              "w-4 h-4",
-              question.aiConfidenceScore >= 0.9 ? "text-green-500" :
-              question.aiConfidenceScore >= 0.7 ? "text-amber-500" : "text-red-500"
-            )} />
-            <span className="text-xs font-medium text-gray-600">
-              {Math.round(question.aiConfidenceScore * 100)}% confident
-            </span>
+            {typeof question.aiConfidenceScore === "number" && (
+              <>
+                <Sparkles className={cn(
+                  "w-4 h-4",
+                  question.aiConfidenceScore >= 0.9 ? "text-green-500" :
+                  question.aiConfidenceScore >= 0.7 ? "text-amber-500" : "text-red-500"
+                )} />
+                <span className="text-xs font-medium text-gray-600">
+                  {Math.round(question.aiConfidenceScore * 100)}% confident
+                </span>
+              </>
+            )}
           </div>
         </div>
 
@@ -216,25 +378,18 @@ function QuestionCard({
           <div>
             <Label className="text-xs font-medium text-gray-500 mb-1.5 block">Question</Label>
             <Textarea
-              value={editData.title || question.title}
+              value={editData.title || getQuestionPlainText(question)}
               onChange={(e) => setEditData({ ...editData, title: e.target.value })}
               className="min-h-[100px] text-base rounded-xl"
               placeholder="Enter question text..."
             />
           </div>
         ) : (
-          <div>
-            <p className="text-base font-medium text-gray-900 leading-relaxed">
-              {question.title}
-            </p>
-            {question.textContent && (
-              <p className="text-sm text-gray-600 mt-2">{question.textContent}</p>
-            )}
-          </div>
+          <QuestionContent question={question} />
         )}
 
         {/* Options (for MCQ) */}
-        {question.questionType === QuestionTypeEnum.MultipleChoice && question.options.length > 0 && (
+        {toQuestionTypeNumber(question.questionType) === QuestionTypeEnum.MultipleChoice && question.options.length > 0 && (
           <div className="space-y-2.5">
             <Label className="text-xs font-medium text-gray-500 block">Options</Label>
             {(isEditing ? editData.options || question.options : question.options).map((opt, idx) => (
@@ -485,37 +640,19 @@ export default function QuestionPreviewModal({
 
     setProcessing(true);
     try {
-      const result = await questionScanService.confirmQuestion({
-        scanSessionId: data.scanSessionId,
-        questionIndex: index,
-        edits: edits
-          ? {
-              title: edits.title,
-              textContent: edits.textContent,
-              questionType: edits.questionType,
-              difficultyLevel: edits.difficultyLevel,
-              marksAllocation: edits.marksAllocation,
-              options: edits.options,
-            }
-          : undefined,
-      });
+      await questionJobService.confirmJob(jobId);
+      updateQuestionState(index, { status: "approved" });
+      toast.success("Question approved!");
 
-      if (result.data.status === "successful") {
-        updateQuestionState(index, { status: "approved" });
-        toast.success("Question approved!");
-
-        // Auto-advance after a short delay
-        setTimeout(() => {
-          const nextPending = data.questions.findIndex(
-            (_, i) => i > index && getQuestionState(i).status === "pending"
-          );
-          if (nextPending !== -1) {
-            setCurrentIndex(nextPending);
-          }
-        }, 1000);
-      } else {
-        toast.error("Failed to approve question");
-      }
+      // Auto-advance after a short delay
+      setTimeout(() => {
+        const nextPending = data.questions.findIndex(
+          (_, i) => i > index && getQuestionState(i).status === "pending"
+        );
+        if (nextPending !== -1) {
+          setCurrentIndex(nextPending);
+        }
+      }, 1000);
     } catch (err) {
       console.error("Approve error:", err);
       toast.error("Failed to approve question");
@@ -530,28 +667,19 @@ export default function QuestionPreviewModal({
 
     setProcessing(true);
     try {
-      const result = await questionScanService.rejectQuestion({
-        scanSessionId: data.scanSessionId,
-        questionIndex: index,
-        reason,
-      });
+      await questionJobService.confirmJob(jobId);
+      updateQuestionState(index, { status: "rejected", rejectReason: reason });
+      toast.success("Question rejected");
 
-      if (result.data.status === "successful") {
-        updateQuestionState(index, { status: "rejected", rejectReason: reason });
-        toast.success("Question rejected");
-
-        // Auto-advance after a short delay
-        setTimeout(() => {
-          const nextPending = data.questions.findIndex(
-            (_, i) => i > index && getQuestionState(i).status === "pending"
-          );
-          if (nextPending !== -1) {
-            setCurrentIndex(nextPending);
-          }
-        }, 1000);
-      } else {
-        toast.error("Failed to reject question");
-      }
+      // Auto-advance after a short delay
+      setTimeout(() => {
+        const nextPending = data.questions.findIndex(
+          (_, i) => i > index && getQuestionState(i).status === "pending"
+        );
+        if (nextPending !== -1) {
+          setCurrentIndex(nextPending);
+        }
+      }, 1000);
     } catch (err) {
       console.error("Reject error:", err);
       toast.error("Failed to reject question");
@@ -587,7 +715,7 @@ export default function QuestionPreviewModal({
     if (!data) return;
 
     try {
-      await questionScanService.completeSession(data.scanSessionId);
+      await questionJobService.confirmJob(jobId);
       toast.success("Review complete!");
       onClose();
     } catch (err) {

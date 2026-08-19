@@ -57,26 +57,50 @@ Path alias: `@/` → `apps/web/src/`
 
 ## Multi-tenancy
 
-Every API call needs `X-Tenant-ID: "pearl"`.  
-Import the constant — never hardcode:
+Every API call needs an `X-Tenant-ID` header. The value is `green` by default:
 ```typescript
-import { X_Tenant_ID } from '@/services/school';   // or
-import { X_Tenant_ID } from '@/utils/tenant';       // some services use this path
+import { X_Tenant_ID } from '@/utils/tenant';   // or '@/services/school' — same constant
+// getTenantId() = import.meta.env.VITE_TENANT_ID || "green"
 ```
+- ⚠️ `VITE_DEFAULT_TENANT` in `.env` is **not read anywhere** — only `VITE_TENANT_ID` matters (`utils/tenant.ts`).
+- `board-session.ts` hardcodes `"green"` (line 17).
+- If the backend doesn't know the tenant name, it rejects the call **before** the handler with plain JSON (not `TResponse`):
+  `{"error":"TENANT_NOT_FOUND","message":"Tenant '<name>' not found or inactive."}`
 
 ---
 
-## API Base
+## Accessing the Server / API
 
-```
-VITE_API_BASE_URL  (set in .env)
-Backend live at: https://techhubschmanagement.onrender.com
-```
+### Environments
+| Env | Base URL | Notes |
+|-----|----------|-------|
+| Local backend | `http://localhost:5196` | Set in `apps/web/.env` (`VITE_API_BASE_URL`) |
+| Live backend (documented) | `https://techhubschmanagement.onrender.com` | Render free tier **sleeps → returns 503** until a request wakes it |
+| ⚠️ `https://techhub-platform.onrender.com` | — | **NOT this app's backend.** Returns 404 for `/`, all `/swagger/*`, and `/api/...`. Do not use. |
 
-Standard response wrapper:
+### Swagger
+- **Disabled in production.** `/swagger`, `/swagger/index.html`, and `/swagger/v1/swagger.json` all return 404 on the live host.
+- Swagger may be available on a locally-run backend (dev builds) at `/swagger/index.html`.
+- Fallback: endpoint list + payload shapes are documented in `src/services/` (e.g. `attendance.ts`, `quiz.ts`, `lesson.ts`).
+
+### How to call the live API
+- Headers required on every request:
+  - `X-Tenant-ID: green` (see Multi-tenancy)
+  - `Authorization: Bearer <accessToken>` (get one via `POST api/User/login` — password is SHA-256 hashed client-side)
+  - `Content-Type: application/json` for POST/PUT bodies
+- Success responses use the `TResponse<T>` wrapper:
 ```typescript
 type TResponse<T> = { responseMessage: string; responseCode: string; status: string; data: T; }
 ```
+- Tenant errors (`TENANT_NOT_FOUND`) and 401 responses are returned as raw JSON, **not** `TResponse`.
+
+### cURL smoke test
+```bash
+curl -X GET "https://techhubschmanagement.onrender.com/api/Attendance/analytics?period=0" \
+  -H "X-Tenant-ID: green" \
+  -H "Authorization: Bearer <token>"
+```
+Expect a `TResponse` wrapper. If you get `TENANT_NOT_FOUND`, the tenant header value is wrong for that backend.
 
 ---
 
@@ -126,7 +150,7 @@ All services import `API` from `services/index.ts` and use `X_Tenant_ID`.
 |------|-------------|
 | `index.ts` | Shared `API` axios instance + `TResponse<T>` / `TNullable<T>` types |
 | `auth.ts` | Login, logout, register, token refresh, getUserById, user CRUD |
-| `school.ts` | Classrooms, subjects, teacher assignment. Exports `X_Tenant_ID = "pearl"` |
+| `school.ts` | Classrooms, subjects, teacher assignment. Exports `X_Tenant_ID` (same as `utils/tenant.ts`) |
 | `lesson.ts` | Submit lesson, draft, manifest, approval, teacher lesson list |
 | `student.ts` | Student dashboard stats, classes, quizzes, registered subjects, lessons by subject, watch progress |
 | `question.ts` | Create/update/sync questions, fetch by classroom/subject/topic, summary |
@@ -377,6 +401,7 @@ Located at `apps/web/src/pages/teacher/my-classroom/index.tsx`. Route: `/teacher
 | Replay board rushes to end | Audio chunk with `sizeBytes=0` created phantom batch | Skip chunks where `sizeBytes === 0` |
 | pnpm commands fail | Running via PowerShell | Must run via `cmd /c pnpm ...` on Windows |
 | Student board answers not saving | Individual `POST api/Assessment/answer` per question + `POST api/Assessment/{attemptId}/submit` | Changed to single `POST api/Assessment/submit-all` with all answers in `{ answers: [...] }` |
+| `TENANT_NOT_FOUND` when calling API | Sent the wrong `X-Tenant-ID` (e.g. guessed a name) or the header was missing; the backend rejects before the handler | Always send `X-Tenant-ID: green` (or the tenant the target backend is seeded with) |
 
 ---
 

@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/utils";
 import { mediaUploadService, MediaType } from "@/services/media-upload";
 import { questionJobService } from "@/services/question-job";
+import { schoolService } from "@/services/school";
 import { useAuthContext } from "@/contexts/auth-context";
 import { authService } from "@/services/auth";
 
@@ -37,7 +38,6 @@ interface ScanUploadModalProps {
   open: boolean;
   onClose: () => void;
   onComplete: () => void;
-  remainingScans: number;
 }
 
 interface SubjectOption {
@@ -57,6 +57,16 @@ interface AssignmentPair {
   className: string;
 }
 
+interface TopicOption {
+  id: string;
+  name: string;
+}
+
+interface SubTopicOption {
+  id: string;
+  name: string;
+}
+
 type UploadStep = "select" | "uploading" | "submitting" | "done" | "error";
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -65,7 +75,6 @@ export default function ScanUploadModal({
   open,
   onClose,
   onComplete,
-  remainingScans,
 }: ScanUploadModalProps) {
   const { user } = useAuthContext();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -78,6 +87,14 @@ export default function ScanUploadModal({
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [classrooms, setClassrooms] = useState<ClassroomOption[]>([]);
   const [assignmentPairs, setAssignmentPairs] = useState<AssignmentPair[]>([]);
+  const [topics, setTopics] = useState<TopicOption[]>([]);
+  const [topicsLoading, setTopicsLoading] = useState(false);
+  const [topicId, setTopicId] = useState<string>("");
+  const [subtopics, setSubtopics] = useState<SubTopicOption[]>([]);
+  const [subtopicsLoading, setSubtopicsLoading] = useState(false);
+  const [subtopicId, setSubtopicId] = useState<string>("");
+  const [topicsData, setTopicsData] = useState<any[]>([]);
+  const [questionType, setQuestionType] = useState<"Objective" | "Theory" | "TrueFalse">("Objective");
   const [step, setStep] = useState<UploadStep>("select");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
@@ -159,6 +176,69 @@ export default function ScanUploadModal({
     }
   }, [assignmentPairs, selectedSubject, selectedClassroom]);
 
+  // Load curriculum topics when subject + classroom are set
+  useEffect(() => {
+    if (!selectedSubject || !selectedClassroom) {
+      setTopics([]);
+      setSubtopics([]);
+      setTopicsData([]);
+      setTopicId("");
+      setSubtopicId("");
+      return;
+    }
+
+    setTopicId("");
+    setSubtopicId("");
+    setTopics([]);
+    setSubtopics([]);
+    setTopicsData([]);
+    setTopicsLoading(true);
+
+    schoolService
+      .getSubjectCurriculum(selectedSubject, selectedClassroom)
+      .then((res) => {
+        const raw = (res.data as any)?.data ?? (res.data as any)?.Data ?? {};
+        const nextTopics: any[] = raw.Topics ?? raw.topics ?? [];
+
+        setTopicsData(nextTopics);
+        setTopics(
+          nextTopics.map((t: any) => ({
+            id: String(t.Id ?? t.id ?? t.topicId ?? ""),
+            name: String(t.Name ?? t.name ?? t.topicName ?? ""),
+          }))
+        );
+      })
+      .catch(() => {
+        setTopics([]);
+        toast.error("Could not load topics");
+      })
+      .finally(() => setTopicsLoading(false));
+  }, [selectedSubject, selectedClassroom]);
+
+  // Derive subtopics from the selected topic
+  useEffect(() => {
+    if (!topicId) {
+      setSubtopics([]);
+      setSubtopicId("");
+      return;
+    }
+
+    setSubtopicsLoading(true);
+    setSubtopicId("");
+
+    const matched = topicsData.find(
+      (t: any) => String(t.Id ?? t.id ?? t.topicId) === topicId
+    );
+
+    const nextSubtopics: SubTopicOption[] = (matched?.SubTopics ?? matched?.subTopics ?? []).map((s: any) => ({
+      id: String(s.Id ?? s.id ?? s.subTopicId ?? ""),
+      name: String(s.Name ?? s.name ?? s.subTopicName ?? ""),
+    }));
+
+    setSubtopics(nextSubtopics);
+    setSubtopicsLoading(false);
+  }, [topicId, topicsData]);
+
   // Reset state when modal opens/closes
   const resetState = useCallback(() => {
     setSelectedFile(null);
@@ -167,6 +247,12 @@ export default function ScanUploadModal({
     setUploadProgress(0);
     setErrorMessage("");
     setSelectedClassroom("");
+    setTopicId("");
+    setSubtopicId("");
+    setTopics([]);
+    setSubtopics([]);
+    setTopicsData([]);
+    setQuestionType("Objective");
     if (subjects.length === 1) {
       const onlySubject = subjects[0].id;
       setSelectedSubject(onlySubject);
@@ -264,9 +350,14 @@ export default function ScanUploadModal({
       const isImage = selectedFile.type.startsWith("image/");
       const mediaType = isImage ? MediaType.Image : MediaType.Document;
 
+      // Pass a clean file name (no extension) so the backend issues a Cloudinary
+      // public_id without an extension. Cloudinary derives the format from the file
+      // type itself, keeping the secure_url to a single extension.
+      const cleanFileName = selectedFile.name.replace(/\.[^.]+$/, "");
+
       const uploadResult = await mediaUploadService.upload(
         selectedFile,
-        selectedFile.name,
+        cleanFileName,
         mediaType,
         selectedFile.type,
         `Scan: ${selectedFile.name}`,
@@ -279,13 +370,23 @@ export default function ScanUploadModal({
 
       setStep("submitting");
 
+      // Never report a public_id that ends in an image/pdf extension — the backend
+      // worker builds a download URL from it and Cloudinary would strip the trailing
+      // extension as the "format", failing to resolve the resource.
+      const cleanPublicId = (uploadResult.publicId || "").replace(
+        /\.(jpe?g|png|webp|heic|heif|pdf)$/i,
+        ""
+      );
+
       // Submit scan job
    const formData = new FormData();
 formData.append("subjectId", selectedSubject);
 formData.append("classroomId", selectedClassroom);
+formData.append("topicId", topicId);
+formData.append("subTopicId", subtopicId);
+formData.append("questionType", questionType);
 formData.append("fileUrl", uploadResult.cdnUrl);
-formData.append("filePublicId", uploadResult.publicId || "");
-formData.append("fileName", selectedFile.name);
+formData.append("filePublicId", cleanPublicId);
 formData.append("fileType", isImage ? "image" : "pdf");
 
 const jobResult = await questionJobService.submitJob(formData);
@@ -316,7 +417,7 @@ const jobResult = await questionJobService.submitJob(formData);
   };
 
   const isImage = selectedFile?.type.startsWith("image/");
-  const canSubmit = selectedFile && selectedSubject && selectedClassroom && remainingScans > 0;
+  const canSubmit = selectedFile && selectedSubject && selectedClassroom && topicId && subtopicId && questionType;
 
   return (
     <Dialog open={open} onOpenChange={(open) => !open && handleClose()}>
@@ -410,6 +511,96 @@ const jobResult = await questionJobService.submitJob(formData);
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+
+              {/* Topic Selection */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Select Topic
+                </label>
+                <Select
+                  value={topicId}
+                  onValueChange={setTopicId}
+                  disabled={!selectedClassroom || topics.length === 0}
+                >
+                  <SelectTrigger className="h-12 rounded-xl bg-gray-50 border-gray-200">
+                    <SelectValue
+                      placeholder={
+                        topicsLoading
+                          ? "Loading topics..."
+                          : !selectedClassroom
+                            ? "Choose a classroom first"
+                            : topics.length === 0
+                              ? "No topics for selected subject"
+                              : "Choose a topic"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {topics.map((topic) => (
+                      <SelectItem key={topic.id} value={topic.id}>
+                        {topic.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Subtopic Selection */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Select Subtopic
+                </label>
+                <Select
+                  value={subtopicId}
+                  onValueChange={setSubtopicId}
+                  disabled={!topicId || subtopics.length === 0}
+                >
+                  <SelectTrigger className="h-12 rounded-xl bg-gray-50 border-gray-200">
+                    <SelectValue
+                      placeholder={
+                        subtopicsLoading
+                          ? "Loading subtopics..."
+                          : !topicId
+                            ? "Choose a topic first"
+                            : subtopics.length === 0
+                              ? "No subtopics for selected topic"
+                              : "Choose a subtopic"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subtopics.map((st) => (
+                      <SelectItem key={st.id} value={st.id}>
+                        {st.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Question Type Selection */}
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  Question Type
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["Objective", "Theory", "TrueFalse"] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setQuestionType(type)}
+                      className={cn(
+                        "h-11 rounded-xl text-sm font-semibold border-2 transition-all",
+                        questionType === type
+                          ? "border-purple-600 bg-purple-50 text-purple-700"
+                          : "border-gray-200 text-gray-500 hover:border-gray-300"
+                      )}
+                    >
+                      {type === "TrueFalse" ? "True/False" : type}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {assignmentPairs.length === 0 && (
@@ -533,14 +724,6 @@ const jobResult = await questionJobService.submitJob(formData);
                 <div className="flex items-start gap-3 text-red-600 text-sm bg-red-50 px-4 py-3 rounded-xl">
                   <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
                   <span>{errorMessage}</span>
-                </div>
-              )}
-
-              {/* Quota Warning */}
-              {remainingScans === 0 && (
-                <div className="flex items-start gap-3 text-amber-700 text-sm bg-amber-50 px-4 py-3 rounded-xl">
-                  <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-                  <span>You've used all daily scans. Quota resets at midnight.</span>
                 </div>
               )}
 

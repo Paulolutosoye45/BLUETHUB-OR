@@ -308,7 +308,7 @@ const QuestionBankScan = () => {
     try {
       const res = await questionJobService.getJobPreview(jobId);
       if (res.data.status === "successful") {
-        setPreviewData(res.data.data);
+        setPreviewData((res.data.data ?? res.data) as unknown as JobPreviewResponseData);
       } else {
         toast.error("Failed to load preview");
         setPreviewJobId(null);
@@ -522,12 +522,11 @@ const QuestionBankScan = () => {
       )}
 
       {/* Upload Modal */}
-      <ScanUploadModal
-        open={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
-        onComplete={handleUploadComplete}
-        remainingScans={quota?.remaining ?? 0}
-      />
+<ScanUploadModal
+          open={showUploadModal}
+          onClose={() => setShowUploadModal(false)}
+          onComplete={handleUploadComplete}
+        />
 
       {/* Preview Modal */}
       {previewJobId && (
