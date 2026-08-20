@@ -82,6 +82,21 @@ const sanitizePlainTextInput = (text: string) =>
 const sanitizeQuestionTextForSave = (text: string) =>
   text.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
 
+// Curriculum responses vary: array, { topics: [] }, or { data: { topics: [] } }
+const extractTopicsList = (payload: unknown): any[] => {
+  const obj = (payload ?? {}) as any;
+  const candidates = [
+    obj?.data?.topics,
+    obj?.data?.Topics,
+    obj?.topics,
+    obj?.Topics,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+  }
+  return Array.isArray(obj) ? obj : [];
+};
+
 const isOptionQuestionType = (questionType: number) => questionType === 1 || questionType === 4;
 
 const parseContentParts = (parts: unknown): ContentPart[] => {
@@ -97,12 +112,6 @@ const renderLatex = (expr: string, displayMode: boolean) => {
   try { return katex.renderToString(expr, { displayMode, throwOnError: false }); }
   catch { return expr; }
 };
-
-const renderHtmlWithEnhancements = (
-  html: string,
-  _parts: ContentPart[],
-  _bounds: Map<string, DOMRect> | null,
-) => html;
 
 const getQuestionTypeName = (type: number) => {
   switch (type) {
@@ -214,7 +223,7 @@ const DifficultyPicker = ({ value, onChange }: { value: number; onChange: (v: nu
     className="h-10 w-full rounded-lg border border-slate-200 px-3 text-sm"
   >
     {[1, 2, 3, 4].map((d) => (
-      <option key={d} value={d}>{DIFFICULTY_LABELS[d]} ({d} mark{d !== 1 ? "s" : ""})</option>
+      <option key={d} value={d}>{DIFFICULTY_LABELS[d]}</option>
     ))}
   </select>
 );
@@ -245,8 +254,8 @@ const renderKatex = (html: string): string => {
 };
 
 // ── RenderedHtml ─────────────────────────────────────────────────────────────
-const RenderedHtml = ({ html, hasLatex, className = "" }: { html: string; hasLatex: boolean; className?: string }) => {
-  const processed = hasLatex ? renderKatex(html) : html;
+const RenderedHtml = ({ html, className = "" }: { html: string; className?: string }) => {
+  const processed = renderKatex(html);
   return (
     <div
       className={`prose prose-sm max-w-none ${className}`}
@@ -289,7 +298,6 @@ const PreviewModal = ({
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-2">Question</p>
           <RenderedHtml
             html={preview.questionHtml}
-            hasLatex={preview.hasLatex}
             className="text-slate-800"
           />
         </div>
@@ -319,7 +327,6 @@ const PreviewModal = ({
                   <div className="flex-1 min-w-0">
                     <RenderedHtml
                       html={opt.optionHtml || opt.optionText}
-                      hasLatex={opt.hasLatex}
                       className="text-slate-700"
                     />
                   </div>
@@ -360,7 +367,6 @@ const MyUploads = () => {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [editableQuestions, setEditableQuestions] = useState<EditableQuestion[]>([]);
   const [previewJob, setPreviewJob] = useState<JobSummaryDto | null>(null);
-  const [previewImageBounds] = useState<Map<string, DOMRect> | null>(null);
   const [classroomId, setClassroomId] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const [topicId, setTopicId] = useState("");
@@ -394,38 +400,46 @@ const MyUploads = () => {
   const fetchStatuses = () => fetchJobs(true);
 
   const confirmProcessedJobDirect = async (jobId: string) => {
-    try {
-      await questionJobService.confirmJob(jobId);
-    } catch (err) {
-      console.warn("[MyUploads] confirmJob failed (non-critical):", err);
-    }
+    await questionJobService.confirmJob(jobId);
   };
 
   const autoDetectFilters = async (job: JobSummaryDto) => {
     const roleData = user?.roleData;
     if (!roleData || !isTeacherRoleData(roleData)) return;
     const topicName = job.topicName?.toLowerCase().trim();
-    if (!topicName) return;
-    for (const classroom of roleData.classrooms) {
-      const cId = String(classroom.classroomId);
-      const subjects = classroom.subjects ?? [];
-      for (const subject of subjects) {
-        const sId = String(subject.subjectId);
-        try {
-          const { data } = await schoolService.getTopicsWithSubTopics(sId, cId);
-          const raw = (data as any)?.data ?? data ?? [];
-          const list = Array.isArray(raw) ? raw : [];
-          const match = list.find((t: any) =>
-            String(t?.name ?? t?.topicName ?? "").toLowerCase().trim() === topicName
-          );
-          if (match) {
-            setClassroomId(cId);
-            setSubjectId(sId);
-            setTopicId(String(match?.id ?? match?.topicId ?? ""));
-            setSubTopicId("");
-            return;
-          }
-        } catch { /* continue searching */ }
+    if (topicName) {
+      for (const classroom of roleData.classrooms) {
+        const cId = String(classroom.classroomId);
+        const subjects = classroom.subjects ?? [];
+        for (const subject of subjects) {
+          const sId = String(subject.subjectId);
+          try {
+            const { data } = await schoolService.getTopicsWithSubTopics(sId, cId);
+            const list = extractTopicsList((data as any)?.data ?? data);
+            const match = list.find((t: any) =>
+              String(t?.name ?? t?.topicName ?? "").toLowerCase().trim() === topicName
+            );
+            if (match) {
+              setClassroomId(cId);
+              setSubjectId(sId);
+              setTopicId(String(match?.id ?? match?.topicId ?? ""));
+              setSubTopicId("");
+              return;
+            }
+          } catch { /* continue searching */ }
+        }
+      }
+    }
+
+    // Fallback: when the job has no topic name (or no match), pre-select a single
+    // classroom + first subject so saving still works.
+    if (roleData.classrooms.length === 1) {
+      const firstClassroom = roleData.classrooms[0];
+      const cId = String(firstClassroom?.classroomId ?? "");
+      const firstSubject = (firstClassroom?.subjects ?? [])[0];
+      if (cId && firstSubject) {
+        setClassroomId(cId);
+        setSubjectId(String(firstSubject.subjectId));
       }
     }
   };
@@ -834,8 +848,7 @@ const MyUploads = () => {
       const savedJobId = previewJob.jobId;
       console.info("[MyUploads] Confirming processed job", savedJobId);
       await confirmProcessedJobDirect(savedJobId);
-
-      console.info("[MyUploads] Job status updated", savedJobId);
+      console.info("[MyUploads] Job confirmed", savedJobId);
 
       setJobs((prev) => prev.filter((job) => job.jobId !== savedJobId));
       setIsEditMode(false);
@@ -905,8 +918,7 @@ const MyUploads = () => {
     setLoadingTopics(true);
     schoolService.getTopicsWithSubTopics(subjectId, classroomId)
       .then(({ data }) => {
-        const raw = (data as any)?.data ?? data ?? [];
-        const list = Array.isArray(raw) ? raw : [];
+        const list = extractTopicsList((data as any)?.data ?? data);
         setTopicsData(list);
         setTopics(list.map((t: any) => ({
           id: String(t?.id ?? t?.topicId ?? ""),
@@ -1182,21 +1194,21 @@ const MyUploads = () => {
                         </div>
 
 
-                        {!isEditMode && !!question.questionHtml?.trim() && parseContentParts(question.contentParts).length > 0 ? (
+                        {!isEditMode && !!question.questionHtml?.trim() ? (
                           <div
                             className="mt-1 prose prose-sm max-w-none text-slate-700"
                             dangerouslySetInnerHTML={{
-                              __html: renderHtmlWithEnhancements(
-                                question.questionHtml,
-                                parseContentParts(question.contentParts),
-                                previewImageBounds,
-                              ),
+                              __html: renderKatex(question.questionHtml),
                             }}
                           />
                         ) : !isEditMode ? (
                           <div className="mt-1 space-y-2 text-slate-700 font-normal">
                             {parseContentParts(question.contentParts).length === 0 ? (
-                              <p>{question.questionText || stripHtml(question.questionHtml || "")}</p>
+                              <p
+                                dangerouslySetInnerHTML={{
+                                  __html: renderKatex(question.questionText || stripHtml(question.questionHtml || "")),
+                                }}
+                              />
                             ) : parseContentParts(question.contentParts).map((part, partIndex) => {
                               const key = `${question.id}-${partIndex}`;
                               if (part.type === "latex") {
@@ -1259,6 +1271,18 @@ const MyUploads = () => {
                                 />
                               </div>
                             </div>
+
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Question</p>
+                              <p className="text-xs font-semibold text-indigo-500 uppercase tracking-wide">Live Preview</p>
+                            </div>
+
+                            <div
+                              className="prose prose-sm max-w-none rounded-lg border border-indigo-100 bg-indigo-50/40 px-3 py-2 text-sm text-slate-700 min-h-[44px]"
+                              dangerouslySetInnerHTML={{
+                                __html: renderKatex(question.questionText || ""),
+                              }}
+                            />
 
                             <textarea
                               rows={4}

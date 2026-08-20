@@ -72,21 +72,30 @@ export interface OptionPreviewDto {
 }
 
 export interface ExtractedQuestionPreview {
-  title: string;
+  questionId?: string;
+  questionNumber?: number;
+  title?: string;
   textContent?: string;
-  questionType: number;
-  difficultyLevel: number;
+  questionHtml?: string;
+  contentParts?: unknown;
+  hasLatex?: boolean;
+  hasImages?: boolean;
+  isPartial?: boolean;
+  questionType: number | string;
+  difficultyLevel: number | string;
   marksAllocation: number;
-  aiConfidenceScore: number;
+  aiConfidenceScore?: number;
+  status?: string;
   options: OptionPreviewDto[];
 }
 
 export interface JobPreviewResponseData {
-  scanSessionId: string;
+  scanSessionId?: string;
   fileUrl?: string;
   jobId: string;
   questions: ExtractedQuestionPreview[];
-  totalCount: number;
+  totalCount?: number;
+  totalExtracted?: number;
   status: string;
 }
 
@@ -150,8 +159,8 @@ export const questionJobService = {
     return API.post<TResponse<unknown>>(`api/questionjob/${jobId}/retry`, {}, { headers });
   },
 
-  // POST api/questionjob/{jobId}/confirm
+  // POST api/questionjob/jobs/{jobId}/confirm
   confirmJob: (jobId: string) =>
-    API.post<TResponse<unknown>>(`api/questionjob/${jobId}/confirm`, {}, { headers }),
+    API.post<TResponse<unknown>>(`api/questionjob/jobs/${jobId}/confirm`, {}, { headers }),
 };
 
