@@ -327,7 +327,6 @@ const PreviewModal = ({
                   <div className="flex-1 min-w-0">
                     <RenderedHtml
                       html={opt.optionHtml || opt.optionText}
-                      hasLatex={opt.hasLatex}
                       className="text-slate-700"
                     />
                   </div>

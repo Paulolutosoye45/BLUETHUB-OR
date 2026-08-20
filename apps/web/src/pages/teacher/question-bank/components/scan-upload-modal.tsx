@@ -26,6 +26,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import toast from "react-hot-toast";
 import { mediaUploadService, MediaType } from "@/services/media-upload";
 import { questionJobService } from "@/services/question-job";
 import { schoolService } from "@/services/school";

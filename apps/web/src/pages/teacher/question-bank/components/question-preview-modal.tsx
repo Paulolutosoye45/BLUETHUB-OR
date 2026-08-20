@@ -635,12 +635,12 @@ export default function QuestionPreviewModal({
   };
 
   // Handle approve
-  const handleApprove = async (index: number, edits?: Partial<ExtractedQuestionPreview>) => {
+  const handleApprove = async (index: number, _edits?: Partial<ExtractedQuestionPreview>) => {
     if (!data) return;
 
     setProcessing(true);
     try {
-      await questionJobService.confirmJob(jobId);
+      await questionJobService.confirmJob(_jobId);
       updateQuestionState(index, { status: "approved" });
       toast.success("Question approved!");
 
@@ -667,7 +667,7 @@ export default function QuestionPreviewModal({
 
     setProcessing(true);
     try {
-      await questionJobService.confirmJob(jobId);
+      await questionJobService.confirmJob(_jobId);
       updateQuestionState(index, { status: "rejected", rejectReason: reason });
       toast.success("Question rejected");
 
@@ -715,7 +715,7 @@ export default function QuestionPreviewModal({
     if (!data) return;
 
     try {
-      await questionJobService.confirmJob(jobId);
+      await questionJobService.confirmJob(_jobId);
       toast.success("Review complete!");
       onClose();
     } catch (err) {
