@@ -15,92 +15,134 @@ import UploadIcon from "@/assets/svg/upload.svg";
 import BookTextIcon from "@/assets/svg/jam_book.svg";
 import PlayIcon from "@/assets/svg/play.svg";
 import QuizzesIcon from "@/assets/svg/quizzes.svg";
+import AttendanceIcon from "@/assets/svg/attendance.svg";
+import LessonIcon from "@/assets/svg/lesson.svg";
+import PenIcon from "@/assets/svg/pen.svg";
+import CircleCheckIcon from "@/assets/svg/circle_check.svg";
 
-export const TACADEMICLINKS = [
+// Teacher sidebar, grouped by workflow area (not by feature-team taxonomy) so a
+// teacher scans "what do I need right now" — class-day actions, content
+// authoring, the assessment pipeline — rather than a flat 12-row list. Each
+// top-level entry also gets its own icon; several previously shared one icon
+// with an unrelated item, which reads as "these are the same thing" at a glance.
+export const TACADEMIC_GROUPS = [
   {
-    icons: studentIcon,
-    name: "Student",
-    path: "/teacher/student",
-    disabled: true
-  },
-
-  {
-    icons: coursesIcon,
-    name: "Courses",
-    path: "/teacher/courses",
-    disabled: true
-  },
-  {
-    icons: classIconIcon,
-    name: "My Classroom",
-    children: [
-      { name: "Quiz", path: "/teacher/module/quiz" },
-      { name: "Topic", path: "/teacher/module/quiz?view=topic", roles: ["ClassTeacher", "HeadTeacher"] },
-      { name: "Per Student", path: "/teacher/module/quiz?view=student", roles: ["ClassTeacher", "HeadTeacher"] },
-      { name: "Quiz Grading", path: "/teacher/module/quiz-grading" },
-      { name: "Assessment", path: "/teacher/module/assessment" },
-      { name: "Subject", path: "/teacher/module/subject" },
-    ],
-  },
-  // {
-  //   icons: MonitorPlayIcon,
-  //   name: "Recorded Class ",
-  //   path: "/teacher/recorded-class",
-  // },
-
-  {
-    icons: UploadIcon,
-    name: "Submit Lesson",
-    path: "/teacher/submit-lesson",
-  },
-  {
-    icons: libraryIcon,
-    name: "My Lessons",
-    path: "/teacher/my-lessons",
-  },
-  {
-    icons: studentIcon,
-    name: "Attendance",
-    path: "/teacher/attendance",
-  },
-  {
-    icons: PlayIcon,
-    name: "Start Class",
-    path: "/teacher/start-class",
-  },
-  {
-    icons: UploadIcon,
-    name: "My Drafts",
-    path: "/teacher/drafts",
-  },
-  {
-    icons: AssignmentIcon,
-    name: "Assessment",
-    children: [
-      { name: "Assessment", path: "/teacher/assessment/config" },
-      { name: "Manage Assessments", path: "/teacher/assessment/manage" },
-      { name: "Assign to Students", path: "/teacher/assessment/assign-student" },
-      { name: "Assessment Grading", path: "/teacher/assessment/pending-grading" },
+    section: "Classroom",
+    items: [
+      {
+        icons: classIconIcon,
+        name: "My Classroom",
+        children: [
+          { name: "Quiz", path: "/teacher/module/quiz" },
+          { name: "Topic", path: "/teacher/module/quiz?view=topic", roles: ["ClassTeacher", "HeadTeacher"] },
+          { name: "Per Student", path: "/teacher/module/quiz?view=student", roles: ["ClassTeacher", "HeadTeacher"] },
+          { name: "Classroom Assessment", path: "/teacher/module/assessment" },
+          { name: "Subject", path: "/teacher/module/subject" },
+          { name: "Attendance Record", path: "/teacher/module/attendance" },
+        ],
+      },
+      {
+        icons: PlayIcon,
+        name: "Start Class",
+        path: "/teacher/start-class",
+      },
+      {
+        icons: AttendanceIcon,
+        name: "Attendance",
+        path: "/teacher/attendance",
+      },
     ],
   },
   {
-    icons: QuizzesIcon,
-    name: "Question Bank",
-    children: [
-      { name: "Question Bank", path: "/teacher/question-bank" },
-      { name: "Question/Assessment", path: "/teacher/assessment" },
-      { name: "Quiz", path: "/teacher/quiz" },
+    section: "Lessons",
+    items: [
+      {
+        icons: LessonIcon,
+        name: "Submit Lesson",
+        path: "/teacher/submit-lesson",
+      },
+      {
+        icons: libraryIcon,
+        name: "My Lessons",
+        path: "/teacher/my-lessons",
+      },
+      {
+        icons: UploadIcon,
+        name: "My Drafts",
+        path: "/teacher/drafts",
+      },
+      {
+        icons: BookTextIcon,
+        name: "My Syllabus",
+        path: "/teacher/syllabus",
+      },
     ],
   },
   {
-    icons: BookTextIcon,
-    name: "My Syllabus",
-    path: "/teacher/syllabus",
+    // Question sourcing → quiz building → formal assessment: the three
+    // dropdowns read top-to-bottom as one pipeline instead of three
+    // unrelated menu entries scattered through the list.
+    section: "Assessments",
+    items: [
+      {
+        icons: PenIcon,
+        name: "Question Bank",
+        children: [
+          { name: "Question Bank", path: "/teacher/question-bank", disabled: true },
+          { name: "Browse Question Bank", path: "/teacher/assessment/view-questions" },
+          { name: "Extract Question", path: "/teacher/assessment/upload-scan" },
+          { name: "Type Question", path: "/teacher/assessment/createQuiz" },
+          { name: "My Uploads", path: "/teacher/assessments/My-Uploads" },
+          { name: "View Existing Questions", path: "/teacher/assessment/questionlist" },
+        ],
+      },
+      {
+        icons: QuizzesIcon,
+        name: "Quiz",
+        children: [
+          { name: "Create Quiz", path: "/teacher/assessment/generate-quiz" },
+          { name: "My Quizzes", path: "/teacher/quiz" },
+          { name: "Grading", path: "/teacher/module/quiz-grading" },
+        ],
+      },
+      {
+        icons: AssignmentIcon,
+        name: "Assessment",
+        children: [
+          { name: "Assessment", path: "/teacher/assessment/config" },
+          { name: "Manage Assessments", path: "/teacher/assessment/manage" },
+          { name: "Assign to Students", path: "/teacher/assessment/assign-student" },
+          { name: "Assessment Grading", path: "/teacher/assessment/pending-grading" },
+        ],
+      },
+    ],
   },
   {
-    icons: AssignmentIcon,
-    name: "Approvals",
-    path: "/teacher/approvals",
+    section: "Other",
+    items: [
+      {
+        icons: CircleCheckIcon,
+        name: "Approvals",
+        path: "/teacher/approvals",
+      },
+    ],
+  },
+  {
+    section: "Coming Soon",
+    items: [
+      {
+        icons: studentIcon,
+        name: "Student",
+        path: "/teacher/student",
+        disabled: true,
+      },
+      {
+        icons: coursesIcon,
+        name: "Courses",
+        path: "/teacher/courses",
+        disabled: true,
+      },
+    ],
   },
 ];
 

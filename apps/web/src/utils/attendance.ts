@@ -90,7 +90,7 @@ export function parseQrValue(
 
 // ── Sync error classification ────────────────────────────────────────────────────────────────────
 
-/** Returns true when the error transiently retryable (offline / 5xx). */
+/** Returns true when the error transiently retryable (offline / 5xx / auth). */
 export function isTransientSyncError(err: unknown): boolean {
   if (!err) return true;
   const anyErr = err as { response?: { status?: number }; message?: string; code?: string };
@@ -98,6 +98,11 @@ export function isTransientSyncError(err: unknown): boolean {
   // Network failures (no response, CORS, DNS, timeout) → retry.
   if (status == null) return true;
   if (status === 0) return true;
+  // 401 → the access token expired mid-sync, not a bad record. A re-login
+  // refreshes the token and the exact same push will succeed, so this must
+  // stay retryable — otherwise the scan is marked permanently failed and can
+  // never sync again even after the teacher logs back in.
+  if (status === 401) return true;
   // 5xx → transient. 409 → already recorded (handled as "already recorded" in caller).
   return status >= 500;
 }

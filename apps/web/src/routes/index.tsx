@@ -101,6 +101,7 @@ import ModuleQuiz from '@/pages/teacher/module/quiz';
 import ModuleQuizGrading from '@/pages/teacher/module/quiz-grading';
 import ModuleAssessment from '@/pages/teacher/module/assessment';
 import ModuleSubject from '@/pages/teacher/module/subject';
+import ModuleAttendance from '@/pages/teacher/module/attendance';
 import QuestionBankScan from '@/pages/teacher/question-bank';
 import AssessmentSettings from '@/pages/teacher/assessment-settings';
 import AssignAssessmentToStudent from '@/pages/teacher/assessment/assign-student';
@@ -348,6 +349,7 @@ const router = createBrowserRouter([
             { path: "module/quiz-grading", element: <ModuleQuizGrading /> },
             { path: "module/assessment", element: <ModuleAssessment /> },
             { path: "module/subject", element: <ModuleSubject /> },
+            { path: "module/attendance", element: <ModuleAttendance /> },
             { path: "resume-class", element: <ResumeClass /> },
             { path: "class-info", element: <ClassInfo /> },
             { path: "assessment", element: <Assessment /> },

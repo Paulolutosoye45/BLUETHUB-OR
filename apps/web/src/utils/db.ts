@@ -401,6 +401,24 @@ export async function deleteAttendanceScan(id: string): Promise<void> {
   await (await getDb()).delete(STORE_ATTENDANCE, id);
 }
 
+/** Manual escape hatch: puts every failed scan (including ones already marked
+ *  permanently failed) back into the sync queue. Without this, a scan that
+ *  failed for a reason later fixed on the server side or client side (e.g. an
+ *  expired token from a previous classification bug) could never sync again. */
+export async function retryFailedAttendanceScans(): Promise<void> {
+  const db = await getDb();
+  const all = await getAllAttendanceScans();
+  const stuck = all.filter((s) => s.syncStatus === 'failed');
+  for (const s of stuck) {
+    await db.put(STORE_ATTENDANCE, {
+      ...s,
+      syncStatus: 'pending',
+      permanentlyFailed: false,
+      lastError: undefined,
+    });
+  }
+}
+
 export async function getAttendanceScanByDedupe(dedupeKey: string): Promise<AttendanceScanRecord | undefined> {
   const db = await getDb();
   try {

@@ -47,6 +47,7 @@ import {
   getAttendanceScansBySession,
   putAttendanceScan,
   putAttendanceSession,
+  retryFailedAttendanceScans,
   updateAttendanceSession,
 } from "@/utils/db";
 import type {
@@ -580,6 +581,16 @@ const TeacherAttendance = () => {
     }
   }, [reloadData]);
 
+  // Manual escape hatch for records stuck as "failed" (e.g. from an expired
+  // token during a previous sync, or any other error the auto-retry gave up
+  // on) — puts them back in the queue and immediately retries, instead of
+  // leaving the teacher with no way to push them again.
+  const retryFailed = useCallback(async () => {
+    await retryFailedAttendanceScans();
+    await reloadData();
+    void runSync({ silent: false });
+  }, [reloadData, runSync]);
+
   // ── Online / offline ──────────────────────────────────────────────────────
   // Records are pushed only when the teacher presses “Push to backend”. The one
   // exception: scans captured offline are pushed automatically the moment the
@@ -934,6 +945,18 @@ const TeacherAttendance = () => {
                     ? `Push to backend (${stats.queued})`
                     : "Push to backend"}
               </button>
+              {stats.failed > 0 && (
+                <button
+                  type="button"
+                  onClick={() => void retryFailed()}
+                  disabled={syncing}
+                  title="Puts failed records back in the queue and pushes them again — use this after a re-login or once your connection is back."
+                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+                  Retry failed ({stats.failed})
+                </button>
+              )}
             </div>
 
             <p className="mt-3 text-xs text-slate-500">
@@ -1238,8 +1261,8 @@ const TeacherAttendance = () => {
               </div>
               <p className="mt-1 text-xs text-amber-700/90">
                 {stuckPending.length} record{stuckPending.length === 1 ? "" : "s"} could not reach
-                the server yet. {stuckPending[0].lastError} Press “Sync now” to retry — they are
-                kept safely on this device.
+                the server yet. {stuckPending[0].lastError} Press “Push to backend” above to retry
+                — they are kept safely on this device.
               </p>
             </section>
           )}
@@ -1251,8 +1274,9 @@ const TeacherAttendance = () => {
                 Some records failed to sync
               </div>
               <p className="mt-1 text-xs text-red-600/80">
-                Failed records are kept on this device and are never deleted. Ensure you are
-                online and press “Sync now” to retry them.
+                Failed records are kept on this device and are never deleted. Press “Retry
+                failed” above to put them back in the queue and push them again — useful after a
+                spotty connection or a re-login.
               </p>
             </section>
           )}
