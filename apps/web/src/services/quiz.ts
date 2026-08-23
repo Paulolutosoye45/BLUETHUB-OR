@@ -558,6 +558,18 @@ export interface StudentQuizPerformanceDto {
   quizzes: StudentQuizPerformanceItemDto[];
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PERFORMANCE — Student quiz performance scoped to a subject or subtopic
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface StudentQuizPerformanceScopedDto extends StudentQuizPerformanceDto {
+  subjectId: string | null;
+  subjectName: string;
+  topicId: string | null;
+  subTopicId: string | null;
+  subTopicName: string;
+}
+
 const headers = { 'X-Tenant-ID': getTenantFromUrl() };
 
 export const quizService = {
@@ -738,6 +750,18 @@ export const quizService = {
   getStudentQuizPerformance: (studentId: string) =>
     API.get<TResponse<StudentQuizPerformanceDto>>(
       `api/quiz/student/${studentId}/performance`,
+      { headers },
+    ),
+
+  getStudentQuizPerformanceBySubject: (studentId: string, subjectId: string) =>
+    API.get<TResponse<StudentQuizPerformanceScopedDto>>(
+      `api/quiz/student/${studentId}/subject/${subjectId}/performance`,
+      { headers },
+    ),
+
+  getStudentQuizPerformanceBySubtopic: (studentId: string, subTopicId: string) =>
+    API.get<TResponse<StudentQuizPerformanceScopedDto>>(
+      `api/quiz/student/${studentId}/subtopic/${subTopicId}/performance`,
       { headers },
     ),
 };

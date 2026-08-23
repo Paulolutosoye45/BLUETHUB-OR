@@ -1,10 +1,10 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 
 import bluethub from "@/assets/png/bluethub.png";
 import arrowMenu from "@/assets/svg/arrow_menu_close.svg";
 import arrowMenuOpen from "@/assets/svg/arrow_menu_open.svg";
 import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
-import { TACADEMICLINKS } from "@/shared/constant";
+import { TACADEMIC_GROUPS } from "@/shared/constant";
 import { localData } from "@/utils";
 import type { NavItem } from "@/pages/admin/side-bar";
 import settingsIcon from "@/assets/svg/settings.svg";
@@ -13,7 +13,7 @@ import dashboardIcon from "@/assets/svg/element-4.svg";
 import messageIcon from "@/assets/svg/message.svg";
 import calendarIcon from "@/assets/svg/calendar.svg";
 import { X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { schoolInfo } from "@/services";
 
 // ── Chevron Icon ──────────────────────────────────────────────────────────────
@@ -294,9 +294,31 @@ export const NavContent = ({
 }: NavContentProps) => {
   const { user } = useAuthContext();
   const roleName = user?.roleName;
-  const [openDropdownIndex, setOpenDropdownIndex] = useState<number | null>(null);
+  const location = useLocation();
 
-  const handleDropdownClick = (idx: number) => {
+  // Whichever dropdown contains the current route — so landing on a deep
+  // link (bookmark, refresh, back button) shows the section you're already
+  // in instead of a sidebar with nothing expanded.
+  const activeItemKey = useMemo(() => {
+    for (const group of TACADEMIC_GROUPS) {
+      for (const item of group.items) {
+        if (!("children" in item) || !item.children) continue;
+        const isActive = item.children.some(
+          (child) => child.path.split("?")[0] === location.pathname,
+        );
+        if (isActive) return `${group.section}:${item.name}`;
+      }
+    }
+    return null;
+  }, [location.pathname]);
+
+  const [openDropdownIndex, setOpenDropdownIndex] = useState<string | null>(activeItemKey);
+
+  useEffect(() => {
+    if (activeItemKey) setOpenDropdownIndex(activeItemKey);
+  }, [activeItemKey]);
+
+  const handleDropdownClick = (idx: string) => {
     if (isCollapsed) {
       return;
     }
@@ -321,22 +343,29 @@ export const NavContent = ({
       {/* Divider */}
       <div className="mx-4 border-t border-[#29238215]" />
 
-      {/* ACADEMIC */}
-      <section className="px-0">
-        <div className="px-3 space-y-0.5">
-          {TACADEMICLINKS.map((link, idx) => (
-            <NavItem
-              key={link.name}
-              link={link}
-              isCollapsed={isCollapsed}
-              onNavigate={onNavigate}
-              isOpen={openDropdownIndex === idx}
-              onToggle={() => handleDropdownClick(idx)}
-              roleName={roleName}
-            />
-          ))}
-        </div>
-      </section>
+      {/* ACADEMIC — grouped by workflow area so dropdown vs single-link
+          items read as coherent clusters instead of one flat list */}
+      {TACADEMIC_GROUPS.map((group) => (
+        <section key={group.section} className="px-0">
+          <SectionLabel label={group.section} isCollapsed={isCollapsed} />
+          <div className="px-3 space-y-0.5">
+            {group.items.map((link) => {
+              const itemIdx = `${group.section}:${link.name}`;
+              return (
+                <NavItem
+                  key={link.name}
+                  link={link}
+                  isCollapsed={isCollapsed}
+                  onNavigate={onNavigate}
+                  isOpen={openDropdownIndex === itemIdx}
+                  onToggle={() => handleDropdownClick(itemIdx)}
+                  roleName={roleName}
+                />
+              );
+            })}
+          </div>
+        </section>
+      ))}
 
       {/* Divider */}
       <div className="mx-4 border-t border-[#29238215]" />
