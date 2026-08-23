@@ -54,14 +54,21 @@ function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
   const name = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "Teacher Name";
   const role = `${user?.roleName || "Teacher"}`;
   const roleData = user?.roleData;
-  const classroom = (roleData && isTeacherRoleData(roleData))
-    ? roleData.classrooms[0]
-    : undefined;
+  const classroomList = (roleData && isTeacherRoleData(roleData)) ? roleData.classrooms : [];
+  const classroom = classroomList[0];
   const className = classroom?.className;
   const subjects = classroom?.subjects;
-  const subjectNames = subjects?.slice(0, 2).map((s) => s.subjectName).join(" · ");
-  const subject = subjectNames ? `${subjectNames}` : className ?? "";
-  const classLabel = className ? ` ${className}` : "No class assigned";
+  const subjectNames = subjects?.slice(0, 2).map((s) => s.subjectName).filter(Boolean).join(" · ");
+  // HeadTeachers can be assigned several classrooms with no per-classroom
+  // subjects — surface all class names on the second line instead of
+  // repeating classrooms[0]'s name (which is already shown as the badge).
+  const allClassNames = classroomList.map((c) => c.className).filter(Boolean).join(" · ");
+  const subject = subjectNames || (classroomList.length > 1 ? allClassNames : "");
+  const classLabel = classroomList.length > 1
+    ? `${classroomList.length} classes`
+    : className
+      ? ` ${className}`
+      : "No class assigned";
 
   const getInitials = (name?: string) => {
     if (!name) return "";
