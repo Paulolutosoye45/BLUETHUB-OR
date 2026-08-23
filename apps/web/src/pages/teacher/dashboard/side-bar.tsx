@@ -60,7 +60,7 @@ function ProfileCard({ isCollapsed }: { isCollapsed: boolean }) {
   const className = classroom?.className;
   const subjects = classroom?.subjects;
   const subjectNames = subjects?.slice(0, 2).map((s) => s.subjectName).join(" · ");
-  const subject = subjectNames ? `${subjectNames}` : className ?? "";
+  const subject = subjectNames ? `${subjectNames}` : className ?? `${className}`;
   const classLabel = className ? ` ${className}` : "No class assigned";
 
   const getInitials = (name?: string) => {
