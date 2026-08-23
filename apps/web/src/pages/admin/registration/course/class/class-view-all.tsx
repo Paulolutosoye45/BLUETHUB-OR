@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, EllipsisVertical, GalleryVerticalEnd, LayoutGrid, Menu, PlusIcon } from "lucide-react";
+import { ArrowLeft, EllipsisVertical, GalleryVerticalEnd, LayoutGrid, Loader2, Menu, PlusIcon } from "lucide-react";
 import { Button, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@bluethub/ui-kit";
 import { useNavigate, useOutletContext } from "react-router-dom";
 // import EditSubjectModal from "./edit-subject-modal";
@@ -41,9 +41,10 @@ const ClassviewAll = () => {
     const [filter, setFilter] = useState<FilterTab>("All");
     const [classes, setClasses] = useState<Classroom[]>([]);
     const [open, setOpen] = useState(false);
-    const [, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [, setErrorMsg] = useState("");
-    const schoolName  =  localData.retrieve("schoolInfo") as SchoolInfo
+    const schoolName = localData.retrieve("schoolInfo") as SchoolInfo
+    const [currentClass, setCurrentClass] = useState<Classroom | null>(null);
 
 
 
@@ -84,7 +85,10 @@ const ClassviewAll = () => {
         fetchClassrooms();
     }, []);
 
-
+    const handleModal = (s: Classroom) => {
+        setOpen(true)
+        setCurrentClass(s)
+    }
 
     return (
         <>
@@ -98,7 +102,7 @@ const ClassviewAll = () => {
                         <div className="flex items-center gap-2.5">
                             <LayoutGrid className="w-5 h-5 text-white lg:inline hidden" />
                             <Menu className="lg:hidden text-white" onClick={openMobileNav} />
-                            <ArrowLeft  className="lg:hidden text-white"  onClick={() => navigate(-1)}/>
+                            <ArrowLeft className="lg:hidden text-white" onClick={() => navigate(-1)} />
                             <span className="text-white font-medium text-sm">View All class</span>
                         </div>
                         <button className="text-white">
@@ -118,7 +122,7 @@ const ClassviewAll = () => {
                                     </h1>
                                     <p className=" text-xs sm:text-sm text-[#A0A8C0]  mt-0.5">
                                         All classes at {schoolName.schoolName} — Primary to Secondary
-                                        
+
                                     </p>
                                 </div>
                                 <Button
@@ -221,7 +225,16 @@ const ClassviewAll = () => {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {visible.length === 0 ? (
+                                        {loading ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="py-10 text-center">
+                                                    <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
+                                                        <Loader2 size={14} className="animate-spin" />
+                                                        Loading classes…
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : visible.length === 0 ? (
                                             <TableRow>
                                                 <TableCell colSpan={5} className="py-10 text-center text-xs text-gray-400">
                                                     No Class found
@@ -264,7 +277,7 @@ const ClassviewAll = () => {
                                                         </TableCell>
                                                         <TableCell>
                                                             <Button
-                                                                onClick={() => setOpen(true)}
+                                                                onClick={() => handleModal(s)}
                                                                 className="text-[11px] font-semibold hover:opacity-70 transition-opacity bg-chestnut h-7 px-3"
                                                             >
                                                                 Edit
@@ -282,7 +295,7 @@ const ClassviewAll = () => {
                 </div>
             </div>
 
-            <EditClassModal open={open} onOpenChange={() => setOpen(false)} />
+            <EditClassModal open={open} currentClass={currentClass} onOpenChange={() => { setOpen(false), fetchClassrooms();}}/>
         </>
     );
 };
