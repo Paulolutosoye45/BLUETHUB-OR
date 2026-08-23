@@ -76,7 +76,7 @@ const EmptyStudent = () => {
 
                         {/* Sub-text */}
                         <p className="text-sm text-chestnut/50 text-center  leading-relaxed mb-6">
-                            {school.schoolName} doesn't have any student  set up yet. Add your first Student
+                            {school?.schoolName ?? "School"} doesn't have any student set up yet. Add your first Student
                             now and they'll be available when registering Report Sheet and feedback .
                         </p>
 
