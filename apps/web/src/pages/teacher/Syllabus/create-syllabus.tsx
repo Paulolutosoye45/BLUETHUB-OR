@@ -295,19 +295,26 @@ const CreateSyllabus = () => {
         setSelectedSubject(null);
         setTopics([]);
         if (!selectedClass) { setSubjects([]); return; }
-        if (isAdmin) {
-            schoolService.getSubjectsByClassroomId(selectedClass.id).then((res) => {
-                const data = (res.data as any)?.data;
-                const major: any[] = data?.majorSubjects ?? [];
-                const minor: any[] = data?.minorSubjects ?? [];
-                setSubjects([...major, ...minor].map((s: any) => ({
-                    id: String(s.subjectId ?? s.id),
-                    name: String(s.subjectName ?? s.name ?? ""),
-                })));
-            }).catch(() => setSubjects([]));
-        } else {
+
+        // Teacher role data carries per-classroom subjects for SubjectTeacher
+        // (they're assigned specific subjects), but not for ClassTeacher — a
+        // ClassTeacher owns the whole classroom rather than particular
+        // subjects, so roleData has no subject list to read here. Fall back
+        // to the API in that case, same as admins/HeadTeacher always do.
+        if (!isAdmin && selectedClass.subjects.length > 0) {
             setSubjects(selectedClass.subjects);
+            return;
         }
+
+        schoolService.getSubjectsByClassroomId(selectedClass.id).then((res) => {
+            const data = (res.data as any)?.data;
+            const major: any[] = data?.majorSubjects ?? [];
+            const minor: any[] = data?.minorSubjects ?? [];
+            setSubjects([...major, ...minor].map((s: any) => ({
+                id: String(s.id ?? s.subjectId ?? ""),
+                name: String(s.subject ?? s.subjectName ?? s.name ?? ""),
+            })));
+        }).catch(() => setSubjects([]));
     }, [selectedClass, isAdmin]);
 
     useEffect(() => {
