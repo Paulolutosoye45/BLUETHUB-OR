@@ -252,6 +252,8 @@ const CreateSyllabus = () => {
     const [selectedSubject, setSelectedSubject] = useState<SubjectItem | null>(null);
     const [subjects, setSubjects] = useState<SubjectItem[]>([]);
     const [classes, setClasses] = useState<ClassItem[]>([]);
+
+    console.log('classes', classes)
     const [topics, setTopics] = useState<TopicItem[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [loadingCurriculum, setLoadingCurriculum] = useState(false);
@@ -276,7 +278,7 @@ const CreateSyllabus = () => {
                     roleData.classrooms.map((c) => ({
                         id: c.classroomId,
                         name: c.className,
-                        subjects: c.subjects.map((s) => ({
+                        subjects: (c.subjects ?? []).map((s) => ({
                             id: s.subjectId,
                             name: s.subjectName,
                         })),
@@ -550,14 +552,14 @@ const CreateSyllabus = () => {
                                     </div>
                                 </div>
                             </div>
-                                <button
-                                    onClick={addTopic}
-                                    disabled={loadingCurriculum}
-                                    className="flex items-center gap-1.5 text-xs font-semibold text-chestnut bg-chestnut/8 hover:bg-chestnut/15 px-3.5 py-2 rounded-xl transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                    <Plus className="w-3.5 h-3.5" />
-                                    New Topic
-                                </button>
+                            <button
+                                onClick={addTopic}
+                                disabled={loadingCurriculum}
+                                className="flex items-center gap-1.5 text-xs font-semibold text-chestnut bg-chestnut/8 hover:bg-chestnut/15 px-3.5 py-2 rounded-xl transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <Plus className="w-3.5 h-3.5" />
+                                New Topic
+                            </button>
                         </div>
                     </div>
 
