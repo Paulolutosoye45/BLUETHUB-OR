@@ -25,6 +25,7 @@ export const endpoints = {
   getSubjectsByClassCategory: "/api/School/GetSubjectsByClassCategory",
   getSubjectsBySubjectCategory: "/api/School/GetSubjectsBySubjectCategory",
   updateClassroomTeachers: "/api/School/UpdateClassroomTeachers",
+  deleteSubjects: "/api/School/RemoveClassroomSubject",
   createTopic: "/api/School/topics",
   Provison: "/api/School/provision",
 };
@@ -74,6 +75,22 @@ export interface ISubject {
   schoolId: string;
   category: string;
 }
+
+interface IUpdateClassroom {
+  classroomUpdateViews: [
+    {
+      isActive: true,
+      name: string,
+      id: string;
+    }
+  ]
+}
+
+interface IdeleteSubjects {
+  subjectIds: string[];
+  classroomId: string;
+}
+
 export const schoolService = {
   registerSubject: (data: IRegisterSubject) => {
     return API.post<TResponse<unknown>>(endpoints.registerSubject, data, {
@@ -95,6 +112,15 @@ export const schoolService = {
         },
       },
     );
+  },
+
+  deleteSubjects:(data: IdeleteSubjects) => {
+    return API.delete<TResponse<unknown>>(endpoints.deleteSubjects, {
+      data,
+      headers: {
+        "X-Tenant-ID": X_Tenant_ID,
+      },
+    });
   },
 
   getAllSubject: () => {
@@ -126,6 +152,14 @@ export const schoolService = {
         "X-Tenant-ID": X_Tenant_ID,
         Authorization: `Bearer ${token.getToken()}`,
       },
+    });
+  },
+
+  updateClassroom:(data: IUpdateClassroom) => {
+     return API.post(endpoints.updateClassroom, data, {
+      headers: {
+        "X-Tenant-ID": X_Tenant_ID,
+      }
     });
   },
 

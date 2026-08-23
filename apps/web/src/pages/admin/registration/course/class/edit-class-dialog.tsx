@@ -1,40 +1,28 @@
-import { useState } from "react";
-import { X, Pencil } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Pencil, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Checkbox, Button, Dialog, DialogContent,
 } from "@bluethub/ui-kit";
+import type { Classroom } from "./class-registration";
+import { schoolService } from "@/services/school";
+import { AxiosError } from "axios";
+import type { schoolInfo } from "@/services";
+import { localData } from "@/utils";
 
 // const BRAND = "#292382";
 
 interface SubjectItem {
+    category: "Major" | "Minor";
+    classCategory: "Primary" | "JSS" | "SSS";
+    creationDate: string;
     id: string;
+    isActive: boolean;
+    modifiedDate: string;
     name: string;
+    schoolId: string;
+    subject: string;
 }
-
-const majorList: SubjectItem[] = [
-    { id: "mathematics",        name: "Mathematics" },
-    { id: "english",            name: "English" },
-    { id: "basic-science",      name: "Basic Science" },
-    { id: "basic-technology",   name: "Basic Technology" },
-    { id: "computer-science",   name: "Computer Science" },
-    { id: "agriculture-science",name: "Agriculture Science" },
-    { id: "home-economics",     name: "Home Economics" },
-    { id: "creative-art",       name: "Creative Art" },
-    { id: "social-studies",     name: "Social Studies" },
-    { id: "civic-education",    name: "Civic Education" },
-];
-
-const minorList: SubjectItem[] = [
-    { id: "physical-health",    name: "Physical Health" },
-    { id: "christian-knowledge",name: "Christian Knowledge" },
-    { id: "islamic-knowledge",  name: "Islamic Knowledge" },
-    { id: "yoruba-education",   name: "Yoruba Education" },
-    { id: "home-econs-minor",   name: "Home Economics" },
-    { id: "creative-art-minor", name: "Creative Arts" },
-    { id: "social-minor",       name: "Social Studies" },
-    { id: "civic-minor",        name: "Civic Education" },
-];
 
 type Tab = "General Info" | "Subjects";
 
@@ -42,7 +30,7 @@ interface EditClassDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     initialClassName?: string;
-    initialTeacher?: string;
+    currentClass: Classroom | null;
 }
 
 const tabVariants = {
@@ -55,13 +43,18 @@ const EditClassModal = ({
     open,
     onOpenChange,
     initialClassName = "",
-    initialTeacher = "",
+    currentClass
 }: EditClassDialogProps) => {
     const [tab, setTab]           = useState<Tab>("General Info");
-    const [className, setClassName] = useState(initialClassName);
-    const [teacher, setTeacher]   = useState(initialTeacher);
+    const [className, setClassName] = useState(currentClass?.name || initialClassName);
     const [majorChecked, setMajorChecked] = useState<Set<string>>(new Set());
     const [minorChecked, setMinorChecked] = useState<Set<string>>(new Set());
+    const [loadingSubjects, setLoadingSubjects] = useState(true);
+    const [responseMessage, setResponseMessage] = useState<{ ok: boolean; message: string }>({ ok: false, message: "" });
+    const [majorList, setMajorList] = useState<SubjectItem[]>([]);
+    const [minorList, setMinorList] = useState<SubjectItem[]>([]);
+    const [updateLoading, setUpdateLoading] = useState(false);
+    const [schoolInfo, setSchoolInfo] = useState<schoolInfo | null>(null);
 
     const toggleMajor = (id: string) =>
         setMajorChecked(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -77,6 +70,98 @@ const EditClassModal = ({
         .toUpperCase()
         .slice(0, 2) || "JS";
 
+
+        const classSubjects = async () => {
+            try {
+                setLoadingSubjects(true)
+                setResponseMessage({ ok: false, message: "" })
+                const res = await schoolService.getSubjectsByClassroomId(currentClass?.id || "");
+                if(res.data.status === "failed")  return setResponseMessage({ ok: false, message: res.data.message });
+                const majors = res.data.data.majorSubjects;
+                const minors = res.data.data.minorSubjects;
+                setMajorList(majors);
+                setMinorList(minors);
+                // All subjects start checked — the admin unchecks the ones
+                // that shouldn't apply to this classroom.
+                setMajorChecked(new Set(majors.map((s: SubjectItem) => s.id)));
+                setMinorChecked(new Set(minors.map((s: SubjectItem) => s.id)));
+            } catch (error) {
+                const msg =
+                        error instanceof AxiosError
+                          ? error.response?.data?.responseMessage ??
+                          error.response?.data?.message ??
+                          error.message
+                          : (error as Error).message;
+                setResponseMessage({ ok: false, message: msg });
+            } finally {
+                setLoadingSubjects(false)
+            }
+        }
+
+        useEffect(() => {
+            if (currentClass?.id) {
+                classSubjects();
+                            const schoolIn = localData.retrieve<schoolInfo>("schoolInfo")
+            setSchoolInfo(schoolIn)
+            }
+        }, [currentClass?.id]);
+
+
+
+
+        const updateClassroom = async () => {
+            setUpdateLoading(true)
+            try {
+                setResponseMessage({ ok: false, message: "" })
+                if (!currentClass?.id) {
+                    return setResponseMessage({ ok: false, message: "Classroom ID is missing" });
+                }
+
+                // Anything left unchecked in the Subjects tab gets removed from
+                // this classroom.
+                const uncheckedSubjectIds = [
+                    ...majorList.filter(s => !majorChecked.has(s.id)),
+                    ...minorList.filter(s => !minorChecked.has(s.id)),
+                ].map(s => s.id);
+
+                const ops = [
+                    schoolService.updateClassroom({
+                        classroomUpdateViews: [{
+                            isActive: true,
+                            name: className,
+                            id: currentClass.id
+                        }]
+                    }),
+                ];
+
+                if (uncheckedSubjectIds.length > 0) {
+                    ops.push(
+                        schoolService.deleteSubjects({
+                            subjectIds: uncheckedSubjectIds,
+                            classroomId: currentClass.id,
+                        })
+                    );
+                }
+
+                const results = await Promise.all(ops);
+                const failed = results.find(res => res.data.status === "failed");
+                if (failed) return setResponseMessage({ ok: false, message: failed.data.message });
+
+                setResponseMessage({ ok: true, message: "Classroom updated successfully" });
+                await classSubjects();
+            } catch (error) {
+                const msg =
+                        error instanceof AxiosError
+                          ? error.response?.data?.responseMessage ??
+                          error.response?.data?.message ??
+                          error.message
+                          : (error as Error).message;
+                setResponseMessage({ ok: false, message: msg });
+            } finally {
+                setUpdateLoading(false)
+            }
+        };
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="p-0 gap-0 overflow-hidden rounded-2xl border-0 shadow-2xl max-w-md w-full">
@@ -91,10 +176,10 @@ const EditClassModal = ({
                         </div>
                         <div>
                             <p className="text-white font-bold text-sm leading-tight">
-                                Edit {className || "Jss 1A"}
+                                Edit {currentClass?.name || "JSS1"}
                             </p>
                             <p className="text-white/55 text-[10px] mt-0.5">
-                                Greenfield- Academic Management
+                                {schoolInfo?.schoolName || "School"} Management
                             </p>
                         </div>
                     </div>
@@ -125,6 +210,14 @@ const EditClassModal = ({
                         </button>
                     ))}
                 </div>
+
+                {/* ── ERROR BANNER ──────────────────────────────────────── */}
+                {!responseMessage.ok && responseMessage.message && (
+                    <div className="flex items-start gap-2 px-5 py-3 bg-red-50 border-b border-red-100">
+                        <AlertCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
+                        <p className="text-xs font-medium text-red-600">{responseMessage.message}</p>
+                    </div>
+                )}
 
                 {/* ── CONTENT ───────────────────────────────────────────── */}
                 <div className="bg-white relative overflow-hidden">
@@ -158,15 +251,15 @@ const EditClassModal = ({
                                             <p
                                                 className="text-sm font-semibold leading-tight uppercase text-chestnut"
                                             >
-                                                {className || "JSS1"}
+                                                {currentClass?.name || "JSS1"}
                                             </p>
                                         </div>
                                     </div>
-                                    <span
+                                    {/* <span
                                         className="text-xs font-semibold px-3 py-1 rounded-full bg-chestnut/12 text-chestnut"
                                     >
                                         Secondary Level
-                                    </span>
+                                    </span> */}
                                 </div>
 
                                 {/* Enter Class field */}
@@ -196,7 +289,7 @@ const EditClassModal = ({
                                 </div>
 
                                 {/* Subject Teacher's Name field */}
-                                <div className="space-y-1.5">
+                                {/* <div className="space-y-1.5">
                                     <label className="text-xs font-bold text-gray-700">
                                         Subject Teacher's Name <span className="text-red-500">*</span>
                                     </label>
@@ -219,7 +312,7 @@ const EditClassModal = ({
                                     <p className="text-[10px] text-gray-400">
                                         Enter assigned subject Teacher name
                                     </p>
-                                </div>
+                                </div> */}
                             </motion.div>
                         )}
 
@@ -234,6 +327,12 @@ const EditClassModal = ({
                                 transition={{ duration: 0.22, ease: "easeInOut" }}
                                 className="px-5 py-4"
                             >
+                                {loadingSubjects ? (
+                                    <div className="flex flex-col items-center justify-center gap-2 py-10 text-gray-400">
+                                        <Loader2 size={18} className="animate-spin text-chestnut" />
+                                        <p className="text-xs font-medium">Loading subjects…</p>
+                                    </div>
+                                ) : (
                                 <div className="flex gap-6">
                                     {/* Major column */}
                                     <div className="flex-1 min-w-0">
@@ -253,8 +352,8 @@ const EditClassModal = ({
                                                             onCheckedChange={() => toggleMajor(s.id)}
                                                             className="data-[state=checked]:bg-chestnut data-[state=checked]:border-chestnut"
                                                         />
-                                                        <span className={`text-xs font-medium ${checked ? "text-chestnut font-bold" : "text-gray-600"}`}>
-                                                            {s.name}
+                                                        <span className={`text-xs font-medium ${checked ? "text-chestnut font-bold" : "text-gray-400 line-through"}`}>
+                                                            {s.subject}
                                                         </span>
                                                     </label>
                                                 );
@@ -283,8 +382,8 @@ const EditClassModal = ({
                                                             onCheckedChange={() => toggleMinor(s.id)}
                                                             className="data-[state=checked]:bg-chestnut data-[state=checked]:border-chestnut"
                                                         />
-                                                        <span className={`text-xs font-medium ${checked ? "text-chestnut font-bold" : "text-gray-600"}`}>
-                                                            {s.name}
+                                                        <span className={`text-xs font-medium ${checked ? "text-chestnut font-bold" : "text-gray-400 line-through"}`}>
+                                                            {s.subject}
                                                         </span>
                                                     </label>
                                                 );
@@ -292,6 +391,7 @@ const EditClassModal = ({
                                         </div>
                                     </div>
                                 </div>
+                                )}
                             </motion.div>
                         )}
 
@@ -301,6 +401,7 @@ const EditClassModal = ({
                 {/* ── FOOTER ────────────────────────────────────────────── */}
                 <div className="flex justify-end gap-2.5 px-5 py-4 border-t border-gray-100 bg-white">
                     <Button
+                      disabled={loadingSubjects || updateLoading}
                         variant="outline"
                         onClick={() => onOpenChange(false)}
                         className="px-6 py-2 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50"
@@ -308,9 +409,12 @@ const EditClassModal = ({
                         Cancel
                     </Button>
                     <Button
-                        className="px-6 py-2 text-sm font-bold text-white rounded-lg hover:opacity-90 transition-opacity bg-chestnut"
+                    onClick={updateClassroom}
+                        disabled={loadingSubjects || updateLoading}
+                        className="flex items-center gap-1.5 px-6 py-2 text-sm font-bold text-white rounded-lg hover:opacity-90 transition-opacity bg-chestnut disabled:opacity-60"
                     >
-                        Save Changes
+                        {updateLoading && <Loader2 size={14} className="animate-spin" />}
+                        {updateLoading ? "Saving…" : "Save Changes"}
                     </Button>
                 </div>
 
