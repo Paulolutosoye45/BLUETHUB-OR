@@ -1,11 +1,21 @@
 // AdminLayout.tsx
 import SchoolRef from "@/component/school-ref";
 import SideBar, { MobileNav } from "@/pages/admin/side-bar";
-import { useState } from "react";
-import { Outlet } from "react-router-dom";
+import type { schoolInfo } from "@/services";
+import { localData } from "@/utils";
+import { useEffect, useState } from "react";
+import { Outlet, useNavigate } from "react-router-dom";
 
 const AdminLayout = () => {
+  const navigate = useNavigate()
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  useEffect(() => {
+    const schLogo: schoolInfo | null = localData.retrieve("schoolInfo");
+    if(!schLogo?.logoUrl) {
+        navigate("/admin/school-branding")
+    }
+  }, [])
+  
   return (
     <div className="flex h-screen overflow-hidden">
 

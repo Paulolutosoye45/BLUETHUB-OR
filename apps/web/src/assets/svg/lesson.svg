@@ -1,10 +1,1 @@
-<svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-<g clip-path="url(#clip0_3593_2171)">
-<path d="M4.56462 4.56794L1.31662 9.99002C1.21914 10.1588 1.16755 10.3502 1.167 10.5451C1.16644 10.7401 1.21692 10.9318 1.31343 11.1011C1.40994 11.2705 1.54911 11.4116 1.7171 11.5105C1.88508 11.6094 2.07603 11.6626 2.27095 11.6648H11.6667M12.8322 10.5039C12.8252 10.3233 12.7742 10.147 12.6834 9.9906L7.95495 2.0946C7.85546 1.9304 7.71532 1.79462 7.54804 1.70038C7.38077 1.60615 7.19202 1.55664 7.00003 1.55664C6.80804 1.55664 6.61929 1.60615 6.45202 1.70038C6.28475 1.79462 6.1446 1.9304 6.04512 2.0946L5.44545 3.09677M1.75003 1.75044L12.25 12.2504" stroke="#292382" stroke-opacity="0.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-</g>
-<defs>
-<clipPath id="clip0_3593_2171">
-<rect width="14" height="14" fill="white"/>
-</clipPath>
-</defs>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#292382" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-newspaper-icon lucide-newspaper"><path d="M15 18h-5"/><path d="M18 14h-8"/><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="10" y="6" rx="1"/></svg>
