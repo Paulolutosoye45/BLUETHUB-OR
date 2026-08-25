@@ -14,6 +14,7 @@ interface SchoolRefProps {
 
 function SchoolRef({ children, mode = "watermark", className = "", contentClassName = "" }: SchoolRefProps) {
     const schoolLogo = localData.retrieve("schoolInfo") as SchoolInfo | null;
+    console.log('schoolLogo', schoolLogo?.logoUrl)
     const isWatermark = mode === "watermark";
 
     return (
@@ -39,12 +40,15 @@ function SchoolRef({ children, mode = "watermark", className = "", contentClassN
             maxWidth: 860,
             pointerEvents: "none",
             userSelect: "none",
-            opacity: 0.07,
+            opacity: 0.15,
             zIndex: 0,
+            border: "2px solid rgba(255, 255, 255, 0.4)",
+            boxShadow: "0 0 20px rgba(0, 0, 0, 0.3)",
+            background: "rgba(255, 255, 255, 0.08)",
         }}
     >
         {schoolLogo?.logoUrl ? (
-            <img src={schoolLogo.logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+            <img src={schoolLogo.logoUrl} alt="school logo" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
         ) : (
             <SchoolPlaceholder />
         )}
@@ -63,7 +67,7 @@ function SchoolRef({ children, mode = "watermark", className = "", contentClassN
             }}
         >
             {schoolLogo?.logoUrl ? (
-                <img src={schoolLogo.logoUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top" }} />
+                <img src={schoolLogo.logoUrl} alt="school logo" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center top", borderRadius: "4px", border: "2px solid rgba(255, 255, 255, 0.3)" }} />
             ) : (
                 <SchoolPlaceholder />
             )}

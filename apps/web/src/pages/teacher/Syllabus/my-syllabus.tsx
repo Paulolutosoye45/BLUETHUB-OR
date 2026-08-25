@@ -92,16 +92,24 @@ const MySyllabus = () => {
     const { user, isLoading: authLoading } = useAuthContext();
     const [fallbackClassrooms, setFallbackClassrooms] = useState<any[]>([]);
     const [fetchedSubjects, setFetchedSubjects] = useState<SubjectItem[]>([]);
+    const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
+    const [curriculum, setCurriculum] = useState<CurriculumData | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [hydratingUser, setHydratingUser] = useState(false);
+    const [isLoadingSubjects, setIsLoadingSubjects] = useState(false);
 
     const isHeadTeacher = user?.roleName === "HeadTeacher";
 
     // For Head Teacher: fetch subjects from API since roleData.classrooms has no subjects
     useEffect(() => {
-        if (!isHeadTeacher || !user?.id) return;
+        if (!user?.id) return;
         const roleData = user?.roleData;
         const htClassrooms = roleData && isTeacherRoleData(roleData) ? roleData.classrooms : [];
         const classroomIds = htClassrooms.map((c) => c.classroomId).filter(Boolean);
         if (classroomIds.length === 0) return;
+        setLoading(true)
+        setIsLoadingSubjects(true)
         Promise.all(
             classroomIds.map((id) =>
                 schoolService.getSubjectsByClassroomId(id)
@@ -117,16 +125,23 @@ const MySyllabus = () => {
                         }));
                     })
                     .catch(() => [] as SubjectItem[])
+                    .finally(() => {
+                        setLoading(false);
+                        setIsLoadingSubjects(false);
+                    })
             )
         ).then((results) => {
             const seen = new Set<string>();
             const all: SubjectItem[] = [];
+
             for (const batch of results) {
                 for (const item of batch) {
-                    if (item.subjectId && item.subjectName && !seen.has(item.subjectId)) {
-                        seen.add(item.subjectId);
-                        all.push(item);
+                    if (!item.subjectId || !item.subjectName) {
+                        continue;
                     }
+                    if (seen.has(item.subjectId)) continue;
+                    seen.add(item.subjectId);
+                    all.push(item);
                 }
             }
             setFetchedSubjects(all);
@@ -142,7 +157,6 @@ const MySyllabus = () => {
         const classrooms = roleData && isTeacherRoleData(roleData) && roleData.classrooms.length
             ? roleData.classrooms
             : fallbackClassrooms;
-
         const seen = new Set<string>();
         const result: SubjectItem[] = [];
 
@@ -158,19 +172,18 @@ const MySyllabus = () => {
         return result;
     }, [user, isHeadTeacher, fetchedSubjects, fallbackClassrooms]);
 
-    const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
-    const [curriculum, setCurriculum] = useState<CurriculumData | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [hydratingUser, setHydratingUser] = useState(false);
+
+    
 
     useEffect(() => {
         const roleData = user?.roleData;
         const hasClassrooms = roleData && isTeacherRoleData(roleData) && roleData.classrooms.length > 0;
-
+        
         if (authLoading || !user?.id || hasClassrooms || hydratingUser || isHeadTeacher) return;
-
+        
         setHydratingUser(true);
+        setIsLoadingSubjects(true);
+ 
         authService.getUserById(user.id)
             .then((response) => {
                 const fetchedRoleData = response.data?.data?.roleData;
@@ -180,7 +193,10 @@ const MySyllabus = () => {
                 setFallbackClassrooms(classrooms);
             })
             .catch(() => setError("Failed to load your assigned subjects. Please try again."))
-            .finally(() => setHydratingUser(false));
+            .finally(() => {
+                setHydratingUser(false);
+                setIsLoadingSubjects(false);
+            });
     }, [authLoading, hydratingUser, user?.id, user?.roleData, isHeadTeacher]);
 
     // Auto-select first subject on mount
@@ -197,7 +213,7 @@ const MySyllabus = () => {
         setError(null);
         setCurriculum(null);
 
-        const selectedSubject = subjects.find((s) => s.subjectId === selectedSubjectId);
+        const selectedSubject = subjects.find((s) => s.subjectId === selectedSubjectId) || fetchedSubjects.find((s) => s.subjectId === selectedSubjectId);
         schoolService.getSubjectCurriculum(selectedSubjectId, selectedSubject?.classroomId)
             .then((res) => {
                 const data = (res.data as any)?.data;
@@ -227,6 +243,7 @@ const MySyllabus = () => {
             .finally(() => setLoading(false));
     }, [selectedSubjectId]);
 
+
     const selectedSubjectName = subjects.find((s) => s.subjectId === selectedSubjectId)?.subjectName ?? "";
 
     return (
@@ -240,7 +257,7 @@ const MySyllabus = () => {
                             className="lg:hidden w-5 h-5 text-white cursor-pointer"
                             onClick={openMobileNav}  // ✅ not onClick={() => openMobileNav()}
                         />
-                         <ArrowLeft  className="lg:hidden text-white"  onClick={() => navigate(-1)}/>
+                        <ArrowLeft className="lg:hidden text-white" onClick={() => navigate(-1)} />
                         <span className="text-white font-semibold text-sm">My Syllabus</span>
                     </div>
                     <button
@@ -255,11 +272,15 @@ const MySyllabus = () => {
                 {/* ── Body ─────────────────────────────────────────────────────── */}
                 <div className="flex-1 bg-white/70 backdrop-blur-sm">
 
-                    {authLoading || hydratingUser ? (
+                    {authLoading ? (
                         <div className="flex items-center justify-center py-20">
                             <Loader2 size={28} className="animate-spin text-chestnut" />
                         </div>
-                    ) : subjects.length === 0 ? (
+                    ) : isLoadingSubjects ? (
+                        <div className="flex items-center justify-center py-20">
+                            <Loader2 size={28} className="animate-spin text-chestnut" />
+                        </div>
+                    ) : (fetchedSubjects.length === 0 && subjects.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-20 gap-3">
                             <BookOpen size={40} className="text-[#A0A8C0]" />
                             <p className="text-sm text-[#A0A8C0]">No subjects assigned to your account.</p>
@@ -274,8 +295,9 @@ const MySyllabus = () => {
                                 </p>
                                 {/* mobile: horizontal scroll row; md+: vertical stack */}
                                 <div className="flex gap-2 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0
-      [&::-webkit-scrollbar]:hidden">
-                                    {subjects.map((s) => (
+                             [&::-webkit-scrollbar]:hidden">
+
+                                    { (fetchedSubjects.length > 0 ? fetchedSubjects : subjects).map((s) => (
                                         <button
                                             key={s.subjectId}
                                             onClick={() => setSelectedSubjectId(s.subjectId)}
@@ -347,7 +369,7 @@ const MySyllabus = () => {
                                 )}
                             </div>
                         </div>
-                    )}
+                    ))}
                 </div>
             </div>
         </div>

@@ -160,7 +160,7 @@ function Login() {
       // ── Role-based redirect via roleId ───────────────────────────────────
       // roleId 3 = SuperAdmin, 2 = Admin, 1 = Teacher, else = Student
       if (result.roleId === 3 || result.roleId === 2) {
-        navigate("/admin");
+        navigate("/admin")
       } else if (result.roleId === 1) {
         navigate("/teacher");
       } else {

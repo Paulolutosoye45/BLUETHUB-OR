@@ -125,6 +125,7 @@ import QuizByClass from '@/pages/admin/quiz/by-class';
 import QuizBySubject from '@/pages/admin/quiz/by-subject';
 import QuizByStudent from '@/pages/admin/quiz/by-student';
 import AttendanceAnalytics from '@/pages/admin/attendance-analytics';
+import UploadSchoolLogoPage from '@/component/upload-school-logo-page';
 
 const router = createBrowserRouter([
     {
@@ -144,7 +145,7 @@ const router = createBrowserRouter([
                 element: <NewPassword />,
             },
             {
-                path:'login',
+                path: 'login',
                 element: <Login />,
             }
         ]
@@ -227,10 +228,10 @@ const router = createBrowserRouter([
                             },
                         ],
                     },
-            {
-                path: 'analytics',
-                element: <AdminAnalytics />
-            },
+                    {
+                        path: 'analytics',
+                        element: <AdminAnalytics />
+                    },
                     {
                         path: "courses",
                         element: <CoursesMain />,
@@ -274,6 +275,10 @@ const router = createBrowserRouter([
                 path: 'module',
                 element: <ModulePage />,
             },
+                                {
+                        path: 'school-branding',
+                        element: <UploadSchoolLogoPage />
+                    },
             {
                 path: 'admin-permissions',
                 element: <AdminPermissions />
