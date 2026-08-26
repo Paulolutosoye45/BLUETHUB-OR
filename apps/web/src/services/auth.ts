@@ -117,6 +117,8 @@ const endpoints = {
   getTeacher: "/api/User/teachers",
   refreshToken: "/api/User/refresh-token",
   getUserByRole: "/api/User/GetUsersByRole",
+  forgotPassword: "/api/User/forgot-password",
+  resetPassword: "/api/User/reset-password",
 };
 
 interface ILoginRequest {
@@ -125,6 +127,14 @@ interface ILoginRequest {
   inst: string;
   deviceType: string;
   deviceIp: string;
+}
+
+export interface ILoginChild {
+  studentId: string;
+  firstName: string;
+  lastName: string;
+  classroomId: string;
+  classroomName: string;
 }
 
 export interface ILoginResponse {
@@ -146,6 +156,8 @@ export interface ILoginResponse {
     address: string;
     logoUrl: string;
   };
+  /** Populated only for Parent (roleId 6); null for every other role. */
+  children: ILoginChild[] | null;
   responseMessage: string;
   responseCode: string;
   status: string;
@@ -250,6 +262,24 @@ export interface IUpdateStudentAssignmentRequest {
   minorSubjectIds?: string[];
   addSubjects?: string[];
   removeSubjects?: string[];
+}
+
+export interface IForgotPasswordResponse {
+  responseMessage: string;
+  responseCode: string;
+  status: string;
+}
+
+export interface IResetPasswordRequest {
+  token: string;
+  newHashPassword: string;
+  confirmHashPassword: string;
+}
+
+export interface IResetPasswordResponse {
+  responseMessage: string;
+  responseCode: string;
+  status: string;
 }
 
 export const authService = {
@@ -380,5 +410,22 @@ export const authService = {
     return API.post<TResponse<unknown>>(`api/User/student/${userId}/assignment`, data, {
       headers: { "X-Tenant-ID": getTenantFromUrl() },
     });
+  },
+
+  // Needs the tenant header — the backend resolves which school's user table
+  // to look the username up against from it.
+  forgotPassword: (username: string) => {
+    return API.post<IForgotPasswordResponse>(
+      endpoints.forgotPassword,
+      { username },
+      { headers: { "X-Tenant-ID": getTenantFromUrl() } },
+    );
+  },
+
+  // No tenant header — the reset token itself resolves the user/school
+  // server-side, and the emailed link may be opened outside the school's
+  // subdomain.
+  resetPassword: (data: IResetPasswordRequest) => {
+    return API.post<IResetPasswordResponse>(endpoints.resetPassword, data);
   },
 };

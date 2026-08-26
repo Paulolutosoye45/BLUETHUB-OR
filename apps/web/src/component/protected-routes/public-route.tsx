@@ -31,6 +31,8 @@ export const PublicRoute = ({ children }: PublicRouteProps) => {
       case "Administrator":
       case "Admin":
         return <Navigate to="/admin" replace />;         // ✅ goes to admin guard
+      case "Parent":
+        return <Navigate to="/parent" replace />;         // ✅ goes to parent guard
       default:
         return <Navigate to="/unauthorized" replace />;
     }
