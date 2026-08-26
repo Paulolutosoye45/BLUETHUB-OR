@@ -37,13 +37,13 @@ if (!tenantId) {
   }
 
   createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <ErrorBoundary fallbackMessage="Something went wrong. Please reload the page.">
-      <AuthProvider>
-        <App />
-      </AuthProvider>
-    </ErrorBoundary>
-  </StrictMode>
-)
+    <StrictMode>
+      <ErrorBoundary>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ErrorBoundary>
+    </StrictMode>
+  )
 }
 // }

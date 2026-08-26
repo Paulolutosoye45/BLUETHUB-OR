@@ -294,16 +294,16 @@ export function toSelectItems(items: any[], idKey: string, labelKey: string): Se
 
 // ── Single reusable component ──────────────────────────────
 interface FieldSelectProps {
-  label:        string;
-  placeholder:  string;
-  value:        string;
-  items:        SelectItem[];
-  loading?:     boolean;
-  disabled?:    boolean;
-  required?:    boolean;
+  label: string;
+  placeholder: string;
+  value: string;
+  items: SelectItem[];
+  loading?: boolean;
+  disabled?: boolean;
+  required?: boolean;
   emptyMessage?: string;
-  icon?:        React.ReactNode;
-  onChange:     (id: string, label: string) => void;
+  icon?: React.ReactNode;
+  onChange: (id: string, label: string) => void;
 }
 
 export function FieldSelect({
@@ -311,7 +311,7 @@ export function FieldSelect({
   emptyMessage = "No options available", icon, onChange,
 }: FieldSelectProps) {
   const [open, setOpen] = useState(false);
-  const selected   = items.find(i => i.id === value);
+  const selected = items.find(i => i.id === value);
   const isDisabled = disabled || loading;
 
   return (
@@ -1473,19 +1473,19 @@ const SubmitLesson = () => {
                     onChange={(id, label) => { setClassroomId(id); setClassroomLabel(label); draftRestored.current = true; }}
                   />
                   <FieldSelect
-    label="Subject"
-    placeholder={classroomId ? "Select subject" : "Select classroom first"}
-    value={subjectId}
-    items={toSelectItems(
-        subjects.length > 0 ? subjects : fetchedSubjects,
-        'subjectId',   // ← the id field name on your subject object
-        'subjectName'  // ← the label field name on your subject object
-    )}
-    loading={loadingSubjects || isLoadingSubjects}
-    disabled={!classroomId}
-    required
-    onChange={(id, label) => { setSubjectId(id); setSubjectLabel(label); }}
-/>
+                    label="Subject"
+                    placeholder={classroomId ? "Select subject" : "Select classroom first"}
+                    value={subjectId}
+                    items={
+                      subjects.length > 0
+                        ? subjects // already { id, label } shape
+                        : fetchedSubjects.map(s => ({ id: s.subjectId, label: s.subjectName }))
+                    }
+                    loading={loadingSubjects || isLoadingSubjects}
+                    disabled={!classroomId}
+                    required
+                    onChange={(id, label) => { setSubjectId(id); setSubjectLabel(label); }}
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
