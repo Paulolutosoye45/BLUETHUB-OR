@@ -5,6 +5,7 @@ import App from "./App.tsx"
 import { AuthProvider } from "./contexts/auth-context.tsx"
 import { API } from "./services/auth.ts"
 import { getTenantFromUrl } from "./utils/subdomain.ts"
+import { ErrorBoundary } from "./component/ErrorBoundary";
 
 // main.tsx
 const tenantId = getTenantFromUrl()
@@ -37,9 +38,11 @@ if (!tenantId) {
 
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
-      <AuthProvider>
-        <App />
-      </AuthProvider>
+      <ErrorBoundary fallback={<App />}>
+        <AuthProvider>
+          <App />
+        </AuthProvider>
+      </ErrorBoundary>
     </StrictMode>
   )
 }

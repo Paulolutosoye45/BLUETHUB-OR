@@ -14,7 +14,7 @@ interface SchoolRefProps {
 
 function SchoolRef({ children, mode = "watermark", className = "", contentClassName = "" }: SchoolRefProps) {
     const schoolLogo = localData.retrieve("schoolInfo") as SchoolInfo | null;
-    console.log('schoolLogo', schoolLogo?.logoUrl)
+    // console.log('schoolLogo', schoolLogo?.logoUrl)
     const isWatermark = mode === "watermark";
 
     return (

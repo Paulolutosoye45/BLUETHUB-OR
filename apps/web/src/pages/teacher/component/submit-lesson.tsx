@@ -25,6 +25,7 @@ import {
   Timer,
   Menu,
   Sparkles,
+  CalendarIcon,
 } from "lucide-react";
 import {
   Button,
@@ -34,6 +35,10 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  Calendar,
+  Popover,
+  PopoverTrigger,
+  PopoverContent
 } from "@bluethub/ui-kit";
 import { cn } from "@/lib/utils";
 import {
@@ -60,6 +65,12 @@ import {
 
 const UPLOAD_CONCURRENCY = 2;
 
+interface SubjectItem {
+  subjectId: string;
+  subjectName: string;
+  classroomId: string;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type UploadStatus = "idle" | "uploading" | "done" | "error";
@@ -76,10 +87,6 @@ interface UploadFile {
   error?: string;
 }
 
-interface SelectItem {
-  id: string;
-  label: string;
-}
 
 interface DraftFile {
   uid: string;
@@ -131,11 +138,14 @@ function normalizeDateInput(value: string): string {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-const extractLabel = (item: Record<string, unknown>): string =>
-  String(
-    item.name ?? item.subjectName ?? item.subject ?? item.className ??
-    item.topicName ?? item.subTopicName ?? item.title ?? ""
+const extractLabel = (item: object | undefined): string => {
+  if (!item) return "";
+  const value = item as Record<string, unknown>;
+  return String(
+    value.name ?? value.subjectName ?? value.subject ?? value.className ??
+    value.topicName ?? value.subTopicName ?? value.title ?? ""
   );
+};
 
 const formatBytes = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
@@ -271,17 +281,29 @@ function uploadToSupabase(
 
 // ── FieldSelect Component ────────────────────────────────────────────────────
 
-interface FieldSelectProps {
+// ── Generic item shape ─────────────────────────────────────
+export interface SelectItem {
+  id: string;
   label: string;
-  placeholder: string;
-  value: string;
-  items: SelectItem[];
-  loading?: boolean;
-  disabled?: boolean;
-  required?: boolean;
+}
+
+// ── Adapter — converts any shape to SelectItem ─────────────
+export function toSelectItems(items: any[], idKey: string, labelKey: string): SelectItem[] {
+  return items.map(i => ({ id: i[idKey], label: i[labelKey] }));
+}
+
+// ── Single reusable component ──────────────────────────────
+interface FieldSelectProps {
+  label:        string;
+  placeholder:  string;
+  value:        string;
+  items:        SelectItem[];
+  loading?:     boolean;
+  disabled?:    boolean;
+  required?:    boolean;
   emptyMessage?: string;
-  icon?: React.ReactNode;
-  onChange: (id: string, label: string) => void;
+  icon?:        React.ReactNode;
+  onChange:     (id: string, label: string) => void;
 }
 
 export function FieldSelect({
@@ -289,15 +311,14 @@ export function FieldSelect({
   emptyMessage = "No options available", icon, onChange,
 }: FieldSelectProps) {
   const [open, setOpen] = useState(false);
-  const selected = items.find((i) => i.id === value);
+  const selected   = items.find(i => i.id === value);
   const isDisabled = disabled || loading;
 
   return (
     <div className="space-y-2">
       {label && (
         <Label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-          {icon}
-          {label}
+          {icon}{label}
           {required && <span className="text-red-500">*</span>}
         </Label>
       )}
@@ -307,54 +328,42 @@ export function FieldSelect({
             variant="outline"
             className={cn(
               "w-full justify-between rounded-xl text-sm transition-all h-12 px-4 border-2",
-              selected
-                ? "border-blue-200 text-gray-900 bg-blue-50/50"
-                : "border-gray-200 text-gray-400 bg-white",
-              "hover:border-blue-300 hover:bg-blue-50/30",
-              "focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400",
+              selected ? "border-blue-200 text-gray-900 bg-blue-50/50" : "border-gray-200 text-gray-400 bg-white",
+              "hover:border-blue-300 hover:bg-blue-50/30 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400",
               isDisabled && "opacity-50 cursor-not-allowed pointer-events-none bg-gray-50"
             )}
           >
             <span className={cn("truncate text-left", selected ? "text-gray-900 font-medium" : "text-gray-400")}>
               {loading ? "Loading…" : selected?.label ?? placeholder}
             </span>
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin text-gray-400 shrink-0" />
-            ) : (
-              <ChevronDown className={cn(
-                "w-4 h-4 text-gray-400 shrink-0 transition-transform duration-200",
-                open && "rotate-180"
-              )} />
-            )}
+            {loading
+              ? <Loader2 className="w-4 h-4 animate-spin text-gray-400 shrink-0" />
+              : <ChevronDown className={cn("w-4 h-4 text-gray-400 shrink-0 transition-transform duration-200", open && "rotate-180")} />
+            }
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
           className="w-(--radix-dropdown-menu-trigger-width) rounded-xl border border-gray-200 shadow-xl bg-white p-1.5 max-h-64 overflow-y-auto z-50"
-          align="start"
-          sideOffset={4}
+          align="start" sideOffset={4}
         >
           <DropdownMenuGroup>
             {items.length === 0 ? (
               <div className="px-3 py-6 text-center text-sm text-gray-400">{emptyMessage}</div>
-            ) : (
-              items.map((item) => (
-                <DropdownMenuItem
-                  key={item.id}
-                  className={cn(
-                    "rounded-lg py-3 px-3 text-sm cursor-pointer transition-colors",
-                    value === item.id
-                      ? "bg-blue-600 text-white font-medium"
-                      : "text-gray-700 hover:bg-gray-100"
-                  )}
-                  onClick={() => onChange(item.id, item.label)}
-                >
-                  <div className="flex items-center justify-between w-full gap-2">
-                    <span className="truncate">{item.label}</span>
-                    {value === item.id && <Check className="w-4 h-4 shrink-0" />}
-                  </div>
-                </DropdownMenuItem>
-              ))
-            )}
+            ) : items.map(item => (
+              <DropdownMenuItem
+                key={item.id}
+                className={cn(
+                  "rounded-lg py-3 px-3 text-sm cursor-pointer transition-colors",
+                  value === item.id ? "bg-blue-600 text-white font-medium" : "text-gray-700 hover:bg-gray-100"
+                )}
+                onClick={() => onChange(item.id, item.label)}
+              >
+                <div className="flex items-center justify-between w-full gap-2">
+                  <span className="truncate">{item.label}</span>
+                  {value === item.id && <Check className="w-4 h-4 shrink-0" />}
+                </div>
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -476,12 +485,12 @@ function SetQuestionsModal({
 
   useEffect(() => {
     if (!open) return;
-    console.log("[SetQuestionsModal] open", {
-      subjectLabel,
-      classroomLabel,
-      safeSubjectLabel,
-      safeClassroomLabel,
-    });
+    // console.log("[SetQuestionsModal] open", {
+    //   subjectLabel,
+    //   classroomLabel,
+    //   safeSubjectLabel,
+    //   safeClassroomLabel,
+    // });
   }, [open, subjectLabel, classroomLabel, safeSubjectLabel, safeClassroomLabel]);
 
   if (!open) return null;
@@ -626,6 +635,7 @@ const SubmitLesson = () => {
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
+  const [fetchedSubjects, setFetchedSubjects] = useState<SubjectItem[]>([]);
 
   // ── Upload State ──
   const [uploadFiles, setUploadFiles] = useState<UploadFile[]>([]);
@@ -664,6 +674,56 @@ const SubmitLesson = () => {
   const [serverDraftSaved, setServerDraftSaved] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [attachedQuizId, setAttachedQuizId] = useState<string | null>(null);
+  // const [loading, setLoading] = useState(false);
+  const [isLoadingSubjects, setIsLoadingSubjects] = useState(false);
+
+
+  // fetch class teacher subject
+  useEffect(() => {
+    if (!user?.id) return;
+    const roleData = user?.roleData;
+    const htClassrooms = roleData && isTeacherRoleData(roleData) ? roleData.classrooms : [];
+    const classroomIds = htClassrooms.map((c) => c.classroomId).filter(Boolean);
+    if (classroomIds.length === 0) return;
+    // setLoading(true)
+    setIsLoadingSubjects(true)
+    Promise.all(
+      classroomIds.map((id) =>
+        schoolService.getSubjectsByClassroomId(id)
+          .then((res) => {
+            const data = (res.data as any)?.data;
+            return [
+              ...(data?.majorSubjects ?? []),
+              ...(data?.minorSubjects ?? []),
+            ].map((s: any) => ({
+              subjectId: String(s.id ?? s.subjectId ?? ""),
+              subjectName: String(s.subject ?? s.subjectName ?? s.name ?? ""),
+              classroomId: id,
+            }));
+          })
+          .catch(() => [] as SubjectItem[])
+          .finally(() => {
+            // setLoading(false);
+            setIsLoadingSubjects(false);
+          })
+      )
+    ).then((results) => {
+      const seen = new Set<string>();
+      const all: SubjectItem[] = [];
+
+      for (const batch of results) {
+        for (const item of batch) {
+          if (!item.subjectId || !item.subjectName) {
+            continue;
+          }
+          if (seen.has(item.subjectId)) continue;
+          seen.add(item.subjectId);
+          all.push(item);
+        }
+      }
+      setFetchedSubjects(all);
+    });
+  }, [user?.id, user?.roleData, classroomId]);
 
   // ── Draft Logic ──
   useEffect(() => {
@@ -893,7 +953,7 @@ const SubmitLesson = () => {
         const res = await uploadToSupabase(file, sig as SupabaseUploadToken, (pct) =>
           setUploadFiles((p) => p.map((f) => f.uid === uid ? { ...f, progress: pct } : f))
         );
-        console.log("[SubmitLesson] supabase upload result", res);
+        // console.log("[SubmitLesson] supabase upload result", res);
         result = {
           fileName: file.name,
           originalFileName: file.name,
@@ -965,7 +1025,7 @@ const SubmitLesson = () => {
         const r = await lessonService.getSupabaseUploadToken("lesson-material");
         // Support both TResponse<T> wrapper ({ data: {...} }) and bare response
         supabaseSig = ((r.data as any).data ?? r.data) as SupabaseUploadToken;
-        console.log("[SubmitLesson] supabase token", supabaseSig);
+        // console.log("[SubmitLesson] supabase token", supabaseSig);
       }
     } catch {
       const uids = new Set(incoming.map((f) => f.uid));
@@ -1256,14 +1316,14 @@ const SubmitLesson = () => {
         // enabled for the school so existing behavior is unchanged otherwise.
         ...(aiFeatureEnabled === true
           ? {
-              shouldGenerateImage,
-              imageMaterialWords: imageMaterialWords.trim() ? imageMaterialWords.trim() : null,
-              imageCount,
-            }
+            shouldGenerateImage,
+            imageMaterialWords: imageMaterialWords.trim() ? imageMaterialWords.trim() : null,
+            imageCount,
+          }
           : {}),
       };
 
-      console.log("[SubmitLesson] submitting payload", JSON.stringify(payload, null, 2));
+      // console.log("[SubmitLesson] submitting payload", JSON.stringify(payload, null, 2));
       const res = await lessonService.submitLesson(payload);
       const resData = (res.data as any)?.data as {
         lessonId?: string;
@@ -1306,7 +1366,7 @@ const SubmitLesson = () => {
 
   // ── Render ──
   return (
-    
+
     <>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
         {/* Header */}
@@ -1413,15 +1473,19 @@ const SubmitLesson = () => {
                     onChange={(id, label) => { setClassroomId(id); setClassroomLabel(label); draftRestored.current = true; }}
                   />
                   <FieldSelect
-                    label="Subject"
-                    placeholder={classroomId ? "Select subject" : "Select classroom first"}
-                    value={subjectId}
-                    items={subjects}
-                    loading={loadingSubjects}
-                    disabled={!classroomId}
-                    required
-                    onChange={(id, label) => { setSubjectId(id); setSubjectLabel(label); }}
-                  />
+    label="Subject"
+    placeholder={classroomId ? "Select subject" : "Select classroom first"}
+    value={subjectId}
+    items={toSelectItems(
+        subjects.length > 0 ? subjects : fetchedSubjects,
+        'subjectId',   // ← the id field name on your subject object
+        'subjectName'  // ← the label field name on your subject object
+    )}
+    loading={loadingSubjects || isLoadingSubjects}
+    disabled={!classroomId}
+    required
+    onChange={(id, label) => { setSubjectId(id); setSubjectLabel(label); }}
+/>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1482,19 +1546,19 @@ const SubmitLesson = () => {
               </div>
             </section>
 
-              {/* Schedule & Duration */}
-              <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="lg:px-5 py-4 px-4 bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-gray-100">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-sky-500 text-white">
-                      <Clock className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h2 className="font-semibold text-sm text-gray-900">Schedule & Duration</h2>
-                      <p className="text-xs text-gray-500">Optional — set when and how long the class runs</p>
-                    </div>
+            {/* Schedule & Duration */}
+            <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="lg:px-5 py-4 px-4 bg-gradient-to-r from-sky-50 to-cyan-50 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center bg-sky-500 text-white">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="font-semibold text-sm text-gray-900">Schedule & Duration</h2>
+                    <p className="text-xs text-gray-500">Optional — set when and how long the class runs</p>
                   </div>
                 </div>
+              </div>
 
               <div className="p-5">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -1504,22 +1568,35 @@ const SubmitLesson = () => {
                       <Clock className="w-3.5 h-3.5 text-gray-400" />
                       Class Date
                     </Label>
-                    <input
-                      type="date"
-                      value={scheduledDate}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        const normalized = normalizeDateInput(raw);
-                        debugLog("Date input changed", {
-                          raw,
-                          normalized,
-                          min: toLocalDateInputValue(new Date()),
-                        });
-                        setScheduledDate(normalized);
-                      }}
-                      min={toLocalDateInputValue(new Date())}
-                      className="w-full h-12 rounded-xl border-2 border-gray-200 px-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all bg-white"
-                    />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between rounded-xl text-sm h-12 px-4 border-2 transition-all"
+                        >
+                          <span className="truncate">
+                            {scheduledDate ? new Date(scheduledDate).toLocaleDateString("en-US", {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            }) : "Select date"}
+                          </span>
+                          <CalendarIcon className="w-4 h-4 text-gray-400 shrink-0" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={scheduledDate ? new Date(scheduledDate) : undefined}
+                          onSelect={(date) => setScheduledDate(date?.toISOString() ?? "")}
+                          initialFocus
+                          captionLayout="dropdown"
+                          fromYear={2020}
+                          toYear={new Date().getFullYear()}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   {/* Time */}
