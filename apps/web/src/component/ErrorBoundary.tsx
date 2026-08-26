@@ -7,7 +7,7 @@ interface ErrorBoundaryState {
 }
 
 interface ErrorBoundaryProps {
-  fallback: React.ReactNode;
+  fallback?: React.ReactNode;
   fallbackMessage?: string;
   children?: React.ReactNode;
 }
@@ -28,6 +28,9 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
       return (
         <div className="min-h-screen bg-slate-900 text-white p-8">
           <div className="max-w-3xl mx-auto text-center">
@@ -50,7 +53,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
         </div>
       );
     }
-    return this.props.fallback;
+    return this.props.children;
   }
 }
 

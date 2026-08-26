@@ -135,7 +135,7 @@ const router = createBrowserRouter([
     },
     {
         path: '/auth',
-        element: <ErrorBoundary fallback={<PublicRoute><Auth /></PublicRoute>} fallbackMessage="Authentication page error"/>,
+        element: <ErrorBoundary fallbackMessage="Authentication page error"><PublicRoute><Auth /></PublicRoute></ErrorBoundary>,
         children: [
             {
                 index: true,
@@ -143,17 +143,17 @@ const router = createBrowserRouter([
             },
             {
                 path: 'new-password',
-                element: <ErrorBoundary fallback={<NewPassword />} fallbackMessage="Password reset error"/>,
+                element: <ErrorBoundary fallbackMessage="Password reset error"><NewPassword /></ErrorBoundary>,
             },
             {
                 path: 'login',
-                element: <ErrorBoundary fallback={<Login />} fallbackMessage="Login error"/>,
+                element: <ErrorBoundary fallbackMessage="Login error"><Login /></ErrorBoundary>,
             }
         ]
     },
 {
         path: '/replay',
-        element: <ErrorBoundary fallback={<Provider store={store}><Replay /></Provider>} fallbackMessage="Replay page error"/>
+        element: <ErrorBoundary fallbackMessage="Replay page error"><Provider store={store}><Replay /></Provider></ErrorBoundary>
     },
     {
         path: "*",
@@ -161,7 +161,7 @@ const router = createBrowserRouter([
     },
     {
         path: "teacher/board",
-        element: <ErrorBoundary fallback={<TeacherProtectedRoute><ClassRoom /></TeacherProtectedRoute>} fallbackMessage="Whiteboard error"/>
+        element: <ErrorBoundary fallbackMessage="Whiteboard error"><TeacherProtectedRoute><ClassRoom /></TeacherProtectedRoute></ErrorBoundary>
     },
 
     // ── Dev routes (no auth) ─────────────────────────────────────────────────
@@ -185,7 +185,7 @@ const router = createBrowserRouter([
     //  admin route
     {
         path: '/admin',
-        element: <ErrorBoundary fallback={<AdminProtectedRoute><AdminLayout /></AdminProtectedRoute>} fallbackMessage="Admin page error"/>,
+        element: <ErrorBoundary fallbackMessage="Admin page error"><AdminProtectedRoute><AdminLayout /></AdminProtectedRoute></ErrorBoundary>,
         children: [
             {
                 index: true,
@@ -339,7 +339,7 @@ const router = createBrowserRouter([
     //  teacher route
     {
         path: '/teacher',
-        element: <ErrorBoundary fallback={<TeacherLayout />} fallbackMessage="Teacher page error"/>,
+        element: <ErrorBoundary fallbackMessage="Teacher page error"><TeacherLayout /></ErrorBoundary>,
         children: [
             {
                 index: true,
@@ -402,7 +402,7 @@ const router = createBrowserRouter([
 
     {
         path: "/student",
-        element: <ErrorBoundary fallback={<StudentProtectedRoute><StudentsLayout /></StudentProtectedRoute>} fallbackMessage="Student page error"/>,
+        element: <ErrorBoundary fallbackMessage="Student page error"><StudentProtectedRoute><StudentsLayout /></StudentProtectedRoute></ErrorBoundary>,
         children: [
             { index: true, element: <StudentIndex /> },
             {

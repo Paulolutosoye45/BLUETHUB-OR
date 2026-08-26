@@ -3,7 +3,7 @@ import { Eye, EyeOff, Loader2, Lock } from "lucide-react"
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { newPasswordSchema } from "@/utils/validate";
+import { newPasswordSchema, newPasswordComplexSchema } from "@/utils/validate";
 import { authService } from "@/services/auth";
 // import { getDeviceIp, getDeviceType } from "@/utils";
 import { useNavigate } from "react-router-dom";
@@ -17,26 +17,32 @@ const NewPassword = () => {
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
-    const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | null>(null);
+    // const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | null>(null);
     const [errorMsg, setErrorMsg] = useState("");
-    const [schoolName, setSchoolName] = useState<string | null>(null);
+    // const [schoolName, setSchoolName] = useState<string | null>(null);
     const { login: loginAuth } = useAuthContext();
 
     // Restore school branding from a previous session
     useEffect(() => {
-        const stored =
-            localData.retrieve<{ logoUrl: string; schoolName: string }>("th_school") ??
-            localData.retrieve<{ logoUrl: string; schoolName: string }>("schoolInfo");
-        if (stored?.logoUrl) setSchoolLogoUrl(stored.logoUrl);
-        if (stored?.schoolName) setSchoolName(stored.schoolName);
+        // const stored =
+        //     localData.retrieve<{ logoUrl: string; schoolName: string }>("th_school") ??
+        //     localData.retrieve<{ logoUrl: string; schoolName: string }>("schoolInfo");
+        // if (stored?.logoUrl) setSchoolLogoUrl(stored.logoUrl);
+        // if (stored?.schoolName) setSchoolName(stored.schoolName);
     }, []);
 
+
+    // Staff roles (everyone but Student) must satisfy the stricter complexity
+    // Yw%M56a&
+    // schema. roleId is stashed in localStorage by the login screen's
+    // firstTimeLogin branch (Student = 0).
+    const isStudent = localStorage.getItem("roleId") === "0";
 
     const {
         register,
         handleSubmit,
         formState: { errors },
-    } = useForm({ resolver: yupResolver(newPasswordSchema) });
+    } = useForm({ resolver: yupResolver(isStudent ? newPasswordSchema : newPasswordComplexSchema) });
 
     const schoolId = localData.retrieve("schoolInfo") as schoolInfo
     
@@ -148,17 +154,7 @@ const NewPassword = () => {
                 </p>
             </div>
 
-            {/* ── School branding ── */}
-            {schoolLogoUrl && (
-                <div className="mb-6">
-                    <img
-                        src={schoolLogoUrl}
-                        alt={schoolName ?? "School logo"}
-                        loading="lazy"
-                        className="h-8 w-auto object-contain"
-                    />
-                </div>
-            )}
+
 
             {/* ── Inline error banner ── */}
             {errorMsg && (

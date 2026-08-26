@@ -94,6 +94,31 @@ export const newPasswordSchema = yup.object({
         .oneOf([yup.ref("password")], "Passwords must match"),
 });
 
+// Staff roles (everyone except Student) get stricter password complexity.
+export const newPasswordComplexSchema = yup.object({
+    hashPassword: yup.string().required().label("Password"),
+    password: yup
+        .string()
+        .required('Password is required')
+        .min(8, 'Must be at least 8 characters')
+        .matches(/[A-Z]/, 'Must contain at least one uppercase letter')
+        .matches(/[a-z]/, 'Must contain at least one lowercase letter')
+        .matches(/[0-9]/, 'Must contain at least one number')
+        .matches(/[!@#$%^&*(),.?":{}|<>]/, 'Must contain at least one special character')
+        .test(
+            "not-same-as-old",
+            "New password must be different from your current password",
+            function (value) {
+                return value !== this.parent.hashPassword;
+            },
+        )
+        .label("Password"),
+    confirmPassword: yup
+        .string()
+        .required()
+        .oneOf([yup.ref("password")], "Passwords must match"),
+});
+
 
 
 

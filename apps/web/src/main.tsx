@@ -38,7 +38,7 @@ if (!tenantId) {
 
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
-      <ErrorBoundary fallback={<App />}>
+      <ErrorBoundary>
         <AuthProvider>
           <App />
         </AuthProvider>

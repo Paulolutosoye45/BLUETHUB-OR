@@ -113,6 +113,7 @@ function Login() {
 
         // ✅ Store tokens before navigating
         localStorage.setItem("username", data.userName);
+        localStorage.setItem("roleId", result.roleId.toString());
         localStorage.setItem("token", result.token);
         localStorage.setItem("refreshToken", result.refreshToken);
         localStorage.setItem("accessTokenExpiresAt", String(Date.now() + result.tokenExpiresIn * 1000));
