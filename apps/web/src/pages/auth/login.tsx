@@ -9,7 +9,7 @@ import { authService } from "@/services/auth";
 import { Hashing, localData } from "@/utils";
 import { getParsedToken } from "@/utils/decode";
 import { useAuthContext } from "@/contexts/auth-context";
-import { loginSchema } from "@/utils/validate";
+import { loginSchema, TEACHER_ROLE_IDS, UserRole } from "@/utils/validate";
 import { API } from "@/services";
 import { getTenantFromUrl } from "@/utils/subdomain";
 
@@ -159,11 +159,12 @@ function Login() {
       // Hydrate auth context (sets "token" key in localStorage + user state)
 
       // ── Role-based redirect via roleId ───────────────────────────────────
-      // roleId 3 = SuperAdmin, 2 = Admin, 1 = Teacher, else = Student
-      if (result.roleId === 3 || result.roleId === 2) {
-        navigate("/admin")
-      } else if (result.roleId === 1) {
+      if (result.roleId === UserRole.SuperAdministrator || result.roleId === UserRole.Administrator) {
+        navigate("/admin");
+      } else if (TEACHER_ROLE_IDS.includes(result.roleId)) {
         navigate("/teacher");
+      } else if (result.roleId === UserRole.Parent) {
+        navigate("/parent");
       } else {
         navigate("/student");
       }
@@ -278,7 +279,11 @@ function Login() {
               <label htmlFor="password" className="block font-Poppins text-sm font-semibold text-[#0F0F0E]">
                 Password
               </label>
-              <button type="button" className="text-xs font-Poppins font-semibold text-chestnut hover:opacity-70 transition-opacity">
+              <button
+                type="button"
+                onClick={() => navigate("/auth/forgot-password")}
+                className="text-xs font-Poppins font-semibold text-chestnut hover:opacity-70 transition-opacity"
+              >
                 Forgot password?
               </button>
             </div>

@@ -147,6 +147,21 @@ export interface StudentAttendanceStats {
   attendanceRate: number;
 }
 
+// ── Raw attendance history (GET /api/Attendance/student/{id}/attendance) ──────
+
+export interface AttendanceHistoryItem {
+  sessionId: string;
+  attendanceType: number;
+  attendanceTypeName: string;
+  subjectName: string | null;
+  classroomName: string | null;
+  subTopicName: string | null;
+  startedAt: string;
+  sessionStatus: string;
+  isPresent: boolean;
+  attendedAt: string | null;
+}
+
 export const attendanceService = {
   /** Start an attendance session for the chosen type (class / subject / subtopic). */
   startSession: (payload: StartAttendanceSessionPayload) =>
@@ -180,9 +195,9 @@ export const attendanceService = {
       headers,
     }),
 
-  /** A student's attendance history (self or staff). */
+  /** A student's raw attendance history, newest first (self, staff, or parent). */
   getStudentAttendance: (studentId: string) =>
-    API.get<TResponse<unknown>>(`/api/Attendance/student/${studentId}/attendance`, { headers }),
+    API.get<TResponse<AttendanceHistoryItem[]>>(`/api/Attendance/student/${studentId}/attendance`, { headers }),
 
   /** Current user's attendance QR token (the value encoded in their QR). */
   getMyQrToken: () =>
