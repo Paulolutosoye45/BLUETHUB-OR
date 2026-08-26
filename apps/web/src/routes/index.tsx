@@ -21,6 +21,7 @@ import ApprovalStatusId from '@/pages/teacher/recorded/approval-status-Id';
 import ResumeClass from '@/pages/teacher/component/resume-class';
 import ClassInfo from '@/pages/teacher/component/class-info';
 import StudenLayout from '@/pages/admin/registration/student/layout';
+import CreateParentPage from '@/pages/admin/registration/parent/create-parent';
 import Student from '@/pages/admin/registration/student/student';
 import NewStudent from '@/pages/admin/registration/student/new-student';
 import Enrollment from '@/pages/admin/registration/student/enrollment';
@@ -35,6 +36,10 @@ import TeacherEditProfile from '@/pages/admin/registration/teacher/edit-profile'
 import EmailModal from '@/pages/admin/registration/teacher/email-modal';
 import ClassRegistration from '@/pages/admin/registration/course/class/class-registration';
 import StudentsLayout from '@/layouts/student';
+import ParentLayout from '@/layouts/parent';
+import ParentProtectedRoute from '@/component/protected-routes/parent-routes';
+import ParentDashboard from '@/pages/parent/dashboard';
+import ParentAttendance from '@/pages/parent/attendance';
 import StudentIndex from '@/pages/student/component/main';
 import StudentSettings from '@/shared/setting';
 import ProfileLayout from '@/pages/student/profile/layout';
@@ -67,6 +72,8 @@ import ViewQuestions from '@/pages/teacher/component/view-questions';
 import GenerateQuiz from '@/pages/teacher/component/generate-quiz';
 import Login from '@/pages/auth/login';
 import NewPassword from '@/pages/auth/new-password';
+import ForgotPassword from '@/pages/auth/forgot-password';
+import ResetPassword from '@/pages/auth/reset-password';
 import AdminProtectedRoute from '@/component/protected-routes/admin-routes';
 import { PublicRoute } from '@/component/protected-routes/public-route';
 import StudentProtectedRoute from '@/component/protected-routes/student-routes';
@@ -247,6 +254,7 @@ const router = createBrowserRouter([
                     { path: "class", element: <ClassRegistration /> },
                     { path: "class/new", element: <RegisterNewClass /> },
                     { path: "class/view-all", element: <ClassviewAll /> },
+                    { path: "parent", element: <CreateParentPage /> },
                     {
                         path: "teacher",
                         element: <Teacherlayout />,
@@ -396,6 +404,17 @@ const router = createBrowserRouter([
             { path: "analytics", element: <TeacherAnalytics /> },
             { path: "attendance", element: <Attendance /> },
         ]
+    },
+
+    // parent route
+
+    {
+        path: "/parent",
+        element: <ParentProtectedRoute><ParentLayout /></ParentProtectedRoute>,
+        children: [
+            { index: true, element: <ParentDashboard /> },
+            { path: "attendance", element: <ParentAttendance /> },
+        ],
     },
 
     // student route

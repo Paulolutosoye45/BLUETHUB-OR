@@ -3,7 +3,7 @@ import { Eye, EyeOff, Loader2, Lock } from "lucide-react"
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { newPasswordSchema } from "@/utils/validate";
+import { newPasswordSchema, TEACHER_ROLE_IDS, UserRole } from "@/utils/validate";
 import { authService } from "@/services/auth";
 // import { getDeviceIp, getDeviceType } from "@/utils";
 import { useNavigate } from "react-router-dom";
@@ -92,15 +92,15 @@ const NewPassword = () => {
             loginAuth(result.token, { ...user, roleName: user.role }, result.refreshToken);
 
             // ── Role-based redirect via roleId ───────────────────────────────────
-            // roleId 3 = SuperAdmin, 2 = Admin, 1 = Teacher, else = Student
-            if (result.roleId === 3 || result.roleId === 2) {
+            if (result.roleId === UserRole.SuperAdministrator || result.roleId === UserRole.Administrator) {
                 navigate("/admin");
-            } else if (result.roleId === 1) {
+            } else if (TEACHER_ROLE_IDS.includes(result.roleId)) {
                 navigate("/teacher");
+            } else if (result.roleId === UserRole.Parent) {
+                navigate("/parent");
             } else {
                 navigate("/student");
             }
-            // navigate('/auth')
 
             localData.remove("username")
 
@@ -112,6 +112,13 @@ const NewPassword = () => {
                     error.message
                     : (error as Error).message;
             setErrorMsg(msg);
+            // A failed first-time password-set (wrong temp password, or the
+            // account is no longer in a first-time-login state) can't just be
+            // retried in place — the server-side first-time state may already
+            // be consumed. Send the user back to plain login: retrying login
+            // with the same temp password correctly re-triggers
+            // firstTimeLogin: true so they land back here fresh.
+            setTimeout(() => navigate("/auth"), 2500);
         } finally {
             setLoading(false);
         }
