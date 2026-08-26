@@ -68,6 +68,7 @@ const ACADEMICLINKS: NavItem[] = [
             { name: "Student", path: "/admin/registration/student" },
             { name: "Unlock User", path: "/admin/registration/student/unlock-user" },
             { name: "User", path: "/admin/registration/Teacher" },
+            { name: "Parent", path: "/admin/registration/parent" },
             { name: "Subject", path: "/admin/registration/courses" },
             { name: "Class", path: "/admin/registration/class" },
         ],

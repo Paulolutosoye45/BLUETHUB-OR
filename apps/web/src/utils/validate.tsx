@@ -94,6 +94,27 @@ export const newPasswordSchema = yup.object({
         .oneOf([yup.ref("password")], "Passwords must match"),
 });
 
+export const forgotPasswordSchema = yup.object({
+    userName: yup.string().required().label("Username"),
+});
+
+export const resetPasswordSchema = yup.object({
+    password: yup
+        .string()
+        .required()
+        .min(8)
+        .matches(
+            /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&]+$/,
+            "Password must contain at least one letter and one number",
+        )
+        .label("New Password"),
+    confirmPassword: yup
+        .string()
+        .required()
+        .oneOf([yup.ref("password")], "Passwords must match")
+        .label("Confirm Password"),
+});
+
 
 
 
@@ -105,6 +126,7 @@ export const UserRole = {
   SuperAdministrator: 3,
   SubjectTeacher: 4,
   ClassTeacher: 5,
+  Parent: 6,
 } as const;
 
 export type UserRoleType = (typeof UserRole)[keyof typeof UserRole];
@@ -116,7 +138,15 @@ export const UserRoleLabels: Record<UserRoleType, string> = {
   [UserRole.SuperAdministrator]: "Super Administrator",
   [UserRole.SubjectTeacher]: "Subject Teacher",
   [UserRole.ClassTeacher]: "Class Teacher",
+  [UserRole.Parent]: "Parent",
 };
+
+/** Every roleId that lands a user in the /teacher app. */
+export const TEACHER_ROLE_IDS: readonly number[] = [
+  UserRole.HeadTeacher,
+  UserRole.SubjectTeacher,
+  UserRole.ClassTeacher,
+];
 
 
 
