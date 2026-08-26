@@ -42,7 +42,9 @@ const NewPassword = () => {
         register,
         handleSubmit,
         formState: { errors },
-    } = useForm({ resolver: yupResolver(isStudent ? newPasswordSchema : newPasswordComplexSchema) });
+    } = useForm<{ hashPassword: string; password: string; confirmPassword: string }>({
+        resolver: yupResolver(isStudent ? newPasswordSchema : newPasswordComplexSchema),
+    });
 
     const schoolId = localData.retrieve("schoolInfo") as schoolInfo
     
