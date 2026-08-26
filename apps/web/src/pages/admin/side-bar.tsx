@@ -22,16 +22,20 @@ import dashboardIcon from "@/assets/svg/element-4.svg";
 import messageIcon from "@/assets/svg/message.svg";
 import UserPlus from "@/assets/svg/user_plus.svg";
 import ShieldCheck from "@/assets/svg/shield_check.svg";
-import analyticsIcon from "@/assets/svg/bar_chart.svg";
+import analyticsIcon from "@/assets/svg/analytics.svg";
 // import studentIcon from "@/assets/svg/student.svg";
 // import teacherIcon from "@/assets/svg/teacher.svg";
 // import coursesIcon from "@/assets/svg/courses.svg";
 import libraryIcon from "@/assets/svg/library.svg";
-import classIcon from "@/assets/svg/class.svg";
+// import classIcon from "@/assets/svg/class.svg";
 import lessonIcon from "@/assets/svg/lesson.svg";
+import schoolBrandingIcon from "@/assets/svg/school-branding.svg";
 import settingsIcon from "@/assets/svg/settings.svg";
 import logoutIcon from "@/assets/svg/logout.svg";
+import AttendanceIcon from "@/assets/svg/attendance.svg";
 import assignmentIcon from "@/assets/svg/assignment.svg";
+import AssessmentIcon from "@/assets/svg/assessment.svg";
+import ModuletIcon from "@/assets/svg/module.svg";
 import { useAuthContext } from "@/contexts/auth-context";
 import { localData } from "@/utils";
 import type { schoolInfo } from "@/services";
@@ -56,7 +60,7 @@ export interface NavItem {
 const navLink: NavItem[] = [
     { name: "Dashboard", icons: dashboardIcon, path: "/admin" },
     { name: "Analytics", icons: analyticsIcon, path: "/admin/analytics" },
-    { name: "Attendance", icons: analyticsIcon, path: "/admin/attendance-analytics" },
+    { name: "Attendance", icons: AttendanceIcon, path: "/admin/attendance-analytics" },
     { name: "Message", icons: messageIcon, path: "/admin/message" },
 ];
 
@@ -86,11 +90,12 @@ const ACADEMICLINKS: NavItem[] = [
     // { name: "Teacher", icons: teacherIcon, path: "/admin/teacher" },
     // { name: "Courses", icons: coursesIcon, path: "/admin/courses" },
     { name: "Library", icons: libraryIcon, path: "/admin/library" },
-    { name: "Module", icons: classIcon, path: "/admin/module" },
+    { name: "Module", icons: ModuletIcon, path: "/admin/module" },
     { name: "Lesson Approval", icons: lessonIcon, path: "/admin/lesson-approval" },
+    { name: "School Branding", icons: schoolBrandingIcon, path: "/admin/school-branding" },
     {
         name: "Assessment",
-        icons: assignmentIcon,
+        icons: AssessmentIcon,
         children: [
             { name: "By Class", path: "/admin/assessment/class" },
             { name: "By Subject", path: "/admin/assessment/subject" },

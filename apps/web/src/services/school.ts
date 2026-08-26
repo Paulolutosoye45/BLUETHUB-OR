@@ -28,6 +28,7 @@ export const endpoints = {
   deleteSubjects: "/api/School/RemoveClassroomSubject",
   createTopic: "/api/School/topics",
   Provison: "/api/School/provision",
+  schoolLogo:"/api/School/logo"
 };
 
 interface Ischool {
@@ -113,7 +114,16 @@ export const schoolService = {
       },
     );
   },
-
+  schoolLogo: (file: File) => {
+    const formData = new FormData();
+    formData.append("logo", file); // ← was "file", must be "logo"
+    return API.put<TResponse<unknown>>(endpoints.schoolLogo, formData, {
+        headers: {
+            "Content-Type": "multipart/form-data",
+            "X-Tenant-ID": X_Tenant_ID,
+        },
+    });
+},
   deleteSubjects:(data: IdeleteSubjects) => {
     return API.delete<TResponse<unknown>>(endpoints.deleteSubjects, {
       data,

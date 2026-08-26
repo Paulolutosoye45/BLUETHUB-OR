@@ -6,6 +6,7 @@ import ClassRoom from '@/layouts/teacher/class/class-room';
 import Replay from '@/component/reply';
 import { Provider } from 'react-redux';
 import { store } from '@/store';
+import { ErrorBoundary } from '@/component/ErrorBoundary';
 import AdminLayout from '@/layouts/admin/admin-layout';
 import AdminDashboard from '@/pages/admin/dashboard';
 import TeacherLayout from '@/layouts/teacher/class/dashboard';
@@ -132,6 +133,7 @@ import QuizByClass from '@/pages/admin/quiz/by-class';
 import QuizBySubject from '@/pages/admin/quiz/by-subject';
 import QuizByStudent from '@/pages/admin/quiz/by-student';
 import AttendanceAnalytics from '@/pages/admin/attendance-analytics';
+import UploadSchoolLogoPage from '@/component/upload-school-logo-page';
 
 const router = createBrowserRouter([
     {
@@ -140,7 +142,7 @@ const router = createBrowserRouter([
     },
     {
         path: '/auth',
-        element: <PublicRoute><Auth /></PublicRoute>,
+        element: <ErrorBoundary fallback={<PublicRoute><Auth /></PublicRoute>} fallbackMessage="Authentication page error"/>,
         children: [
             {
                 index: true,
@@ -148,34 +150,17 @@ const router = createBrowserRouter([
             },
             {
                 path: 'new-password',
-                element: <NewPassword />,
+                element: <ErrorBoundary fallback={<NewPassword />} fallbackMessage="Password reset error"/>,
             },
             {
-                path:'login',
-                element: <Login />,
-            },
-            {
-                path: 'forgot-password',
-                element: <ForgotPassword />,
-            },
+                path: 'login',
+                element: <ErrorBoundary fallback={<Login />} fallbackMessage="Login error"/>,
+            }
         ]
     },
-    {
-        // Top-level (not nested under /auth) — the emailed reset link points
-        // at https://{tenant}.bluetsch.com/reset-password?token=..., so this
-        // path must match exactly.
-        path: '/reset-password',
-        element: <PublicRoute><Auth /></PublicRoute>,
-        children: [
-            {
-                index: true,
-                element: <ResetPassword />,
-            },
-        ],
-    },
-    {
+{
         path: '/replay',
-        element: <Provider store={store}><Replay /> </Provider>
+        element: <ErrorBoundary fallback={<Provider store={store}><Replay /></Provider>} fallbackMessage="Replay page error"/>
     },
     {
         path: "*",
@@ -183,7 +168,7 @@ const router = createBrowserRouter([
     },
     {
         path: "teacher/board",
-        element: <TeacherProtectedRoute><ClassRoom /></TeacherProtectedRoute>,
+        element: <ErrorBoundary fallback={<TeacherProtectedRoute><ClassRoom /></TeacherProtectedRoute>} fallbackMessage="Whiteboard error"/>
     },
 
     // ── Dev routes (no auth) ─────────────────────────────────────────────────
@@ -207,8 +192,7 @@ const router = createBrowserRouter([
     //  admin route
     {
         path: '/admin',
-        element:
-            <AdminProtectedRoute><AdminLayout /></AdminProtectedRoute>,
+        element: <ErrorBoundary fallback={<AdminProtectedRoute><AdminLayout /></AdminProtectedRoute>} fallbackMessage="Admin page error"/>,
         children: [
             {
                 index: true,
@@ -251,10 +235,10 @@ const router = createBrowserRouter([
                             },
                         ],
                     },
-            {
-                path: 'analytics',
-                element: <AdminAnalytics />
-            },
+                    {
+                        path: 'analytics',
+                        element: <AdminAnalytics />
+                    },
                     {
                         path: "courses",
                         element: <CoursesMain />,
@@ -299,6 +283,10 @@ const router = createBrowserRouter([
                 path: 'module',
                 element: <ModulePage />,
             },
+                                {
+                        path: 'school-branding',
+                        element: <UploadSchoolLogoPage />
+                    },
             {
                 path: 'admin-permissions',
                 element: <AdminPermissions />
@@ -359,8 +347,7 @@ const router = createBrowserRouter([
     //  teacher route
     {
         path: '/teacher',
-        element:
-            <TeacherLayout />,
+        element: <ErrorBoundary fallback={<TeacherLayout />} fallbackMessage="Teacher page error"/>,
         children: [
             {
                 index: true,
@@ -434,7 +421,7 @@ const router = createBrowserRouter([
 
     {
         path: "/student",
-        element: <StudentProtectedRoute><StudentsLayout /></StudentProtectedRoute>,
+        element: <ErrorBoundary fallback={<StudentProtectedRoute><StudentsLayout /></StudentProtectedRoute>} fallbackMessage="Student page error"/>,
         children: [
             { index: true, element: <StudentIndex /> },
             {
