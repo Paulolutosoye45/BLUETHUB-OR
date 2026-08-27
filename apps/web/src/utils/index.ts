@@ -50,6 +50,7 @@ export const token = {
     localStorage.removeItem(KEYS.schoolInfo);
     localStorage.removeItem(KEYS.user);
     localStorage.removeItem(KEYS.school);
+    localStorage.removeItem("roleId");
   },
 
   clearAll() {

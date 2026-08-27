@@ -7,8 +7,19 @@ import {
   Users,
   BookOpen,
   GraduationCap,
+  LibraryBig,
+  BarChart2,
+  TrendingUp,
+  ClipboardCheck,
+  
 } from "lucide-react";
-import { teacherService, type TeacherDashboardStats } from "@/services/teacher";
+// import { teacherService, type TeacherDashboardStats } from "@/services/teacher";
+import { performanceService, type ClassTeacherNavbarDto, type SubjectTeacherNavbarDto } from "@/services/performance";
+import { useAuthContext } from "@/contexts/auth-context";
+
+
+type TeacherNavbarDto = SubjectTeacherNavbarDto | ClassTeacherNavbarDto;
+
 
 const quickActions = [
   { label: "Submit lesson", description: "Send to admin for review", icon: <Plus className="text-chestnut size-4" />, path: "/teacher/submit-lesson" },
@@ -18,34 +29,25 @@ const quickActions = [
 ];
 
 const Activity = () => {
-  const navigate = useNavigate();
-  const [stats, setStats] = useState<TeacherDashboardStats | null>(null);
+  const navigate  = useNavigate();
+  const { user }  = useAuthContext();
+  const role      = user?.roleName;
+
+  const [stats,   setStats]   = useState<TeacherNavbarDto | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await teacherService.getDashboardStats();
-        if (res.data.status === "successful") {
-          setStats(res.data.data);
-        }
+        const res = await performanceService.getNavbar();
+        if (res.data.status === 'failed') return;
+        setStats(res.data.data as TeacherNavbarDto);
       } catch (err) {
         console.error("Failed to fetch dashboard stats:", err);
-        // Fallback to zeros if API fails
-        setStats({
-          totalStudents: 0,
-          activeClasses: 0,
-          newAssessments: 0,
-          attendanceRate: 0,
-          lessonsThisWeek: 0,
-          pendingApprovals: 0,
-          classesToday: 0,
-        });
       } finally {
         setLoading(false);
       }
     };
-
     fetchStats();
   }, []);
 
@@ -58,9 +60,34 @@ const Activity = () => {
     },
     {
       label: "Active Classes",
-      count: stats?.activeClasses ?? 0,
+      count: (stats as SubjectTeacherNavbarDto)?.classCount ?? 0,
       change: "Assigned to you",
       icon: <GraduationCap className="text-chestnut" />,
+    },
+    // only SubjectTeacher has subjectCount
+    ...(role === "SubjectTeacher" ? [{
+      label: "Subjects",
+      count: (stats as SubjectTeacherNavbarDto)?.subjectCount ?? 0,
+      change: "Currently teaching",
+      icon: <LibraryBig className="text-chestnut" />,
+    }] : []),
+    {
+      label: "Avg Score",
+      count: `${((stats as SubjectTeacherNavbarDto)?.overallAverageScore ?? 0).toFixed(1)}%`,
+      change: "Class average",
+      icon: <BarChart2 className="text-chestnut" />,
+    },
+    {
+      label: "Pass Rate",
+      count: `${((stats as SubjectTeacherNavbarDto)?.overallPassRate ?? 0).toFixed(1)}%`,
+      change: "Students passing",
+      icon: <TrendingUp className="text-chestnut" />,
+    },
+    {
+      label: "Pending Grading",
+      count: stats?.pendingGradingItems ?? 0,
+      change: "Awaiting grades",
+      icon: <ClipboardCheck className="text-chestnut" />,
     },
     {
       label: "Lessons This Week",

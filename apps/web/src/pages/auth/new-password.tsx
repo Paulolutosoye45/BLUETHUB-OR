@@ -11,24 +11,22 @@ import { Hashing, localData, token } from "@/utils";
 import type { schoolInfo } from "@/services";
 import { useAuthContext } from "@/contexts/auth-context";
 import { getParsedToken } from "@/utils/decode";
+import { PasswordRules, RULES } from "./password-rules";
 
 const NewPassword = () => {
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
-    // const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | null>(null);
     const [errorMsg, setErrorMsg] = useState("");
-    // const [schoolName, setSchoolName] = useState<string | null>(null);
+    const [isStudent, setIsStudent] = useState<number>();
     const { login: loginAuth } = useAuthContext();
 
     // Restore school branding from a previous session
     useEffect(() => {
-        // const stored =
-        //     localData.retrieve<{ logoUrl: string; schoolName: string }>("th_school") ??
-        //     localData.retrieve<{ logoUrl: string; schoolName: string }>("schoolInfo");
-        // if (stored?.logoUrl) setSchoolLogoUrl(stored.logoUrl);
-        // if (stored?.schoolName) setSchoolName(stored.schoolName);
+        const stored =
+            localData.retrieve<{ roleId: number }>("schoolInfo");
+        if (stored?.roleId && stored?.roleId === 0) setIsStudent(stored.roleId);
     }, []);
 
 
@@ -36,18 +34,26 @@ const NewPassword = () => {
     // Yw%M56a&
     // schema. roleId is stashed in localStorage by the login screen's
     // firstTimeLogin branch (Student = 0).
-    const isStudent = localStorage.getItem("roleId") === "0";
 
     const {
         register,
         handleSubmit,
+        watch,
         formState: { errors },
     } = useForm<{ hashPassword: string; password: string; confirmPassword: string }>({
         resolver: yupResolver(isStudent ? newPasswordSchema : newPasswordComplexSchema),
     });
 
+    const watchedPassword = watch("password", "");
+    const watchedOldPassword = watch("hashPassword", "");
+
+    // all rules passed — used to gate the submit button for staff
+    const allRulesPassed = !isStudent && RULES.every(r => r.test(watchedPassword))
+        && watchedPassword.length > 0
+        && watchedPassword !== watchedOldPassword;
+
     const schoolId = localData.retrieve("schoolInfo") as schoolInfo
-    
+
     const handleUpdatePassword = async (data: { hashPassword: string, password: string, confirmPassword: string }) => {
         const username = localStorage.getItem("username")
         if (!schoolId?.id) {
@@ -81,8 +87,6 @@ const NewPassword = () => {
             }
 
             token.login(result.token, result.refreshToken);
-            // localData.save("token", result.token);
-            // localData.save("token", );
             localData.save("user", {
                 id: result.id,
                 firstName: result.firstName,
@@ -110,7 +114,6 @@ const NewPassword = () => {
                 navigate("/student");
             }
 
-            localData.remove("username")
 
         } catch (error) {
             const msg =
@@ -120,19 +123,13 @@ const NewPassword = () => {
                     error.message
                     : (error as Error).message;
             setErrorMsg(msg);
-            // A failed first-time password-set (wrong temp password, or the
-            // account is no longer in a first-time-login state) can't just be
-            // retried in place — the server-side first-time state may already
-            // be consumed. Send the user back to plain login: retrying login
-            // with the same temp password correctly re-triggers
-            // firstTimeLogin: true so they land back here fresh.
             setTimeout(() => navigate("/auth"), 2500);
         } finally {
             setLoading(false);
         }
     }
     return (
-        <div className="font-poppins flex flex-col justify-center h-full  rounded-[18px] py-13 px-7.5 shadow-[0_4px_16px_0px_rgba(41,35,130,0.08),0_24px_64px_0px_rgba(41,35,130,0.13)]  lg:px-0  md:shadow-none md:max-w-md mx-auto lg:py-10">
+        <div className="font-poppins flex flex-col  h-full overflow-y-scroll  py-13 px-7.5 shadow-[0_4px_16px_0px_rgba(41,35,130,0.08),0_24px_64px_0px_rgba(41,35,130,0.13)]  lg:px-7  md:shadow-none md:max-w-xl mx-auto lg:py-10">
 
             <div className="mb-10 md:hidden">
                 <svg width="191" height="42" viewBox="0 0 191 42" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -203,12 +200,11 @@ const NewPassword = () => {
                 </div>
 
                 {/* Password */}
+                {/* Password field */}
                 <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                        <label htmlFor="password" className="block text-sm font-semibold text-[#0F0F0E]">
-                            Password
-                        </label>
-                    </div>
+                    <label htmlFor="password" className="block text-sm font-semibold text-[#0F0F0E]">
+                        Password
+                    </label>
                     <div className="relative">
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
@@ -216,13 +212,12 @@ const NewPassword = () => {
                             {...register("password")}
                             type={showPassword ? "text" : "password"}
                             placeholder="••••••••"
-                            autoComplete="current-password"
+                            autoComplete="new-password"
                             className="w-full border border-gray-200 rounded-lg pl-9 pr-11 py-2.5 text-sm outline-none focus:ring-2 focus:ring-chestnut/30 focus:border-chestnut/40 transition-all"
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(v => !v)}
-                            aria-label={showPassword ? "Hide password" : "Show password"}
                             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                         >
                             {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -230,6 +225,11 @@ const NewPassword = () => {
                     </div>
                     {errors.password && (
                         <p className="text-red-500 text-xs pl-1">{errors.password.message}</p>
+                    )}
+
+                    {/* ← show checker only for non-students */}
+                    {!isStudent && watchedPassword.length > 0 && (
+                        <PasswordRules password={watchedPassword} oldPassword={watchedOldPassword} />
                     )}
                 </div>
 
@@ -266,14 +266,11 @@ const NewPassword = () => {
                 {/* Submit */}
                 <button
                     type="submit"
-                    disabled={loading}
+                    disabled={loading || (!isStudent && !allRulesPassed)}
                     className="w-full py-3 rounded-lg bg-chestnut text-white text-sm font-semibold shadow-sm hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-opacity mt-2"
                 >
                     {loading ? (
-                        <>
-                            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                            <span>Updating password...</span>
-                        </>
+                        <><Loader2 className="size-4 animate-spin" /><span>Updating password...</span></>
                     ) : (
                         <span>Update Password</span>
                     )}
