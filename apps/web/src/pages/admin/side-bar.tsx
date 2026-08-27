@@ -427,13 +427,13 @@ const SideBar = () => {
                     }`}
             >
                 {!isCollapsed && (
-                    <div className="flex items-center gap-2 min-w-0">
-                        <img src={bluethub} alt="Bluethub" className="h-7 shrink-0" />
+                    <div className="flex items-center gap-6 min-w-0">
+                        <img src={school.logoUrl || bluethub} alt={school.schoolName ||'bluetsch'} className="h-7  rounded-full shrink-0" />
                         <div className="min-w-0">
                             <p className="text-[10px] font-semibold text-[#292382] opacity-60 truncate">
                                 {school.schoolName ? school.schoolName:  "BB"}
                             </p>
-                            <p className="text-[13px] font-bold text-[#292382] truncate">{ user?.roleName ? user.roleName : "Administrator"}</p>
+                            <p className="text-xs font-semibold text-[#292382] truncate">{ user?.roleName ? user.roleName : "Administrator"}</p>
                         </div>
                     </div>
                 )}

@@ -17,7 +17,7 @@ import PlayIcon from "@/assets/svg/play.svg";
 import QuizzesIcon from "@/assets/svg/quizzes.svg";
 import AttendanceIcon from "@/assets/svg/attendance.svg";
 import LessonIcon from "@/assets/svg/lesson.svg";
-import PenIcon from "@/assets/svg/pen.svg";
+import QuestionBankIcons from "@/assets/svg/question-bank.svg";
 import CircleCheckIcon from "@/assets/svg/circle_check.svg";
 
 // Teacher sidebar, grouped by workflow area (not by feature-team taxonomy) so a
@@ -85,7 +85,7 @@ export const TACADEMIC_GROUPS = [
     section: "Assessments",
     items: [
       {
-        icons: PenIcon,
+        icons: QuestionBankIcons,
         name: "Question Bank",
         children: [
           { name: "Question Bank", path: "/teacher/question-bank", disabled: true },
