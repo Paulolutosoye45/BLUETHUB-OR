@@ -22,6 +22,8 @@ import ResumeClass from '@/pages/teacher/component/resume-class';
 import ClassInfo from '@/pages/teacher/component/class-info';
 import StudenLayout from '@/pages/admin/registration/student/layout';
 import CreateParentPage from '@/pages/admin/registration/parent/create-parent';
+import SearchParentsPage from '@/pages/admin/registration/parent/search-parents';
+import AttachStudentPage from '@/pages/admin/registration/parent/attach-student';
 import Student from '@/pages/admin/registration/student/student';
 import NewStudent from '@/pages/admin/registration/student/new-student';
 import Enrollment from '@/pages/admin/registration/student/enrollment';
@@ -274,6 +276,8 @@ const router = createBrowserRouter([
                     { path: "class/new", element: <RegisterNewClass /> },
                     { path: "class/view-all", element: <ClassviewAll /> },
                     { path: "parent", element: <CreateParentPage /> },
+                    { path: "parent/search", element: <SearchParentsPage /> },
+                    { path: "parent/attach", element: <AttachStudentPage /> },
                     {
                         path: "teacher",
                         element: <Teacherlayout />,

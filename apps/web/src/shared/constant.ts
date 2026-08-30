@@ -91,7 +91,7 @@ export const TACADEMIC_GROUPS = [
           { name: "Question Bank", path: "/teacher/question-bank", disabled: true },
           { name: "Browse Question Bank", path: "/teacher/assessment/view-questions" },
           { name: "Extract Question", path: "/teacher/assessment/upload-scan" },
-          { name: "Type Question", path: "/teacher/assessment/createQuiz" },
+          { name: "Set Question", path: "/teacher/assessment/createQuiz" },
           { name: "My Uploads", path: "/teacher/assessments/My-Uploads" },
           { name: "View Existing Questions", path: "/teacher/assessment/questionlist" },
         ],

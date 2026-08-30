@@ -52,7 +52,7 @@ const Assessment = () => {
                   { label: "Browse Question Bank", link: '/teacher/assessment/view-questions' },
                   { label: "Generate Quiz", link: '/teacher/assessment/generate-quiz' },
                   { label: "Extract Question", link: '/teacher/assessment/upload-scan' },
-                  { label: "Type Question", link: '/teacher/assessment/createQuiz' },
+                  { label: "Set Question", link: '/teacher/assessment/createQuiz' },
                   { label: "My Uploads", link: '/teacher/assessments/My-Uploads' },
                   { label: "Assessment Settings", link: '/teacher/assessment/config' },
                   { label: "Manage Assessments", link: '/teacher/assessment/manage' },
@@ -119,7 +119,7 @@ const Assessment = () => {
               onClick={() => navigate('/teacher/assessment/createQuiz')}
               className="text-left border border-[#C7CAF0] rounded-xl p-5 bg-[#2118920D] hover:border-chestnut/40 hover:shadow-sm transition-all"
             >
-              <p className="text-sm font-semibold text-[#1A1C5E] mb-1">Type Question</p>
+              <p className="text-sm font-semibold text-[#1A1C5E] mb-1">Set Question</p>
               <p className="text-[13px] text-[#6C70A6] leading-5">
                 Manually type and format questions using the current question form.
               </p>

@@ -320,7 +320,7 @@ const HeadTeacherDashboard = () => {
                 {/* Question Bank */}
                 <button
                   type="button"
-                  onClick={() => navigate("/teacher/question-bank")}
+                  onClick={() => navigate("/teacher/assessment/view-questions")}
                   className="flex items-center gap-1.5 text-xs font-semibold text-[#292382] bg-white border border-gray-200 rounded-md px-3 py-2 hover:bg-gray-50 hover:border-[#292382]/30 transition-all"
                 >
                   <Library className="w-3.5 h-3.5 shrink-0" />

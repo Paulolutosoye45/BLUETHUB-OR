@@ -2,7 +2,8 @@ import { isTeacherRoleData, useAuthContext } from "@/contexts/auth-context";
 import { performanceService, type StudentPerformanceDetailDto, type PerformanceAttemptDto } from "@/services/performance";
 import { schoolService } from "@/services/school";
 import { moduleService, type ModuleStudent } from "@/services/module";
-import { Loader2, ChevronDown, ChevronRight, Users, Target, ClipboardCheck, BarChart3, Search, CheckCircle2, XCircle, GraduationCap, Trophy } from "lucide-react";
+import { quizService, type SubjectQuizPerformanceDto } from "@/services/quiz";
+import { Loader2, ChevronDown, ChevronRight, Users, Target, ClipboardCheck, BarChart3, Search, CheckCircle2, XCircle, GraduationCap, Trophy, FileQuestion } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -54,6 +55,10 @@ const ModuleQuiz = () => {
   const roleData = user?.roleData;
   const [searchParams] = useSearchParams();
   const view = searchParams.get("view");
+  // Three real sidebar entries, three real views: Quiz (default, per-quiz
+  // performance), Topic (per-topic drill-down), Student (per-student browsing).
+  const activeView: "quiz" | "topic" | "student" =
+    view === "student" ? "student" : view === "topic" ? "topic" : "quiz";
 
   const classrooms = useMemo<ClassroomInfo[]>(() => {
     if (!roleData || !isTeacherRoleData(roleData)) return [];
@@ -137,6 +142,7 @@ const ModuleQuiz = () => {
   }, [availableSubjects, selectedSubjectId]);
 
   useEffect(() => {
+    if (activeView !== "topic") return;
     if (!selectedSubjectId || !selectedClassroomId) return;
     setLoading(true);
     setError("");
@@ -177,7 +183,7 @@ const ModuleQuiz = () => {
       })
       .catch((e) => { console.warn("load failed", e); setTopicNames([]); setTopicPerformance({}); })
       .finally(() => { clearTimeout(timeout); setLoading(false); });
-  }, [selectedSubjectId, selectedClassroomId, retryKey]);
+  }, [activeView, selectedSubjectId, selectedClassroomId, retryKey]);
 
   const fetchTopicDetail = (topicId: string) => {
     if (!selectedSubjectId || !selectedClassroomId) return;
@@ -252,8 +258,45 @@ const ModuleQuiz = () => {
     );
   }, [students, studentSearch]);
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // QUIZ VIEW — flat per-quiz performance, distinct from the per-topic
+  // drill-down in Topic view.
+  // ═══════════════════════════════════════════════════════════════════════════
+  const [quizPerformance, setQuizPerformance] = useState<SubjectQuizPerformanceDto[]>([]);
+  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+  const [quizError, setQuizError] = useState("");
+
+  // A primitive, not the whole `classrooms` array — `classrooms` is a
+  // useMemo keyed on `roleData`, which gets a fresh object reference every
+  // time the user is re-hydrated (login, then again post-hydrate, possible
+  // refreshUser calls...). Depending on the array itself re-fires this
+  // effect — and re-hits the API — on every one of those, not just on an
+  // actual class change.
+  const selectedClassName = useMemo(
+    () => classrooms.find((c) => c.classroomId === selectedClassroomId)?.className,
+    [classrooms, selectedClassroomId],
+  );
+
+  useEffect(() => {
+    if (activeView !== "quiz") return;
+    if (!selectedSubjectId || !selectedClassroomId) return;
+    setLoadingQuizzes(true);
+    setQuizError("");
+    quizService
+      .getSubjectQuizPerformance(selectedSubjectId)
+      .then((res) => {
+        const all = res.data?.data ?? [];
+        setQuizPerformance(selectedClassName ? all.filter((q) => q.classroomName === selectedClassName) : all);
+      })
+      .catch(() => {
+        setQuizPerformance([]);
+        setQuizError("Failed to load quiz performance.");
+      })
+      .finally(() => setLoadingQuizzes(false));
+  }, [activeView, selectedSubjectId, selectedClassroomId, selectedClassName]);
+
   // ── Render ────────────────────────────────────────────────────────────────
-  const isStudentView = view === "student";
+  const isStudentView = activeView === "student";
 
   return (
     <div className="min-h-dvh bg-gradient-to-br from-gray-50 to-gray-100">
@@ -261,7 +304,7 @@ const ModuleQuiz = () => {
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200/60 p-4 sm:p-6">
           <h1 className="text-lg sm:text-2xl font-bold text-[#292382]">
-            {isStudentView ? "Student Performance" : "Quiz Performance"}
+            {activeView === "student" ? "Student Performance" : activeView === "topic" ? "Topic Performance" : "Quiz Performance"}
           </h1>
           <div className="flex flex-col sm:flex-row gap-3 mt-4">
             <div className="flex-1">
@@ -293,7 +336,7 @@ const ModuleQuiz = () => {
           </div>
         </div>
 
-        {isStudentView ? (
+        {activeView === "student" ? (
           // ══════════════════════════════════════════════════════════════════
           // STUDENT VIEW
           // ══════════════════════════════════════════════════════════════════
@@ -441,7 +484,7 @@ const ModuleQuiz = () => {
               </div>
             )}
           </>
-        ) : (
+        ) : activeView === "topic" ? (
           // ══════════════════════════════════════════════════════════════════
           // TOPIC VIEW
           // ══════════════════════════════════════════════════════════════════
@@ -554,6 +597,67 @@ const ModuleQuiz = () => {
                     );
                   })}
                 </div>
+              </div>
+            )}
+          </>
+        ) : (
+          // ══════════════════════════════════════════════════════════════════
+          // QUIZ VIEW — flat per-quiz performance
+          // ══════════════════════════════════════════════════════════════════
+          <>
+            {loadingQuizzes && (
+              <div className="flex flex-col items-center justify-center py-20 gap-3">
+                <Loader2 className="w-7 h-7 animate-spin text-[#292382]" />
+                <span className="text-sm text-gray-400">Loading quiz performance...</span>
+              </div>
+            )}
+
+            {quizError && !loadingQuizzes && (
+              <div className="bg-red-50/80 backdrop-blur border border-red-200 rounded-2xl p-8 text-center">
+                <p className="text-sm text-red-600 font-medium">{quizError}</p>
+              </div>
+            )}
+
+            {!loadingQuizzes && !quizError && (
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-200/60 overflow-hidden">
+                {quizPerformance.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+                      <FileQuestion className="w-6 h-6 text-gray-400" />
+                    </div>
+                    <p className="text-sm text-gray-400 font-medium">No quizzes found for this subject.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-100">
+                    {quizPerformance.map((q) => (
+                      <div key={q.lessonId} className="px-4 sm:px-6 py-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-[#292382] break-words">{q.lessonTitle}</p>
+                            <p className="text-[11px] text-gray-400 mt-0.5 font-mono">{q.quizCode}</p>
+                          </div>
+                          <span className={`text-sm font-bold shrink-0 ${scoreColor(q.averageScorePercent)}`}>
+                            {fmtScore(q.averageScorePercent)}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 mt-3">
+                          <div className="bg-gray-50 rounded-lg p-2.5 text-center">
+                            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-0.5">Pass Rate</p>
+                            <p className={`text-sm font-bold ${scoreColor(q.passRate)}`}>{fmtScore(q.passRate)}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-2.5 text-center">
+                            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-0.5">Students</p>
+                            <p className="text-sm font-bold text-[#292382]">{q.totalStudents}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded-lg p-2.5 text-center">
+                            <p className="text-[10px] font-medium text-gray-500 uppercase tracking-wider mb-0.5">Attempts</p>
+                            <p className="text-sm font-bold text-[#292382]">{q.completedAttempts}/{q.totalAttempts}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>

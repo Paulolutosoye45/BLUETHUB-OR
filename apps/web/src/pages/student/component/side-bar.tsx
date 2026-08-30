@@ -7,8 +7,8 @@ import assignments from "@/assets/svg/assignment.svg?react";
 import quizzes from "@/assets/svg/quizzes.svg?react";
 import discussion from "@/assets/svg/Discussion_forum.svg?react";
 import live_classes from "@/assets/svg/live_classes.svg?react";
-import Calendar from "@/assets/svg/sketch.svg?react";
-import recorded_class from "@/assets/svg/sketch.svg?react";
+import Calendar from "@/assets/svg/calendar.svg?react";
+import recorded_class from "@/assets/svg/monitor_play.svg?react";
 import premium from "@/assets/svg/premium.svg?react";
 import grades from "@/assets/svg/grades.svg?react";
 import bluethub_ai from "@/assets/svg/bluethub_ai.svg?react";
@@ -16,8 +16,9 @@ import settings from "@/assets/svg/settings (1).svg?react";
 import B_2 from "@/assets/svg/B_2.svg?react";
 import LogOutIcon from "@/assets/svg/log-out-04.svg?react";
 import { useAuthContext } from "@/contexts/auth-context";
+import { localData } from "@/utils";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface NavChild {
@@ -34,62 +35,68 @@ interface NavLinkItem {
     disabled?: boolean;
 }
 
-// ── Chevron Icon ──────────────────────────────────────────────────────────────
-// const ChevronIcon = ({ open }: { open: boolean }) => (
-//     <svg
-//         xmlns="http://www.w3.org/2000/svg"
-//         width="16"
-//         height="16"
-//         viewBox="0 0 24 24"
-//         fill="none"
-//         stroke="currentColor"
-//         strokeWidth="2.5"
-//         strokeLinecap="round"
-//         strokeLinejoin="round"
-//         style={{
-//             transform: open ? "rotate(180deg)" : "rotate(0deg)",
-//             transition: "transform 0.25s ease",
-//             flexShrink: 0,
-//         }}
-//     >
-//         <polyline points="6 9 12 15 18 9" />
-//     </svg>
-// );
+interface NavGroup {
+    label: string;
+    items: NavLinkItem[];
+}
 
-// ── Nav links ──────────────────────────────────────────────────────────────────
-const navLinks: NavLinkItem[] = [
+// ── Nav data ──────────────────────────────────────────────────────────────────
+// Grouped by workflow area — same routes as before, just organized under
+// labeled sections instead of one long flat list.
+const MAIN_LINKS: NavLinkItem[] = [
     { name: "Dashboard", path: "/student", icons: element },
+];
+
+const NAV_GROUPS: NavGroup[] = [
     {
-        name: "Classrooms",
-        icons: classRoom,
-        children: [
-            { name: "Quiz", path: "/student/class-room/quiz" },
-            { name: "Assessment", path: "/student/class-room/assessment" },
-            { name: "Subject", path: "/student/class-room/subject" },
+        label: "Learning",
+        items: [
+            {
+                name: "Classrooms",
+                icons: classRoom,
+                children: [
+                    { name: "Quiz", path: "/student/class-room/quiz" },
+                    { name: "Assessment", path: "/student/class-room/assessment" },
+                    { name: "Subject", path: "/student/class-room/subject" },
+                ],
+            },
+            {
+                name: "Assessment",
+                icons: moduleIcon,
+                children: [
+                    { name: "My Assessments", path: "/student/assessment" },
+                    { name: "Assessment Score", path: "/student/assessment/assessment-score" },
+                    { name: "Subject Scores", path: "/student/assessment/subject-scores" },
+                    { name: "Subtopic Scores", path: "/student/assessment/subtopic-scores" },
+                ],
+            },
+            { name: "My Classroom", path: "/student/module", icons: moduleIcon },
+            { name: "My Course", path: "/student/my-course", icons: my_course },
+            { name: "Quizzes", path: "/student/Quizzes", icons: quizzes },
+            { name: "Assignments", path: "/student/Assignments", icons: assignments, disabled: true },
         ],
     },
     {
-        name: "Assessment",
-        icons: moduleIcon,
-        children: [
-            { name: "My Assessments", path: "/student/assessment" },
-            { name: "Assessment Score", path: "/student/assessment/assessment-score" },
-            { name: "Subject Scores", path: "/student/assessment/subject-scores" },
-            { name: "Subtopic Scores", path: "/student/assessment/subtopic-scores" },
+        label: "Classes",
+        items: [
+            { name: "Recorded Class", path: "/student/recorded-class", icons: recorded_class },
+            { name: "Live Classes", path: "/student/Live-Classes", icons: live_classes, disabled: true },
+            { name: "Calendar", path: "/student/calendar", icons: Calendar, disabled: true },
         ],
     },
-    { name: "My Classroom", path: "/student/module", icons: moduleIcon },
-    { name: "My Course", path: "/student/my-course", icons: my_course },
-    { name: "Assignments", path: "/student/Assignments", icons: assignments, disabled: true  },
-    { name: "Quizzes", path: "/student/Quizzes", icons: quizzes },
-    { name: "Discussion Forum", path: "/student/Discussion-Forum", icons: discussion },
-    { name: "Live Classes", path: "/student/Live-Classes", icons: live_classes, disabled: true  },
-    { name: "Calendar", path: "/student/calendar", icons: Calendar, disabled: true  },
-    { name: "Recorded Class", path: "/student/recorded-class", icons: recorded_class },
-    { name: "Premium", path: "/student/Premium", icons: premium , disabled: true },
-    { name: "Grades & Progress", path: "/student/Grades-Progress", icons: grades, disabled: true  },
-    { name: "Bluethub AI", path: "/student/Bluethub-Ai", icons: bluethub_ai, disabled: true },
-    { name: "Settings", path: "/student/Settings", icons: settings, disabled: true  },
+    {
+        label: "More",
+        items: [
+            { name: "Discussion Forum", path: "/student/Discussion-Forum", icons: discussion },
+            { name: "Grades & Progress", path: "/student/Grades-Progress", icons: grades, disabled: true },
+            { name: "Premium", path: "/student/Premium", icons: premium, disabled: true },
+            { name: "Bluethub AI", path: "/student/Bluethub-Ai", icons: bluethub_ai, disabled: true },
+        ],
+    },
+];
+
+const ACCOUNT_LINKS: NavLinkItem[] = [
+    { name: "Settings", path: "/student/Settings", icons: settings, disabled: true },
 ];
 
 // ── Bluethub wordmark SVG ──────────────────────────────────────────────────────
@@ -131,183 +138,319 @@ const ChevronIcon = ({ open }: { open: boolean }) => (
     </svg>
 );
 
+// ── Section label ─────────────────────────────────────────────────────────────
+function SectionLabel({ label, isCollapsed }: { label: string; isCollapsed: boolean }) {
+    if (isCollapsed) return <div className="my-1.5 border-t border-[#3A3A3A14]" />;
+    return (
+        <p className="px-3 mb-1.5 text-[9px] font-bold tracking-widest text-[#3A3A3A60] uppercase">
+            {label}
+        </p>
+    );
+}
+
+// ── A single, non-dropdown nav link (shared by every flat item) ──────────────
+function PlainNavLink({
+    link,
+    isCollapsed,
+    onNavigate,
+    isLogout,
+    onLogout,
+}: {
+    link: NavLinkItem;
+    isCollapsed: boolean;
+    onNavigate?: () => void;
+    isLogout?: boolean;
+    onLogout?: () => void;
+}) {
+    const Icon = link.icons;
+
+    if (link.disabled) {
+        return (
+            <div
+                aria-disabled="true"
+                title="Coming soon"
+                className={[
+                    "flex items-center gap-3 px-3 py-2.5 rounded-md border border-transparent",
+                    "cursor-not-allowed opacity-40 select-none",
+                    isCollapsed ? "justify-center" : "",
+                ].join(" ")}
+            >
+                <Icon className="w-4 h-4 shrink-0" />
+                {!isCollapsed && (
+                    <span className="text-xs font-medium font-poppins truncate text-[#3A3A3ABF]">
+                        {link.name}
+                    </span>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <NavLink
+            to={link.path!}
+            end={link.path === "/student"}
+            onClick={isLogout ? onLogout : onNavigate}
+            className={({ isActive }) =>
+                [
+                    "flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 cursor-pointer group",
+                    isLogout
+                        ? "hover:bg-red-50"
+                        : isActive
+                            ? "bg-student-chestnut text-white shadow-sm"
+                            : "text-[#3A3A3ABF] hover:bg-student-chestnut/10",
+                    isCollapsed ? "justify-center" : "",
+                ].join(" ")
+            }
+        >
+            {({ isActive }) => (
+                <>
+                    <Icon
+                        className={[
+                            "w-4 h-4 shrink-0 transition-all",
+                            isLogout ? "text-[#EC1B2C]" : isActive ? "brightness-0 invert" : "opacity-90 group-hover:opacity-100",
+                        ].join(" ")}
+                    />
+                    {!isCollapsed && (
+                        <span
+                            className={[
+                                "text-xs font-medium font-poppins truncate",
+                                isLogout ? "text-[#EC1B2C]" : isActive ? "text-white" : "text-[#3A3A3ABF]",
+                            ].join(" ")}
+                        >
+                            {link.name}
+                        </span>
+                    )}
+                </>
+            )}
+        </NavLink>
+    );
+}
+
+// ── A dropdown nav item (icon + label + chevron, expandable children) ────────
+// `isOpen` just controls whether children are expanded (a UI toggle) —
+// `isActive` means the current route actually lives inside this dropdown.
+// Keeping them separate stops an expanded-but-not-visited dropdown from
+// rendering with the same solid "selected" pill as the real active page.
+function DropdownNavItem({
+    link,
+    isCollapsed,
+    isOpen,
+    isActive,
+    onToggle,
+    onNavigate,
+}: {
+    link: NavLinkItem;
+    isCollapsed: boolean;
+    isOpen: boolean;
+    isActive: boolean;
+    onToggle: () => void;
+    onNavigate?: () => void;
+}) {
+    const Icon = link.icons;
+
+    return (
+        <div>
+            <button
+                type="button"
+                onClick={onToggle}
+                className={[
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 cursor-pointer group",
+                    isActive
+                        ? "bg-student-chestnut text-white shadow-sm"
+                        : isOpen
+                            ? "bg-student-chestnut/10 text-[#3A3A3ABF]"
+                            : "text-[#3A3A3ABF] hover:bg-student-chestnut/10",
+                    isCollapsed ? "justify-center" : "justify-between",
+                ].join(" ")}
+            >
+                <div className="flex items-center gap-3 min-w-0">
+                    <Icon className={`w-4 h-4 shrink-0 transition-all ${isActive ? "brightness-0 invert" : "opacity-90 group-hover:opacity-100"}`} />
+                    {!isCollapsed && (
+                        <span className={`text-xs font-medium font-poppins truncate ${isActive ? "text-white" : "text-[#3A3A3ABF]"}`}>
+                            {link.name}
+                        </span>
+                    )}
+                </div>
+                {!isCollapsed && (
+                    <span className={isActive ? "text-white" : "text-[#3A3A3A] opacity-50"}>
+                        <ChevronIcon open={isOpen} />
+                    </span>
+                )}
+            </button>
+
+            <div
+                style={{ display: !isCollapsed && isOpen ? "block" : "none" }}
+                className="mt-1 ml-9 border-l-2 border-[#3A3A3A1A] pl-3 space-y-0.5"
+            >
+                {link.children?.map((child) => {
+                    if (child.disabled) {
+                        return (
+                            <div
+                                key={child.name}
+                                aria-disabled="true"
+                                title="Coming soon"
+                                className="block text-xs py-1.5 px-3 rounded-md font-medium text-[#3A3A3ABF] opacity-40 cursor-not-allowed select-none"
+                            >
+                                {child.name}
+                            </div>
+                        );
+                    }
+                    return (
+                        <NavLink
+                            key={child.name}
+                            to={child.path}
+                            end
+                            onClick={onNavigate}
+                            className={({ isActive }) =>
+                                [
+                                    "block text-xs py-1.5 px-3 rounded-md font-medium transition-all duration-150",
+                                    isActive
+                                        ? "bg-student-chestnut/15 text-student-chestnut"
+                                        : "text-[#3A3A3ABF] hover:text-student-chestnut hover:bg-student-chestnut/10",
+                                ].join(" ")
+                            }
+                        >
+                            {child.name}
+                        </NavLink>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 // ── Shared nav content ─────────────────────────────────────────────────────────
 interface StudentNavContentProps {
     isCollapsed: boolean;
+    setIsCollapsed?: (v: boolean) => void;
     onNavigate?: () => void;
     onLogout?: () => void;
 }
 
-const StudentNavContent = ({ isCollapsed, onNavigate, onLogout }: StudentNavContentProps) => {
+const StudentNavContent = ({ isCollapsed, setIsCollapsed, onNavigate, onLogout }: StudentNavContentProps) => {
     const location = useLocation();
-    const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => {
-        const set = new Set<string>();
-        for (const link of navLinks) {
-            if (link.children?.some((c) => location.pathname.startsWith(c.path))) {
-                set.add(link.name);
+
+    // Whichever dropdown contains the current route — so landing on a deep
+    // link (bookmark, refresh, back button) shows the section you're already in.
+    const activeItemKey = useMemo(() => {
+        for (const group of NAV_GROUPS) {
+            for (const item of group.items) {
+                if (!item.children) continue;
+                const isActive = item.children.some((c) => location.pathname.startsWith(c.path));
+                if (isActive) return `${group.label}:${item.name}`;
             }
         }
+        return null;
+    }, [location.pathname]);
+
+    const [expandedMenus, setExpandedMenus] = useState<Set<string>>(() => {
+        const set = new Set<string>();
+        if (activeItemKey) set.add(activeItemKey);
         return set;
     });
 
-    const toggleMenu = (name: string) => {
+    useEffect(() => {
+        if (activeItemKey) setExpandedMenus((prev) => new Set(prev).add(activeItemKey));
+    }, [activeItemKey]);
+
+    const toggleMenu = (key: string) => {
+        if (isCollapsed) {
+            setIsCollapsed?.(false);
+            setExpandedMenus((prev) => new Set(prev).add(key));
+            return;
+        }
         setExpandedMenus((prev) => {
             const next = new Set(prev);
-            if (next.has(name)) next.delete(name);
-            else next.add(name);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
             return next;
         });
     };
 
     return (
-        <section className="px-3 py-3">
-            <div className="space-y-3">
-                {navLinks.map((link, idx) => {
-                    const Icon = link.icons;
-                    const isPremium = link.name === "Premium";
-                    const isDisabled = link.disabled;
+        <div className="flex flex-col gap-3 pb-4">
+            {/* ── MAIN ── */}
+            <section className="px-3">
+                <SectionLabel label="Main" isCollapsed={isCollapsed} />
+                <div className="space-y-0.5">
+                    {MAIN_LINKS.map((link) => (
+                        <PlainNavLink key={link.name} link={link} isCollapsed={isCollapsed} onNavigate={onNavigate} />
+                    ))}
+                </div>
+            </section>
 
-                    if (link.children) {
-                        const isOpen = expandedMenus.has(link.name);
-                        return (
-                            <div key={link.name + idx}>
-                                <button
-                                    type="button"
-                                    onClick={() => toggleMenu(link.name)}
-                                    className={[
-                                        "w-full flex items-center gap-3 px-3 py-3 rounded-md transition-all duration-200 cursor-pointer group",
-                                        isOpen ? "bg-student-chestnut/20 border border-student-chestnut" : "border border-transparent hover:bg-student-chestnut/10",
-                                        isCollapsed ? "justify-center" : "justify-between",
-                                    ].join(" ")}
-                                >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <Icon className="w-4 h-4 shrink-0" />
-                                        {!isCollapsed && (
-                                            <span className={[
-                                                "text-xs font-medium font-poppins truncate",
-                                                isOpen ? "text-student-chestnut" : "text-[#3A3A3ABF]",
-                                            ].join(" ")}>
-                                                {link.name}
-                                            </span>
-                                        )}
-                                    </div>
-                                    {!isCollapsed && (
-                                        <span className="text-[#3A3A3A]/60">
-                                            <ChevronIcon open={isOpen} />
-                                        </span>
-                                    )}
-                                </button>
-
-                                <div
-                                    style={{ display: !isCollapsed && isOpen ? "block" : "none" }}
-                                    className="mt-1 ml-9 border-l-2 border-[#29238225] pl-3 space-y-1"
-                                >
-                                    {link.children.map((child) => (
-                                        <NavLink
-                                            key={child.name}
-                                            to={child.path}
-                                            onClick={onNavigate}
-                                            className={({ isActive }) =>
-                                                [
-                                                    "block text-xs py-2 px-3 rounded-md font-medium transition-all duration-150",
-                                                    isActive
-                                                        ? "bg-student-chestnut/20 text-student-chestnut border border-student-chestnut"
-                                                        : "text-[#3A3A3ABF] hover:text-student-chestnut hover:bg-student-chestnut/10",
-                                                ].join(" ")
-                                            }
-                                        >
-                                            {child.name}
-                                        </NavLink>
-                                    ))}
-                                </div>
-                            </div>
-                        );
-                    }
-
-                    if (!link.path) return null;
-
-                    if (isDisabled) {
-                        return (
-                            <div
-                                key={link.name + idx}
-                                aria-disabled="true"
-                                title="Coming soon"
-                                className={[
-                                    "flex items-center gap-3 px-3 py-3 rounded-md border border-transparent",
-                                    "cursor-not-allowed opacity-40 select-none",
-                                    isCollapsed ? "justify-center" : "",
-                                ].join(" ")}
-                            >
-                                <Icon className="w-4 h-4 shrink-0" />
-                                {!isCollapsed && (
-                                    <span className="text-xs font-medium font-poppins truncate text-[#3A3A3ABF]">
-                                        {link.name}
-                                    </span>
-                                )}
-                            </div>
-                        );
-                    }
-
-                    return (
-                        <NavLink
-                            key={link.name + idx}
-                            to={link.path}
-                            end={link.path === "/student"}
-                            onClick={onNavigate}
-                            className={({ isActive }) =>
-                                [
-                                    "flex items-center gap-3 px-3 py-3 rounded-md transition-colors cursor-pointer",
-                                    "hover:bg-student-chestnut/10",
-                                    isActive ? "bg-student-chestnut/20 border border-student-chestnut" : "border border-transparent",
-                                    isCollapsed ? "justify-center" : "",
-                                ].join(" ")
+            {/* ── GROUPED SECTIONS ── */}
+            {NAV_GROUPS.map((group) => (
+                <section key={group.label} className="px-3">
+                    <SectionLabel label={group.label} isCollapsed={isCollapsed} />
+                    <div className="space-y-0.5">
+                        {group.items.map((item) => {
+                            if (item.children) {
+                                const key = `${group.label}:${item.name}`;
+                                return (
+                                    <DropdownNavItem
+                                        key={item.name}
+                                        link={item}
+                                        isCollapsed={isCollapsed}
+                                        isOpen={expandedMenus.has(key)}
+                                        isActive={activeItemKey === key}
+                                        onToggle={() => toggleMenu(key)}
+                                        onNavigate={onNavigate}
+                                    />
+                                );
                             }
-                        >
-                            {({ isActive }) => (
-                                <>
-                                    <Icon className="w-4 h-4 shrink-0" />
-                                    {!isCollapsed && (
-                                        <span
-                                            className={[
-                                                "text-xs font-medium font-poppins truncate",
-                                                isActive || isPremium ? "text-student-chestnut" : "text-[#3A3A3ABF]",
-                                            ].join(" ")}
-                                        >
-                                            {link.name}
-                                        </span>
-                                    )}
-                                </>
-                            )}
-                        </NavLink>
-                    );
-                })}
+                            return (
+                                <PlainNavLink key={item.name} link={item} isCollapsed={isCollapsed} onNavigate={onNavigate} />
+                            );
+                        })}
+                    </div>
+                </section>
+            ))}
 
-                <button
-                    type="button"
-                    onClick={onLogout}
-                    className={[
-                        "w-full flex items-center gap-3 px-3 py-1.5 rounded-md transition-colors cursor-pointer",
-                        "hover:bg-red-50",
-                        isCollapsed ? "justify-center" : "",
-                    ].join(" ")}
-                >
-                    <LogOutIcon className="w-4 h-4 shrink-0 text-[#EC1B2C]" />
-                    {!isCollapsed && (
-                        <span className="text-xs font-medium font-poppins truncate text-[#EC1B2C]">
-                            Log Out
-                        </span>
-                    )}
-                </button>
-            </div>
-        </section>
+            {/* ── ACCOUNT ── */}
+            <section className="px-3">
+                <SectionLabel label="Account" isCollapsed={isCollapsed} />
+                <div className="space-y-0.5">
+                    {ACCOUNT_LINKS.map((link) => (
+                        <PlainNavLink key={link.name} link={link} isCollapsed={isCollapsed} onNavigate={onNavigate} />
+                    ))}
+                    <button
+                        type="button"
+                        onClick={onLogout}
+                        className={[
+                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors cursor-pointer",
+                            "hover:bg-red-50",
+                            isCollapsed ? "justify-center" : "",
+                        ].join(" ")}
+                    >
+                        <LogOutIcon className="w-4 h-4 shrink-0 text-[#EC1B2C]" />
+                        {!isCollapsed && (
+                            <span className="text-xs font-medium font-poppins truncate text-[#EC1B2C]">
+                                Log Out
+                            </span>
+                        )}
+                    </button>
+                </div>
+            </section>
+        </div>
     );
 };
 
 // ── Desktop sidebar ────────────────────────────────────────────────────────────
 const StudentSideBar = () => {
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isCollapsed, setIsCollapsedState] = useState(false);
     const navigate = useNavigate();
     const { logout } = useAuthContext();
+
+    useEffect(() => {
+        const saved = localData.retrieve<boolean>("navVNextT");
+        if (saved !== null) setIsCollapsedState(saved);
+    }, []);
+
+    const setIsCollapsed = (v: boolean) => {
+        setIsCollapsedState(v);
+        localData.save("navVNextT", v);
+    };
 
     const handleLogout = () => {
         logout();
@@ -334,7 +477,7 @@ const StudentSideBar = () => {
                         type="button"
                         onClick={() => setIsCollapsed(false)}
                         className="cursor-pointer hover:opacity-80 transition-opacity shrink-0"
-                        aria-label="Collapse sidebar"
+                        aria-label="Expand sidebar"
                     >
                         <FamiconsChevron />
                     </button>
@@ -355,14 +498,18 @@ const StudentSideBar = () => {
 
             {/* Scrollable nav */}
             <div
-                className="flex-1 overflow-y-auto overflow-x-hidden
+                className="flex-1 overflow-y-auto overflow-x-hidden py-1
           [&::-webkit-scrollbar]:w-0.5
           [&::-webkit-scrollbar-track]:rounded-full
           [&::-webkit-scrollbar-track]:bg-[#4F61E814]
           [&::-webkit-scrollbar-thumb]:rounded-full
           [&::-webkit-scrollbar-thumb]:bg-gray-400"
             >
-                <StudentNavContent isCollapsed={isCollapsed} onLogout={handleLogout} />
+                <StudentNavContent
+                    isCollapsed={isCollapsed}
+                    setIsCollapsed={setIsCollapsed}
+                    onLogout={handleLogout}
+                />
             </div>
         </aside>
     );
@@ -394,7 +541,7 @@ export const MobileStudentNav = ({ isOpen, setIsOpen }: IMobileStudentNav) => {
         };
         if (isOpen) document.addEventListener("mousedown", handler);
         return () => document.removeEventListener("mousedown", handler);
-    }, [isOpen]);
+    }, [isOpen, setIsOpen]);
 
     // Lock body scroll when open
     useEffect(() => {
@@ -424,17 +571,14 @@ export const MobileStudentNav = ({ isOpen, setIsOpen }: IMobileStudentNav) => {
             >
                 {/* Header */}
                 <div className="flex items-center justify-between px-3 py-2 border-b border-[#3A3A3A33] shrink-0">
-                    <button
-                        type="button"
-                        className="cursor-pointer hover:opacity-80 transition-opacity"
-                        aria-label="Expand sidebar"
-                    >
+                    <div className="flex items-center gap-1.5">
                         <B_2 className="size-7" />
-                    </button>
+                    </div>
                     <button
                         type="button"
+                        onClick={() => setIsOpen(false)}
                         className="cursor-pointer hover:opacity-80 transition-opacity shrink-0"
-                        aria-label="Collapse sidebar"
+                        aria-label="Close sidebar"
                     >
                         <FamiconsChevron />
                     </button>

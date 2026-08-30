@@ -17,7 +17,7 @@ const subjectStyles: Record<string, { icon: string; bg: string; badgeBg: string;
 
 const defaultStyle = { icon: "📚", bg: "#F0F2FA", badgeBg: "#F0F2FA", badgeText: "#6B6B85" };
 
-function getSubjectStyle(name: string) {
+export function getSubjectStyle(name: string) {
   const key = Object.keys(subjectStyles).find(k => name.toLowerCase().includes(k));
   return key ? subjectStyles[key] : defaultStyle;
 }
@@ -134,6 +134,7 @@ const Course = () => {
               <Link
                 to={subject.subjectId}
                 key={subject.subjectId}
+                state={{ subjectName: subject.subjectName, category: subject.category, subjectType: subject.subjectType }}
                 className="block"
               >
                 <div className="bg-[#FFFFFF] border border-[#E4E4EC] p-[14px] rounded-[16px] hover:shadow-sm transition">
