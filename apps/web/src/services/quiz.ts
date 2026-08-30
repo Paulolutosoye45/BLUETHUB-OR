@@ -521,7 +521,7 @@ export interface SubjectQuizPerformanceDto {
   completedAttempts: number;
   inProgressAttempts: number;
   averageScorePercent: number;
-  passCount: number;
+  passedCount: number;
   failedCount: number;
   passRate: number;
 }

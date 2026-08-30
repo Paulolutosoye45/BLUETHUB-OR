@@ -409,25 +409,30 @@ const GenerateQuiz = () => {
     setQuestions([]);
     setSubjectsLoading(true);
 
+    const applySubjects = (next: ApiItem[]) => {
+      setSubjects(next);
+      setSelectedSubjectId((prev) => {
+        if (prev && next.some((s) => s.id === prev)) return prev;
+        return next[0]?.id;
+      });
+    };
+
+    const fetchClassroomSubjects = () =>
+      schoolService.getSubjectsByClassroomId(selectedClassId).then((res) => {
+        const data = (res.data as any)?.data;
+        const flat = [
+          ...(data?.majorSubjects ?? []),
+          ...(data?.minorSubjects ?? []),
+        ];
+        return flat.map((s: any) => ({
+          id: String(s.subjectId ?? s.id),
+          name: String(s.subjectName ?? s.subject ?? s.name),
+        })) as ApiItem[];
+      });
+
     if (isAdmin) {
-      schoolService
-        .getSubjectsByClassroomId(selectedClassId)
-        .then((res) => {
-          const data = (res.data as any)?.data;
-          const flat = [
-            ...(data?.majorSubjects ?? []),
-            ...(data?.minorSubjects ?? []),
-          ];
-          const next: ApiItem[] = flat.map((s: any) => ({
-            id: String(s.subjectId ?? s.id),
-            name: String(s.subjectName ?? s.name),
-          }));
-          setSubjects(next);
-          setSelectedSubjectId((prev) => {
-            if (prev && next.some((s) => s.id === prev)) return prev;
-            return next[0]?.id;
-          });
-        })
+      fetchClassroomSubjects()
+        .then(applySubjects)
         .catch(() => toast.error("Failed to load subjects"))
         .finally(() => setSubjectsLoading(false));
       return;
@@ -440,12 +445,20 @@ const GenerateQuiz = () => {
           acc.push({ id: item.subjectId, name: item.subjectName });
         return acc;
       }, []);
-    setSubjects(classSubjects);
-    setSelectedSubjectId((prev) => {
-      if (prev && classSubjects.some((s) => s.id === prev)) return prev;
-      return classSubjects[0]?.id;
-    });
-    setSubjectsLoading(false);
+
+    if (classSubjects.length > 0) {
+      applySubjects(classSubjects);
+      setSubjectsLoading(false);
+      return;
+    }
+
+    // roleData had no subjects for this classroom — e.g. a class/head teacher
+    // who isn't personally assigned a subject here. Fall back to the full
+    // classroom subject list, same as admin.
+    fetchClassroomSubjects()
+      .then(applySubjects)
+      .catch(() => toast.error("Failed to load subjects"))
+      .finally(() => setSubjectsLoading(false));
   }, [isAdmin, selectedClassId, teacherAssignments]);
 
   // ── load summary when subject changes ─────────────────────────────────────

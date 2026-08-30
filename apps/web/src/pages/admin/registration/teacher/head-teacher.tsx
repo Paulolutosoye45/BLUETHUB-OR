@@ -70,6 +70,7 @@ const HeadTeacher = () => {
     register,
     handleSubmit,
     setValue,
+    setError,
     watch,
     reset,
     control,
@@ -152,6 +153,13 @@ const HeadTeacher = () => {
           error.message
           : (error as Error).message;
       setErrorMsg(msg);
+      // 409 duplicate-user conflict — the backend's message names the
+      // colliding field (email checked first, then username); mirror it
+      // onto that field so it's not just a generic top-of-form banner.
+      if (error instanceof AxiosError && error.response?.status === 409) {
+        if (/email/i.test(msg)) setError("email", { type: "manual", message: msg });
+        else if (/username/i.test(msg)) setError("username", { type: "manual", message: msg });
+      }
     } finally {
       setLoading(false);
     }
@@ -317,10 +325,15 @@ const HeadTeacher = () => {
                     type="text"
                     readOnly
                     placeholder="Auto-generated"
-                    className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4 
+                    className="ring-2 ring-chestnut/30 focus:ring-chestnut border-0 py-4 px-4
              text-base placeholder:text-chestnut/50 bg-chestnut/5 rounded-md
              cursor-not-allowed opacity-70"
                   />
+                  {errors.username && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.username.message} Try adjusting the name fields above to change it.
+                    </p>
+                  )}
                 </div>
               </div>
 
