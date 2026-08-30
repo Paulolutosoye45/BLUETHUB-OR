@@ -506,7 +506,7 @@ const TeacherSidebar = () => {
           }`}
       >
         {!isCollapsed && (
-          <img src={bluethub} alt="Bluethub" className="h-5 shrink-0" />
+          <img src={school.logoUrl || bluethub} alt={school.schoolName ||'bluetsch'} className="h-5 rounded-full shrink-0" />
         )}
 
         {!isCollapsed && (<h2 className="text-chestnut font-medium text-[10px]">{school.schoolName}</h2>)}

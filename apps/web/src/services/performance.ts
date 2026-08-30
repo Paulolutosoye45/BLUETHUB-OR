@@ -24,6 +24,9 @@ export interface SubjectTeacherNavbarDto {
   overallAverageScore: number;
   overallPassRate: number;
   pendingGradingItems: number;
+  classesToday?: number;
+  pendingApprovals?: number;
+  lessonsThisWeek?: number
 }
 
 export interface ClassTeacherNavbarDto {
@@ -33,6 +36,9 @@ export interface ClassTeacherNavbarDto {
   overallPassRate: number;
   pendingGradingItems: number;
   pendingApprovalsCount?: number;
+    classesToday?: number;
+  pendingApprovals?: number;
+  lessonsThisWeek?: number
 }
 
 export interface StudentNavbarDto {

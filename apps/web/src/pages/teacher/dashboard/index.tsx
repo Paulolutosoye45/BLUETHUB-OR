@@ -8,23 +8,25 @@ import PendingReviews from "./pending-reviews"
 import UpcomingDeadlines from "./upcoming-deadlines"
 import PendingUploadsCard from "./pending-uploads-card"
 import { useOutletContext } from "react-router-dom";
-import NavbarStats from "@/component/performance-navbar-stats";
-import PerformanceOverview from "./performance-overview";
-import { useAuthContext, isTeacherRoleData } from "@/contexts/auth-context";
+// import NavbarStats from "@/component/performance-navbar-stats";
+// import PerformanceOverview from "./performance-overview";
+import { useAuthContext,
+  //  isTeacherRoleData
+   } from "@/contexts/auth-context";
 import HeadTeacherDashboard from "./head-teacher-dashboard";
-import { useMemo } from "react";
+// import { useMemo } from "react";
 
 const TeacherDashboard = () => {
   const { user } = useAuthContext();
   const { openMobileNav } = useOutletContext<{ openMobileNav: () => void }>();
 
-  const assignedClassrooms = useMemo(() => {
-    const rd = user?.roleData;
-    if (rd && isTeacherRoleData(rd)) {
-      return rd.classrooms.map((c) => c.classroomId);
-    }
-    return [];
-  }, [user]);
+  // const assignedClassrooms = useMemo(() => {
+  //   const rd = user?.roleData;
+  //   if (rd && isTeacherRoleData(rd)) {
+  //     return rd.classrooms.map((c) => c.classroomId);
+  //   }
+  //   return [];
+  // }, [user]);
 
   if (user?.roleName === "HeadTeacher" || user?.roleName === "ClassTeacher") {
     return <HeadTeacherDashboard />;
@@ -50,10 +52,10 @@ const TeacherDashboard = () => {
           )} */}
 
           <TeacherAppBar />
-          <NavbarStats />
+          {/* <NavbarStats /> */}
           <PendingUploadsCard />
           <Activity />
-          <PerformanceOverview assignedClassroomIds={assignedClassrooms} />
+          {/* <PerformanceOverview assignedClassroomIds={assignedClassrooms} /> */}
 
           <div className="flex flex-col lg:flex-row gap-2">
             {/* Left column */}
