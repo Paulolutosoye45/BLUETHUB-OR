@@ -284,7 +284,7 @@ Promise.resolve(roleClassrooms)
           const flat = [...major, ...minor];
           const nextSubjects = flat.map((s: any) => ({
               id: String(s.subjectId ?? s.id),
-              name: String(s.subjectName ?? s.name),
+              name: String(s.subjectName ?? s.subject ?? s.name),
             }));
           setSubjects(nextSubjects);
           setSelectedSubjectId((prev) => {

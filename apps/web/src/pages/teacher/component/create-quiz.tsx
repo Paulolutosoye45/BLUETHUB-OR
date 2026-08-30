@@ -892,11 +892,12 @@ const CreateQuizQuestion = () => {
     schoolService
       .getSubjectsByClassroomId(selectedClassId)
       .then((res) => {
-        const raw: { id: string; name: string }[] =
-          (res.data as any)?.data?.subjects ??
-          (res.data as any)?.data ??
-          [];
-        const nextSubjects = raw.map((s) => ({ id: s.id, name: s.name }));
+        const data = (res.data as any)?.data;
+        const flat = [...(data?.majorSubjects ?? []), ...(data?.minorSubjects ?? [])];
+        const nextSubjects = flat.map((s: any) => ({
+          id: String(s.subjectId ?? s.id),
+          name: String(s.subjectName ?? s.subject ?? s.name),
+        }));
         setSubjects(nextSubjects);
 
         if (subjectIdParam && nextSubjects.some((s) => s.id === subjectIdParam)) {

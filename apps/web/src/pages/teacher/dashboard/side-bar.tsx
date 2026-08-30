@@ -10,11 +10,25 @@ import type { NavItem } from "@/pages/admin/side-bar";
 import settingsIcon from "@/assets/svg/settings.svg";
 import logoutIcon from "@/assets/svg/logout.svg";
 import dashboardIcon from "@/assets/svg/element-4.svg";
-import messageIcon from "@/assets/svg/message.svg";
-import calendarIcon from "@/assets/svg/calendar.svg";
 import { X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { schoolInfo } from "@/services";
+
+// Some sibling nav children point at the same pathname and differ only by a
+// query string (e.g. "/teacher/module/quiz" vs "?view=topic" vs
+// "?view=student") — NavLink's built-in isActive ignores the query string
+// entirely, so all of them would highlight together. Match search params too.
+function isChildPathActive(childPath: string, pathname: string, search: string): boolean {
+  const [childPathname, childQuery = ""] = childPath.split("?");
+  if (pathname !== childPathname) return false;
+  if (!childQuery) return !search;
+  const currentParams = new URLSearchParams(search);
+  const childParams = new URLSearchParams(childQuery);
+  for (const [key, value] of childParams) {
+    if (currentParams.get(key) !== value) return false;
+  }
+  return true;
+}
 
 // ── Chevron Icon ──────────────────────────────────────────────────────────────
 const ChevronIcon = ({ open }: { open: boolean }) => (
@@ -40,8 +54,6 @@ const ChevronIcon = ({ open }: { open: boolean }) => (
 
 const MAIN_LINKS: NavItem[] = [
   { name: "Dashboard", icons: dashboardIcon, path: "/teacher" },
-  { name: "Message", icons: messageIcon, path: "/teacher/message", disabled: true },
-  { name: "Calendar", icons: calendarIcon, path: "/teacher/calendar", disabled: true },
 ];
 
 const OTHER_LINKS: NavItem[] = [
@@ -143,6 +155,8 @@ function NavItem({
   onToggle?: () => void;
   roleName?: string;
 }) {
+  const location = useLocation();
+
   if (link.children) {
     const isParentDisabled = link.disabled;
 
@@ -184,7 +198,7 @@ function NavItem({
 
         <div
           style={{ display: !isCollapsed && isOpen && !isParentDisabled ? "block" : "none" }}
-          className="mt-1 ml-9 border-l-2 border-[#29238225] pl-3 space-y-0.5"
+          className="mt-1 ml-9 border-l-2 border-[#29238225] space-y-0.5"
         >
           {link.children.filter((child) => {
             if (!child.roles || child.roles.length === 0) return true;
@@ -203,19 +217,18 @@ function NavItem({
               );
             }
 
+            const isActive = isChildPathActive(child.path, location.pathname, location.search);
             return (
               <NavLink
                 key={child.name}
                 to={child.path}
                 onClick={onNavigate}
-                className={({ isActive }) =>
-                  [
-                    "block text-xs py-1.5 px-3 rounded-lg font-medium transition-all duration-150",
-                    isActive
-                      ? "bg-[#292382] text-white"
-                      : "text-[#292382] opacity-80 hover:opacity-100 hover:bg-[#29238212]",
-                  ].join(" ")
-                }
+                className={[
+                  "block text-xs py-1.5 px-3 rounded-lg font-medium transition-all duration-150",
+                  isActive
+                    ? "bg-[#292382] text-white"
+                    : "text-[#292382] opacity-80 hover:opacity-100 hover:bg-[#29238212]",
+                ].join(" ")}
               >
                 {child.name}
               </NavLink>

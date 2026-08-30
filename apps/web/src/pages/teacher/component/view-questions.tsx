@@ -159,9 +159,13 @@ const ViewQuestions = () => {
     schoolService
       .getSubjectsByClassroomId(selectedClassId)
       .then((res) => {
-        const raw: { id: string; name: string }[] =
-          (res.data as any)?.data?.subjects ?? (res.data as any)?.data ?? [];
-        setSubjects(raw.map((s) => ({ id: s.id, name: s.name })));
+        const data = (res.data as any)?.data;
+        const flat = [...(data?.majorSubjects ?? []), ...(data?.minorSubjects ?? [])];
+        const raw: ApiItem[] = flat.map((s: any) => ({
+          id: String(s.subjectId ?? s.id),
+          name: String(s.subjectName ?? s.subject ?? s.name),
+        }));
+        setSubjects(raw);
       })
       .catch(() => toast.error("Failed to load subjects"));
   }, [isAdmin, selectedClassId]);

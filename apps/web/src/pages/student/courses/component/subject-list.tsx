@@ -1,31 +1,89 @@
 import CourseHero from "./course-hero"
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation, useParams } from "react-router-dom";
 import CourseOverview from "./course-overview";
 import CourseTopics from "./course-topics";
 import CourseAssessments from "./course-assessments";
 import CoursePDFs from "./course-pdfs";
+import { getSubjectStyle } from "./course";
+import studentService, { type StudentPublishedLesson } from "@/services/student";
+import { isStudentRoleData, useAuthContext } from "@/contexts/auth-context";
+import { Loader2 } from "lucide-react";
 
 type Tab = "Overview" | "Topics" | "Assessments" | "PDFs";
+
+interface SubjectLocationState {
+    subjectName?: string;
+    category?: string;
+    subjectType?: string;
+}
+
 const SubjectList = () => {
+    const { subjectId = "" } = useParams<{ subjectId: string }>();
+    const location = useLocation();
+    const locationState = (location.state as SubjectLocationState | null) ?? null;
+    const { user } = useAuthContext();
+
+    const roleData = user?.roleData;
+    const classroomName = roleData && isStudentRoleData(roleData) ? roleData.classroom?.className ?? undefined : undefined;
 
     const TABS: Tab[] = ["Overview", "Topics", "Assessments", "PDFs"];
-
     const [activeTab, setActiveTab] = useState<Tab>("Overview");
+
+    const [lessons, setLessons] = useState<StudentPublishedLesson[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!subjectId) return;
+        let cancelled = false;
+        setLoading(true);
+        studentService
+            .getLessonsBySubject(subjectId)
+            .then((res) => {
+                if (cancelled) return;
+                const payload = (res.data as any)?.data as
+                    | { lessons?: StudentPublishedLesson[]; Lessons?: StudentPublishedLesson[] }
+                    | undefined;
+                setLessons(payload?.lessons ?? payload?.Lessons ?? []);
+            })
+            .catch(() => {
+                if (!cancelled) setLessons([]);
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [subjectId]);
+
+    const subjectName = locationState?.subjectName || lessons[0]?.subjectName || "Subject";
+    const style = useMemo(() => getSubjectStyle(subjectName), [subjectName]);
+    const teacher = lessons[0]?.teacherName ?? "";
+
+    const topicsCount = useMemo(() => new Set(lessons.map((l) => l.topicId)).size, [lessons]);
+    const quizzesCount = useMemo(() => lessons.filter((l) => !!l.quizId).length, [lessons]);
+    const pdfsCount = useMemo(
+        () =>
+            lessons.reduce(
+                (acc, l) =>
+                    acc + (l.media ?? []).filter((m) => /pdf/i.test(m.mediaType ?? "") || /pdf/i.test(m.fileExtension ?? "")).length,
+                0,
+            ),
+        [lessons],
+    );
 
     return (
         <div className="min-h-screen bg-gray-50">
             <CourseHero
-                department="SCIENCE DEPARTMENT"
-                title="Basic Science"
-                teacher="Mr. Emeka Nwosu"
-                icon="🔬"
-                topics={6}
-                lessons={18}
-                pdfs={5}
-                quizzes={8}
-                progress={42}
-                lessonsCompleted={7}
-                topicsRemaining={3}
+                department={locationState?.category}
+                title={subjectName}
+                teacher={teacher}
+                icon={style.icon}
+                topics={topicsCount}
+                lessons={lessons.length}
+                pdfs={pdfsCount}
+                quizzes={quizzesCount}
             />
 
             <div className="mx-3 my-[11px]">
@@ -44,15 +102,31 @@ const SubjectList = () => {
                         </button>
                     ))}
                 </div>
-
-
             </div>
 
-
-            {activeTab === "Overview" && <CourseOverview />}
-            {activeTab === "Topics" && <CourseTopics />}
-            {activeTab === "Assessments" && <CourseAssessments />}
-            {activeTab === "PDFs" && <CoursePDFs />}
+            {loading ? (
+                <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-400">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading subject...
+                </div>
+            ) : (
+                <>
+                    {activeTab === "Overview" && (
+                        <CourseOverview
+                            subjectId={subjectId}
+                            lessons={lessons}
+                            topicsCount={topicsCount}
+                            quizzesCount={quizzesCount}
+                            category={locationState?.category}
+                            subjectType={locationState?.subjectType}
+                            classroomName={classroomName}
+                        />
+                    )}
+                    {activeTab === "Topics" && <CourseTopics lessons={lessons} />}
+                    {activeTab === "Assessments" && <CourseAssessments subjectId={subjectId} lessons={lessons} />}
+                    {activeTab === "PDFs" && <CoursePDFs lessons={lessons} />}
+                </>
+            )}
 
         </div>
     )

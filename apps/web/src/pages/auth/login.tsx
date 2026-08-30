@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -63,16 +63,6 @@ function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | null>(null);
-  const [schoolName, setSchoolName] = useState<string | null>(null);
-  // Restore school branding from a previous session
-  useEffect(() => {
-    const stored =
-      localData.retrieve<{ logoUrl: string; schoolName: string }>("th_school") ??
-      localData.retrieve<{ logoUrl: string; schoolName: string }>("schoolInfo");
-    if (stored?.logoUrl) setSchoolLogoUrl(stored.logoUrl);
-    if (stored?.schoolName) setSchoolName(stored.schoolName);
-  }, []);
 
   const {
     register,
@@ -150,11 +140,6 @@ function Login() {
 
       localStorage.setItem("accessTokenExpiresAt", String(Date.now() + result.tokenExpiresIn * 1000));
       loginAuth(result.token, { ...user, roleName: user.role }, result.refreshToken);
-      // Update school branding immediately
-      if (result.schoolInfo?.logoUrl) {
-        setSchoolLogoUrl(result.schoolInfo.logoUrl);
-        setSchoolName(result.schoolInfo.schoolName ?? null);
-      }
 
       // Hydrate auth context (sets "token" key in localStorage + user state)
 
@@ -223,18 +208,6 @@ function Login() {
             Enter your credentials to continue
           </p>
         </div>
-
-        {/* ── School branding ── */}
-        {schoolLogoUrl && (
-          <div className="mb-6">
-            <img
-              src={schoolLogoUrl}
-              alt={schoolName ?? "School logo"}
-              loading="lazy"
-              className="h-8 w-auto object-contain"
-            />
-          </div>
-        )}
 
         {/* ── Inline error banner ── */}
         {errorMsg && (
