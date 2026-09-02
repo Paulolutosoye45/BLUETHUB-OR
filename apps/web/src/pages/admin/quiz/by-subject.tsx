@@ -204,7 +204,7 @@ const QuizBySubject = () => {
                       <div className="bg-white p-3 sm:p-4 text-center">
                         <CheckCircle2 className="w-4 h-4 mx-auto mb-1 text-green-500" />
                         <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Passed</p>
-                        <p className="text-base sm:text-lg font-bold text-green-600">{q.passCount}</p>
+                        <p className="text-base sm:text-lg font-bold text-green-600">{q.passedCount}</p>
                       </div>
                       <div className="bg-white p-3 sm:p-4 text-center">
                         <XCircle className="w-4 h-4 mx-auto mb-1 text-red-500" />
