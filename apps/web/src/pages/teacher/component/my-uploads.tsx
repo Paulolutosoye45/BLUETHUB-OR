@@ -726,6 +726,11 @@ const MyUploads = () => {
   };
 
   const handleSaveEditedQuestions = async () => {
+    // Everything below runs synchronously up to setIsSavingEditedQuestions(true)
+    // — the button's disabled state doesn't take effect until React repaints,
+    // so a fast double-click could otherwise start two full save loops (each
+    // POSTing every question) before the first one flips the flag.
+    if (isSavingEditedQuestions) return;
     setSaveError(null);
 
     if (!previewJob) {
