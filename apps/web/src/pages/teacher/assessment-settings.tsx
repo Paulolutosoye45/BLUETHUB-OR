@@ -1,4 +1,5 @@
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
+import MathText from "@/component/math-text";
 import {
   Button,
   Dialog,
@@ -917,9 +918,10 @@ const AssessmentConfigPage = () => {
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <p className="text-xs text-slate-400 font-medium">#{idx + 1}</p>
-                              <p className="text-sm font-semibold text-slate-700 leading-5 mt-0.5 line-clamp-2">
-                                {question.title || "Untitled question"}
-                              </p>
+                              <MathText
+                                text={question.title || "Untitled question"}
+                                className="block text-sm font-semibold text-slate-700 leading-5 mt-0.5 line-clamp-2"
+                              />
                               {question.imageUrl && (
                                 <img
                                   src={question.imageUrl}
@@ -1024,9 +1026,10 @@ const AssessmentConfigPage = () => {
                         )}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-700 leading-5 line-clamp-2">
-                          {q.title || "Untitled question"}
-                        </p>
+                        <MathText
+                          text={q.title || "Untitled question"}
+                          className="block text-sm font-medium text-slate-700 leading-5 line-clamp-2"
+                        />
                         {q.imageUrl && (
                           <img
                             src={q.imageUrl}
