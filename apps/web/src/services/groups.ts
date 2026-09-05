@@ -4,12 +4,12 @@ import { API, type TResponse } from ".";
 const headers = { "X-Tenant-ID": getTenantFromUrl() };
 
 // ── Backend contract ────────────────────────────────────────────────────────
-//   POST /api/groups/create                    student: create a study group
-//   POST /api/groups/{groupId}/members          student (creator only): invite classmates
-//   GET  /api/groups/my-groups                  student: groups created or belonged to
-//   GET  /api/groups/{groupId}                  student (members only): group detail
-//   POST /api/groups/{groupId}/content/submit   student (active member): submit content
-// No "remove member" endpoint exists yet — invite/add only.
+//   POST   /api/groups/create                    student: create a study group
+//   POST   /api/groups/{groupId}/members          student (creator only): invite classmates
+//   DELETE /api/groups/{groupId}/members/{id}     student (creator only, not self): remove a member
+//   GET    /api/groups/my-groups                  student: groups created or belonged to
+//   GET    /api/groups/{groupId}                  student (members only): group detail
+//   POST   /api/groups/{groupId}/content          student (active member): submit content
 // ────────────────────────────────────────────────────────────────────────────
 
 export type GroupStatus = "PendingApproval" | "Approved" | "Rejected" | string;
@@ -66,28 +66,40 @@ export interface GroupDetail {
   name: string;
   status: GroupStatus;
   classroomId: string;
+  createdBy: string;
   members: GroupMember[];
   content: GroupContentItem[];
 }
 
+// Same shape as a lesson's MediaFilePayload (services/lesson.ts) — media is
+// uploaded via the existing direct-to-CDN flow first, then this metadata is
+// attached to the content submission.
 export interface GroupContentMediaFile {
-  mediaType: string;
+  fileName: string;
+  originalFileName: string;
+  fileExtension: string;
   cloudinaryUrl: string;
   publicId: string;
+  fileSizeBytes: number;
+  duration?: number;
+  displayOrder: number;
+  metaData?: string;
 }
 
 export interface SubmitGroupContentPayload {
   subjectId: string;
-  topicId: string;
+  topicId: string | null;
+  subTopic: string | null;
   aim: string;
   description: string;
   mediaFiles: GroupContentMediaFile[];
-  boardSessionId?: string;
 }
 
 export interface SubmitGroupContentData {
   contentId: string;
+  groupId: string;
   status: GroupContentStatus;
+  createdAt: string;
 }
 
 export const groupService = {
@@ -104,7 +116,11 @@ export const groupService = {
     API.get<TResponse<GroupDetail>>(`/api/groups/${groupId}`, { headers }),
 
   submitGroupContent: (groupId: string, payload: SubmitGroupContentPayload) =>
-    API.post<TResponse<SubmitGroupContentData>>(`/api/groups/${groupId}/content/submit`, payload, { headers }),
+    API.post<TResponse<SubmitGroupContentData>>(`/api/groups/${groupId}/content`, payload, { headers }),
+
+  // Creator only — 403 otherwise. Creator can't remove themselves — 400.
+  removeMember: (groupId: string, studentId: string) =>
+    API.delete<TResponse<null>>(`/api/groups/${groupId}/members/${studentId}`, { headers }),
 };
 
 export default groupService;
