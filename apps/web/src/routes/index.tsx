@@ -45,6 +45,7 @@ import ParentAttendance from '@/pages/parent/attendance';
 import StudentIndex from '@/pages/student/component/main';
 import StudyGroupsIndex from '@/pages/student/study-groups';
 import StudyGroupDetailPage from '@/pages/student/study-groups/group-detail';
+import SubmitGroupContentPage from '@/pages/student/study-groups/submit-content';
 import StudentSettings from '@/shared/setting';
 import ProfileLayout from '@/pages/student/profile/layout';
 import Profile from '@/pages/student/profile/profile';
@@ -203,6 +204,15 @@ const router = createBrowserRouter([
         path: "teacher/board",
         element: <ErrorBoundary fallbackMessage="Whiteboard error">
             <TeacherProtectedRoute><ClassRoom /></TeacherProtectedRoute>
+        </ErrorBoundary>
+    },
+    {
+        // Same whiteboard component the teacher live-class flow uses — a board
+        // session is just whatever lessonId sessionStorage.activeLesson holds
+        // (see utils/launch-student-board.ts), so it works unchanged here.
+        path: "student/board",
+        element: <ErrorBoundary fallbackMessage="Whiteboard error">
+            <StudentProtectedRoute><ClassRoom /></StudentProtectedRoute>
         </ErrorBoundary>
     },
 
@@ -547,6 +557,7 @@ const router = createBrowserRouter([
                 children: [
                     { index: true, element: <StudyGroupsIndex /> },
                     { path: ':groupId', element: <StudyGroupDetailPage /> },
+                    { path: ':groupId/content/new', element: <SubmitGroupContentPage /> },
                 ]
             }
 

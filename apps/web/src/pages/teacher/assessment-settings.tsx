@@ -1,4 +1,5 @@
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
+import MathText from "@/component/math-text";
 import {
   Button,
   Dialog,
@@ -1035,9 +1036,10 @@ const AssessmentConfigPage = () => {
                         )}
                       </span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-700 leading-5 line-clamp-2">
-                          {q.title || "Untitled question"}
-                        </p>
+                        <MathText
+                          text={q.title || "Untitled question"}
+                          className="block text-sm font-medium text-slate-700 leading-5 line-clamp-2"
+                        />
                         {q.imageUrl && (
                           <img
                             src={q.imageUrl}
