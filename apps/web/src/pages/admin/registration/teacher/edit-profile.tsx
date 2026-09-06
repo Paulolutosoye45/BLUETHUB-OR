@@ -390,10 +390,10 @@ const TeacherEditProfile = () => {
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <div className="px-4 sm:px-6 py-5 font-poppins">
-      <div className="max-w-3xl mx-auto space-y-5">
+      <div className=" space-y-5">
         {/* header */}
-        <div className="rounded-2xl bg-chestnut px-6 py-4 text-white">
-          <h1 className="text-lg sm:text-xl font-semibold">{pageTitle}</h1>
+        <div className="rounded-md bg-chestnut px-6 py-4 text-white">
+          <h1 className="text-base sm:text-lg font-semibold">{pageTitle}</h1>
           <p className="mt-0.5 text-xs sm:text-sm text-white/80">
             Update profile details or manage assignments below.
           </p>
@@ -424,7 +424,7 @@ const TeacherEditProfile = () => {
         {!loading && !errorMsg && userData && (
           <>
             {/* ── CARD 1: Profile ── */}
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden">
               <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2 bg-slate-50">
                 <GraduationCap className="h-4 w-4 text-chestnut" />
                 <h2 className="text-sm font-semibold text-slate-700">Profile</h2>
@@ -540,7 +540,7 @@ const TeacherEditProfile = () => {
 
             {/* ── CARD 2: Assignments (hidden for Admin) ── */}
             {!isAdmin && (
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <div className="rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden">
                 <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2 bg-slate-50">
                   <BookOpen className="h-4 w-4 text-chestnut" />
                   <h2 className="text-sm font-semibold text-slate-700">
