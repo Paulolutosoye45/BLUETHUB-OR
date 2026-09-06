@@ -5,7 +5,6 @@ import { Hashing } from "@/utils";
 import { ArrowLeft, BookOpen, GraduationCap, LayoutGrid, Loader2, Plus, Save, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import type { Subject } from "../course/main";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -85,7 +84,13 @@ const TeacherEditProfile = () => {
   const [selectedClassroomId, setSelectedClassroomId] = useState("");
 
   // ── add-subject dialog (subject teacher only) ─────────────────────────────
-  const [allSubjects, setAllSubjects] = useState<Subject[]>([]);
+  // Subjects are scoped per-classroom — a subject teacher assigned to
+  // multiple classrooms can have a different subject catalog in each, so
+  // this is fetched fresh (per classroom) each time the dialog opens rather
+  // than once for the whole school.
+  type DialogSubject = { id: string; name: string; category: "Major" | "Minor" };
+  const [dialogSubjects, setDialogSubjects] = useState<DialogSubject[]>([]);
+  const [loadingDialogSubjects, setLoadingDialogSubjects] = useState(false);
   const [addSubjectClassroomId, setAddSubjectClassroomId] = useState<string | null>(null);
   const [pendingSubjectIds, setPendingSubjectIds] = useState<string[]>([]);
 
@@ -172,21 +177,6 @@ const TeacherEditProfile = () => {
     loadClassrooms();
   }, [isClassOrHeadTeacher, selectedClassroomId]);
 
-  useEffect(() => {
-    if (!isSubjectTeacher) return;
-
-    const loadSubjects = async () => {
-      try {
-        const { data } = await schoolService.getAllSubject();
-        setAllSubjects(data.data.subjects ?? []);
-      } catch {
-        // Non-fatal — the Add Subject dialog will just show no options.
-      }
-    };
-
-    loadSubjects();
-  }, [isSubjectTeacher]);
-
   // ── save profile ───────────────────────────────────────────────────────────
   const saveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -243,9 +233,29 @@ const TeacherEditProfile = () => {
     );
   };
 
-  const openAddSubjectDialog = (classroomId: string) => {
+  const openAddSubjectDialog = async (classroomId: string) => {
     setAddSubjectClassroomId(classroomId);
     setPendingSubjectIds([]);
+    setDialogSubjects([]);
+    setLoadingDialogSubjects(true);
+    try {
+      const { data } = await schoolService.getSubjectsByClassroomId(classroomId);
+      const payload = (data as any)?.data ?? {};
+      const normalize = (rows: any[], category: "Major" | "Minor"): DialogSubject[] =>
+        (rows ?? []).map((s: any) => ({
+          id: String(s.id ?? s.subjectId ?? ""),
+          name: String(s.subject ?? s.subjectName ?? s.name ?? ""),
+          category,
+        }));
+      setDialogSubjects([
+        ...normalize(payload.majorSubjects, "Major"),
+        ...normalize(payload.minorSubjects, "Minor"),
+      ]);
+    } catch {
+      // Non-fatal — the dialog will just show "Nothing to add" for both columns.
+    } finally {
+      setLoadingDialogSubjects(false);
+    }
   };
 
   const togglePendingSubject = (subjectId: string) => {
@@ -262,12 +272,12 @@ const TeacherEditProfile = () => {
         prev.map((c) => {
           if (c.classroomId !== addSubjectClassroomId) return c;
           const existingIds = new Set((c.subjects ?? []).map((s) => s.subjectId));
-          const added: SubjectDto[] = allSubjects
+          const added: SubjectDto[] = dialogSubjects
             .filter((s) => pendingSubjectIds.includes(s.id) && !existingIds.has(s.id))
             .map((s) => ({
               subjectId: s.id,
               subjectName: s.name,
-              subjectCategory: s.subjectCategoryName,
+              subjectCategory: s.category,
             }));
           return { ...c, subjects: [...(c.subjects ?? []), ...added] };
         }),
@@ -275,6 +285,7 @@ const TeacherEditProfile = () => {
     }
     setAddSubjectClassroomId(null);
     setPendingSubjectIds([]);
+    setDialogSubjects([]);
   };
 
   // ── save assignments ───────────────────────────────────────────────────────
@@ -378,10 +389,10 @@ const TeacherEditProfile = () => {
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <div className="px-4 sm:px-6 py-5 font-poppins">
-      <div className="max-w-3xl mx-auto space-y-5">
+      <div className=" space-y-5">
         {/* header */}
-        <div className="rounded-2xl bg-chestnut px-6 py-4 text-white">
-          <h1 className="text-lg sm:text-xl font-semibold">{pageTitle}</h1>
+        <div className="rounded-md bg-chestnut px-6 py-4 text-white">
+          <h1 className="text-base sm:text-lg font-semibold">{pageTitle}</h1>
           <p className="mt-0.5 text-xs sm:text-sm text-white/80">
             Update profile details or manage assignments below.
           </p>
@@ -412,7 +423,7 @@ const TeacherEditProfile = () => {
         {!loading && !errorMsg && userData && (
           <>
             {/* ── CARD 1: Profile ── */}
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+            <div className="rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden">
               <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2 bg-slate-50">
                 <GraduationCap className="h-4 w-4 text-chestnut" />
                 <h2 className="text-sm font-semibold text-slate-700">Profile</h2>
@@ -528,7 +539,7 @@ const TeacherEditProfile = () => {
 
             {/* ── CARD 2: Assignments (hidden for Admin) ── */}
             {!isAdmin && (
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+              <div className="rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden">
                 <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2 bg-slate-50">
                   <BookOpen className="h-4 w-4 text-chestnut" />
                   <h2 className="text-sm font-semibold text-slate-700">
@@ -675,6 +686,7 @@ const TeacherEditProfile = () => {
           if (!open) {
             setAddSubjectClassroomId(null);
             setPendingSubjectIds([]);
+            setDialogSubjects([]);
           }
         }}
       >
@@ -696,8 +708,8 @@ const TeacherEditProfile = () => {
                 (keptClassrooms.find((c) => c.classroomId === addSubjectClassroomId)?.subjects ?? [])
                   .map((s) => s.subjectId),
               );
-              const options = allSubjects.filter(
-                (s) => s.subjectCategoryName === category && !existingIds.has(s.id),
+              const options = dialogSubjects.filter(
+                (s) => s.category === category && !existingIds.has(s.id),
               );
               return (
                 <div
@@ -712,7 +724,12 @@ const TeacherEditProfile = () => {
                     {category}
                   </p>
                   <div className="flex flex-col gap-0.5 max-h-60 overflow-y-auto pr-1">
-                    {options.length === 0 ? (
+                    {loadingDialogSubjects ? (
+                      <div className="flex items-center gap-2 text-gray-400 py-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span className="text-xs">Loading...</span>
+                      </div>
+                    ) : options.length === 0 ? (
                       <p className="text-xs text-gray-400 py-2">Nothing to add</p>
                     ) : (
                       options.map((s) => (
@@ -754,6 +771,7 @@ const TeacherEditProfile = () => {
                 onClick={() => {
                   setAddSubjectClassroomId(null);
                   setPendingSubjectIds([]);
+                  setDialogSubjects([]);
                 }}
               >
                 Cancel

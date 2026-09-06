@@ -364,8 +364,8 @@ const EditStudent = () => {
   }
 
   return (
-    <div className="md:p-6 p-3 font-poppins">
-      <div className="rounded-2xl overflow-hidden border border-white/20 bg-white/75 backdrop-blur-sm">
+    <div className="p-3 font-poppins">
+      <div className="overflow-hidden border border-white/20 bg-white/75 backdrop-blur-sm">
         <div className="flex items-center justify-between px-5 py-4 bg-chestnut text-white">
           <div className="flex items-center gap-2.5 min-w-0">
             <SquarePen className="h-5 w-5" />

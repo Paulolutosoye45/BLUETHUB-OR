@@ -165,7 +165,7 @@ const EditClassModal = ({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="p-0 gap-0 overflow-hidden rounded-2xl border-0 shadow-2xl max-w-md w-full">
+            <DialogContent  showCloseButton={false} className="p-0 gap-0 overflow-hidden rounded-2xl border-0 shadow-2xl max-w-md w-full">
 
                 {/* ── HEADER ────────────────────────────────────────────── */}
                 <div

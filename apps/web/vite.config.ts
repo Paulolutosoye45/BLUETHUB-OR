@@ -2,6 +2,7 @@ import { defineConfig, type PluginOption } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import svgr from "vite-plugin-svgr";
+import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -9,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
 
-  plugins: [react(), tailwindcss(), svgr()] as PluginOption[],
+  plugins: [react(), tailwindcss(), svgr(), VitePWA({ registerType: "autoUpdate" })] as PluginOption[],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
