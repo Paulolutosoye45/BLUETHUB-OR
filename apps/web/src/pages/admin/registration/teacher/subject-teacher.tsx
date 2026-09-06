@@ -230,7 +230,7 @@ const SubjectTeacher = () => {
         </div>
 
         {/* Form Content */}
-        <form onSubmit={handleSubmit(handleRegister)} className="p-8 bg-linear-to-br from-white/95 to-white/85">
+        <form onSubmit={handleSubmit(handleRegister)} className="p-8 bg-linear-to-br from-white/95 to-white/85 min-h-[80vh]">
           <div className="flex flex-col lg:flex-row gap-7 md:gap-12">
             {/* Profile Picture Upload */}
             <div className="space-y-3">

@@ -189,7 +189,7 @@ const HeadTeacher = () => {
         </div>
 
         {/* Form Content */}
-        <form onSubmit={handleSubmit(handleRegister)} className="p-8 bg-linear-to-br from-white/95 to-white/85">
+        <form onSubmit={handleSubmit(handleRegister)} className="p-8 bg-linear-to-br from-white/95 to-white/85 min-h-screen">
           <div className="flex gap-12">
             {/* Profile Picture Upload */}
             <div className="space-y-3">
